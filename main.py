@@ -4,7 +4,7 @@ import subprocess
 import sys
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-install('wows-api')
+install('wargaming')
 import wargaming
 import pandas as pd
 from numpy.random import randint
