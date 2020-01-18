@@ -5,6 +5,9 @@ import sys
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 install('wargaming')
+install('pandas')
+install('numpy')
+
 import wargaming
 import pandas as pd
 from numpy.random import randint
