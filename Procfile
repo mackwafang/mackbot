@@ -1,2 +1,2 @@
 wargaming==2018.5.0
-worker: python main.py
+web: python main.py
