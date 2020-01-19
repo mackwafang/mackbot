@@ -292,7 +292,7 @@ class Client(discord.Client):
 				await channel.send("Beep bop. I'm a bot Mack created for the purpose of helping LODGE players with clan builds.") # block until message is sent
 			if message.content.startswith(command_header+token+command_list[5]):
 				# list skills
-				embed = discord.Embed(title="Commander List")
+				embed = discord.Embed(title="Commander Skill List")
 				m = [skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list]
 				m.sort()
 				m = ''.join(m)
