@@ -1,4 +1,14 @@
 import discord
+DEBUG_IS_MAINTANCE = False
+import subprocess
+import sys
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+if not DEBUG_IS_MAINTANCE:
+	install('wargaming')
+	install('pandas')
+	install('numpy')
+
 import wargaming
 import pandas as pd
 from numpy.random import randint
@@ -166,6 +176,7 @@ class Client(discord.Client):
 	def help_message(self,message):
 		# help message
 		command = message[message.rfind('-')+1:]
+		print(command)
 		if command in command_list:
 			embed = discord.Embed(title=f"Command Help")
 			embed.add_field(name='Command',value=command)
@@ -202,6 +213,15 @@ class Client(discord.Client):
 	
 	async def on_message(self,message):
 		channel = message.channel
+		if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
+			await channel.send(self.user.display_name+" is under maintance. Please wait until maintance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
+			return
+		if message.content.startswith("<@!"+str(self.user.id)+">"):
+			print(f"User {message.author} requested my help.")
+			embed = self.help_message(command_header+token+command_list[0])
+			if not embed is None:
+				print(f"sending help message")
+				await channel.send("はい、サラはここに。", embed=embed)
 		if message.content.startswith(command_header+token):
 			arg = message.content[message.content.find('-')+1:]
 			print(f'User <{message.author}> requested command "<{arg}>"')
