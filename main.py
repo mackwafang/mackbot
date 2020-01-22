@@ -200,8 +200,10 @@ class Client(discord.Client):
 				embed.add_field(name='Usage',value=command_header+token+command)
 				embed.add_field(name='Description',value='Who\'s this bot?')
 			if command == 'listskills':
-				embed.add_field(name='Usage',value=command_header+token+command)
-				embed.add_field(name='Description',value='List name and the abbreviation of the all commander skills')
+				embed.add_field(name='Usage',value=command_header+token+command+token+"[type/tier] [type_name/tier_number]")
+				embed.add_field(name='Description',value='List name and the abbreviation of the all commander skills.\n'+
+					'**-type-[type_name]**: Optional. Returns all skills of indicated skill type. Acceptable values: [Attack, Endurance, Support, Versatility]\n'+
+					'**-tier-[tier_number]**: Optional. Returns all skills of the indicated tier. Acceptable values: [1,2,3,4]')
 			if command == 'upgrade':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[upgrade/abbr]')
 				embed.add_field(name='Description',value='List name requested warship upgrade')
@@ -213,9 +215,7 @@ class Client(discord.Client):
 	
 	async def on_message(self,message):
 		channel = message.channel
-		if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
-			await channel.send(self.user.display_name+" is under maintance. Please wait until maintance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
-			return
+		arg = message.content.split('-')
 		if message.content.startswith("<@!"+str(self.user.id)+">"):
 			print(f"User {message.author} requested my help.")
 			embed = self.help_message(command_header+token+command_list[0])
@@ -223,23 +223,26 @@ class Client(discord.Client):
 				print(f"sending help message")
 				await channel.send("はい、サラはここに。", embed=embed)
 		if message.content.startswith(command_header+token):
-			arg = message.content[message.content.find('-')+1:]
-			print(f'User <{message.author}> requested command "<{arg}>"')
-			if message.content.startswith(command_header+token+command_list[0]):
+			if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
+				await channel.send(self.user.display_name+" is under maintance. Please wait until maintance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
+				return
+			request_type = arg[1:]
+			print(f'User <{message.author}> requested command "<{request_type}>"')
+			if arg[1] == command_list[0]:
 				embed = self.help_message(message.content)
 				if not embed is None:
 					print(f"sending help message for command <{command_list[0]}>")
 					await channel.send(embed=embed)
-			if message.content.startswith(command_header+token+command_list[1]):
+			if arg[1] == command_list[1]:
 				# good bot
 				r = randint(len(good_bot_messages))
 				print(f"send reply message for {command_list[1]}")
 				await channel.send(good_bot_messages[r]) # block until message is sent
-			if message.content.startswith(command_header+token+command_list[2]):
+			if arg[1] == command_list[2]:
 				# get voted ship build
 				message_string = message.content
 				# message parse
-				ship = message_string[message_string.rfind('-')+1:]
+				ship = arg[2]
 				ship_found = False
 				if ship == command_list[2]:
 					embed = self.help_message(command_header+token+command_list[2])
@@ -270,12 +273,12 @@ class Client(discord.Client):
 							await channel.send(f"Ship <{ship}> is not understood")
 					except Exception as e:
 						print(f"Exception {type(e)}: ",e)
-			if message.content.startswith(command_header+token+command_list[3]):
+			if arg[1] == command_list[3]:
 				# get information on requested skill
 				message_string = message.content
 				skill_found = False
 				# message parse
-				skill = message_string[message_string.rfind('-')+1:]
+				skill = arg[2] #message_string[message_string.rfind('-')+1:]
 				if skill == command_list[3]:
 					embed = self.help_message(command_header+token+command_list[3])
 					if not embed is None:
@@ -322,23 +325,60 @@ class Client(discord.Client):
 						except Exception as e:
 							print(f"Exception {type(e)}: ",e)
 							await channel.send(f"Skill <{skill.title()}> is not understood.")
-			if message.content.startswith(command_header+token+command_list[4]):
+			if arg[1] == command_list[4]: #message.content.startswith(command_header+token+command_list[4]):
 				# identify yourself, bot
 				await channel.send("Beep bop. I'm a bot Mack created for the purpose of helping LODGE players with clan builds.") # block until message is sent
-			if message.content.startswith(command_header+token+command_list[5]):
+			if arg[1] == command_list[5]: #message.content.startswith(command_header+token+command_list[5]):
 				# list skills
 				embed = discord.Embed(title="Commander Skill List")
+				message_string = message.content
 				m = [skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list]
-				m.sort()
-				m = ''.join(m)
-				embed.add_field(name='Skill (Abbr.)',value=m)
-				await channel.send(embed=embed)
-			if message.content.startswith(command_header+token+command_list[6]):
+				message_success = False
+				if len(arg) >= 3:
+					# asking for specific category, modifies message to something else
+					if arg[2] == 'type':
+						# get all skills of this type
+						try:
+							skill_type = arg[3]
+							embed.title = f"{skill_type.title()} Commander Skills"
+							m = [f"(Tier {skill_list[i]['tier']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
+							message_success = True
+						except Exception as e:
+							m = ["Oops!"]
+							print(e)
+							if type(e) == IndexError:
+								await channel.send(f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]")
+							else:
+								print(f"Skill listing argument <{arg[3]}> is invalid.")
+								await channel.send(f"Value {arg[3]} is not understood")
+					elif arg[2] == 'tier':
+						# get all skills of this tier
+						try:
+							tier = int(arg[3])
+							embed.title = f"Tier {tier} Commander Skills"
+							m = [f"({skill_list[i]['type_name']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['tier'] == tier]
+							message_success = True
+						except Exception as e:
+							m = ["Oops!"]
+							if type(e) == IndexError:
+								await channel.send(f"Please specify a skill tier! Acceptable values: [1,2,3,4]")
+							else:
+								print(f"Skill listing argument <{arg[3]}> is invalid.")
+								await channel.send(f"Value {arg[3]} is not understood")
+					else:
+						# not a known argument
+						pass
+				if message_success:
+					m.sort()
+					m = ''.join(m)
+					embed.add_field(name='Skill (Abbr.)',value=m)
+					await channel.send(embed=embed)
+			if arg[1] == command_list[6]: #message.content.startswith(command_header+token+command_list[6]):
 				# get information on requested upgrade
 				message_string = message.content
 				upgrade_found = False
 				# message parse
-				upgrade = message_string[message_string.rfind('-')+1:]
+				upgrade = arg[2] # message_string[message_string.rfind('-')+1:]
 				if upgrade == command_list[6]:
 					# argument is empty, send help message
 					embed = self.help_message(command_header+token+command_list[6])
@@ -381,12 +421,12 @@ class Client(discord.Client):
 						except Exception as e:
 							print(f"Exception {type(e)}: ",e)
 							await channel.send(f"upgrade <{upgrade.title()}> is not understood.")
-			if message.content.startswith(command_header+token+command_list[7]):
+			if arg[1] == command_list[7]: #message.content.startswith(command_header+token+command_list[7]):
 				# list upgrades
 				message_string = message.content
 				embed = discord.Embed(title="Upgrade List")
 				try:
-					page = message_string[message_string.rfind('-')+1:]
+					page = arg[2] #message_string[message_string.rfind('-')+1:]
 					# argument is a number
 					if page == command_list[7]:
 						# argument is empty, send help message
@@ -408,6 +448,8 @@ class Client(discord.Client):
 					# argument is something else
 					print(f"Exception {type(e)}: ",e)
 					await channel.send("Value given is not a valid value.")
+		else:
+			await channel.send(f"I don't know command **{command}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
 	client.run('NjY3ODY2MzkxMjMxMzMyMzUz.XiI94A.JjQtinUguaHFnu_XOWNokwZ0B6s')
