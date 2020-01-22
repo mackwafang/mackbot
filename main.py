@@ -336,40 +336,41 @@ class Client(discord.Client):
 				message_string = message.content
 				m = [skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list]
 				message_success = False
-				if len(arg) >= 3:
-					# asking for specific category, modifies message to something else
-					if arg[2] == 'type':
-						# get all skills of this type
-						try:
-							skill_type = arg[3]
-							embed.title = f"{skill_type.title()} Commander Skills"
-							m = [f"(Tier {skill_list[i]['tier']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
-							message_success = True
-						except Exception as e:
-							m = ["Oops!"]
-							print(e)
-							if type(e) == IndexError:
-								await channel.send(f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]")
-							else:
-								print(f"Skill listing argument <{arg[3]}> is invalid.")
-								await channel.send(f"Value {arg[3]} is not understood")
-					elif arg[2] == 'tier':
-						# get all skills of this tier
-						try:
-							tier = int(arg[3])
-							embed.title = f"Tier {tier} Commander Skills"
-							m = [f"({skill_list[i]['type_name']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['tier'] == tier]
-							message_success = True
-						except Exception as e:
-							m = ["Oops!"]
-							if type(e) == IndexError:
-								await channel.send(f"Please specify a skill tier! Acceptable values: [1,2,3,4]")
-							else:
-								print(f"Skill listing argument <{arg[3]}> is invalid.")
-								await channel.send(f"Value {arg[3]} is not understood")
-					else:
-						# not a known argument
-						pass
+				async with channel.typing():
+					if len(arg) >= 3:
+						# asking for specific category, modifies message to something else
+						if arg[2] == 'type':
+							# get all skills of this type
+							try:
+								skill_type = arg[3]
+								embed.title = f"{skill_type.title()} Commander Skills"
+								m = [f"(Tier {skill_list[i]['tier']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
+								message_success = True
+							except Exception as e:
+								m = ["Oops!"]
+								print(e)
+								if type(e) == IndexError:
+									await channel.send(f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]")
+								else:
+									print(f"Skill listing argument <{arg[3]}> is invalid.")
+									await channel.send(f"Value {arg[3]} is not understood")
+						elif arg[2] == 'tier':
+							# get all skills of this tier
+							try:
+								tier = int(arg[3])
+								embed.title = f"Tier {tier} Commander Skills"
+								m = [f"({skill_list[i]['type_name']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['tier'] == tier]
+								message_success = True
+							except Exception as e:
+								m = ["Oops!"]
+								if type(e) == IndexError:
+									await channel.send(f"Please specify a skill tier! Acceptable values: [1,2,3,4]")
+								else:
+									print(f"Skill listing argument <{arg[3]}> is invalid.")
+									await channel.send(f"Value {arg[3]} is not understood")
+						else:
+							# not a known argument
+							pass
 				if message_success:
 					m.sort()
 					m = ''.join(m)
@@ -450,8 +451,8 @@ class Client(discord.Client):
 					# argument is something else
 					print(f"Exception {type(e)}: ",e)
 					await channel.send("Value given is not a valid value.")
-		else:
-			await channel.send(f"I don't know command **{command}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
+			if not arg[1] in command_list:
+				await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
 	client.run('NjY3ODY2MzkxMjMxMzMyMzUz.XiI94A.JjQtinUguaHFnu_XOWNokwZ0B6s')
