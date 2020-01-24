@@ -396,7 +396,7 @@ class Client(discord.Client):
 			request_type = arg[1:]
 			print(f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
 			if arg[1] == command_list[0]:
-				embed = self.help_message(message.content)
+				embed = self.help_message(message.content+token+"help")
 				if not embed is None:
 					print(f"sending help message for command <{command_list[0]}>")
 					await channel.send(embed=embed)

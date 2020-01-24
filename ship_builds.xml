@@ -23,7 +23,7 @@
 	</ship>
 	<ship name="moskva">
 		<upgrades>
-			<upgrade>mbm1</upgrade>
+			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
 			<upgrade>asm1</upgrade>
 			<upgrade>sgm2</upgrade>
