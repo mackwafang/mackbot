@@ -2,14 +2,15 @@ import discord
 
 DEBUG_IS_MAINTANCE = False
 
-import subprocess
-import sys
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-if not DEBUG_IS_MAINTANCE:
-	install('wargaming')
-	install('pandas')
-	install('numpy')
+# import subprocess
+# import sys
+import xml.etree.ElementTree as et
+# def install(package):
+    # subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+# if not DEBUG_IS_MAINTANCE:
+	# install('wargaming')
+	# install('pandas')
+	# install('numpy')
 
 import wargaming
 import pandas as pd
@@ -40,6 +41,18 @@ del ship_list['3749623248']
 frame = pd.DataFrame(ship_list)
 frame = frame.filter(items=['name','nation','images','type','tier'],axis=0)
 ship_list = frame.to_dict()
+print('Fetching build file...')
+root = et.parse("./ship_builds.xml").getroot()
+print('Making build dictionary...')
+build = {}
+for ship in root:
+	upgrades = []
+	skills = []
+	for upgrade in ship.find('upgrades'):
+		upgrades.append(upgrade.text)
+	for skill in ship.find('skills'):
+		skills.append(skill.text)
+	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills}
 print("Preprocessing Done")
 
 
@@ -170,6 +183,85 @@ skill_name_abbr = {
 	'rl':'radio location',
 }
 
+def get_ship_data(ship):
+	'''
+		returns name, nation, images, ship type, tier of requested warship name
+		
+		raise exceptions for dictionary
+	'''
+	ship = ship.lower()
+	try:
+		if ship.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
+			ship = ship_name_to_ascii[ship.lower()] # convert to the appropiate name
+		for i in ship_list:
+			ship_name_in_dict = ship_list[i]['name']
+			# print(ship.lower(),ship_name_in_dict.lower())
+			if ship.lower() == ship_name_in_dict.lower(): # find ship based on name
+				ship_found = True
+				break
+		if ship_found:
+			name, nation, images, ship_type, tier = ship_list[i].values()
+			upgrades, skills = {}, {}
+			if name.lower() in build:
+				upgrades, skills = build[name.lower()].values()
+			return name, nation, images, ship_type, tier, upgrades, skills
+	except Exception as e:
+		raise e
+def get_skill_data(skill):
+	'''
+		returns name, id, skill type, perk, tier, and icon for the requested skill
+		
+		raises exception from dictionary
+	'''
+	skill = skill.lower()
+	try:
+		skill_found = False
+		# assuming input is full skill name
+		for i in skill_list:
+			if skill.lower() == skill_list[i]['name'].lower():
+				skill_found = True
+				break
+		# parsed item is probably an abbreviation, checking abbreviation
+		if not skill_found:
+			skill = skill_name_abbr[skill.lower()]
+			for i in skill_list:
+				if skill.lower() == skill_list[i]['name'].lower():
+					skill_found = True
+					break
+		# found it!
+		name, id, skill_type, perk, tier, icon = skill_list[i].values()
+		return name, id, skill_type, perk, tier, icon
+	except Exception as e:
+		# oops, probably not found
+		print(f"Exception {type(e)}: ",e)
+		raise e
+def get_upgrade_data(upgrade):
+	'''
+		returns name for the requested upgrade 
+		
+		raises exception from dictionary
+	'''
+	upgrade = upgrade.lower()
+	try:
+		upgrade_found = False
+		# assuming input is full upgrade name
+		for i in upgrade_list:
+			if upgrade.lower() == upgrade_list[i].lower():
+				upgrade_found = True
+				break
+		# parsed item is probably an abbreviation, checking abbreviation
+		if not upgrade_found:
+			upgrade = upgrade_abbr_list[upgrade.lower()]
+			for i in upgrade_list:
+				if upgrade.lower() == upgrade_list[i].lower():
+					upgrade_found = True
+					break
+		name = upgrade_list[i]
+		return name
+	except Exception as e:
+		raise e
+		print(f"Exception {type(e)}: ",e)
+
 class Client(discord.Client):
 	async def on_ready(self):
 		print("Logged on")
@@ -263,29 +355,50 @@ class Client(discord.Client):
 						await channel.send(embed=embed)
 				else:
 					try:
-						for i in ship_list:
-							ship_name_in_dict = ship_list[i]['name']
-							if ship.lower() in ship_name_to_ascii: #is the name suppose to include non-ascii character?
-								ship = ship_name_to_ascii[ship.lower()] # convert to the appropiate name
-							# print(ship.lower(),ship_name_in_dict.lower())
-							if ship.lower() == ship_name_in_dict.lower():
-								ship_found = True
-								break
-						if ship_found:
-							name, nation, images, ship_type, tier = ship_list[i].values()
-							print(f"returning ship information for <{name}>")
-							ship_type = ship_type if ship_type != 'AirCarrier' else 'Aicraft Carrier'
-							embed = discord.Embed(title="Warship Information")
-							embed.set_thumbnail(url=images['small'])
-							embed.add_field(name='Name', value=name,inline=True)
-							embed.add_field(name='Nation', value=iso_country_code[nation],inline=True)
-							embed.add_field(name='Type', value=ship_type,inline=True)
-							embed.add_field(name='Tier', value=tier,inline=True)
-							await channel.send(embed=embed)
-						else:
-							await channel.send(f"Ship <{ship}> is not understood")
+						name, nation, images, ship_type, tier, upgrades, skills = get_ship_data(ship)
+						print(f"returning ship information for <{name}>")
+						ship_type = ship_type if ship_type != 'AirCarrier' else 'Aicraft Carrier'
+						embed = discord.Embed(title="Warship Information")
+						embed.set_thumbnail(url=images['small'])
+						embed.add_field(name='Name', value=name)
+						embed.add_field(name='Nation', value=iso_country_code[nation])
+						embed.add_field(name='Type', value=ship_type)
+						embed.add_field(name='Tier', value=tier)
+						if len(upgrades) > 0:
+							m = ""
+							i = 1
+							for upgrade in upgrades:
+								upgrade_name = "[Missing]"
+								if upgrade == '*':
+									# any thing
+									upgrade_name = "Any"
+								else:
+									try: # ew, nested try/catch
+										upgrade_name = get_upgrade_data(upgrade)
+									except: 
+										upgrade_name = upgrade+" [!]"
+								m += f'(Slot {i}) **'+upgrade_name+'**\n'
+								i += 1
+							embed.add_field(name='Suggested Upgrades', value=m)
+						if len(skills) > 0:
+							m = ""
+							i = 1
+							for skill in skills:
+								skill_name = "[Missing]"
+								try: # ew, nested try/catch
+									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
+								except: 
+									skill_name = skill+" [!]"
+								m += f'(Tier {tier}) **'+skill_name+'**\n'
+								i += 1
+							embed.add_field(name='Suggested Cmdr. Skills', value=m)
+						embed.set_footer(text="[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact Mack.\n"+
+							"Suggested skills are listed in ascending acquiring order.")
+						await channel.send(embed=embed)
 					except Exception as e:
-						print(f"Exception {type(e)}: ",e)
+						print(f"Exception {type(e)}", e)
+						await channel.send(f"Ship **{ship}** is not understood")
+						
 			if arg[1] == command_list[3]:
 				# get information on requested skill
 				message_string = message.content
@@ -298,46 +411,19 @@ class Client(discord.Client):
 						await channel.send(embed=embed)
 				else:
 					try:
-						# assuming input is full skill name
-						for i in skill_list:
-							if skill.lower() == skill_list[i]['name'].lower():
-								skill_found = True
-								break
-						if skill_found:
-							print(f'sending message for skill <{skill}>')
-							name, id, skill_type, perk, tier, icon = skill_list[i].values()
+						print(f'sending message for skill <{skill}>')
+						async with channel.typing():
+							name, id, skill_type, perk, tier, icon = get_skill_data(skill)
 							embed = discord.Embed(title="Commander Skill")
 							embed.set_thumbnail(url=icon)
 							embed.add_field(name='Skill Name', value=name)
 							embed.add_field(name='Tier', value=tier)
 							embed.add_field(name='Category', value=skill_type)
 							embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk))
-							await channel.send(embed=embed)
-					except Exception as e:
-						print(f"Exception {type(e)}: ",e)
-						if e == discord.Forbidden:
-							channel.send('I do not have the proper permission :\(')
-					# parsed item is probably an abbreviation, checking abbreviation
-					if not skill_found:
-						try:
-							skill = skill_name_abbr[skill.lower()]
-							for i in skill_list:
-								if skill.lower() == skill_list[i]['name'].lower():
-									skill_found = True
-									break
-							if skill_found:
-								print(f'sending message for skill <{skill}>')
-								name, id, skill_type, perk, tier, icon = skill_list[i].values()
-								embed = discord.Embed(title="Commander Skill")
-								embed.set_thumbnail(url=icon)
-								embed.add_field(name='Skill Name', value=name)
-								embed.add_field(name='Tier', value=tier)
-								embed.add_field(name='Category', value=skill_type)
-								embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk))
-								await channel.send(embed=embed)
-						except Exception as e:
-							print(f"Exception {type(e)}: ",e)
-							await channel.send(f"Skill <{skill.title()}> is not understood.")
+						await channel.send(embed=embed)
+					except:
+						await channel.send(f"Skill **{skill}** is not understood.")
+					
 			if arg[1] == command_list[4]: #message.content.startswith(command_header+token+command_list[4]):
 				# identify yourself, bot
 				await channel.send("Beep bop. I'm a bot Mack created for the purpose of helping LODGE players with clan builds.") # block until message is sent
@@ -445,46 +531,19 @@ class Client(discord.Client):
 				else:
 					# user provided an argument
 					try:
-						# assuming input is full upgrade name
-						for i in upgrade_list:
-							if upgrade.lower() == upgrade_list[i].lower():
-								upgrade_found = True
-								break
-						if upgrade_found:
-							print(f'sending message for upgrade <{upgrade}>')
-							name = upgrade_list[i]
-							embed = discord.Embed(title="Ship Upgrade")
-							embed.add_field(name='Name', value=name)
-							embed.add_field(name='Slot',value='[Unavailable]')
-							embed.add_field(name='Description',value='[Unavailable]')
-							await channel.send(embed=embed)
-					except Exception as e:
-						print(f"Exception {type(e)}: ",e)
-						if e == discord.Forbidden:
-							channel.send('I do not have the proper permission :\(')
-					# parsed item is probably an abbreviation, checking abbreviation
-					if not upgrade_found:
-						try:
-							upgrade = upgrade_abbr_list[upgrade.lower()]
-							for i in upgrade_list:
-								if upgrade.lower() == upgrade_list[i].lower():
-									upgrade_found = True
-									break
-							if upgrade_found:
-								print(f'sending message for upgrade <{upgrade}>')
-								name = upgrade_list[i]
-								embed = discord.Embed(title="Ship Upgrade")
-								embed.add_field(name='Name', value=name)
-								embed.add_field(name='Slot',value='[Unavailable]')
-								embed.add_field(name='Description',value='[Unavailable]')
-								await channel.send(embed=embed)
-						except Exception as e:
-							print(f"Exception {type(e)}: ",e)
-							await channel.send(f"upgrade <{upgrade.title()}> is not understood.")
+						print(f'sending message for upgrade <{upgrade}>')
+						name = get_upgrade_data(upgrade)
+						embed = discord.Embed(title="Ship Upgrade")
+						embed.add_field(name='Name', value=name)
+						embed.add_field(name='Slot',value='[Unavailable]')
+						embed.add_field(name='Description',value='[Unavailable]')
+						await channel.send(embed=embed)
+					except:
+						await channel.send(f"Upgrade **{upgrade}** is not understood.")
 			if not arg[1] in command_list:
 				await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
 	client.run('NjY3ODY2MzkxMjMxMzMyMzUz.XiI94A.JjQtinUguaHFnu_XOWNokwZ0B6s')
 except Exception as e:
-	print(e)
+	print(f"{type(e)}",e)

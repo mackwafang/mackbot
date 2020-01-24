@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<build>
+	<ship name="midway">
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>aa guns modification 1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>fcm1</upgrade>
+			<upgrade>fcm2</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>de</skill>
+			<skill>ss</skill>
+		</skills>
+	</ship>
+</build>
