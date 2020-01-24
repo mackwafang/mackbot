@@ -19,5 +19,27 @@
 			<skill>de</skill>
 			<skill>ss</skill>
 		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="moskva">
+		<upgrades>
+			<upgrade>mbm1</upgrade>
+			<upgrade>srm1</upgrade>
+			<upgrade>asm1</upgrade>
+			<upgrade>sgm2</upgrade>
+			<upgrade>csm1</upgrade>
+			<upgrade>hmbg</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
+		</skills>
+		<commander>Nikolay Kuznetsov</commander>
 	</ship>
 </build>

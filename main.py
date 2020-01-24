@@ -20,14 +20,21 @@ print("Fetching WoWS Encyclopedia")
 wows_encyclopedia = wargaming.WoWS('74309abd627a3082035c0be246f43086',region='na',language='en').encyclopedia
 print("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
+print("Fetching Commander List")
+cmdr_list = wows_encyclopedia.crews()
 print("Fetching Modification List")
 upgrade_list = wows_encyclopedia.info()['ship_modifications']
 print("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
 for i in upgrade_list:
     # print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
-	upgrade_list[i] = upgrade_list[i].replace(chr(160),chr(32))
-	upgrade_abbr_list[''.join([i[0] for i in upgrade_list[i].split()]).lower()] = upgrade_list[i].lower()
+    upgrade_list[i] = upgrade_list[i].replace(chr(160),chr(32))
+    key = ''.join([i[0] for i in upgrade_list[i].split()]).lower()
+    if not key in upgrade_abbr_list:
+        upgrade_abbr_list[key] = upgrade_list[i].lower()
+    else:
+        key = ''.join([i[:2]+"_" for i in upgrade_list[i].split()]).lower()[:-1]
+        upgrade_abbr_list[key] = upgrade_list[i].lower()
 
 
 print("Fetching Ship List")
@@ -52,7 +59,8 @@ for ship in root:
 		upgrades.append(upgrade.text)
 	for skill in ship.find('skills'):
 		skills.append(skill.text)
-	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills}
+	cmdr = ship.find('commander').text
+	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills,"cmdr":cmdr}
 print("Preprocessing Done")
 
 
@@ -73,6 +81,7 @@ command_list = (
 	'whoami',
 	'list',
 	'upgrade',
+	'commander',
 )
 iso_country_code = {
 	'usa': 'US',
@@ -182,6 +191,24 @@ skill_name_abbr = {
 	'ifhes':'inertia fuse for he shells',
 	'rl':'radio location',
 }
+cmdr_name_to_ascii ={
+	'jean-jacques honore':'jean-jacques honoré',
+	'paul kastner':'paul kästner',
+	'quon rong':'quán róng',
+	'myoko':'myōkō',
+	'myoukou':'myōkō',
+	'reinhard von jutland':'reinhard von jütland',
+	'matsuji ijuin':'matsuji ijūin',
+	'kongo':'kongō',
+	'kongou':'kongō',
+	'tao ji':'tāo ji',
+	'gunther lutjens':'günther lütjens',
+	'franz von jutland':'franz von jütland',
+	'da rong':'dà róng',
+	'rattenkonig':'rattenkönig',
+	'leon terraux':'léon terraux',
+	'charles-henri honore':'charles-henri honoré',
+}
 
 def get_ship_data(ship):
 	'''
@@ -203,8 +230,8 @@ def get_ship_data(ship):
 			name, nation, images, ship_type, tier = ship_list[i].values()
 			upgrades, skills = {}, {}
 			if name.lower() in build:
-				upgrades, skills = build[name.lower()].values()
-			return name, nation, images, ship_type, tier, upgrades, skills
+				upgrades, skills, cmdr = build[name.lower()].values()
+			return name, nation, images, ship_type, tier, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
 def get_skill_data(skill):
@@ -246,12 +273,12 @@ def get_upgrade_data(upgrade):
 		upgrade_found = False
 		# assuming input is full upgrade name
 		for i in upgrade_list:
-			if upgrade.lower() == upgrade_list[i].lower():
+			if upgrade == upgrade_list[i].lower():
 				upgrade_found = True
 				break
 		# parsed item is probably an abbreviation, checking abbreviation
 		if not upgrade_found:
-			upgrade = upgrade_abbr_list[upgrade.lower()]
+			upgrade = upgrade_abbr_list[upgrade]
 			for i in upgrade_list:
 				if upgrade.lower() == upgrade_list[i].lower():
 					upgrade_found = True
@@ -261,6 +288,32 @@ def get_upgrade_data(upgrade):
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
+def get_commander_data(cmdr):
+	'''
+		returns name, icon and nation requested special commander 
+		
+		raise exceptions for dictionary
+	'''
+	cmdr = cmdr.lower()
+	try:
+		cmdr_found = False
+		if cmdr.lower() in cmdr_name_to_ascii:
+			cmdr = cmdr_name_to_ascii[cmdr.lower()]
+		for i in cmdr_list:
+			if cmdr.lower() == cmdr_list[i]['first_names'][0].lower():
+				cmdr_found = True
+				break
+		if cmdr_found:
+			if cmdr_list[i]['last_names'] == []:
+				# get special commaders
+				name = cmdr_list[i]['first_names'][0]
+				icons = cmdr_list[i]['icons'][0]['1']
+				nation = cmdr_list[i]['nation']
+				
+				return name, icons, nation
+	except Exception as e:
+		print(f"Exception {type(e)}",e)
+		raise e
 
 class Client(discord.Client):
 	async def on_ready(self):
@@ -294,26 +347,35 @@ class Client(discord.Client):
 				embed.add_field(name='Description',value='Who\'s this bot?')
 			if command == 'list':
 				if len(arg) == 3:
-					embed.add_field(name='Usage',value=command_header+token+command+token+"[skills/upgrade]")
+					embed.add_field(name='Usage',value=command_header+token+command+token+"[skills/upgrades/commanders]")
 					embed.add_field(name='Description',value=f'Select a category to list all items of the requested category. type **{command_header+token+command+token} [skills/upgrade]** for help on the category.{chr(10)}'+
 						'**skills**: List all skills.\n'+
-						'**upgrades**: List all upgrades.\n')
+						'**upgrades**: List all upgrades.\n'+
+						'**commanders**: List all commanders.\n')
 				else:
 					if arg[3] == 'skills':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"skills"+token+"[type/tier] [type_name/tier_number]")
 						embed.add_field(name='Description',value='List name and the abbreviation of all commander skills.\n'+
-						'**type [type_name]**: Optional. Returns all skills of indicated skill type. Acceptable values: [Attack, Endurance, Support, Versatility]\n'+
-						'**tier [tier_number]**: Optional. Returns all skills of the indicated tier. Acceptable values: [1,2,3,4]')
-					if arg[3] == 'upgrades':
+						'**type [type_name]**: Optional. Returns all skills of indicated skill type. Acceptable values: **[Attack, Endurance, Support, Versatility]**\n'+
+						'**tier [tier_number]**: Optional. Returns all skills of the indicated tier. Acceptable values: **[1,2,3,4]**')
+					elif arg[3] == 'upgrades':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"upgrades"+token+"[page_number]")
 						embed.add_field(name='Description',value='List name and the abbreviation of all upgrades.\n'+
-							'**[page_number]**: Required. Select a page number to list upgrades.\n')
+							'**[page_number]**: Required. Select a page number to list upgrades. Acceptable values **[1-7]**\n')
+					elif arg[3] == 'commanders':
+						embed.add_field(name='Usage',value=command_header+token+command+token+"commanders"+token+"[page_number/nation]")
+						embed.add_field(name='Description',value='List names of all unique commanders.\n'+
+							f'**[page_number]** Required. Select a page number to list commanders.\n'+
+							f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([iso_country_code[i]+", " for i in iso_country_code][:-3])}]**')
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
 			if command == 'upgrade':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[upgrade/abbr]')
-				embed.add_field(name='Description',value='List name requested warship upgrade')
+				embed.add_field(name='Description',value='List the informations of the requested warship upgrade')
+			if command == 'commander':
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[cmdr_name]')
+				embed.add_field(name='Description',value='List the informations of the requested commander')
 		else:
 			embed.add_field(name='Error',value="Invalid command.")
 		return embed
@@ -334,10 +396,11 @@ class Client(discord.Client):
 			request_type = arg[1:]
 			print(f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
 			if arg[1] == command_list[0]:
-				embed = self.help_message(message.content+token+"help")
+				embed = self.help_message(message.content)
 				if not embed is None:
 					print(f"sending help message for command <{command_list[0]}>")
 					await channel.send(embed=embed)
+					
 			if arg[1] == command_list[1]:
 				# good bot
 				r = randint(len(good_bot_messages))
@@ -355,15 +418,16 @@ class Client(discord.Client):
 						await channel.send(embed=embed)
 				else:
 					try:
-						name, nation, images, ship_type, tier, upgrades, skills = get_ship_data(ship)
+						name, nation, images, ship_type, tier, upgrades, skills, cmdr = get_ship_data(ship)
 						print(f"returning ship information for <{name}>")
-						ship_type = ship_type if ship_type != 'AirCarrier' else 'Aicraft Carrier'
+						ship_type = ship_type if ship_type != 'AirCarrier' else 'Aircraft Carrier'
 						embed = discord.Embed(title="Warship Information")
 						embed.set_thumbnail(url=images['small'])
 						embed.add_field(name='Name', value=name)
 						embed.add_field(name='Nation', value=iso_country_code[nation])
 						embed.add_field(name='Type', value=ship_type)
 						embed.add_field(name='Tier', value=tier)
+						# suggested upgrades
 						if len(upgrades) > 0:
 							m = ""
 							i = 1
@@ -375,11 +439,13 @@ class Client(discord.Client):
 								else:
 									try: # ew, nested try/catch
 										upgrade_name = get_upgrade_data(upgrade)
-									except: 
+									except Exception as e: 
+										print(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 										upgrade_name = upgrade+" [!]"
 								m += f'(Slot {i}) **'+upgrade_name+'**\n'
 								i += 1
 							embed.add_field(name='Suggested Upgrades', value=m)
+						# suggested skills
 						if len(skills) > 0:
 							m = ""
 							i = 1
@@ -387,11 +453,24 @@ class Client(discord.Client):
 								skill_name = "[Missing]"
 								try: # ew, nested try/catch
 									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
-								except: 
+								except Exception as e: 
+									print(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 									skill_name = skill+" [!]"
 								m += f'(Tier {tier}) **'+skill_name+'**\n'
 								i += 1
 							embed.add_field(name='Suggested Cmdr. Skills', value=m)
+						# suggested commander
+						if cmdr:
+							m = ""
+							if cmdr == "*":
+								m = "Any"
+							else:
+								try:
+									m = get_commander_data(cmdr)[0]
+								except Exception as e: 
+									print(f"Exception {type(e)}", e, "in ship, listing commander")
+									m = f"{cmdr} [!]"
+							embed.add_field(name='Suggested Cmdr.', value=m)
 						embed.set_footer(text="[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact Mack.\n"+
 							"Suggested skills are listed in ascending acquiring order.")
 						await channel.send(embed=embed)
@@ -486,7 +565,6 @@ class Client(discord.Client):
 								send_help_message = True
 							elif len(arg) > 3:
 								# list upgrades
-								message_string = message.content
 								embed = discord.Embed(title="Upgrade List")
 								try:
 									page = int(arg[3])
@@ -495,9 +573,53 @@ class Client(discord.Client):
 									num_pages = len(output_list)
 									items_per_page = 10
 									m = [name.title()+f' ('+abbr.upper()+')'+chr(10) for abbr, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
-									
+									if m == []:
+										embed = None
+										error_message = f"Page {page} does not exists"
 								except Exception as e:
-									print(f"Exception {type(e)}", e)
+									print(f"Upgrade listing argument <{arg[3]}> is invalid.")
+									error_message = f"Value {arg[3]} is not understood"
+									
+						elif arg[2] == 'commanders':
+							# list all unique commanders
+							message_success = False
+							if len(arg) == 3:
+								embed = self.help_message(command_header+token+"help"+token+arg[1]+token+"commanders")
+								send_help_message = True
+							elif len(arg) > 3:
+								# list commanders by page
+								try:
+									embed = discord.Embed(title="Commanders")
+									page = int(arg[3])
+									output_list = [(cmdr_list[cmdr]['nation'], cmdr_list[cmdr]['first_names'][0]) for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
+									output_list.sort()
+									num_pages = len(output_list)
+									items_per_page = 10
+									m = [f'({iso_country_code[nation]}) '+name.title()+chr(10) for nation, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
+									embed = discord.Embed(title=f"Commanders (pg.{page})")
+									if m == []:
+										embed = None
+										error_message = f"Page {page} does not exists"
+									else:
+										message_success = True
+								except Exception as e:
+									if type(e) == ValueError:
+										pass
+								# list commanders by nationality
+								if not message_success and error_message == "": #page not listed
+									try:
+										nation = ''.join([i+' ' for i in arg[3:]])[:-1]
+										embed = discord.Embed(title=f"{nation.title()} Commanders")
+										m = [cmdr_list[cmdr]['first_names'][0]+'\n' for cmdr in cmdr_list if iso_country_code[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
+										# output_list = [(i,upgrade_abbr_list[i]) for i in upgrade_abbr_list]
+										# output_list.sort()
+										# num_pages = len(output_list)
+										# items_per_page = 10
+										# m = [name.title()+f' ('+abbr.upper()+')'+chr(10) for abbr, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
+										
+									except Exception as e:
+										print(f"Exception {type(e)}", e)
+								pass
 						
 						else:
 							# something else detected
@@ -505,6 +627,7 @@ class Client(discord.Client):
 							embed = None
 							error_message = f"Argument **{arg[2]}** is not a valid argument."
 					else:
+						# no arugments listed, show help message
 						send_help_message = True
 						embed = self.help_message(command_header+token+"help"+token+arg[1])
 				if not embed == None:
@@ -517,6 +640,7 @@ class Client(discord.Client):
 					if error_message == "":
 						error_message = f"Embed message for command {arg[1]} is empty! arg list: {arg}"
 					await channel.send(error_message)
+					
 			if arg[1] == command_list[6]: #message.content.startswith(command_header+token+command_list[6]):
 				# get information on requested upgrade
 				message_string = message.content
@@ -540,6 +664,29 @@ class Client(discord.Client):
 						await channel.send(embed=embed)
 					except:
 						await channel.send(f"Upgrade **{upgrade}** is not understood.")
+			if arg[1] == command_list[7]:
+				# get information on requested skill
+				message_string = message.content
+				cmdr_found = False
+				# message parse
+				cmdr = ''.join([i+' ' for i in arg[2:]])[:-1] #message_string[message_string.rfind('-')+1:]
+				if len(arg) <= 2:
+					embed = self.help_message(command_header+token+"help"+token+arg[1])
+					if not embed is None:
+						await channel.send(embed=embed)
+				else:
+					try:
+						async with channel.typing():
+							print(f'sending message for commander <{cmdr}>')
+							name, icon, nation = get_commander_data(cmdr)
+							embed = discord.Embed(title="Commander")
+							embed.set_thumbnail(url=icon)
+							embed.add_field(name='Name',value=name)
+							embed.add_field(name='Nation',value=iso_country_code[nation])
+							
+						await channel.send(embed=embed)
+					except:
+						await channel.send(f"Commander **{cmdr}** is not understood.")
 			if not arg[1] in command_list:
 				await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
