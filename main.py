@@ -2,15 +2,15 @@ import discord
 
 DEBUG_IS_MAINTANCE = False
 
-# import subprocess
-# import sys
+import subprocess
+import sys
 import xml.etree.ElementTree as et
-# def install(package):
-    # subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-# if not DEBUG_IS_MAINTANCE:
-	# install('wargaming')
-	# install('pandas')
-	# install('numpy')
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+if not DEBUG_IS_MAINTANCE:
+	install('wargaming')
+	install('pandas')
+	install('numpy')
 
 import wargaming
 import pandas as pd
