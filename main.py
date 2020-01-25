@@ -218,6 +218,7 @@ def get_ship_data(ship):
 	'''
 	ship = ship.lower()
 	try:
+		ship_found = False
 		if ship.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
 			ship = ship_name_to_ascii[ship.lower()] # convert to the appropiate name
 		for i in ship_list:
@@ -228,7 +229,7 @@ def get_ship_data(ship):
 				break
 		if ship_found:
 			name, nation, images, ship_type, tier = ship_list[i].values()
-			upgrades, skills = {}, {}
+			upgrades, skills, cmdr = {}, {}, "--"
 			if name.lower() in build:
 				upgrades, skills, cmdr = build[name.lower()].values()
 			return name, nation, images, ship_type, tier, upgrades, skills, cmdr
@@ -317,14 +318,21 @@ def get_commander_data(cmdr):
 
 class Client(discord.Client):
 	async def on_ready(self):
+		await self.change_presence(activity=discord.Game("Tag me for help!"))
 		print("Logged on")
 	
 	def help_message(self,message):
 		# help message
 		arg = message.split(token)
-		command = arg[2]
 		embed = discord.Embed(title=f"Command Help")
-		embed.add_field(name='Command',value=f"{''.join([i+' ' for i in arg[2:]])}")
+		try:
+			command = arg[2]
+			embed.add_field(name='Command',value=f"{''.join([i+' ' for i in arg[2:]])}")
+		except Exception as e:
+			if arg[1].lower() == "help" and type(e) == IndexError:
+				# invoking help message
+				command = "help"
+				embed.add_field(name='Command',value="help")
 		if command in command_list:
 			if command == 'help':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[command]')
@@ -348,7 +356,7 @@ class Client(discord.Client):
 			if command == 'list':
 				if len(arg) == 3:
 					embed.add_field(name='Usage',value=command_header+token+command+token+"[skills/upgrades/commanders]")
-					embed.add_field(name='Description',value=f'Select a category to list all items of the requested category. type **{command_header+token+command+token} [skills/upgrade]** for help on the category.{chr(10)}'+
+					embed.add_field(name='Description',value=f'Select a category to list all items of the requested category. type **{command_header+token+command+token} [skills/upgrades/commanders]** for help on the category.{chr(10)}'+
 						'**skills**: List all skills.\n'+
 						'**upgrades**: List all upgrades.\n'+
 						'**commanders**: List all commanders.\n')
@@ -384,11 +392,16 @@ class Client(discord.Client):
 		channel = message.channel
 		arg = message.content.split(token)
 		if message.content.startswith("<@!"+str(self.user.id)+">"):
-			print(f"User {message.author} requested my help.")
-			embed = self.help_message(command_header+token+"help"+token+"help")
-			if not embed is None:
-				print(f"sending help message")
-				await channel.send("はい、サラはここに。", embed=embed)
+			if len(arg) == 1:
+				# no additional arguments, send help
+				print(f"User {message.author} requested my help.")
+				embed = self.help_message(command_header+token+"help"+token+"help")
+				if not embed is None:
+					print(f"sending help message")
+					await channel.send("はい、サラはここに。", embed=embed)
+			else:
+				# with arguments, change arg[0] and perform its normal task
+				arg[0] = command_header
 		if message.content.startswith(command_header+token):
 			if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
 				await channel.send(self.user.display_name+" is under maintance. Please wait until maintance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
@@ -396,7 +409,7 @@ class Client(discord.Client):
 			request_type = arg[1:]
 			print(f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
 			if arg[1] == command_list[0]:
-				embed = self.help_message(message.content+token+"help")
+				embed = self.help_message(message.content)
 				if not embed is None:
 					print(f"sending help message for command <{command_list[0]}>")
 					await channel.send(embed=embed)
@@ -687,8 +700,8 @@ class Client(discord.Client):
 						await channel.send(embed=embed)
 					except:
 						await channel.send(f"Commander **{cmdr}** is not understood.")
-			if not arg[1] in command_list:
-				await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
+			# if not arg[1] in command_list:
+				# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
 	client.run('NjY3ODY2MzkxMjMxMzMyMzUz.XiI94A.JjQtinUguaHFnu_XOWNokwZ0B6s')
