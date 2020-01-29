@@ -762,7 +762,7 @@ class Client(discord.Client):
 										output_list.sort()
 										items_per_page = 10
 										m = output_list
-										embed.add_field(name="Flag",value=m)
+										embed.add_field(name="Flag",value=''.join([i for i in m]))
 									except Exception as e:
 										# print(f"Flag listing argument <{arg[3]}> is invalid.")
 										error_message = f"Internal Exception {type(e)} (X_X)"
