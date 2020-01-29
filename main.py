@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -18,6 +18,8 @@ from numpy.random import randint
 
 print("Fetching WoWS Encyclopedia")
 wows_encyclopedia = wargaming.WoWS('74309abd627a3082035c0be246f43086',region='na',language='en').encyclopedia
+ship_types = wows_encyclopedia.info()['ship_types']
+del ship_types['Submarine']
 print("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
 print("Fetching Commander List")
@@ -53,9 +55,9 @@ for page in range(1,6):
 		ship_list[i] = list[i]
 print("Filtering Ships and Categories")
 del ship_list['3749623248']
-frame = pd.DataFrame(ship_list)
-frame = frame.filter(items=['name','nation','images','type','tier', 'is_premium', 'price_gold'],axis=0)
-ship_list = frame.to_dict()
+ship_list_frame = pd.DataFrame(ship_list)
+ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold'],axis=0)
+ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
 root = et.parse("./ship_builds.xml").getroot()
 print('Making build dictionary...')
@@ -217,7 +219,18 @@ cmdr_name_to_ascii ={
 	'leon terraux':'léon terraux',
 	'charles-henri honore':'charles-henri honoré',
 }
-
+to_roman_numeral = {
+	1:'I',
+	2:'II',
+	3:'III',
+	4:'IV',
+	5:'V',
+	6:'VI',
+	7:'VII',
+	8:'VIII',
+	9:'IX',
+	10:'X',
+}
 def get_ship_data(ship):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -236,11 +249,11 @@ def get_ship_data(ship):
 				ship_found = True
 				break
 		if ship_found:
-			name, nation, images, ship_type, tier, is_prem, price_gold = ship_list[i].values()
+			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
 			if original_arg.lower() in build:
 				upgrades, skills, cmdr = build[original_arg.lower()].values()
-			return name, nation, images, ship_type, tier, upgrades, is_prem, price_gold, skills, cmdr
+			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
 def get_skill_data(skill):
@@ -293,7 +306,36 @@ def get_upgrade_data(upgrade):
 					upgrade_found = True
 					break
 		profile, name, price_gold, image, _, price_credit, upgrade_type, description = upgrade_list[i].values()
-		return profile, name, price_gold, image, price_credit, upgrade_type, description
+		# check availability of upgrade (which tier, ship)
+		usable_in = {'ship':[],'type':[],'tier':[]}
+		for s in ship_list_frame:
+			n, _, _, ship_type, tier, u, _, _ = ship_list_frame[s]
+			if int(i) in u: # if the upgrade with id 'i' in the list of upgrades 'u'
+				if not n in usable_in['ship']:
+					usable_in['ship'].append(n)
+				if not ship_type in usable_in['type']:
+					usable_in['type'].append(ship_type)
+				if not tier in usable_in['tier']:
+					usable_in['tier'].append(tier)
+#         print(usable_in)
+		ship_usable = set(usable_in['ship'])
+		ship_type_usable = set(usable_in['type'])
+		tier_usable = set(usable_in['tier'])
+		
+		ship_restriction = set([ship_list[s]['name'] for s in ship_list])
+		ship_type_restriction = set(ship_types)
+		tier_restriction = set(range(1,11))
+		
+		# find difference
+		ship_restriction = ship_restriction - ship_usable
+		ship_type_restriction = ship_type_restriction - ship_type_usable
+		tier_restriction = tier_restriction - tier_usable
+		
+		ship_restriction = (ship_usable,'usable') if len(ship_restriction) > len(ship_usable) else (ship_restriction,'restricted')
+		ship_type_restriction = (ship_type_usable,'usable') if len(ship_type_restriction) > len(ship_type_usable) else (ship_type_restriction,'restricted')
+		tier_restriction = (tier_usable,'usable') if len(tier_restriction) > len(tier_usable) else (tier_restriction,'restricted')
+		
+		return profile, name, price_gold, image, price_credit, upgrade_type, description, ship_restriction, ship_type_restriction, tier_restriction
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
@@ -474,9 +516,9 @@ class Client(discord.Client):
 							await channel.send(embed=embed)
 					else:
 						try:
-							name, nation, images, ship_type, tier, upgrades, is_prem, price_gold, skills, cmdr = get_ship_data(ship)
+							name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr = get_ship_data(ship)
 							print(f"returning ship information for <{name}>")
-							ship_type = ship_type if ship_type != 'AirCarrier' else 'Aircraft Carrier'
+							ship_type = ship_types[ship_type]
 							embed = discord.Embed(title="Warship Information")
 							embed.set_thumbnail(url=images['small'])
 							embed.add_field(name='Name', value=name)
@@ -503,7 +545,7 @@ class Client(discord.Client):
 											upgrade_name = upgrade+" [!]"
 									m += f'(Slot {i}) **'+upgrade_name+'**\n'
 									i += 1
-								embed.add_field(name='Suggested Upgrades', value=m)
+								embed.add_field(name='Suggested Upgrades', value=m,inline=True)
 							# suggested skills
 							if len(skills) > 0:
 								m = ""
@@ -518,7 +560,7 @@ class Client(discord.Client):
 										skill_name = skill+" [!]"
 									m += f'(Tier {tier}) **'+skill_name+'**\n'
 									i += 1
-								embed.add_field(name='Suggested Cmdr. Skills', value=m)
+								embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
 							# suggested commander
 							if cmdr != "":
 								m = ""
@@ -536,7 +578,7 @@ class Client(discord.Client):
 							error_footer_message = ""
 							if error_value_found:
 								error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact Mack.\n"
-							embed.set_footer(text=error_footer_message+"\mSuggested skills are listed in ascending acquiring order.")
+							embed.set_footer(text=error_footer_message+"Suggested skills are listed in ascending acquiring order.")
 							await channel.send(embed=embed)
 						except Exception as e:
 							print(f"Exception {type(e)}", e)
@@ -629,20 +671,28 @@ class Client(discord.Client):
 									send_help_message = True
 								elif len(arg) > 3:
 									# list upgrades
-									embed = discord.Embed(title="Upgrade List")
 									try:
-										page = int(arg[3])
-										output_list = [(i,upgrade_abbr_list[i]) for i in upgrade_abbr_list]
-										output_list.sort()
-										num_pages = len(output_list)
-										items_per_page = 10
-										m = [name.title()+f' ('+abbr.upper()+')'+chr(10) for abbr, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
-										if m == []:
+										page = int(arg[3])-1
+										m = [f"{upgrade_abbr_list[i].title()} ({i.upper()})" for i in upgrade_abbr_list]
+										m.sort()
+										items_per_page = 20
+										num_pages = (len(upgrade_abbr_list) // items_per_page)
+										m = [m[i:i+items_per_page] for i in range(0,len(upgrade_abbr_list),items_per_page)] # splitting into pages
+										embed = discord.Embed(title="Upgrade List "+f"({page+1}/{num_pages})")
+										m = m[page] # select page
+										m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+										for i in m:
+											embed.add_field(name="Upgrade (Abbr.)", value=''.join([v+'\n' for v in i]))
+										if 0 > num_pages and num_pages > 8:
 											embed = None
-											error_message = f"Page {page} does not exists"
+											error_message = f"Page {page+1} does not exists"
 									except Exception as e:
-										print(f"Upgrade listing argument <{arg[3]}> is invalid.")
-										error_message = f"Value {arg[3]} is not understood"
+										if type(e) == ValueError:
+											print(f"Upgrade listing argument <{arg[3]}> is invalid.")
+											
+											error_message = f"Value {arg[3]} is not understood"
+										else:
+											print(f"Exception {type(e)}", e)
 										
 							elif arg[2] == 'commanders':
 								# list all unique commanders
@@ -653,28 +703,38 @@ class Client(discord.Client):
 								elif len(arg) > 3:
 									# list commanders by page
 									try:
-										embed = discord.Embed(title="Commanders")
-										page = int(arg[3])
-										output_list = [(cmdr_list[cmdr]['nation'], cmdr_list[cmdr]['first_names'][0]) for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
-										output_list.sort()
-										num_pages = len(output_list)
-										items_per_page = 10
-										m = [f'({iso_country_code[nation]}) '+name.title()+chr(10) for nation, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
-										embed = discord.Embed(title=f"Commanders (pg.{page})")
-										if m == []:
+										page = int(arg[3])-1
+										m = [f"({iso_country_code[cmdr_list[cmdr]['nation']]}) {cmdr_list[cmdr]['first_names'][0]}" for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
+										m.sort()
+										items_per_page = 20
+										num_pages = (len(cmdr_list) // items_per_page)
+										m = [m[i:i+items_per_page] for i in range(0,len(cmdr_list),items_per_page)] # splits into pages
+										embed = discord.Embed(title=f"Commanders ({page+1}/{num_pages})")
+										m = m[page] #grab desired page
+										m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+										for i in m:
+											print(i)
+											embed.add_field(name="(Nation) Name",value=''.join([v+'\n' for v in i]))
+										if 0 > page and page > num_pages:
 											embed = None
-											error_message = f"Page {page} does not exists"
+											error_message = f"Page {page+1} does not exists"
 										else:
 											message_success = True
 									except Exception as e:
 										if type(e) == ValueError:
 											pass
+										else:
+											print(f"Exception {type(e)}",e)
 									# list commanders by nationality
 									if not message_success and error_message == "": #page not listed
 										try:
 											nation = ''.join([i+' ' for i in arg[3:]])[:-1]
-											embed = discord.Embed(title=f"{nation.title()} Commanders")
-											m = [cmdr_list[cmdr]['first_names'][0]+'\n' for cmdr in cmdr_list if iso_country_code[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
+											embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Commanders")
+											m = [cmdr_list[cmdr]['first_names'][0] for cmdr in cmdr_list if iso_country_code[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
+											m.sort()
+											m = [m[i:i+10] for i in range(0,len(m),10)] # splits into columns of 10 items each
+											for i in m:
+												embed.add_field(name="Name",value=''.join([v+'\n' for v in i]))
 											# output_list = [(i,upgrade_abbr_list[i]) for i in upgrade_abbr_list]
 											# output_list.sort()
 											# num_pages = len(output_list)
@@ -709,10 +769,10 @@ class Client(discord.Client):
 							send_help_message = True
 							embed = self.help_message(command_header+token+"help"+token+arg[1])
 					if not embed == None:
-						if not send_help_message:
-							m.sort()
-							m = ''.join(m)
-							embed.add_field(name='_',value=m)
+						# if not send_help_message:
+							# m.sort()
+							# m = ''.join(m)
+							# embed.add_field(name='_',value=m,inline=True)
 						await channel.send(embed=embed)
 					else:
 						if error_message == "":
@@ -734,12 +794,27 @@ class Client(discord.Client):
 						# user provided an argument
 						try:
 							print(f'sending message for upgrade <{upgrade}>')
-							profile, name, price_gold, image, price_credit, _, description = get_upgrade_data(upgrade)
+							profile, name, price_gold, image, price_credit, _, description, ship_restriction, ship_type_restriction, tier_restriction = get_upgrade_data(upgrade)
 							embed = discord.Embed(title="Ship Upgrade")
 							embed.set_thumbnail(url=image)
 							embed.add_field(name='Name', value=name)
 							embed.add_field(name='Description',value=description)
 							embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]))
+							if len(ship_type_restriction[0]) > 0:
+								m = f"{'All types' if len(ship_type_restriction[0]) == len(ship_types) else ''.join([ship_types[i]+'s, ' for i in ship_type_restriction[0]])[:-3]}"
+								print(m)
+								if ship_type_restriction[1] == 'usable':
+									embed.add_field(name="Type Equipable",value=m)
+								if ship_type_restriction[1] == 'restricted':
+									embed.add_field(name="Type Unequipable",value=m)
+							if len(tier_restriction[0]) > 0:
+								m = f"{'All types' if len(tier_restriction[0]) == 10 else ''.join([str(i)+', ' for i in tier_restriction[0]])[:-2]}"
+								print(m)
+								if tier_restriction[1] == 'usable':
+									embed.add_field(name="Tier Equipable",value=m)
+								if tier_restriction[1] == 'restricted':
+									embed.add_field(name="Unequipable",value=m)
+									
 							if price_credit > 0:
 								embed.add_field(name='Price (Credit)', value=price_credit)
 							await channel.send(embed=embed)
