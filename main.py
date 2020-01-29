@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
@@ -307,35 +307,35 @@ def get_upgrade_data(upgrade):
 					break
 		profile, name, price_gold, image, _, price_credit, upgrade_type, description = upgrade_list[i].values()
 		# check availability of upgrade (which tier, ship)
-		usable_in = {'ship':[],'type':[],'tier':[]}
+		usable_in = {'nation':[],'type':[],'tier':[]}
 		for s in ship_list_frame:
-			n, _, _, ship_type, tier, u, _, _ = ship_list_frame[s]
+			_, n, _, ship_type, tier, u, _, _ = ship_list_frame[s]
 			if int(i) in u: # if the upgrade with id 'i' in the list of upgrades 'u'
-				if not n in usable_in['ship']:
-					usable_in['ship'].append(n)
+				if not n in usable_in['nation']:
+					usable_in['nation'].append(n)
 				if not ship_type in usable_in['type']:
 					usable_in['type'].append(ship_type)
 				if not tier in usable_in['tier']:
 					usable_in['tier'].append(tier)
 #         print(usable_in)
-		ship_usable = set(usable_in['ship'])
+		nation_usable = set(usable_in['nation'])
 		ship_type_usable = set(usable_in['type'])
 		tier_usable = set(usable_in['tier'])
 		
-		ship_restriction = set([ship_list[s]['name'] for s in ship_list])
+		nation_restriction = set([ship_list[s]['nation'] for s in ship_list])
 		ship_type_restriction = set(ship_types)
 		tier_restriction = set(range(1,11))
 		
 		# find difference
-		ship_restriction = ship_restriction - ship_usable
+		nation_restriction = nation_restriction - nation_usable
 		ship_type_restriction = ship_type_restriction - ship_type_usable
 		tier_restriction = tier_restriction - tier_usable
 		
-		ship_restriction = (ship_usable,'usable') if len(ship_restriction) > len(ship_usable) else (ship_restriction,'restricted')
-		ship_type_restriction = (ship_type_usable,'usable') if len(ship_type_restriction) > len(ship_type_usable) else (ship_type_restriction,'restricted')
-		tier_restriction = (tier_usable,'usable') if len(tier_restriction) > len(tier_usable) else (tier_restriction,'restricted')
+		nation_restriction = nation_usable # if len(ship_restriction) > len(ship_usable) else (ship_restriction,'restricted')
+		ship_type_restriction = ship_type_usable # if len(ship_type_restriction) > len(ship_type_usable) else (ship_type_restriction,'restricted')
+		tier_restriction = tier_usable # if len(tier_restriction) > len(tier_usable) else (tier_restriction,'restricted')
 		
-		return profile, name, price_gold, image, price_credit, upgrade_type, description, ship_restriction, ship_type_restriction, tier_restriction
+		return profile, name, price_gold, image, price_credit, upgrade_type, description, nation_restriction, ship_type_restriction, tier_restriction
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
@@ -391,7 +391,6 @@ def get_flag_data(flag):
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
-
 
 class Client(discord.Client):
 	async def on_ready(self):
@@ -678,18 +677,17 @@ class Client(discord.Client):
 										items_per_page = 20
 										num_pages = (len(upgrade_abbr_list) // items_per_page)
 										m = [m[i:i+items_per_page] for i in range(0,len(upgrade_abbr_list),items_per_page)] # splitting into pages
-										embed = discord.Embed(title="Upgrade List "+f"({page+1}/{num_pages})")
+										embed = discord.Embed(title="Upgrade List "+f"({page+1}/{num_pages+1})")
 										m = m[page] # select page
 										m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
 										for i in m:
 											embed.add_field(name="Upgrade (Abbr.)", value=''.join([v+'\n' for v in i]))
-										if 0 > num_pages and num_pages > 8:
+										if 0 > num_pages and num_pages > num_pages:
 											embed = None
 											error_message = f"Page {page+1} does not exists"
 									except Exception as e:
 										if type(e) == ValueError:
 											print(f"Upgrade listing argument <{arg[3]}> is invalid.")
-											
 											error_message = f"Value {arg[3]} is not understood"
 										else:
 											print(f"Exception {type(e)}", e)
@@ -794,26 +792,23 @@ class Client(discord.Client):
 						# user provided an argument
 						try:
 							print(f'sending message for upgrade <{upgrade}>')
-							profile, name, price_gold, image, price_credit, _, description, ship_restriction, ship_type_restriction, tier_restriction = get_upgrade_data(upgrade)
+							profile, name, price_gold, image, price_credit, _, description, nation_restriction, ship_type_restriction, tier_restriction = get_upgrade_data(upgrade)
 							embed = discord.Embed(title="Ship Upgrade")
 							embed.set_thumbnail(url=image)
 							embed.add_field(name='Name', value=name)
 							embed.add_field(name='Description',value=description)
 							embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]))
-							if len(ship_type_restriction[0]) > 0:
-								m = f"{'All types' if len(ship_type_restriction[0]) == len(ship_types) else ''.join([ship_types[i]+'s, ' for i in ship_type_restriction[0]])[:-3]}"
-								print(m)
-								if ship_type_restriction[1] == 'usable':
-									embed.add_field(name="Type Equipable",value=m)
-								if ship_type_restriction[1] == 'restricted':
-									embed.add_field(name="Type Unequipable",value=m)
-							if len(tier_restriction[0]) > 0:
-								m = f"{'All types' if len(tier_restriction[0]) == 10 else ''.join([str(i)+', ' for i in tier_restriction[0]])[:-2]}"
-								print(m)
-								if tier_restriction[1] == 'usable':
-									embed.add_field(name="Tier Equipable",value=m)
-								if tier_restriction[1] == 'restricted':
-									embed.add_field(name="Unequipable",value=m)
+							
+							if len(ship_type_restriction) > 0:
+								print(len(ship_type_restriction), len(ship_types))
+								m = f"{'All types' if len(ship_type_restriction) == len(ship_types) else ''.join([ship_types[i]+'s, ' for i in sorted(ship_type_restriction)])[:-3]}"
+								embed.add_field(name="Type",value=m)
+							if len(tier_restriction) > 0:
+								m = f"{'All tiers' if len(tier_restriction) == 10 else ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]}"
+								embed.add_field(name="Tier",value=m)
+							if len(nation_restriction) > 0:
+								m = f"{'All Nations' if len(nation_restriction) == len(iso_country_code) else ''.join([iso_country_code[i]+', ' for i in sorted(nation_restriction)])[:-2]}"
+								embed.add_field(name="Nation",value=m)
 									
 							if price_credit > 0:
 								embed.add_field(name='Price (Credit)', value=price_credit)
