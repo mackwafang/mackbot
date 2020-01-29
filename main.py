@@ -623,16 +623,23 @@ class Client(discord.Client):
 								# list all skills
 								if len(arg) == 3:
 									# did not provide a filter, send all skills
-									m = [skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list]
-									embed.title="Commander Skills"
+									embed = discord.Embed(name="Commander Skill")
+									m = ["**"+skill_list[i]['name']+'** ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list]
+									m.sort()
+									m = [m[i:i+10] for i in range(0,len(m),10)]
+									for i in m:
+										embed.add_field(name="Skill (Abbr.)",value=''.join([v for v in i]))
 								elif len(arg) > 3:
 									# asking for specific category
 									if arg[3] == 'type':
 										# get all skills of this type
 										try:
 											skill_type = arg[4] # get type
-											embed.title = f"{skill_type.title()} Commander Skills"
-											m = [f"(Tier {skill_list[i]['tier']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
+											embed = discord.Embed(name=f"{skill_type} Commander Skill")
+											m = [f"(Tier {skill_list[i]['tier']}) **"+skill_list[i]['name']+'** ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
+											m.sort()
+											m = ''.join([i for i in m])
+											embed.add_field(name="(Tier) Skill (Abbr.)",value=m)
 											message_success = True
 										except Exception as e:
 											embed = None
@@ -646,8 +653,11 @@ class Client(discord.Client):
 										# get all skills of this tier
 										try:
 											tier = int(arg[4]) # get tier number
-											embed.title = f"Tier {tier} Commander Skills"
-											m = [f"({skill_list[i]['type_name']}) "+skill_list[i]['name']+' ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['tier'] == tier]
+											embed = discord.Embed(name=f"Tier {tier} Commander Skill")
+											m = [f"({skill_list[i]['type_name']}) **"+skill_list[i]['name']+'** ('+''.join([c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90])+')'+chr(10) for i in skill_list if skill_list[i]['tier'] == tier]
+											m.sort()
+											m = ''.join([i for i in m])
+											embed.add_field(name="(Category) Skill (Abbr.)",value=m)
 											message_success = True
 										except Exception as e:
 											embed = None
@@ -746,13 +756,13 @@ class Client(discord.Client):
 								# list all flags
 								if len(arg) == 3:
 									# list upgrades
-									embed = discord.Embed(title="Upgrade List")
 									try:
 										embed = discord.Embed(title="Signal Flags")
 										output_list = [flag_list[i]['name']+'\n' for i in flag_list]
 										output_list.sort()
 										items_per_page = 10
 										m = output_list
+										embed.add_field(name="Flag",value=m)
 									except Exception as e:
 										# print(f"Flag listing argument <{arg[3]}> is invalid.")
 										error_message = f"Internal Exception {type(e)} (X_X)"
