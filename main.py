@@ -891,6 +891,10 @@ class Client(discord.Client):
 				
 				if hasattr(self,arg[1]):
 					await getattr(self,arg[1])(message, arg)
+				else:
+					# hidden command
+					if arg[1] == 'waifu':
+						await channel.send("Mack's waifu: Saratoga\nhttps://kancolle.fandom.com/wiki/Saratoga")
 				# if not arg[1] in command_list:
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
