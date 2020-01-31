@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
