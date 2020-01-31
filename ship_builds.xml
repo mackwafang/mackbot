@@ -67,7 +67,7 @@
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
 			<upgrade>asm1</upgrade>
-			<upgrade>sgm2</upgrade>
+			<upgrade>dcsm2</upgrade>
 			<upgrade>csm1</upgrade>
 			<upgrade>mbm3</upgrade>
 		</upgrades>
@@ -145,4 +145,27 @@
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
+	<ship name="des moines">
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>srm1</upgrade>
+			<upgrade>asm1</upgrade>
+			<upgrade>pm2</upgrade>
+			<upgrade>csm1</upgrade>
+			<upgrade>ep</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>pm</skill>
+			<skill>el</skill>
+			<skill>em</skill>
+			<skill>jat</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>de</skill>
+			<skill>ce</skill>
+		</skills>
+		<commander>William F. Halsey Jr.</commander>
+	</ship>
+
 </build>
