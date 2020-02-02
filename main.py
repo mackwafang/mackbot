@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -14,10 +14,13 @@ if not DEBUG_IS_MAINTANCE:
 
 import wargaming
 import pandas as pd
+import os
 from numpy.random import randint
 
 print("Fetching WoWS Encyclopedia")
-wows_encyclopedia = wargaming.WoWS('74309abd627a3082035c0be246f43086',region='na',language='en').encyclopedia
+
+
+wows_encyclopedia = wargaming.WoWS(os.environ['wg_token'],region='na',language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 del ship_types['Submarine']
 print("Fetching Skill List")
@@ -899,6 +902,6 @@ class Client(discord.Client):
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
-	client.run('NjY3ODY2MzkxMjMxMzMyMzUz.XiI94A.JjQtinUguaHFnu_XOWNokwZ0B6s')
+	client.run(os.environ['bot_token'])
 except Exception as e:
 	print(f"{type(e)}",e)
