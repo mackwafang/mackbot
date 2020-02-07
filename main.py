@@ -457,7 +457,7 @@ class Client(discord.Client):
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]\n"+
 							'**Description:** List all available ships\n')
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]\n"+
-							'**Description:** List all available ships of specified nation\n')
+							'**Description:** List all available ships of specified nation.\nAcceptable values for nation:'+f'{"".join(["**"+nation_dictionary[nation]+"**, " for nation in nation_dictionary])}')
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
@@ -564,12 +564,13 @@ class Client(discord.Client):
 								print(f"Exception {type(e)}", e, "in ship, listing commander")
 								error_value_found = True
 								m = f"{cmdr} [!]"
+						footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 						embed.add_field(name='Suggested Cmdr.', value=m)
 				
 				error_footer_message = ""
 				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact Mack.\n"
-				embed.set_footer(text=error_footer_message+footer_message+"Suggested skills are listed in ascending acquiring order.")
+					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+				embed.set_footer(text=error_footer_message+footer_message)
 				await channel.send(embed=embed)
 			except Exception as e:
 				print(f"Exception {type(e)}", e)
@@ -703,6 +704,7 @@ class Client(discord.Client):
 							try:
 								page = int(arg[3])-1
 								m = [f"({nation_dictionary[ship_list[ship]['nation']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list]
+								num_items = len(m)
 								m.sort()
 								items_per_page = 20
 								num_pages = (len(ship_list) // items_per_page)
@@ -710,6 +712,7 @@ class Client(discord.Client):
 								embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
 								m = m[page] # select page
 								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								embed.set_footer(text=f"{num_items} ships found")
 								for i in m:
 									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
 							except Exception as e:
@@ -726,15 +729,16 @@ class Client(discord.Client):
 								page = 0
 								if len(arg) == 5:
 									page = int(arg[4])-1
-								m = [f"({ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
+								m = [f"(T{ship_list[ship]['tier']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
+								num_items = len(m)
 								m.sort()
 								items_per_page = 30
 								num_pages = (len(m) // items_per_page)
-								
 								m = [m[i:i+items_per_page] for i in range(0,len(m),items_per_page)] # splitting into pages
 								embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Ship List "+f"({page+1}/{num_pages+1})")
 								m = m[page] # select page
 								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								embed.set_footer(text=f"{num_items} ships found")
 								for i in m:
 									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
 							except Exception as e:
@@ -754,6 +758,7 @@ class Client(discord.Client):
 						try:
 							page = int(arg[3])-1
 							m = [f"({nation_dictionary[cmdr_list[cmdr]['nation']]}) **{cmdr_list[cmdr]['first_names'][0]}**" for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
+							num_items = len(m)
 							m.sort()
 							items_per_page = 20
 							num_pages = (len(cmdr_list) // items_per_page)
@@ -761,6 +766,8 @@ class Client(discord.Client):
 							embed = discord.Embed(title=f"Commanders ({page+1}/{num_pages})")
 							m = m[page] #grab desired page
 							m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+							
+							embed.set_footer(text=f"{num_items} commanders found")
 							for i in m:
 								embed.add_field(name="(Nation) Name",value=''.join([v+'\n' for v in i]))
 							if 0 > page and page > num_pages:
@@ -779,8 +786,10 @@ class Client(discord.Client):
 								nation = ''.join([i+' ' for i in arg[3:]])[:-1]
 								embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Commanders")
 								m = [cmdr_list[cmdr]['first_names'][0] for cmdr in cmdr_list if nation_dictionary[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
+								num_items = len(m)
 								m.sort()
 								m = [m[i:i+10] for i in range(0,len(m),10)] # splits into columns of 10 items each
+								embed.set_footer(text=f"{num_items} commanders found")
 								for i in m:
 									embed.add_field(name="Name",value=''.join([v+'\n' for v in i]))
 								
@@ -945,6 +954,8 @@ class Client(discord.Client):
 					# hidden command
 					if arg[1] == 'waifu':
 						await channel.send("Mack's waifu: Saratoga\nhttps://kancolle.fandom.com/wiki/Saratoga")
+					if arg[1] == 'raifu':
+						await channel.send("Mack's raifu: M1918 BAR https://en.gfwiki.com/wiki/M1918")
 				# if not arg[1] in command_list:
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
