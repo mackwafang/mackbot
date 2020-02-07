@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -96,7 +96,7 @@ command_list = (
 	'commander',
 	'flag',
 )
-iso_country_code = {
+nation_dictionary = {
 	'usa': 'US',
 	'pan_asia': 'Pan-Asian',
 	'ussr': 'Russian',
@@ -108,6 +108,13 @@ iso_country_code = {
 	'italy': 'Italian',
 	'commonwealth': 'Commonwealth',
 	'pan_america': 'Pan-American'
+}
+ship_type_to_hull_class = {
+	'Destroyer': 'DD',
+	'AirCarrier': 'CV',
+	'Battleship': 'BB',
+	'Cruiser': 'C',
+	'Submarine': 'SS'
 }
 ship_name_to_ascii ={
 	'[zao]':'[zaō]',
@@ -129,7 +136,7 @@ ship_name_to_ascii ={
 	'kagero':'kagerō',
 	'kagerou':'kagerō',
 	'konig albert':'könig albert',
-	'großer kurfürst':'großer kurfürst',
+	'grosser kurfurst':'großer kurfürst',
 	'grober kurfurst':'großer kurfürst',
 	'republique':'république',
 	'konig':'könig',
@@ -222,18 +229,7 @@ cmdr_name_to_ascii ={
 	'leon terraux':'léon terraux',
 	'charles-henri honore':'charles-henri honoré',
 }
-to_roman_numeral = {
-	1:'I',
-	2:'II',
-	3:'III',
-	4:'IV',
-	5:'V',
-	6:'VI',
-	7:'VII',
-	8:'VIII',
-	9:'IX',
-	10:'X',
-}
+
 def get_ship_data(ship):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -320,7 +316,6 @@ def get_upgrade_data(upgrade):
 					usable_in['type'].append(ship_type)
 				if not tier in usable_in['tier']:
 					usable_in['tier'].append(tier)
-#         print(usable_in)
 		nation_usable = set(usable_in['nation'])
 		ship_type_usable = set(usable_in['type'])
 		tier_usable = set(usable_in['tier'])
@@ -449,15 +444,20 @@ class Client(discord.Client):
 					elif arg[3] == 'upgrades':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"upgrades"+token+"[page_number]")
 						embed.add_field(name='Description',value='List name and the abbreviation of all upgrades.\n'+
-							'**[page_number]**: Required. Select a page number to list upgrades. Acceptable values **[1-7]**\n')
+							'**[page_number]**: Required. Select a page number to list upgrades. Acceptable values **[1-4]**\n')
 					elif arg[3] == 'commanders':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"commanders"+token+"[page_number/nation]")
 						embed.add_field(name='Description',value='List names of all unique commanders.\n'+
 							f'**[page_number]** Required. Select a page number to list commanders.\n'+
-							f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([iso_country_code[i]+", " for i in iso_country_code][:-3])}]**')
+							f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([nation_dictionary[i]+", " for i in nation_dictionary][:-3])}]**')
 					elif arg[3] == 'flags':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"flag")
 						embed.add_field(name='Description',value='List names of all signal flags.\n')
+					elif arg[3] == 'ships':
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]")
+						embed.add_field(name='Description',value='List all available ships\n')
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]")
+						embed.add_field(name='Description',value='List all available ships of specified nation\n')
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
@@ -510,7 +510,7 @@ class Client(discord.Client):
 					embed = discord.Embed(title="Warship Information")
 					embed.set_thumbnail(url=images['small'])
 					embed.add_field(name='Name', value=name)
-					embed.add_field(name='Nation', value=iso_country_code[nation])
+					embed.add_field(name='Nation', value=nation_dictionary[nation])
 					embed.add_field(name='Type', value="Premium "+ship_type if is_prem else ship_type)
 					embed.add_field(name='Tier', value=tier)
 					
@@ -675,22 +675,74 @@ class Client(discord.Client):
 							m.sort()
 							items_per_page = 20
 							num_pages = (len(upgrade_abbr_list) // items_per_page)
+							
 							m = [m[i:i+items_per_page] for i in range(0,len(upgrade_abbr_list),items_per_page)] # splitting into pages
 							embed = discord.Embed(title="Upgrade List "+f"({page+1}/{num_pages+1})")
 							m = m[page] # select page
 							m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
 							for i in m:
 								embed.add_field(name="Upgrade (Abbr.)", value=''.join([v+'\n' for v in i]))
-							if 0 > num_pages and num_pages > num_pages:
-								embed = None
-								error_message = f"Page {page+1} does not exists"
 						except Exception as e:
-							if type(e) == ValueError:
+							if type(e) == IndexError:
+									embed = None
+									error_message = f"Page {page+1} does not exists"
+							elif type(e) == ValueError:
 								print(f"Upgrade listing argument <{arg[3]}> is invalid.")
 								error_message = f"Value {arg[3]} is not understood"
 							else:
 								print(f"Exception {type(e)}", e)
-							
+				
+				elif arg[2] == 'ships':
+					message_success = False
+					if len(arg) == 3:
+						embed = self.help_message(command_header+token+"help"+token+arg[1]+token+"ships")
+						send_help_message = True
+					elif len(arg) > 3:
+						# list ships
+						if arg[3].isdigit():
+							try:
+								page = int(arg[3])-1
+								m = [f"({nation_dictionary[ship_list[ship]['nation']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list]
+								m.sort()
+								items_per_page = 20
+								num_pages = (len(ship_list) // items_per_page)
+								m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
+								embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
+								m = m[page] # select page
+								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								for i in m:
+									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+							except Exception as e:
+								if type(e) == IndexError:
+									embed = None
+									error_message = f"Page {page+1} does not exists"
+								elif type(e) == TypeError:
+									pass
+								else:
+									print("Exception", type(e), e)
+						else:
+							try:
+								nation = arg[3]
+								page = 0
+								if len(arg) == 5:
+									page = int(arg[4])-1
+								m = [f"({ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
+								m.sort()
+								items_per_page = 30
+								num_pages = (len(m) // items_per_page)
+								
+								m = [m[i:i+items_per_page] for i in range(0,len(m),items_per_page)] # splitting into pages
+								embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Ship List "+f"({page+1}/{num_pages+1})")
+								m = m[page] # select page
+								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								for i in m:
+									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+							except Exception as e:
+								if type(e) == IndexError:
+									embed = None
+									error_message = f"Page {page+1} does not exists"
+								print(f"Exception {type(e)}", e)
+								
 				elif arg[2] == 'commanders':
 					# list all unique commanders
 					message_success = False
@@ -701,7 +753,7 @@ class Client(discord.Client):
 						# list commanders by page
 						try:
 							page = int(arg[3])-1
-							m = [f"({iso_country_code[cmdr_list[cmdr]['nation']]}) **{cmdr_list[cmdr]['first_names'][0]}**" for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
+							m = [f"({nation_dictionary[cmdr_list[cmdr]['nation']]}) **{cmdr_list[cmdr]['first_names'][0]}**" for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
 							m.sort()
 							items_per_page = 20
 							num_pages = (len(cmdr_list) // items_per_page)
@@ -726,20 +778,15 @@ class Client(discord.Client):
 							try:
 								nation = ''.join([i+' ' for i in arg[3:]])[:-1]
 								embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Commanders")
-								m = [cmdr_list[cmdr]['first_names'][0] for cmdr in cmdr_list if iso_country_code[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
+								m = [cmdr_list[cmdr]['first_names'][0] for cmdr in cmdr_list if nation_dictionary[cmdr_list[cmdr]['nation']].lower() == nation.lower()] 
 								m.sort()
 								m = [m[i:i+10] for i in range(0,len(m),10)] # splits into columns of 10 items each
 								for i in m:
 									embed.add_field(name="Name",value=''.join([v+'\n' for v in i]))
-								# output_list = [(i,upgrade_abbr_list[i]) for i in upgrade_abbr_list]
-								# output_list.sort()
-								# num_pages = len(output_list)
-								# items_per_page = 10
-								# m = [name.title()+f' ('+abbr.upper()+')'+chr(10) for abbr, name in output_list[(page-1)*items_per_page:min(len(output_list),page*items_per_page)]]
 								
 							except Exception as e:
 								print(f"Exception {type(e)}", e)
-						pass
+								
 				elif arg[2] == 'flags':
 					# list all flags
 					if len(arg) == 3:
@@ -805,7 +852,7 @@ class Client(discord.Client):
 					m = f"{'All tiers' if len(tier_restriction) == 10 else ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]}"
 					embed.add_field(name="Tier",value=m)
 				if len(nation_restriction) > 0:
-					m = f"{'All Nations' if len(nation_restriction) == len(iso_country_code) else ''.join([iso_country_code[i]+', ' for i in sorted(nation_restriction)])[:-2]}"
+					m = f"{'All Nations' if len(nation_restriction) == len(nation_dictionary) else ''.join([nation_dictionary[i]+', ' for i in sorted(nation_restriction)])[:-2]}"
 					embed.add_field(name="Nation",value=m)
 						
 				if price_credit > 0:
@@ -833,7 +880,7 @@ class Client(discord.Client):
 					embed = discord.Embed(title="Commander")
 					embed.set_thumbnail(url=icon)
 					embed.add_field(name='Name',value=name)
-					embed.add_field(name='Nation',value=iso_country_code[nation])
+					embed.add_field(name='Nation',value=nation_dictionary[nation])
 					
 				await channel.send(embed=embed)
 			except:
