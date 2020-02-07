@@ -729,7 +729,7 @@ class Client(discord.Client):
 								page = 0
 								if len(arg) == 5:
 									page = int(arg[4])-1
-								m = [f"(T{ship_list[ship]['tier']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
+								m = [f"(T{ship_list[ship]['tier']} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
 								num_items = len(m)
 								m.sort()
 								items_per_page = 30
