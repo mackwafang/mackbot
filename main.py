@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
@@ -454,10 +454,10 @@ class Client(discord.Client):
 						embed.add_field(name='Usage',value=command_header+token+command+token+"flag")
 						embed.add_field(name='Description',value='List names of all signal flags.\n')
 					elif arg[3] == 'ships':
-						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]")
-						embed.add_field(name='Description',value='List all available ships\n')
-						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]")
-						embed.add_field(name='Description',value='List all available ships of specified nation\n')
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]\n"+
+							'**Description:** List all available ships\n')
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]\n"+
+							'**Description:** List all available ships of specified nation\n')
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
