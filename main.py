@@ -95,6 +95,7 @@ command_list = (
 	'upgrade',
 	'commander',
 	'flag',
+	'feedback',
 )
 nation_dictionary = {
 	'usa': 'US',
@@ -470,6 +471,9 @@ class Client(discord.Client):
 			if command == 'flag':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[flag_name]')
 				embed.add_field(name='Description',value='List the name and description of the requested signal flag')
+			if command == 'feedback':
+				embed.add_field(name='Usage',value=command_header+token+command)
+				embed.add_field(name='Description',value='Send a feedback form link for mackbot.')
 		else:
 			embed.add_field(name='Error',value="Invalid command.")
 		return embed
@@ -490,6 +494,10 @@ class Client(discord.Client):
 		r = randint(len(good_bot_messages))
 		print(f"send reply message for {command_list[1]}")
 		await channel.send(good_bot_messages[r]) # block until message is sent
+	async def feedback(self, message, arg):
+		channel = message.channel
+		print("send feeding link")
+		await channel.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 	async def ship(self, message, arg):
 		channel = message.channel
 		# get voted ship build
