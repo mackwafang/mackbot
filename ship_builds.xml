@@ -4,7 +4,7 @@
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
-			<upgrade>aa guns modification 1</upgrade>
+			<upgrade>atm1</upgrade>
 			<upgrade>*</upgrade>
 			<upgrade>fcm1</upgrade>
 			<upgrade>fcm2</upgrade>
@@ -21,11 +21,11 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="hakuryuu">
+	<ship name="hakuryū">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
-			<upgrade>aa guns modification 1</upgrade>
+			<upgrade>atm1</upgrade>
 			<upgrade>*</upgrade>
 			<upgrade>fcm1</upgrade>
 			<upgrade>fcm2</upgrade>
@@ -167,5 +167,85 @@
 		</skills>
 		<commander>William F. Halsey Jr.</commander>
 	</ship>
-
+	<ship name="kaga">
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>atm1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>fcm1</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>de</skill>
+			<skill>ss</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="lexington">
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>atm1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>fcm1</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>de</skill>
+			<skill>ss</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="shoukakū">
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>atm1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>fcm1</upgrade>
+			<upgrade>fcm2</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>bft</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="enterprise">
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>atm1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>fcm1</upgrade>
+			<upgrade>fcm2</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>bft</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	
 </build>

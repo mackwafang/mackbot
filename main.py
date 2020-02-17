@@ -251,8 +251,8 @@ def get_ship_data(ship):
 		if ship_found:
 			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
-			if original_arg.lower() in build:
-				upgrades, skills, cmdr = build[original_arg.lower()].values()
+			if name.lower() in build:
+				upgrades, skills, cmdr = build[name.lower()].values()
 			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
