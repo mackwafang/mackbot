@@ -546,6 +546,8 @@ class Client(discord.Client):
 							i += 1
 						footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
 						embed.add_field(name='Suggested Upgrades', value=m,inline=True)
+					else:
+						embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=True)
 					# suggested skills
 					if len(skills) > 0:
 						m = ""
@@ -562,6 +564,8 @@ class Client(discord.Client):
 							i += 1
 						footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
 						embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
+					else:
+						embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=True)
 					# suggested commander
 					if cmdr != "":
 						m = ""
@@ -576,7 +580,8 @@ class Client(discord.Client):
 								m = f"{cmdr} [!]"
 						footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 						embed.add_field(name='Suggested Cmdr.', value=m)
-				
+					else:
+						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=True)
 				error_footer_message = ""
 				if error_value_found:
 					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
