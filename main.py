@@ -175,6 +175,7 @@ ship_name_to_ascii ={
 	'myogi':'myōgi',
 	'myougi':'myōgi',
 	'jurien de la graviere':'jurien de la gravière',
+	'khaba':'khabarovsk',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -251,8 +252,8 @@ def get_ship_data(ship):
 		if ship_found:
 			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
-			if name.lower() in build:
-				upgrades, skills, cmdr = build[name.lower()].values()
+			if name in build:
+				upgrades, skills, cmdr = build[name].values()
 			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
@@ -390,6 +391,7 @@ def get_flag_data(flag):
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
+
 
 class Client(discord.Client):
 	async def on_ready(self):
@@ -544,6 +546,8 @@ class Client(discord.Client):
 							i += 1
 						footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
 						embed.add_field(name='Suggested Upgrades', value=m,inline=True)
+					else:
+						embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=True)
 					# suggested skills
 					if len(skills) > 0:
 						m = ""
@@ -560,6 +564,8 @@ class Client(discord.Client):
 							i += 1
 						footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
 						embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
+					else:
+						embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=True)
 					# suggested commander
 					if cmdr != "":
 						m = ""
@@ -574,7 +580,8 @@ class Client(discord.Client):
 								m = f"{cmdr} [!]"
 						footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 						embed.add_field(name='Suggested Cmdr.', value=m)
-				
+					else:
+						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=True)
 				error_footer_message = ""
 				if error_value_found:
 					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
