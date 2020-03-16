@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <build>
-	<ship name="Midway">
+	<ship name="midway">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -21,7 +21,7 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="Hakuryū">
+	<ship name="hakuryū">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -43,7 +43,7 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="Moskva">
+	<ship name="moskva">
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -64,7 +64,7 @@
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
-	<ship name="Stalingrad">
+	<ship name="stalingrad">
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -85,7 +85,7 @@
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
-	<ship name="Hindenburg">
+	<ship name="hindenburg">
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>hsm1</upgrade>
@@ -106,7 +106,7 @@
 		</skills>
 		<commander>Reinhard Von Jutland</commander>
 	</ship>
-	<ship name="Venezia">
+	<ship name="venezia">
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -127,7 +127,7 @@
 		</skills>
 		<commander>Luigi Sansonetti</commander>
 	</ship>
-	<ship name="Zaō">
+	<ship name="zao">
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -147,7 +147,7 @@
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
-	<ship name="Des Moines">
+	<ship name="des moines">
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -169,7 +169,7 @@
 		</skills>
 		<commander>William F. Halsey Jr.</commander>
 	</ship>
-	<ship name="Kaga">
+	<ship name="kaga">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -189,7 +189,7 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="Lexington">
+	<ship name="lexington">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -209,7 +209,7 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="Shoukakū">
+	<ship name="shoukakū">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -231,7 +231,7 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-	<ship name="Enterprise">
+	<ship name="enterprise">
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -251,7 +251,6 @@
 		</skills>
 		<commander>*</commander>
 	</ship>
-<<<<<<< HEAD
 	<ship name="daring">
 		<upgrades>
 			<upgrade>mam1</upgrade>
@@ -259,142 +258,17 @@
 			<upgrade>SMGEMO</upgrade>
 			<upgrade>sgm1</upgrade>
 			<upgrade>csm1</upgrade>
-=======
-	<ship name="Goliath">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>hsm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>sgm1</upgrade>
-			<upgrade>csm1</upgrade>
-			<upgrade>gfcsm2</upgrade>
-		</upgrades>
-		<skills>
-			<skill>pt</skill>
-			<skill>jat</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>de</skill>
-			<skill>ifhe</skill>
-			<skill>ce</skill>
-		</skills>
-		<commander>Jack Dunkirk</commander>
-	</ship>
-	<ship name="Thunderer">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>dcsm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>dcsm2</upgrade>
-			<upgrade>csm1</upgrade>
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
 			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jat</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
-		</skills>
-		<commander>Jack Dunkirk</commander>
-	</ship>
-	<ship name="Kremlin">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>dcsm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>dcsm2</upgrade>
-			<upgrade>csm1</upgrade>
->>>>>>> 057b9298995ec37ebf0f86e8577bf757902eec0f
-			<upgrade>mbm3</upgrade>
-		</upgrades>
-		<skills>
-			<skill>pt</skill>
-<<<<<<< HEAD
-=======
-			<skill>el</skill>
-			<skill>jat</skill>
-			<skill>ha</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
-		</skills>
-		<commander>Nikolay Kuznetsov</commander>
-	</ship>
-	<ship name="Bourgogne">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>ebm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>dcsm2</upgrade>
-			<upgrade>csm1</upgrade>
-			<upgrade>mbm3</upgrade>
-		</upgrades>
-		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jat</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
-		</skills>
-		<commander>Jean-Jacques Honoré</commander>
-	</ship>
-	<ship name="Großer Kurfürst">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>dcsm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>dcsm2</upgrade>
-			<upgrade>csm1</upgrade>
-			<upgrade>mbm3</upgrade>
-		</upgrades>
-		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jat</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
-		</skills>
-		<commander>Franz von Jutland</commander>
-	</ship>
-	<ship name="Khabarovsk">
-		<upgrades>
-			<upgrade>mam1</upgrade>
-			<upgrade>ebm1</upgrade>
-			<upgrade>asm1</upgrade>
-			<upgrade>pm1</upgrade>
-			<upgrade>sgm2</upgrade>
-			<upgrade>mbm3</upgrade>
-		</upgrades>
-		<skills>
-			<skill>pt</skill>
-			<skill>pm</skill>
->>>>>>> 057b9298995ec37ebf0f86e8577bf757902eec0f
 			<skill>ar</skill>
 			<skill>ls</skill>
 			<skill>se</skill>
 			<skill>s</skill>
-<<<<<<< HEAD
 			<skill>rl</skill>
 			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
-=======
-			<skill>de</skill>
-			<skill>aft</skill>
-		</skills>
-		<commander>Alexander Ovechkin</commander>
->>>>>>> 057b9298995ec37ebf0f86e8577bf757902eec0f
 	</ship>
-	
 </build>

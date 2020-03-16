@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -62,7 +62,7 @@ ship_list_frame = pd.DataFrame(ship_list)
 ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold'],axis=0)
 ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
-root = et.parse("./ship_builds.xml").getroot()
+root = et.parse("ship_builds.xml").getroot()
 print('Making build dictionary...')
 build = {}
 for ship in root:
@@ -75,6 +75,8 @@ for ship in root:
 	cmdr = ship.find('commander').text
 	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills,"cmdr":cmdr}
 print("Preprocessing Done")
+
+print(build)
 
 command_header = 'mackbot'
 token = ' '
@@ -252,8 +254,9 @@ def get_ship_data(ship):
 		if ship_found:
 			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
-			if name in build:
-				upgrades, skills, cmdr = build[name].values()
+			if name.lower() in build:
+				upgrades, skills, cmdr = build[name.lower()].values()
+				print(upgrades, skills, cmdr )
 			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
@@ -526,6 +529,7 @@ class Client(discord.Client):
 					
 					footer_message = ""
 					error_value_found = False
+					
 					# suggested upgrades
 					if len(upgrades) > 0:
 						m = ""
