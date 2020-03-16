@@ -14,10 +14,10 @@
 			<skill>ta</skill>
 			<skill>aa</skill>
 			<skill>se</skill>
+			<skill>ss</skill>
 			<skill>lg</skill>
 			<skill>ie</skill>
 			<skill>de</skill>
-			<skill>ss</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -35,9 +35,11 @@
 			<skill>ta</skill>
 			<skill>aa</skill>
 			<skill>se</skill>
+			<skill>ss</skill>
 			<skill>lg</skill>
 			<skill>ie</skill>
-			<skill>bft</skill>
+			<skill>ieb</skill>
+			<skill>jack of all trades</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -221,9 +223,11 @@
 			<skill>ta</skill>
 			<skill>aa</skill>
 			<skill>se</skill>
+			<skill>ss</skill>
 			<skill>lg</skill>
 			<skill>ie</skill>
-			<skill>bft</skill>
+			<skill>ieb</skill>
+			<skill>jack of all trades</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -244,6 +248,26 @@
 			<skill>lg</skill>
 			<skill>ie</skill>
 			<skill>bft</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="daring">
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>hsm1</upgrade>
+			<upgrade>SMGEMO</upgrade>
+			<upgrade>sgm1</upgrade>
+			<upgrade>csm1</upgrade>
+			<upgrade>mbm3</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>s</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
