@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" ?>
 <build>
 	<ship name="midway">
 		<upgrades>
@@ -10,14 +10,14 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>ss</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>de</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>ss</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>de</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -31,15 +31,15 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>ss</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>ieb</skill>
-			<skill>jack of all trades</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>ss</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>ieb</upgrade>
+			<upgrade>jack of all trades</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -53,14 +53,14 @@
 			<upgrade>hmbg</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jack of all trades</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>jack of all trades</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>fp</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
@@ -74,14 +74,14 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jack of all trades</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>fp</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>jack of all trades</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>fp</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
@@ -95,14 +95,14 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jack of all trades</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>ifhe</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>jack of all trades</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>ifhe</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>Reinhard Von Jutland</commander>
 	</ship>
@@ -116,14 +116,14 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>jack of all trades</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>rl</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>jack of all trades</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>rl</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>Luigi Sansonetti</commander>
 	</ship>
@@ -137,13 +137,13 @@
 			<upgrade>embasg</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>el</skill>
-			<skill>em</skill>
-			<skill>ar</skill>
-			<skill>se</skill>
-			<skill>de</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>de</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
@@ -152,20 +152,20 @@
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
 			<upgrade>asm1</upgrade>
-			<upgrade>pm2</upgrade>
+			<upgrade>prmo</upgrade>
 			<upgrade>csm1</upgrade>
 			<upgrade>ep</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>pm</skill>
-			<skill>el</skill>
-			<skill>em</skill>
-			<skill>jat</skill>
-			<skill>ar</skill>
-			<skill>s</skill>
-			<skill>de</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>pm</upgrade>
+			<upgrade>el</upgrade>
+			<upgrade>em</upgrade>
+			<upgrade>jat</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>de</upgrade>
+			<upgrade>ce</upgrade>
 		</skills>
 		<commander>William F. Halsey Jr.</commander>
 	</ship>
@@ -178,14 +178,14 @@
 			<upgrade>fcm1</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>de</skill>
-			<skill>ss</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>de</upgrade>
+			<upgrade>ss</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -198,14 +198,14 @@
 			<upgrade>fcm1</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>de</skill>
-			<skill>ss</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>de</upgrade>
+			<upgrade>ss</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -219,15 +219,15 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>ss</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>ieb</skill>
-			<skill>jack of all trades</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>ss</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>ieb</upgrade>
+			<upgrade>jack of all trades</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -241,13 +241,13 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<skill>as</skill>
-			<skill>ta</skill>
-			<skill>aa</skill>
-			<skill>se</skill>
-			<skill>lg</skill>
-			<skill>ie</skill>
-			<skill>bft</skill>
+			<upgrade>as</upgrade>
+			<upgrade>ta</upgrade>
+			<upgrade>aa</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>lg</upgrade>
+			<upgrade>ie</upgrade>
+			<upgrade>bft</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>
@@ -261,13 +261,33 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<skill>pt</skill>
-			<skill>ar</skill>
-			<skill>ls</skill>
-			<skill>se</skill>
-			<skill>s</skill>
-			<skill>rl</skill>
-			<skill>ce</skill>
+			<upgrade>pt</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>ls</upgrade>
+			<upgrade>se</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>rl</upgrade>
+			<upgrade>ce</upgrade>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="smolensk">
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>erp</upgrade>
+			<upgrade>asm1</upgrade>
+			<upgrade>pm1</upgrade>
+			<upgrade>csm1</upgrade>
+			<upgrade>gfcsm2</upgrade>
+		</upgrades>
+		<skills>
+			<upgrade>pt</upgrade>
+			<upgrade>ar</upgrade>
+			<upgrade>ls</upgrade>
+			<upgrade>bft</upgrade>
+			<upgrade>s</upgrade>
+			<upgrade>aft</upgrade>
+			<upgrade>ifhe</upgrade>
 		</skills>
 		<commander>*</commander>
 	</ship>

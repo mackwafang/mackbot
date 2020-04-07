@@ -74,9 +74,9 @@ for ship in root:
 		skills.append(skill.text)
 	cmdr = ship.find('commander').text
 	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills,"cmdr":cmdr}
+print("Fetching Maps")
+map_list = wows_encyclopedia.battlearenas()
 print("Preprocessing Done")
-
-print(build)
 
 command_header = 'mackbot'
 token = ' '
@@ -98,6 +98,7 @@ command_list = (
 	'commander',
 	'flag',
 	'feedback',
+	'map',
 )
 nation_dictionary = {
 	'usa': 'US',
@@ -394,7 +395,19 @@ def get_flag_data(flag):
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
-
+def get_map_data(map):
+	'''
+		returns information for the requested map
+	'''
+	map = map.lower()
+	try:
+		for m in map_list:
+			if map == map_list[m]['name'].lower():
+				description, image, id, name = map_list[m].values()
+				return description, image, id, name
+	except Exception as e:
+		raise e
+		print("Exception {type(e): ", e)
 
 class Client(discord.Client):
 	async def on_ready(self):
@@ -430,6 +443,9 @@ class Client(discord.Client):
 			if command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]')
 				embed.add_field(name='Description',value='List name, type, tier and effect of the requested commander skill')
+			if command == 'map':
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[map_name]')
+				embed.add_field(name='Description',value='List name and display the map of the requested map')
 			if command == 'whoami':
 				embed.add_field(name='Usage',value=command_header+token+command)
 				embed.add_field(name='Description',value='Who\'s this bot?')
@@ -457,8 +473,12 @@ class Client(discord.Client):
 							f'**[page_number]** Required. Select a page number to list commanders.\n'+
 							f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([nation_dictionary[i]+", " for i in nation_dictionary][:-3])}]**')
 					elif arg[3] == 'flags':
-						embed.add_field(name='Usage',value=command_header+token+command+token+"flag")
+						embed.add_field(name='Usage',value=command_header+token+command+token+"flags")
 						embed.add_field(name='Description',value='List names of all signal flags.\n')
+					elif arg[3] == 'maps':
+						embed.add_field(name='Usage',value=command_header+token+command+token+"maps"+token+"[page_num]")
+						embed.add_field(name='Description',value='List names of all maps.\n'+
+							f'**[page_number]** Required. Select a page number to list maps.\n')
 					elif arg[3] == 'ships':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]\n"+
 							'**Description:** List all available ships\n')
@@ -712,6 +732,36 @@ class Client(discord.Client):
 							else:
 								print(f"Exception {type(e)}", e)
 				
+				elif arg[2] == 'maps':
+					# list all maps
+					if len(arg) == 3:
+						embed = self.help_message(command_header+token+"help"+token+arg[1]+token+"maps")
+						send_help_message = True
+					elif len(arg) > 3:
+						# list upgrades
+						try:
+							page = int(arg[3])-1
+							m = [f"{map_list[i]['name']}" for i in map_list]
+							m.sort()
+							items_per_page = 20
+							num_pages = (len(map_list) // items_per_page)
+							
+							m = [m[i:i+items_per_page] for i in range(0,len(map_list),items_per_page)] # splitting into pages
+							embed = discord.Embed(title="Map List "+f"({page+1}/{num_pages+1})")
+							m = m[page] # select page
+							m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+							for i in m:
+								embed.add_field(name="Map", value=''.join([v+'\n' for v in i]))
+						except Exception as e:
+							if type(e) == IndexError:
+									embed = None
+									error_message = f"Page {page+1} does not exists"
+							elif type(e) == ValueError:
+								print(f"Upgrade listing argument <{arg[3]}> is invalid.")
+								error_message = f"Value {arg[3]} is not understood"
+							else:
+								print(f"Exception {type(e)}", e)
+				
 				elif arg[2] == 'ships':
 					message_success = False
 					if len(arg) == 3:
@@ -884,7 +934,7 @@ class Client(discord.Client):
 					embed.add_field(name="Nation",value=m)
 						
 				if price_credit > 0:
-					embed.add_field(name='Price (Credit)', value=price_credit)
+					embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 				await channel.send(embed=embed)
 			except Exception as e:
 				print(f"Exception {type(e)}", e)
@@ -911,8 +961,34 @@ class Client(discord.Client):
 					embed.add_field(name='Nation',value=nation_dictionary[nation])
 					
 				await channel.send(embed=embed)
-			except:
+			except Exception as e:
+				print(f"Exception {type(e)}: ", e)
 				await channel.send(f"Commander **{cmdr}** is not understood.")
+	async def map(self, message, arg):
+		channel = message.channel
+		# get information on requested map
+		message_string = message.content
+		map_found = False
+		# message parse
+		map = ''.join([i+' ' for i in arg[2:]])[:-1] #message_string[message_string.rfind('-')+1:]
+		if len(arg) <= 2:
+			embed = self.help_message(command_header+token+"help"+token+arg[1])
+			if not embed is None:
+				await channel.send(embed=embed)
+		else:
+			try:
+				async with channel.typing():
+					print(f'sending message for map <{map}>')
+					description, image, id, name = get_map_data(map)
+					embed = discord.Embed(title="Map")
+					embed.set_image(url=image)
+					embed.add_field(name='Name',value=name)
+					embed.add_field(name='Description',value=description)
+					
+				await channel.send(embed=embed)
+			except Exception as e:
+				print(f"Exception {type(e)}: ", e)
+				await channel.send(f"Map **{map}** is not understood.")
 	async def flag(self, message, arg):
 		channel = message.channel
 		# get information on requested flag
@@ -936,7 +1012,7 @@ class Client(discord.Client):
 				embed.add_field(name='Description',value=description)
 				embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]))
 				if price_credit > 0:
-					embed.add_field(name='Price (Credit)', value=price_credit)
+					embed.add_field(name='Price (Credit)', value=f"{price_credit:,}")
 				if price_gold > 0:
 					embed.add_field(name='Price (Doub.)', value=price_gold)
 				await channel.send(embed=embed)
