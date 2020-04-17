@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -11,11 +11,13 @@ if not DEBUG_IS_MAINTANCE:
 	install('wargaming')
 	install('pandas')
 	install('numpy')
+	install('nilsimsa')
+	install('bitstring')
 
-import wargaming
+import wargaming, os, nilsimsa
 import pandas as pd
-import os
 from numpy.random import randint
+from bitstring import BitString
 
 print("Fetching WoWS Encyclopedia")
 
@@ -25,20 +27,34 @@ ship_types = wows_encyclopedia.info()['ship_types']
 del ship_types['Submarine']
 print("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
+for skill in skill_list:
+    h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
+    h = BitString(h).bin# convert to bits
+    skill_list[skill]['name_hash'] = h
 print("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
+for cmdr in cmdr_list:
+    h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
+    h = BitString(h).bin# convert to bits
+    cmdr_list[cmdr]['name_hash'] = h
+
 print("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
 for page_num in range(1,3):
 	consumable_list = wows_encyclopedia.consumables(page_no=page_num)
 	for consumable in consumable_list:
 		c_type = consumable_list[consumable]['type']
+		h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
+		h = BitString(h).bin# convert to bits
 		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
 			camo_list[consumable] = consumable_list[consumable]
+			camo_list[consumable]['name_hash'] = h
 		if c_type == 'Modernization':
 			upgrade_list[consumable] = consumable_list[consumable]
+			upgrade_list[consumable]['name_hash'] = h
 		if c_type == 'Flags':
 			flag_list[consumable] = consumable_list[consumable]
+			flag_list[consumable]['name_hash'] = h
 print("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
 for i in upgrade_list:
@@ -53,13 +69,16 @@ for i in upgrade_list:
 print("Fetching Ship List")
 ship_list = {}
 for page in range(1,6):
-	list = wows_encyclopedia.ships(language='en',page_no=page)
-	for i in list:
-		ship_list[i] = list[i]
+	l = wows_encyclopedia.ships(language='en',page_no=page)
+	for i in l:
+		h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
+		h = BitString(h).bin# convert to bits
+		l[i]['name_hash'] = h
+		ship_list[i] = l[i]
 print("Filtering Ships and Categories")
 del ship_list['3749623248']
 ship_list_frame = pd.DataFrame(ship_list)
-ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold'],axis=0)
+ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash'],axis=0)
 ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
 root = et.parse("ship_builds.xml").getroot()
@@ -76,6 +95,10 @@ for ship in root:
 	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills,"cmdr":cmdr}
 print("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
+for m in map_list:
+	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
+	h = BitString(h).bin# convert to bits
+	map_list[m]['name_hash'] = h
 print("Preprocessing Done")
 
 command_header = 'mackbot'
@@ -234,7 +257,32 @@ cmdr_name_to_ascii ={
 	'leon terraux':'léon terraux',
 	'charles-henri honore':'charles-henri honoré',
 }
-
+def hamming(s1, s2):
+    dist = 0
+    for n in range(len(s1)):
+        if s1[n] != s2[n]:
+            dist += 1
+    return dist
+def find_closest(s, dictionary):
+    h = BitString("0x"+nilsimsa.Nilsimsa(s.lower()).hexdigest()).bin
+    min_collision = np.inf
+    name = ""
+    lowest_match = []
+    for i in dictionary:
+        ham = hamming(h, dictionary[i]['name_hash'])
+        if ham < min_collision:
+            name = dictionary[i]['name']
+            min_collision = ham
+            lowest_match = [name]
+        elif ham == min_collision:
+            lowest_match += [dictionary[i]['name']]
+    if len(lowest_match) > 1:
+        for i in lowest_match:
+            if len(s) == len(i):
+                name = i
+    else:
+        name = lowest_match[0]
+    return name
 def get_ship_data(ship):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -253,7 +301,7 @@ def get_ship_data(ship):
 				ship_found = True
 				break
 		if ship_found:
-			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold = ship_list[i].values()
+			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
 			if name.lower() in build:
 				upgrades, skills, cmdr = build[name.lower()].values()
@@ -283,7 +331,7 @@ def get_skill_data(skill):
 					skill_found = True
 					break
 		# found it!
-		name, id, skill_type, perk, tier, icon = skill_list[i].values()
+		name, id, skill_type, perk, tier, icon, _ = skill_list[i].values()
 		return name, id, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
@@ -310,11 +358,11 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, upgrade_type, description = upgrade_list[i].values()
+		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _ = upgrade_list[i].values()
 		# check availability of upgrade (which tier, ship)
 		usable_in = {'nation':[],'type':[],'tier':[]}
 		for s in ship_list_frame:
-			_, n, _, ship_type, tier, u, _, _ = ship_list_frame[s]
+			_, n, _, ship_type, tier, u, _, _, _ = ship_list_frame[s]
 			if int(i) in u: # if the upgrade with id 'i' in the list of upgrades 'u'
 				if not n in usable_in['nation']:
 					usable_in['nation'].append(n)
@@ -389,7 +437,7 @@ def get_flag_data(flag):
 				if flag.lower() == flag_list[i]['name'].lower():
 					flag_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, upgrade_type, description = flag_list[i].values()
+		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _ = flag_list[i].values()
 		return profile, name, price_gold, image, price_credit, upgrade_type, description
 		
 	except Exception as e:
@@ -403,7 +451,7 @@ def get_map_data(map):
 	try:
 		for m in map_list:
 			if map == map_list[m]['name'].lower():
-				description, image, id, name = map_list[m].values()
+				description, image, id, name, _ = map_list[m].values()
 				return description, image, id, name
 	except Exception as e:
 		raise e
