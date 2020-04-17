@@ -4,6 +4,7 @@ DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
+
 import xml.etree.ElementTree as et
 def install(package):
 	subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -19,9 +20,11 @@ import pandas as pd
 from numpy.random import randint
 from bitstring import BitString
 
+cwd = sys.path[0]
+
 print("Fetching WoWS Encyclopedia")
 
-with open(".env") as f:
+with open(cwd+"/.env") as f:
 	s = f.read().split('\n')[:-1]
 	wg_token = s[0][s[0].find('=')+1:]
 	bot_token = s[1][s[1].find('=')+1:]
@@ -85,7 +88,7 @@ ship_list_frame = pd.DataFrame(ship_list)
 ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash'],axis=0)
 ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
-root = et.parse("ship_builds.xml").getroot()
+root = et.parse(cwd+"/ship_builds.xml").getroot()
 print('Making build dictionary...')
 build = {}
 for ship in root:
