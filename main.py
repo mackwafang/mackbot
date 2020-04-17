@@ -25,8 +25,6 @@ with open(".env") as f:
 	s = f.read().split('\n')[:-1]
 	wg_token = s[0][s[0].find('=')+1:]
 	bot_token = s[1][s[1].find('=')+1:]
-	
-print(s, wg_token, bot_token)
 
 wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
