@@ -107,7 +107,6 @@ for m in map_list:
 	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
 	h = BitString(h).bin# convert to bits
 	map_list[m]['name_hash'] = h
-check_build()
 print("Preprocessing Done")
 
 command_header = 'mackbot'
@@ -1143,6 +1142,7 @@ class Client(discord.Client):
 
 if __name__ == "__main__":
 	client = Client()
+	check_build()
 	try:
 		client.run(bot_token)
 	except Exception as e:
