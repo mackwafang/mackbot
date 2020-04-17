@@ -6,9 +6,9 @@ import subprocess
 import sys
 
 import xml.etree.ElementTree as et
-def install(package):
-	subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-if not DEBUG_IS_MAINTANCE:
+if False:#not DEBUG_IS_MAINTANCE:
+	def install(package):
+		subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 	install('wargaming')
 	install('pandas')
 	install('numpy')
@@ -21,9 +21,10 @@ from numpy.random import randint
 from bitstring import BitString
 
 cwd = sys.path[0]
+if cwd == '':
+	cwd = '.'
 
 print("Fetching WoWS Encyclopedia")
-
 with open(cwd+"/.env") as f:
 	s = f.read().split('\n')[:-1]
 	wg_token = s[0][s[0].find('=')+1:]
@@ -106,6 +107,7 @@ for m in map_list:
 	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
 	h = BitString(h).bin# convert to bits
 	map_list[m]['name_hash'] = h
+check_build()
 print("Preprocessing Done")
 
 command_header = 'mackbot'
@@ -290,6 +292,37 @@ def find_closest(s, dictionary):
     else:
         name = lowest_match[0]
     return name
+def check_build():
+	for s in build:
+		print("Checking build for ship", s)
+		name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr = get_ship_data(s)
+		# suggested upgrades
+		if len(upgrades) > 0:
+			for upgrade in upgrades:
+				if upgrade == '*':
+					# any thing
+					pass
+				else:
+					try: # ew, nested try/catch
+						get_upgrade_data(upgrade)
+					except Exception as e: 
+						print(f"Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+		# suggested skills
+		if len(skills) > 0:
+			for skill in skills:
+				try: # ew, nested try/catch
+					get_skill_data(skill)
+				except Exception as e: 
+					print(f"Exception {type(e)}", e, f"in check_build, listing skill {skill}")
+		# suggested commander
+		if cmdr != "":
+			if cmdr == "*":
+				pass
+			else:
+				try:
+					get_commander_data(cmdr)
+				except Exception as e: 
+					print(f"Exception {type(e)}", e, "in check_build, listing commander")
 def get_ship_data(ship):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -312,7 +345,6 @@ def get_ship_data(ship):
 			upgrades, skills, cmdr = {}, {}, ""
 			if name.lower() in build:
 				upgrades, skills, cmdr = build[name.lower()].values()
-				print(upgrades, skills, cmdr )
 			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
 	except Exception as e:
 		raise e
@@ -1108,8 +1140,10 @@ class Client(discord.Client):
 						await channel.send("Mack's raifu: M1918 BAR https://en.gfwiki.com/wiki/M1918")
 				# if not arg[1] in command_list:
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
-client = Client()
-try:
-	client.run(bot_token)
-except Exception as e:
-	print(f"{type(e)}",e)
+
+if __name__ == "__main__":
+	client = Client()
+	try:
+		client.run(bot_token)
+	except Exception as e:
+		print(f"{type(e)}",e)
