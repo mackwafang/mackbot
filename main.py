@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
@@ -21,8 +21,14 @@ from bitstring import BitString
 
 print("Fetching WoWS Encyclopedia")
 
+with open(".env") as f:
+	s = f.read().split('\n')[:-1]
+	wg_token = s[0][s[0].find('=')+1:]
+	bot_token = s[1][s[1].find('=')+1:]
+	
+print(s, wg_token, bot_token)
 
-wows_encyclopedia = wargaming.WoWS(os.environ['wg_token'],region='na',language='en').encyclopedia
+wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 del ship_types['Submarine']
 print("Fetching Skill List")
@@ -1103,6 +1109,6 @@ class Client(discord.Client):
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 client = Client()
 try:
-	client.run(os.environ['bot_token'])
+	client.run(bot_token)
 except Exception as e:
 	print(f"{type(e)}",e)
