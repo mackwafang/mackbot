@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -39,6 +39,19 @@ for skill in skill_list:
     h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
     h = BitString(h).bin# convert to bits
     skill_list[skill]['name_hash'] = h
+# putting missing values
+skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
+skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
+skill_list['28']['perks'] = [
+	{'perk_id':0, 'description':'The detection indicator will show the number of opponents currently aiming at your ship with thier main battery guns'},
+	{'perk_id':1, 'description':'For an aircraft carrier\'s squadron, the detection indicator will show the numbers of ships whose AA defenses are current firing at your planes.'}
+]
+skill_list['32']['perks'] = [{'perk_id':0, 'description':'Completely restores the engine boost for the last attacking flight of the aircraft carrier\'s squadron'}]
+skill_list['34']['perks'] = [
+	{'perk_id':0, 'description':'Shows the direction of the nearest enemy ship'},
+	{'perk_id':1, 'description':'The enemy player will be alerted that a bearing was taken on their ship'},
+	{'perk_id':2, 'description':'Does not work on aircraft carriers'},
+]
 print("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
 for cmdr in cmdr_list:
@@ -264,6 +277,7 @@ cmdr_name_to_ascii ={
 	'rattenkonig':'rattenkönig',
 	'leon terraux':'léon terraux',
 	'charles-henri honore':'charles-henri honoré',
+	'jerzy swirski':'Jerzy Świrski',
 }
 def hamming(s1, s2):
     dist = 0
@@ -721,9 +735,10 @@ class Client(discord.Client):
 					embed.add_field(name='Skill Name', value=name)
 					embed.add_field(name='Tier', value=tier)
 					embed.add_field(name='Category', value=skill_type)
-					embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk))
+					embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk) if len(perk) != 0 else '')
 				await channel.send(embed=embed)
-			except:
+			except Exception as e:
+				print("Exception", type(e), ":", e)
 				await channel.send(f"Skill **{skill}** is not understood.")
 	async def list(self, message, arg):
 		channel = message.channel
