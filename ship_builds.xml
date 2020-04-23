@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <build>
 	<ship name="midway">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -10,18 +11,41 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>ss</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>de</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>ss</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>ieb</skill>
+			<skill>jack of all trades</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="midway">
+		<type>1</type>
+		<upgrades>
+			<upgrade>air groups modification 1</upgrade>
+			<upgrade>aircraft engines modification 1</upgrade>
+			<upgrade>atm1</upgrade>
+			<upgrade>*</upgrade>
+			<upgrade>scm1</upgrade>
+			<upgrade>fcm2</upgrade>
+		</upgrades>
+		<skills>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>ss</skill>
+			<skill>lg</skill>
+			<skill>de</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="hakuryū">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -31,19 +55,20 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>ss</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>ieb</upgrade>
-			<upgrade>jack of all trades</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>ss</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>ieb</skill>
+			<skill>jack of all trades</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="moskva">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -53,39 +78,41 @@
 			<upgrade>hmbg</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
 	<ship name="stalingrad">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
 			<upgrade>asm1</upgrade>
 			<upgrade>dcsm2</upgrade>
 			<upgrade>csm1</upgrade>
-			<upgrade>gfcsm2</upgrade>
+			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Nikolay Kuznetsov</commander>
 	</ship>
 	<ship name="hindenburg">
+		<type>0</type>
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>hsm1</upgrade>
@@ -95,19 +122,20 @@
 			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ce</upgrade>
-			<upgrade>pm</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>de</skill>
+			<skill>ce</skill>
+			<skill>pm</skill>
 		</skills>
 		<commander>Reinhard Von Jutland</commander>
 	</ship>
 	<ship name="venezia">
+		<type>0</type>
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -117,18 +145,19 @@
 			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Luigi Sansonetti</commander>
 	</ship>
 	<ship name="zao">
+		<type>0</type>
 		<upgrades>
 			<upgrade>sam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -138,17 +167,18 @@
 			<upgrade>embasg</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>se</skill>
+			<skill>de</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
 	<ship name="des moines">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -158,19 +188,20 @@
 			<upgrade>ep</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>pm</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>jat</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>pm</skill>
+			<skill>el</skill>
+			<skill>em</skill>
+			<skill>jat</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>de</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>William F. Halsey Jr.</commander>
 	</ship>
 	<ship name="kaga">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -179,18 +210,19 @@
 			<upgrade>fcm1</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ss</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>de</skill>
+			<skill>ss</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="lexington">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -199,18 +231,19 @@
 			<upgrade>fcm1</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ss</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>de</skill>
+			<skill>ss</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="shoukaku">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -220,19 +253,20 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>ss</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>ieb</upgrade>
-			<upgrade>jack of all trades</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>ss</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>ieb</skill>
+			<skill>jack of all trades</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="enterprise">
+		<type>0</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -242,17 +276,18 @@
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>as</upgrade>
-			<upgrade>ta</upgrade>
-			<upgrade>aa</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>lg</upgrade>
-			<upgrade>ie</upgrade>
-			<upgrade>bft</upgrade>
+			<skill>as</skill>
+			<skill>ta</skill>
+			<skill>aa</skill>
+			<skill>se</skill>
+			<skill>lg</skill>
+			<skill>ie</skill>
+			<skill>bft</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="daring">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>hsm1</upgrade>
@@ -262,17 +297,18 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pm</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pm</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>s</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="smolensk">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>enrop</upgrade>
@@ -282,17 +318,18 @@
 			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>bft</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>aft</upgrade>
-			<upgrade>ifhe</upgrade>
+			<skill>pt</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>bft</skill>
+			<skill>s</skill>
+			<skill>aft</skill>
+			<skill>ifhe</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="yoshino">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -302,18 +339,19 @@
 			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
 	<ship name="halland">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>enrop</upgrade>
@@ -323,17 +361,18 @@
 			<upgrade>ttm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pm</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>tae</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pm</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>tae</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Jerzy Swirski</commander>
 	</ship>
 	<ship name="gearing">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>enrop</upgrade>
@@ -343,17 +382,18 @@
 			<upgrade>ttm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pm</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>tae</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pm</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>tae</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Alexander Ovechkin</commander>
 	</ship>
 	<ship name="shimakaze">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>enrop</upgrade>
@@ -363,17 +403,18 @@
 			<upgrade>ttm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pm</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>tae</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pm</skill>
+			<skill>ar</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>tae</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="grozovoi">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>ebm1</upgrade>
@@ -383,18 +424,19 @@
 			<upgrade>rmbg</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>pm</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>bft</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>aft</upgrade>
+			<skill>pt</skill>
+			<skill>pm</skill>
+			<skill>ls</skill>
+			<skill>ar</skill>
+			<skill>se</skill>
+			<skill>bft</skill>
+			<skill>s</skill>
+			<skill>aft</skill>
 		</skills>
 		<commander>Alexander Ovechkin</commander>
 	</ship>
 	<ship name="khabarovsk">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>ebm1</upgrade>
@@ -404,18 +446,19 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>pm</upgrade>
-			<upgrade>ls</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>bft</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>aft</upgrade>
+			<skill>pt</skill>
+			<skill>pm</skill>
+			<skill>ls</skill>
+			<skill>ar</skill>
+			<skill>se</skill>
+			<skill>bft</skill>
+			<skill>s</skill>
+			<skill>aft</skill>
 		</skills>
 		<commander>Alexander Ovechkin</commander>
 	</ship>
 	<ship name="worcester">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>srm1</upgrade>
@@ -425,17 +468,18 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ifhes</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>jack of all trades</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>de</skill>
+			<skill>ifhes</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="minotaur">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>hsm1</upgrade>
@@ -445,17 +489,18 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>se</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>rl</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>ar</skill>
+			<skill>jack of all trades</skill>
+			<skill>se</skill>
+			<skill>s</skill>
+			<skill>rl</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Jack Dunkirk</commander>
 	</ship>
 	<ship name="thunderer">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -465,18 +510,19 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Jack Dunkirk</commander>
 	</ship>
 	<ship name="kremlin">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -486,18 +532,19 @@
 			<upgrade>mbm3</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>ha</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>ha</skill>
+			<skill>jack of all trades</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
 	<ship name="yamato">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -507,17 +554,18 @@
 			<upgrade>embg</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>bs</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>bs</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Yamamoto Isoroku</commander>
 	</ship>
 	<ship name="montana">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>dcsm1</upgrade>
@@ -527,18 +575,19 @@
 			<upgrade>aprm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>fp</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>fp</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>John Doe</commander>
 	</ship>
 	<ship name="henri iv">
+		<type>0</type>
 		<upgrades>
 			<upgrade>mam1</upgrade>
 			<upgrade>ebm1</upgrade>
@@ -548,15 +597,15 @@
 			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
-			<upgrade>pt</upgrade>
-			<upgrade>pm</upgrade>
-			<upgrade>el</upgrade>
-			<upgrade>jack of all trades</upgrade>
-			<upgrade>em</upgrade>
-			<upgrade>ar</upgrade>
-			<upgrade>s</upgrade>
-			<upgrade>de</upgrade>
-			<upgrade>ce</upgrade>
+			<skill>pt</skill>
+			<skill>pm</skill>
+			<skill>el</skill>
+			<skill>jack of all trades</skill>
+			<skill>em</skill>
+			<skill>ar</skill>
+			<skill>s</skill>
+			<skill>de</skill>
+			<skill>ce</skill>
 		</skills>
 		<commander>Jean-Jacques Honore</commander>
 	</ship>

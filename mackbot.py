@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
@@ -104,16 +104,28 @@ ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
 root = et.parse(cwd+"/ship_builds.xml").getroot()
 print('Making build dictionary...')
-build = {}
+BUILD_BATTLE_TYPE_CLAN = 0
+BUILD_BATTLE_TYPE_CASUAL = 1
+build_battle_type = {
+	BUILD_BATTLE_TYPE_CLAN   : "competitive",
+	BUILD_BATTLE_TYPE_CASUAL : "casual",
+}
+build_battle_type_value = {
+	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
+	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
+}
+build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
 for ship in root:
 	upgrades = []
 	skills = []
+	build_type = int(ship.find('type').text)
 	for upgrade in ship.find('upgrades'):
 		upgrades.append(upgrade.text)
 	for skill in ship.find('skills'):
 		skills.append(skill.text)
 	cmdr = ship.find('commander').text
-	build[ship.attrib['name']] = {"upgrades":upgrades,"skills":skills,"cmdr":cmdr}
+	build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+
 print("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
 for m in map_list:
@@ -134,7 +146,7 @@ good_bot_messages = (
 command_list = (
 	'help',
 	'goodbot',
-	'ship',
+	'build',
 	'skill',
 	'whoami',
 	'list',
@@ -181,11 +193,14 @@ ship_name_to_ascii ={
 	'kleber':'kléber',
 	'hakuryu':'hakuryū',
 	'hakuryuu':'hakuryū',
+	'haku':'hakuryū',
+	'hak':'hakuryū',
 	'kagero':'kagerō',
 	'kagerou':'kagerō',
 	'konig albert':'könig albert',
 	'grosser kurfurst':'großer kurfürst',
 	'grober kurfurst':'großer kurfürst',
+	'kurfurst':'großer kurfürst',
 	'republique':'république',
 	'konig':'könig',
 	'ryuujou':'ryūjō',
@@ -306,37 +321,38 @@ def find_closest(s, dictionary):
         name = lowest_match[0]
     return name
 def check_build():
-	for s in build:
-		print("Checking build for ship", s)
-		name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr = get_ship_data(s)
-		# suggested upgrades
-		if len(upgrades) > 0:
-			for upgrade in upgrades:
-				if upgrade == '*':
-					# any thing
+	for t in build_battle_type:
+		for s in build[build_battle_type[t]]:
+			print("Checking", build_battle_type[t], "battle", "build for ship", s)
+			name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
+			# suggested upgrades
+			if len(upgrades) > 0:
+				for upgrade in upgrades:
+					if upgrade == '*':
+						# any thing
+						pass
+					else:
+						try: # ew, nested try/catch
+							get_upgrade_data(upgrade)
+						except Exception as e: 
+							print(f"Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+			# suggested skills
+			if len(skills) > 0:
+				for skill in skills:
+					try: # ew, nested try/catch
+						get_skill_data(skill)
+					except Exception as e: 
+						print(f"Exception {type(e)}", e, f"in check_build, listing skill {skill}")
+			# suggested commander
+			if cmdr != "":
+				if cmdr == "*":
 					pass
 				else:
-					try: # ew, nested try/catch
-						get_upgrade_data(upgrade)
+					try:
+						get_commander_data(cmdr)
 					except Exception as e: 
-						print(f"Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
-		# suggested skills
-		if len(skills) > 0:
-			for skill in skills:
-				try: # ew, nested try/catch
-					get_skill_data(skill)
-				except Exception as e: 
-					print(f"Exception {type(e)}", e, f"in check_build, listing skill {skill}")
-		# suggested commander
-		if cmdr != "":
-			if cmdr == "*":
-				pass
-			else:
-				try:
-					get_commander_data(cmdr)
-				except Exception as e: 
-					print(f"Exception {type(e)}", e, "in check_build, listing commander")
-def get_ship_data(ship):
+						print(f"Exception {type(e)}", e, "in check_build, listing commander")
+def get_ship_data(ship, battle_type='casual'):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
 		
@@ -356,9 +372,9 @@ def get_ship_data(ship):
 		if ship_found:
 			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
-			if name.lower() in build:
-				upgrades, skills, cmdr = build[name.lower()].values()
-			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr
+			if name.lower() in build[battle_type]:
+				upgrades, skills, cmdr = build[battle_type][name.lower()].values()
+			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr, battle_type
 	except Exception as e:
 		raise e
 def get_skill_data(skill):
@@ -537,9 +553,11 @@ class Client(discord.Client):
 			if command == 'goodbot':
 				embed.add_field(name='Usage',value=command_header+token+command)
 				embed.add_field(name='Description',value='Praise the bot for being a good bot')
-			if command == 'ship':
-				embed.add_field(name='Usage',value=command_header+token+command+token+'[ship]')
-				embed.add_field(name='Description',value='List name, nationality, type, tier, recommended build (WIP) of the requested warships')
+			if command == 'build':
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[type] ship')
+				embed.add_field(name='Description',value='List name, nationality, type, tier, recommended build of the requested warships\n'+
+					f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n'+
+					'**ship**: Required. Desired ship to output information on.')
 			if command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]')
 				embed.add_field(name='Description',value='List name, type, tier and effect of the requested commander skill')
@@ -623,26 +641,32 @@ class Client(discord.Client):
 		channel = message.channel
 		print("send feeding link")
 		await channel.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
-	async def ship(self, message, arg):
+	async def build(self, message, arg):
 		channel = message.channel
 		# get voted ship build
 		message_string = message.content
 		# message parse
-		ship = ''.join([i+' ' for i in arg[2:]])[:-1] 
 		ship_found = False
 		if len(arg) <= 2:
 			embed = self.help_message(command_header+token+"help"+token+arg[1])
 			if not embed is None:
 				await channel.send(embed=embed)
 		else:
+			battle_type = arg[2] # assuming build battle type is provided
+			if battle_type.lower() in build_battle_type_value:
+				# 2nd argument provided is a known argument
+				ship = ''.join([i+' ' for i in arg[3:]])[:-1] # grab ship name
+			else:
+				battle_type = 'casual'
+				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
 			try:
 				async with channel.typing():
-					name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr = get_ship_data(ship)
+					name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
 					print(f"returning ship information for <{name}>")
 					ship_type = ship_types[ship_type]
-					embed = discord.Embed(title="Warship Information")
+					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
 					embed.set_thumbnail(url=images['small'])
-					embed.add_field(name='Name', value=name)
+					# embed.add_field(name='Name', value=name)
 					embed.add_field(name='Nation', value=nation_dictionary[nation])
 					embed.add_field(name='Type', value="Premium "+ship_type if is_prem else ship_type)
 					embed.add_field(name='Tier', value=tier)
