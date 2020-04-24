@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -659,6 +659,7 @@ class Client(discord.Client):
 			else:
 				battle_type = 'casual'
 				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
+			print(battle_type, ship)
 			try:
 				async with channel.typing():
 					name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)

@@ -7,7 +7,7 @@
 			<upgrade>aircraft engines modification 1</upgrade>
 			<upgrade>atm1</upgrade>
 			<upgrade>*</upgrade>
-			<upgrade>fcm1</upgrade>
+			<upgrade>scm1</upgrade>
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
@@ -30,7 +30,7 @@
 			<upgrade>aircraft engines modification 1</upgrade>
 			<upgrade>atm1</upgrade>
 			<upgrade>*</upgrade>
-			<upgrade>scm1</upgrade>
+			<upgrade>fcm1</upgrade>
 			<upgrade>fcm2</upgrade>
 		</upgrades>
 		<skills>
@@ -201,7 +201,7 @@
 		<commander>William F. Halsey Jr.</commander>
 	</ship>
 	<ship name="kaga">
-		<type>0</type>
+		<type>1</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -222,7 +222,7 @@
 		<commander>*</commander>
 	</ship>
 	<ship name="lexington">
-		<type>0</type>
+		<type>1</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -243,7 +243,7 @@
 		<commander>*</commander>
 	</ship>
 	<ship name="shoukaku">
-		<type>0</type>
+		<type>1</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
@@ -266,7 +266,7 @@
 		<commander>*</commander>
 	</ship>
 	<ship name="enterprise">
-		<type>0</type>
+		<type>1</type>
 		<upgrades>
 			<upgrade>air groups modification 1</upgrade>
 			<upgrade>aircraft engines modification 1</upgrade>
