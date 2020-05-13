@@ -32,7 +32,7 @@ with open(cwd+"/.env") as f:
 
 wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
-del ship_types['Submarine']
+
 print("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
 for skill in skill_list:
@@ -601,7 +601,8 @@ class Client(discord.Client):
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]\n"+
 							'**Description:** List all available ships\n')
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]\n"+
-							'**Description:** List all available ships of specified nation.\nAcceptable values for nation:'+f'{"".join(["**"+nation_dictionary[nation]+"**, " for nation in nation_dictionary])}')
+							'**Description:** List all available ships of specified nation.\nAcceptable values for nation:'+f'{"".join(["**"+nation_dictionary[nation]+"**, " for nation in nation_dictionary])}\n'
+							"")
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
