@@ -258,7 +258,7 @@ for s in ship_list:
     
     tier = ship_list[s]['tier']
     prem = ship_list[s]['is_premium']
-    ship_list[s]['tags'] = [nat, f't{tier}', t, hull_class]
+    ship_list[s]['tags'] = [nat, f't{tier}', t+'s', hull_class]
     if prem:
         ship_list[s]['tags'] += ['premium']
 print("Filtering Ships and Categories")
