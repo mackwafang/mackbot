@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import subprocess
 import sys
@@ -15,8 +15,9 @@ if False:#not DEBUG_IS_MAINTANCE:
 	install('nilsimsa')
 	install('bitstring')
 
-import wargaming, os, nilsimsa
+import wargaming, os, nilsimsa, re
 import pandas as pd
+import numpy as np
 from numpy.random import randint
 from bitstring import BitString
 
@@ -24,138 +25,6 @@ cwd = sys.path[0]
 if cwd == '':
 	cwd = '.'
 
-print("Fetching WoWS Encyclopedia")
-with open(cwd+"/.env") as f:
-	s = f.read().split('\n')[:-1]
-	wg_token = s[0][s[0].find('=')+1:]
-	bot_token = s[1][s[1].find('=')+1:]
-
-wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
-ship_types = wows_encyclopedia.info()['ship_types']
-
-print("Fetching Skill List")
-skill_list = wows_encyclopedia.crewskills()
-for skill in skill_list:
-    h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
-    h = BitString(h).bin# convert to bits
-    skill_list[skill]['name_hash'] = h
-# putting missing values
-skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
-skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
-skill_list['28']['perks'] = [
-	{'perk_id':0, 'description':'The detection indicator will show the number of opponents currently aiming at your ship with thier main battery guns'},
-	{'perk_id':1, 'description':'For an aircraft carrier\'s squadron, the detection indicator will show the numbers of ships whose AA defenses are current firing at your planes.'}
-]
-skill_list['32']['perks'] = [{'perk_id':0, 'description':'Completely restores the engine boost for the last attacking flight of the aircraft carrier\'s squadron'}]
-skill_list['34']['perks'] = [
-	{'perk_id':0, 'description':'Shows the direction of the nearest enemy ship'},
-	{'perk_id':1, 'description':'The enemy player will be alerted that a bearing was taken on their ship'},
-	{'perk_id':2, 'description':'Does not work on aircraft carriers'},
-]
-print("Fetching Commander List")
-cmdr_list = wows_encyclopedia.crews()
-for cmdr in cmdr_list:
-    h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
-    h = BitString(h).bin# convert to bits
-    cmdr_list[cmdr]['name_hash'] = h
-
-print("Fetching Camo, Flags and Modification List")
-camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
-for page_num in range(1,3):
-	consumable_list = wows_encyclopedia.consumables(page_no=page_num)
-	for consumable in consumable_list:
-		c_type = consumable_list[consumable]['type']
-		h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
-		h = BitString(h).bin# convert to bits
-		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
-			camo_list[consumable] = consumable_list[consumable]
-			camo_list[consumable]['name_hash'] = h
-		if c_type == 'Modernization':
-			upgrade_list[consumable] = consumable_list[consumable]
-			upgrade_list[consumable]['name_hash'] = h
-		if c_type == 'Flags':
-			flag_list[consumable] = consumable_list[consumable]
-			flag_list[consumable]['name_hash'] = h
-print("Auto build Modification Abbreviation")
-upgrade_abbr_list = {}
-for i in upgrade_list:
-	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
-	upgrade_list[i]['name'] = upgrade_list[i]['name'].replace(chr(160),chr(32))
-	key = ''.join([i[0] for i in upgrade_list[i]['name'].split()]).lower()
-	if not key in upgrade_abbr_list:
-		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
-	else:
-		key = ''.join([i[:2].title() for i in upgrade_list[i]['name'].split()]).lower()[:-1]
-		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
-print("Fetching Ship List")
-ship_list = {}
-for page in range(1,6):
-	l = wows_encyclopedia.ships(language='en',page_no=page)
-	for i in l:
-		h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
-		h = BitString(h).bin# convert to bits
-		l[i]['name_hash'] = h
-		ship_list[i] = l[i]
-print("Filtering Ships and Categories")
-del ship_list['3749623248']
-ship_list_frame = pd.DataFrame(ship_list)
-ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash'],axis=0)
-ship_list = ship_list_frame.to_dict()
-print('Fetching build file...')
-root = et.parse(cwd+"/ship_builds.xml").getroot()
-print('Making build dictionary...')
-BUILD_BATTLE_TYPE_CLAN = 0
-BUILD_BATTLE_TYPE_CASUAL = 1
-build_battle_type = {
-	BUILD_BATTLE_TYPE_CLAN   : "competitive",
-	BUILD_BATTLE_TYPE_CASUAL : "casual",
-}
-build_battle_type_value = {
-	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
-	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
-}
-build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
-for ship in root:
-	upgrades = []
-	skills = []
-	build_type = int(ship.find('type').text)
-	for upgrade in ship.find('upgrades'):
-		upgrades.append(upgrade.text)
-	for skill in ship.find('skills'):
-		skills.append(skill.text)
-	cmdr = ship.find('commander').text
-	build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
-
-print("Fetching Maps")
-map_list = wows_encyclopedia.battlearenas()
-for m in map_list:
-	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
-	h = BitString(h).bin# convert to bits
-	map_list[m]['name_hash'] = h
-print("Preprocessing Done")
-
-command_header = 'mackbot'
-token = ' '
-
-good_bot_messages = (
-	'Thank you!',
-	'Yūdachi tattara kekkō ganbatta poii? Teitoku-san homete hometei!',
-	':3',
-	':heart:',
-)
-command_list = (
-	'help',
-	'goodbot',
-	'build',
-	'skill',
-	'whoami',
-	'list',
-	'upgrade',
-	'commander',
-	'flag',
-	'feedback',
-	'map',
-)
 nation_dictionary = {
 	'usa': 'US',
 	'pan_asia': 'Pan-Asian',
@@ -294,6 +163,165 @@ cmdr_name_to_ascii ={
 	'charles-henri honore':'charles-henri honoré',
 	'jerzy swirski':'Jerzy Świrski',
 }
+roman_numeral = {
+	'i': 	1,
+	'ii': 	2,
+	'iii': 	3,
+	'iv': 	4,
+	'v': 	5,
+	'vi': 	6,
+	'vii': 	7,
+	'viii': 8,
+	'ix': 	9,
+	'x': 	10,
+}
+
+print("Fetching WoWS Encyclopedia")
+with open(cwd+"/.env") as f:
+	s = f.read().split('\n')[:-1]
+	wg_token = s[0][s[0].find('=')+1:]
+	bot_token = s[1][s[1].find('=')+1:]
+
+wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
+ship_types = wows_encyclopedia.info()['ship_types']
+
+print("Fetching Skill List")
+skill_list = wows_encyclopedia.crewskills()
+for skill in skill_list:
+    h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
+    h = BitString(h).bin# convert to bits
+    skill_list[skill]['name_hash'] = h
+# putting missing values
+skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
+skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
+skill_list['28']['perks'] = [
+	{'perk_id':0, 'description':'The detection indicator will show the number of opponents currently aiming at your ship with thier main battery guns'},
+	{'perk_id':1, 'description':'For an aircraft carrier\'s squadron, the detection indicator will show the numbers of ships whose AA defenses are current firing at your planes.'}
+]
+skill_list['32']['perks'] = [{'perk_id':0, 'description':'Completely restores the engine boost for the last attacking flight of the aircraft carrier\'s squadron'}]
+skill_list['34']['perks'] = [
+	{'perk_id':0, 'description':'Shows the direction of the nearest enemy ship'},
+	{'perk_id':1, 'description':'The enemy player will be alerted that a bearing was taken on their ship'},
+	{'perk_id':2, 'description':'Does not work on aircraft carriers'},
+]
+print("Fetching Commander List")
+cmdr_list = wows_encyclopedia.crews()
+for cmdr in cmdr_list:
+    h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
+    h = BitString(h).bin# convert to bits
+    cmdr_list[cmdr]['name_hash'] = h
+
+print("Fetching Camo, Flags and Modification List")
+camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
+for page_num in range(1,3):
+	consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+	for consumable in consumable_list:
+		c_type = consumable_list[consumable]['type']
+		h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
+		h = BitString(h).bin# convert to bits
+		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
+			camo_list[consumable] = consumable_list[consumable]
+			camo_list[consumable]['name_hash'] = h
+		if c_type == 'Modernization':
+			upgrade_list[consumable] = consumable_list[consumable]
+			upgrade_list[consumable]['name_hash'] = h
+		if c_type == 'Flags':
+			flag_list[consumable] = consumable_list[consumable]
+			flag_list[consumable]['name_hash'] = h
+print("Auto build Modification Abbreviation")
+upgrade_abbr_list = {}
+for i in upgrade_list:
+	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
+	upgrade_list[i]['name'] = upgrade_list[i]['name'].replace(chr(160),chr(32))
+	key = ''.join([i[0] for i in upgrade_list[i]['name'].split()]).lower()
+	if not key in upgrade_abbr_list:
+		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
+	else:
+		key = ''.join([i[:2].title() for i in upgrade_list[i]['name'].split()]).lower()[:-1]
+		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
+print("Fetching Ship List")
+ship_list = {}
+for page in range(1,6):
+	l = wows_encyclopedia.ships(language='en',page_no=page)
+	for i in l:
+		h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
+		h = BitString(h).bin# convert to bits
+		l[i]['name_hash'] = h
+		ship_list[i] = l[i]
+print("Creating tags for ship search")
+for s in ship_list:
+    nat = nation_dictionary[ship_list[s]['nation']]
+    t = ship_list[s]['type']
+    hull_class = ship_type_to_hull_class[t]
+    if t == 'AirCarrier':
+        t = 'Aircraft Carrier'
+    
+    tier = ship_list[s]['tier']
+    prem = ship_list[s]['is_premium']
+    ship_list[s]['tags'] = [nat, f't{tier}', t, hull_class]
+    if prem:
+        ship_list[s]['tags'] += ['premium']
+print("Filtering Ships and Categories")
+del ship_list['3749623248']
+ship_list_frame = pd.DataFrame(ship_list)
+ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
+ship_list = ship_list_frame.to_dict()
+print('Fetching build file...')
+root = et.parse(cwd+"/ship_builds.xml").getroot()
+print('Making build dictionary...')
+BUILD_BATTLE_TYPE_CLAN = 0
+BUILD_BATTLE_TYPE_CASUAL = 1
+build_battle_type = {
+	BUILD_BATTLE_TYPE_CLAN   : "competitive",
+	BUILD_BATTLE_TYPE_CASUAL : "casual",
+}
+build_battle_type_value = {
+	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
+	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
+}
+build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
+for ship in root:
+	upgrades = []
+	skills = []
+	build_type = int(ship.find('type').text)
+	for upgrade in ship.find('upgrades'):
+		upgrades.append(upgrade.text)
+	for skill in ship.find('skills'):
+		skills.append(skill.text)
+	cmdr = ship.find('commander').text
+	build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+
+print("Fetching Maps")
+map_list = wows_encyclopedia.battlearenas()
+for m in map_list:
+	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
+	h = BitString(h).bin# convert to bits
+	map_list[m]['name_hash'] = h
+print("Preprocessing Done")
+
+command_header = 'mackbot'
+token = ' '
+
+good_bot_messages = (
+	'Thank you!',
+	'Yūdachi tattara kekkō ganbatta poii? Teitoku-san homete hometei!',
+	':3',
+	':heart:',
+)
+command_list = (
+	'help',
+	'goodbot',
+	'build',
+	'skill',
+	'whoami',
+	'list',
+	'upgrade',
+	'commander',
+	'flag',
+	'feedback',
+	'map',
+)
+
 def hamming(s1, s2):
     dist = 0
     for n in range(len(s1)):
@@ -370,7 +398,7 @@ def get_ship_data(ship, battle_type='casual'):
 				ship_found = True
 				break
 		if ship_found:
-			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _ = ship_list[i].values()
+			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
 			if name.lower() in build[battle_type]:
 				upgrades, skills, cmdr = build[battle_type][name.lower()].values()
@@ -430,7 +458,7 @@ def get_upgrade_data(upgrade):
 		# check availability of upgrade (which tier, ship)
 		usable_in = {'nation':[],'type':[],'tier':[]}
 		for s in ship_list_frame:
-			_, n, _, ship_type, tier, u, _, _, _ = ship_list_frame[s]
+			_, n, _, ship_type, tier, u, _, _, _, _ = ship_list_frame[s]
 			if int(i) in u: # if the upgrade with id 'i' in the list of upgrades 'u'
 				if not n in usable_in['nation']:
 					usable_in['nation'].append(n)
@@ -598,11 +626,8 @@ class Client(discord.Client):
 						embed.add_field(name='Description',value='List names of all maps.\n'+
 							f'**[page_number]** Required. Select a page number to list maps.\n')
 					elif arg[3] == 'ships':
-						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[page_num]\n"+
-							'**Description:** List all available ships\n')
-						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[nation]"+token+"[page_num]\n"+
-							'**Description:** List all available ships of specified nation.\nAcceptable values for nation:'+f'{"".join(["**"+nation_dictionary[nation]+"**, " for nation in nation_dictionary])}\n'
-							"")
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[search tags]\n"+
+							'**Description:** List all available ships with the tags provided (i.e. tier 10 battleships, tier 8 premium\n')
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
@@ -895,53 +920,91 @@ class Client(discord.Client):
 						embed = self.help_message(command_header+token+"help"+token+arg[1]+token+"ships")
 						send_help_message = True
 					elif len(arg) > 3:
-						# list ships
-						if arg[3].isdigit():
-							try:
-								page = int(arg[3])-1
-								m = [f"({nation_dictionary[ship_list[ship]['nation']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list]
-								num_items = len(m)
-								m.sort()
-								items_per_page = 20
-								num_pages = (len(ship_list) // items_per_page)
-								m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
-								embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
-								m = m[page] # select page
-								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-								embed.set_footer(text=f"{num_items} ships found")
-								for i in m:
-									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
-							except Exception as e:
-								if type(e) == IndexError:
-									embed = None
-									error_message = f"Page {page+1} does not exists"
-								elif type(e) == TypeError:
-									pass
-								else:
-									print("Exception", type(e), e)
-						else:
-							try:
-								nation = arg[3]
-								page = 0
-								if len(arg) == 5:
-									page = int(arg[4])-1
-								m = [f"(T{ship_list[ship]['tier']} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
-								num_items = len(m)
-								m.sort()
-								items_per_page = 30
-								num_pages = (len(m) // items_per_page)
-								m = [m[i:i+items_per_page] for i in range(0,len(m),items_per_page)] # splitting into pages
-								embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Ship List "+f"({page+1}/{num_pages+1})")
-								m = m[page] # select page
-								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-								embed.set_footer(text=f"{num_items} ships found")
-								for i in m:
-									embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
-							except Exception as e:
-								if type(e) == IndexError:
-									embed = None
-									error_message = f"Page {page+1} does not exists"
-								print(f"Exception {type(e)}", e)
+						# parsing search parameters
+						search_param = arg[3:]
+						regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|(\w*))')
+						s = regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
+						
+						tier = ''.join([i[2] for i in s])
+						key = [i[7] for i in s if len(i[7]) > 1]
+						page = [i[6] for i in s if len(i[6]) > 0]
+						try:
+							page = int(page[0])
+						except:
+							page = 0
+							
+						if len(tier) > 0:
+							if tier in roman_numeral:
+								tier = roman_numeral[tier]
+							tier = f't{tier}'
+							key += [tier]
+						key = [i for i in key if not 'page' in i]
+						# look up
+						result = []
+						for s in ship_list:
+							tags = [i.lower() for i in ship_list[s]['tags']]
+							if np.all([k.lower() in tags for k in key]):
+								result += [s]
+
+						m = [f"(T{ship_list[ship]['tier']}) {ship_list[ship]['name']}" for ship in result]
+						num_items = len(m)
+						m.sort()
+						items_per_page = 30
+						num_pages = (len(m) // items_per_page)
+						m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
+						embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
+						m = m[page] # select page
+						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+						embed.set_footer(text=f"{num_items} ships found")
+						for i in m:
+							embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+						# if arg[3].isdigit():
+							# try:
+								# page = int(arg[3])-1
+								# m = [f"({nation_dictionary[ship_list[ship]['nation']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list]
+								# num_items = len(m)
+								# m.sort()
+								# items_per_page = 20
+								# num_pages = (len(ship_list) // items_per_page)
+								# m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
+								# embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
+								# m = m[page] # select page
+								# m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								# embed.set_footer(text=f"{num_items} ships found")
+								# for i in m:
+									# embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+							# except Exception as e:
+								# if type(e) == IndexError:
+									# embed = None
+									# error_message = f"Page {page+1} does not exists"
+								# elif type(e) == TypeError:
+									# pass
+								# else:
+									# print("Exception", type(e), e)
+						# else:
+							# try:
+								# nation = arg[3]
+								# page = 0
+								# if len(arg) == 5:
+									# page = int(arg[4])-1
+								# m = [f"(T{ship_list[ship]['tier']} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
+								# num_items = len(m)
+								# m.sort()
+								# items_per_page = 30
+								# num_pages = (len(m) // items_per_page)
+								# m = [m[i:i+items_per_page] for i in range(0,len(m),items_per_page)] # splitting into pages
+								# embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Ship List "+f"({page+1}/{num_pages+1})")
+								# m = m[page] # select page
+								# m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								# embed.set_footer(text=f"{num_items} ships found")
+								# for i in m:
+									# embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+							# except Exception as e:
+								
+								# if type(e) == IndexError:
+									# embed = None
+									# error_message = f"Page {page+1} does not exists"
+								# print(f"Exception {type(e)}", e)
 								
 				elif arg[2] == 'commanders':
 					# list all unique commanders
