@@ -1,6 +1,6 @@
 import discord
 
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import subprocess
 import sys
@@ -928,6 +928,8 @@ class Client(discord.Client):
 						tier = ''.join([i[2] for i in s])
 						key = [i[7] for i in s if len(i[7]) > 1]
 						page = [i[6] for i in s if len(i[6]) > 0]
+						embed_title = "Search result for: "
+						
 						try:
 							page = int(page[0])
 						except:
@@ -939,6 +941,7 @@ class Client(discord.Client):
 							tier = f't{tier}'
 							key += [tier]
 						key = [i for i in key if not 'page' in i]
+						embed_title += f"{''.join([i.title()+' ' for i in key])}"
 						# look up
 						result = []
 						for s in ship_list:
@@ -952,7 +955,9 @@ class Client(discord.Client):
 						items_per_page = 30
 						num_pages = (len(m) // items_per_page)
 						m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
-						embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
+						
+						
+						embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
 						m = m[page] # select page
 						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
 						embed.set_footer(text=f"{num_items} ships found")
