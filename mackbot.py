@@ -3,7 +3,7 @@ import discord
 DEBUG_IS_MAINTANCE = False
 
 import subprocess
-import sys
+import sys, os, pickle
 
 import xml.etree.ElementTree as et
 if False:#not DEBUG_IS_MAINTANCE:
@@ -231,7 +231,6 @@ for page_num in range(1,3):
 print("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
 for i in upgrade_list:
-	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
 	upgrade_list[i]['name'] = upgrade_list[i]['name'].replace(chr(160),chr(32))
 	key = ''.join([i[0] for i in upgrade_list[i]['name'].split()]).lower()
 	if not key in upgrade_abbr_list:
@@ -248,19 +247,57 @@ for page in range(1,6):
 		h = BitString(h).bin# convert to bits
 		l[i]['name_hash'] = h
 		ship_list[i] = l[i]
-print("Creating tags for ship search")
+print("Fetching Ship Parameters")
+ship_param_file_name = 'ship_param'
+print("Checking cached ship_param file...")
+if os.path.isfile('./'+ship_param_file_name):
+    print("File found. Loading file")
+    with open('./'+ship_param_file_name, 'rb') as f:
+        ship_info = pickle.load(f)
+else:
+    print("File not found, fetching from weegee")
+    i = 0
+    ship_info = {}
+    for s in ship_list:
+        ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
+        ship_info[s] = ship[s]
+        i += 1
+        print(f"Fetching ship parameters. {i}/{len(ship_list)} ships found.", end='\r')
+    print()
+    print("Creating cache")
+    with open('./'+ship_param_file_name,'wb') as f:
+        pickle.dump(ship_info, f)
+print("Generating ship search tags")
+regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|((\w|-)*))')
 for s in ship_list:
     nat = nation_dictionary[ship_list[s]['nation']]
+    tags = []
     t = ship_list[s]['type']
     hull_class = ship_type_to_hull_class[t]
     if t == 'AirCarrier':
         t = 'Aircraft Carrier'
-    
     tier = ship_list[s]['tier']
     prem = ship_list[s]['is_premium']
-    ship_list[s]['tags'] = [nat, f't{tier}', t+'s', hull_class]
+    ship_speed = ship_info[s]['mobility']['max_speed']
+    if ship_speed < 30:
+        tags += ['slow']
+    if ship_speed > 35:
+        tags += ['fast']
+    concealment = ship_info[s]['concealment']
+    if concealment['detect_distance_by_plane'] < 6 or concealment['detect_distance_by_ship'] < 6:
+        tags += ['stealth']
+    try:
+        fireRate = ship_info[s]['artillery']['gun_rate']
+    except:
+        fireRate = np.inf
+    if (60 // fireRate) <= 6 and not t == 'Aircraft Carrier':
+        tags += ['fast-firing', 'dakka']
+    
+    tags += [nat, f't{tier}', t+'s', hull_class]
+    ship_list[s]['tags'] = tags
     if prem:
         ship_list[s]['tags'] += ['premium']
+        
 print("Filtering Ships and Categories")
 del ship_list['3749623248']
 ship_list_frame = pd.DataFrame(ship_list)
@@ -922,7 +959,6 @@ class Client(discord.Client):
 					elif len(arg) > 3:
 						# parsing search parameters
 						search_param = arg[3:]
-						regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|(\w*))')
 						s = regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 						
 						tier = ''.join([i[2] for i in s])
@@ -931,7 +967,7 @@ class Client(discord.Client):
 						embed_title = "Search result for: "
 						
 						try:
-							page = int(page[0])
+							page = int(page[0])-1
 						except:
 							page = 0
 							
@@ -963,53 +999,6 @@ class Client(discord.Client):
 						embed.set_footer(text=f"{num_items} ships found")
 						for i in m:
 							embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
-						# if arg[3].isdigit():
-							# try:
-								# page = int(arg[3])-1
-								# m = [f"({nation_dictionary[ship_list[ship]['nation']]} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list]
-								# num_items = len(m)
-								# m.sort()
-								# items_per_page = 20
-								# num_pages = (len(ship_list) // items_per_page)
-								# m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
-								# embed = discord.Embed(title="Ship List "+f"({page+1}/{num_pages+1})")
-								# m = m[page] # select page
-								# m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-								# embed.set_footer(text=f"{num_items} ships found")
-								# for i in m:
-									# embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
-							# except Exception as e:
-								# if type(e) == IndexError:
-									# embed = None
-									# error_message = f"Page {page+1} does not exists"
-								# elif type(e) == TypeError:
-									# pass
-								# else:
-									# print("Exception", type(e), e)
-						# else:
-							# try:
-								# nation = arg[3]
-								# page = 0
-								# if len(arg) == 5:
-									# page = int(arg[4])-1
-								# m = [f"(T{ship_list[ship]['tier']} {ship_type_to_hull_class[ship_list[ship]['type']]}) **{ship_list[ship]['name']}**" for ship in ship_list if nation_dictionary[ship_list[ship]['nation']].lower() == nation.lower()]
-								# num_items = len(m)
-								# m.sort()
-								# items_per_page = 30
-								# num_pages = (len(m) // items_per_page)
-								# m = [m[i:i+items_per_page] for i in range(0,len(m),items_per_page)] # splitting into pages
-								# embed = discord.Embed(title=f"{nation.title() if nation.lower() != 'us' else 'US'} Ship List "+f"({page+1}/{num_pages+1})")
-								# m = m[page] # select page
-								# m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-								# embed.set_footer(text=f"{num_items} ships found")
-								# for i in m:
-									# embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
-							# except Exception as e:
-								
-								# if type(e) == IndexError:
-									# embed = None
-									# error_message = f"Page {page+1} does not exists"
-								# print(f"Exception {type(e)}", e)
 								
 				elif arg[2] == 'commanders':
 					# list all unique commanders
