@@ -296,9 +296,9 @@ ship_tags = {
 		'description': "Any ships in this category have guns that **reload** in **6 seconds or less**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
-		'min_threshold': 0,
+		'min_threshold': 4,
 		'max_threshold': 6,
-		'description': "Any ships in this category have a **base air or sea concealment** of **6 km or less**",
+		'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
 	}
 }
 regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|((\w|-)*))')
@@ -317,7 +317,7 @@ for s in ship_list:
     if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
         tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
     concealment = ship_info[s]['concealment']
-    if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
+    if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
         tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
     try:
         fireRate = ship_info[s]['artillery']['shot_delay']
