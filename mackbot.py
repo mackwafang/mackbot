@@ -268,6 +268,39 @@ else:
     with open('./'+ship_param_file_name,'wb') as f:
         pickle.dump(ship_info, f)
 print("Generating ship search tags")
+SHIP_TAG_SLOW_SPD = 0
+SHIP_TAG_FAST_SPD = 1
+SHIP_TAG_FAST_GUN = 2
+SHIP_TAG_STEALTH = 3
+
+SHIP_TAG_LIST = (
+	'slow',
+	'fast',
+	'fast-firing',
+	'stealth',
+)
+ship_tags = {
+	SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
+		'min_threshold': 0,
+		'max_threshold': 30,
+		'description': f"Any ships in this category have a **base speed** **slower** than **30 knots.**",
+	},
+	SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
+		'min_threshold': 30,
+		'max_threshold': 99,
+		'description': "Any ships in this category have a **base speed** **faster** than **35 knots.**",
+	},
+	SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
+		'min_threshold': 0,
+		'max_threshold': 6,
+		'description': "Any ships in this category have guns that **reload** in **6 seconds or less**",
+	},
+	SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
+		'min_threshold': 0,
+		'max_threshold': 6,
+		'description': "Any ships in this category have a **base air or sea concealment** of **6 km or less**",
+	}
+}
 regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|((\w|-)*))')
 for s in ship_list:
     nat = nation_dictionary[ship_list[s]['nation']]
@@ -279,19 +312,19 @@ for s in ship_list:
     tier = ship_list[s]['tier']
     prem = ship_list[s]['is_premium']
     ship_speed = ship_info[s]['mobility']['max_speed']
-    if ship_speed < 30:
-        tags += ['slow']
-    if ship_speed > 35:
-        tags += ['fast']
+    if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
+        tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
+    if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
+        tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
     concealment = ship_info[s]['concealment']
-    if concealment['detect_distance_by_plane'] < 6 or concealment['detect_distance_by_ship'] < 6:
-        tags += ['stealth']
+    if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
+        tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
     try:
-        fireRate = ship_info[s]['artillery']['gun_rate']
+        fireRate = ship_info[s]['artillery']['shot_delay']
     except:
         fireRate = np.inf
-    if (60 // fireRate) <= 6 and not t == 'Aircraft Carrier':
-        tags += ['fast-firing', 'dakka']
+    if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+        tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
     
     tags += [nat, f't{tier}', t+'s', hull_class]
     ship_list[s]['tags'] = tags
@@ -663,8 +696,18 @@ class Client(discord.Client):
 						embed.add_field(name='Description',value='List names of all maps.\n'+
 							f'**[page_number]** Required. Select a page number to list maps.\n')
 					elif arg[3] == 'ships':
+						tag_helps = set(arg[4:]) & set(SHIP_TAG_LIST)
+						add_help_string = ""
+						if len(tag_helps) == 0:
+							help_desc = [i for i in SHIP_TAG_LIST]
+							help_desc += ['tier', 'battleships', 'cruisers', 'destroyers', 'aircraft carriers']
+							add_help_string += "Tags available: " + ''.join([i+', ' for i in help_desc])[:-2]
+						else:
+							help_desc = [f"**{i}**: {ship_tags[i]['description']}" for i in tag_helps]
+							add_help_string += "Requested tags:\n" + ''.join([i+'\n' for i in help_desc])[:-1]
+						
 						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[search tags]\n"+
-							'**Description:** List all available ships with the tags provided (i.e. tier 10 battleships, tier 8 premium\n')
+							'**Description:** List all available ships with the tags provided.\n' + add_help_string)
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
