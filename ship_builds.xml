@@ -649,6 +649,6 @@
 			<skill>fp</skill>
 			<skill>mfcsa</skill>
 		</skills>
-		<commander/>
+		<commander>*</commander>
 	</ship>
 </build>

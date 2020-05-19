@@ -18,6 +18,7 @@ if False:#not DEBUG_IS_MAINTANCE:
 import wargaming, os, nilsimsa, re
 import pandas as pd
 import numpy as np
+from itertools import count
 from numpy.random import randint
 from bitstring import BitString
 
@@ -213,21 +214,25 @@ for cmdr in cmdr_list:
 
 print("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
-for page_num in range(1,3):
-	consumable_list = wows_encyclopedia.consumables(page_no=page_num)
-	for consumable in consumable_list:
-		c_type = consumable_list[consumable]['type']
-		h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
-		h = BitString(h).bin# convert to bits
-		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
-			camo_list[consumable] = consumable_list[consumable]
-			camo_list[consumable]['name_hash'] = h
-		if c_type == 'Modernization':
-			upgrade_list[consumable] = consumable_list[consumable]
-			upgrade_list[consumable]['name_hash'] = h
-		if c_type == 'Flags':
-			flag_list[consumable] = consumable_list[consumable]
-			flag_list[consumable]['name_hash'] = h
+for page_num in count(1): #range(1,3):
+	try:
+		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+		for consumable in consumable_list:
+			c_type = consumable_list[consumable]['type']
+			h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
+			h = BitString(h).bin# convert to bits
+			if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
+				camo_list[consumable] = consumable_list[consumable]
+				camo_list[consumable]['name_hash'] = h
+			if c_type == 'Modernization':
+				upgrade_list[consumable] = consumable_list[consumable]
+				upgrade_list[consumable]['name_hash'] = h
+			if c_type == 'Flags':
+				flag_list[consumable] = consumable_list[consumable]
+				flag_list[consumable]['name_hash'] = h
+	except Exception as e:
+		print(type(e), e)
+		break
 print("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
 for i in upgrade_list:
@@ -240,13 +245,17 @@ for i in upgrade_list:
 		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
 print("Fetching Ship List")
 ship_list = {}
-for page in range(1,6):
-	l = wows_encyclopedia.ships(language='en',page_no=page)
-	for i in l:
-		h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
-		h = BitString(h).bin# convert to bits
-		l[i]['name_hash'] = h
-		ship_list[i] = l[i]
+for page in count(1): #range(1,6):
+	try:
+		l = wows_encyclopedia.ships(language='en',page_no=page)
+		for i in l:
+			h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
+			h = BitString(h).bin# convert to bits
+			l[i]['name_hash'] = h
+			ship_list[i] = l[i]
+	except Exception as e:
+		print(type(e), e)
+		break
 print("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
 print("Checking cached ship_param file...")
