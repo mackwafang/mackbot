@@ -1,21 +1,7 @@
-import discord
-
 DEBUG_IS_MAINTANCE = False
 
-import subprocess
-import sys, os, pickle
-
+import wargaming, os, nilsimsa, re, sys, pickle, discord, time
 import xml.etree.ElementTree as et
-if False:#not DEBUG_IS_MAINTANCE:
-	def install(package):
-		subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-	install('wargaming')
-	install('pandas')
-	install('numpy')
-	install('nilsimsa')
-	install('bitstring')
-
-import wargaming, os, nilsimsa, re
 import pandas as pd
 import numpy as np
 from itertools import count
@@ -78,6 +64,7 @@ ship_name_to_ascii ={
 	'guepard':'guépard',
 	'ostergotland':'östergötland',
 	'shoukaku':'shōkaku',
+	'shokaku':'shōkaku',
 	'skane':'skåne',
 	'vasteras':'västerås',
 	'la galissonniere':'la galissonnière',
@@ -292,17 +279,17 @@ ship_tags = {
 	SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
 		'min_threshold': 0,
 		'max_threshold': 30,
-		'description': f"Any ships in this category have a **base speed** **slower** than **30 knots.**",
+		'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
 		'min_threshold': 30,
 		'max_threshold': 99,
-		'description': "Any ships in this category have a **base speed** **faster** than **35 knots.**",
+		'description': "Any ships in this category have a **base speed** of **35 knots or faster**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
 		'min_threshold': 0,
 		'max_threshold': 6,
-		'description': "Any ships in this category have guns that **reload** in **6 seconds or less**",
+		'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
 		'min_threshold': 4,
@@ -430,35 +417,52 @@ def find_closest(s, dictionary):
 def check_build():
 	for t in build_battle_type:
 		for s in build[build_battle_type[t]]:
-			print("Checking", build_battle_type[t], "battle", "build for ship", s)
+			print("Checking", build_battle_type[t], "battle", "build for ship", s, '...')
 			name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
 			# suggested upgrades
 			if len(upgrades) > 0:
+				print("\tChecking upgrades...")
 				for upgrade in upgrades:
+					print(f"\t\tUpgrade [{upgrade}] ", end='')
 					if upgrade == '*':
 						# any thing
-						pass
+						print('OK')
 					else:
 						try: # ew, nested try/catch
+							print('OK')
 							get_upgrade_data(upgrade)
 						except Exception as e: 
-							print(f"Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+							print('Failed')
+							print(f"\t\tException {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+			else:
+				print("\tNo upgrades found")
 			# suggested skills
 			if len(skills) > 0:
+				print("\tChecking skills...")
 				for skill in skills:
+					print(f"\t\tskill [{skill}] ", end='')
 					try: # ew, nested try/catch
+						print('OK')
 						get_skill_data(skill)
 					except Exception as e: 
-						print(f"Exception {type(e)}", e, f"in check_build, listing skill {skill}")
+						print('Failed')
+						print(f"\t\tException {type(e)}", e, f"in check_build, listing skill {skill}")
+			else:
+				print("\tNo skills found in build")
 			# suggested commander
 			if cmdr != "":
+				print("\tChecking commander...", end='')
 				if cmdr == "*":
-					pass
+					print("OK")
 				else:
 					try:
 						get_commander_data(cmdr)
+						print('OK')
 					except Exception as e: 
-						print(f"Exception {type(e)}", e, "in check_build, listing commander")
+						print("Failed")
+						print(f"\t\tException {type(e)}", e, "in check_build, listing commander")
+			else:
+				print("\tNo Commander found")
 def get_ship_data(ship, battle_type='casual'):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -631,6 +635,9 @@ def get_map_data(map):
 	except Exception as e:
 		raise e
 		print("Exception {type(e): ", e)
+		
+def time_string():
+	return "[" + time.strftime("%a %b %d, %Y %H:%M:%S %Z", time.localtime()) + "]"
 
 class Client(discord.Client):
 	async def on_ready(self):
@@ -715,8 +722,8 @@ class Client(discord.Client):
 							help_desc = [f"**{i}**: {ship_tags[i]['description']}" for i in tag_helps]
 							add_help_string += "Requested tags:\n" + ''.join([i+'\n' for i in help_desc])[:-1]
 						
-						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[search tags]\n"+
-							'**Description:** List all available ships with the tags provided.\n' + add_help_string)
+						embed.add_field(name='Usage',value=command_header+token+command+token+"ships"+token+"[search tags]\n")
+						embed.add_field(name='Description',value='List all available ships with the tags provided.\n' + add_help_string)
 					else:
 						embed.add_field(name='Error',value="Invalid command.")
 						 
@@ -739,7 +746,7 @@ class Client(discord.Client):
 		channel = message.channel
 		embed = self.help_message(message.content)
 		if not embed is None:
-			print(f"sending help message for command <{command_list[0]}>")
+			print(time_string(), f"sending help message for command <{command_list[0]}>")
 			await channel.send(embed=embed)
 	async def whoami(self,message, arg):
 		channel = message.channel
@@ -750,11 +757,11 @@ class Client(discord.Client):
 		channel = message.channel
 		# good bot
 		r = randint(len(good_bot_messages))
-		print(f"send reply message for {command_list[1]}")
+		print(time_string(), f"send reply message for {command_list[1]}")
 		await channel.send(good_bot_messages[r]) # block until message is sent
 	async def feedback(self, message, arg):
 		channel = message.channel
-		print("send feeding link")
+		print(time_string(), "send feedback link")
 		await channel.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 	async def build(self, message, arg):
 		channel = message.channel
@@ -774,11 +781,10 @@ class Client(discord.Client):
 			else:
 				battle_type = 'casual'
 				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
-			print(battle_type, ship)
 			try:
 				async with channel.typing():
 					name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
-					print(f"returning ship information for <{name}>")
+					print(time_string(), f"returning ship information for <{name}>")
 					ship_type = ship_types[ship_type]
 					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
 					embed.set_thumbnail(url=images['small'])
@@ -803,7 +809,7 @@ class Client(discord.Client):
 								try: # ew, nested try/catch
 									upgrade_name = get_upgrade_data(upgrade)[1]
 								except Exception as e: 
-									print(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+									print(time_string(), f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 									error_value_found = True
 									upgrade_name = upgrade+" [!]"
 							m += f'(Slot {i}) **'+upgrade_name+'**\n'
@@ -821,7 +827,7 @@ class Client(discord.Client):
 							try: # ew, nested try/catch
 								skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
 							except Exception as e: 
-								print(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+								print(time_string(), f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 								error_value_found = True
 								skill_name = skill+" [!]"
 							m += f'(Tier {tier}) **'+skill_name+'**\n'
@@ -839,7 +845,7 @@ class Client(discord.Client):
 							try:
 								m = get_commander_data(cmdr)[0]
 							except Exception as e: 
-								print(f"Exception {type(e)}", e, "in ship, listing commander")
+								print(time_string(), f"Exception {type(e)}", e, "in ship, listing commander")
 								error_value_found = True
 								m = f"{cmdr} [!]"
 						footer_message += "Suggested skills are listed in ascending acquiring order.\n"
@@ -852,7 +858,7 @@ class Client(discord.Client):
 				embed.set_footer(text=error_footer_message+footer_message)
 				await channel.send(embed=embed)
 			except Exception as e:
-				print(f"Exception {type(e)}", e)
+				print(time_string(), f"Exception {type(e)}", e)
 				await channel.send(f"Ship **{ship}** is not understood")
 	async def skill(self, message, arg):
 		channel = message.channel
@@ -867,7 +873,7 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 		else:
 			try:
-				print(f'sending message for skill <{skill}>')
+				print(time_string(), f'sending message for skill <{skill}>')
 				async with channel.typing():
 					name, id, skill_type, perk, tier, icon = get_skill_data(skill)
 					embed = discord.Embed(title="Commander Skill")
@@ -878,7 +884,7 @@ class Client(discord.Client):
 					embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk) if len(perk) != 0 else '')
 				await channel.send(embed=embed)
 			except Exception as e:
-				print("Exception", type(e), ":", e)
+				print(time_string(), "Exception", type(e), ":", e)
 				await channel.send(f"Skill **{skill}** is not understood.")
 	async def list(self, message, arg):
 		channel = message.channel
@@ -913,12 +919,13 @@ class Client(discord.Client):
 								message_success = True
 							except Exception as e:
 								embed = None
-								print(e)
+								print(time_string(), e, end='')
 								if type(e) == IndexError:
 									error_message = f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]"
 								else:
 									print(f"Skill listing argument <{arg[4]}> is invalid.")
 									error_message = f"Value {arg[4]} is not understood"
+								print()
 						elif arg[3] == 'tier':
 							# get all skills of this tier
 							try:
@@ -934,11 +941,11 @@ class Client(discord.Client):
 								if type(e) == IndexError:
 									error_message = f"Please specify a skill tier! Acceptable values: [1,2,3,4]"
 								else:
-									print(f"Skill listing argument <{arg[4]}> is invalid.")
+									print(time_string(), f"Skill listing argument <{arg[4]}> is invalid.")
 									error_message = f"Value {arg[4]} is not understood"
 						else:
 							# not a known argument
-							print(f"{arg[3]} is not a known argument for command {arg[2]}.")
+							print(time_string(), f"{arg[3]} is not a known argument for command {arg[2]}.")
 							embed = None
 							error_message = f"Argument **{arg[3]}** is not a valid argument."
 							return
@@ -951,6 +958,7 @@ class Client(discord.Client):
 					elif len(arg) > 3:
 						# list upgrades
 						try:
+							print(time_string(), "sending list of upgrades")
 							page = int(arg[3])-1
 							m = [f"**{upgrade_abbr_list[i].title()}** ({i.upper()})" for i in upgrade_abbr_list]
 							m.sort()
@@ -968,7 +976,7 @@ class Client(discord.Client):
 									embed = None
 									error_message = f"Page {page+1} does not exists"
 							elif type(e) == ValueError:
-								print(f"Upgrade listing argument <{arg[3]}> is invalid.")
+								print(time_string(), f"Upgrade listing argument <{arg[3]}> is invalid.")
 								error_message = f"Value {arg[3]} is not understood"
 							else:
 								print(f"Exception {type(e)}", e)
@@ -981,6 +989,7 @@ class Client(discord.Client):
 					elif len(arg) > 3:
 						# list upgrades
 						try:
+							print(time_string(), "sending list of maps")
 							page = int(arg[3])-1
 							m = [f"{map_list[i]['name']}" for i in map_list]
 							m.sort()
@@ -1010,6 +1019,7 @@ class Client(discord.Client):
 						send_help_message = True
 					elif len(arg) > 3:
 						# parsing search parameters
+						print(time_string(), "starting parameters parsing")
 						search_param = arg[3:]
 						s = regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 						
@@ -1036,7 +1046,8 @@ class Client(discord.Client):
 							tags = [i.lower() for i in ship_list[s]['tags']]
 							if np.all([k.lower() in tags for k in key]):
 								result += [s]
-
+						print(time_string(), "parsing complete")
+						print(time_string(), "compiling message")
 						m = [f"(T{ship_list[ship]['tier']}) {ship_list[ship]['name']}" for ship in result]
 						num_items = len(m)
 						m.sort()
@@ -1061,6 +1072,7 @@ class Client(discord.Client):
 					elif len(arg) > 3:
 						# list commanders by page
 						try:
+							print(time_string(), "sending list of commanders")
 							page = int(arg[3])-1
 							m = [f"({nation_dictionary[cmdr_list[cmdr]['nation']]}) **{cmdr_list[cmdr]['first_names'][0]}**" for cmdr in cmdr_list if cmdr_list[cmdr]['last_names'] == []]
 							num_items = len(m)
@@ -1084,7 +1096,7 @@ class Client(discord.Client):
 							if type(e) == ValueError:
 								pass
 							else:
-								print(f"Exception {type(e)}",e)
+								print(time_string(), f"Exception {type(e)}",e)
 						# list commanders by nationality
 						if not message_success and error_message == "": #page not listed
 							try:
@@ -1118,7 +1130,7 @@ class Client(discord.Client):
 				
 				else:
 					# something else detected
-					print(f"{arg[2]} is not a known argument for command {arg[1]}.")
+					print(time_string(), f"{arg[2]} is not a known argument for command {arg[1]}.")
 					embed = None
 					error_message = f"Argument **{arg[2]}** is not a valid argument."
 			else:
@@ -1150,7 +1162,7 @@ class Client(discord.Client):
 		else:
 			# user provided an argument
 			try:
-				print(f'sending message for upgrade <{upgrade}>')
+				print(time_string(), f'sending message for upgrade <{upgrade}>')
 				profile, name, price_gold, image, price_credit, _, description, nation_restriction, ship_type_restriction, tier_restriction = get_upgrade_data(upgrade)
 				embed = discord.Embed(title="Ship Upgrade")
 				embed.set_thumbnail(url=image)
@@ -1173,7 +1185,7 @@ class Client(discord.Client):
 					embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 				await channel.send(embed=embed)
 			except Exception as e:
-				print(f"Exception {type(e)}", e)
+				print(time_string(), f"Exception {type(e)}", e)
 				await channel.send(f"Upgrade **{upgrade}** is not understood.")
 	async def commander(self, message, arg):
 		channel = message.channel
@@ -1189,7 +1201,7 @@ class Client(discord.Client):
 		else:
 			try:
 				async with channel.typing():
-					print(f'sending message for commander <{cmdr}>')
+					print(time_string(), f'sending message for commander <{cmdr}>')
 					name, icon, nation = get_commander_data(cmdr)
 					embed = discord.Embed(title="Commander")
 					embed.set_thumbnail(url=icon)
@@ -1198,7 +1210,7 @@ class Client(discord.Client):
 					
 				await channel.send(embed=embed)
 			except Exception as e:
-				print(f"Exception {type(e)}: ", e)
+				print(time_string(), f"Exception {type(e)}: ", e)
 				await channel.send(f"Commander **{cmdr}** is not understood.")
 	async def map(self, message, arg):
 		channel = message.channel
@@ -1214,7 +1226,7 @@ class Client(discord.Client):
 		else:
 			try:
 				async with channel.typing():
-					print(f'sending message for map <{map}>')
+					print(time_string(), f'sending message for map <{map}>')
 					description, image, id, name = get_map_data(map)
 					embed = discord.Embed(title="Map")
 					embed.set_image(url=image)
@@ -1223,7 +1235,7 @@ class Client(discord.Client):
 					
 				await channel.send(embed=embed)
 			except Exception as e:
-				print(f"Exception {type(e)}: ", e)
+				print(time_string(), f"Exception {type(e)}: ", e)
 				await channel.send(f"Map **{map}** is not understood.")
 	async def flag(self, message, arg):
 		channel = message.channel
@@ -1240,7 +1252,7 @@ class Client(discord.Client):
 		else:
 			# user provided an argument
 			try:
-				print(f'sending message for flag <{flag}>')
+				print(time_string(), f'sending message for flag <{flag}>')
 				profile, name, price_gold, image, price_credit, _, description = get_flag_data(flag)
 				embed = discord.Embed(title="Flag Information")
 				embed.set_thumbnail(url=image)
@@ -1253,7 +1265,7 @@ class Client(discord.Client):
 					embed.add_field(name='Price (Doub.)', value=price_gold)
 				await channel.send(embed=embed)
 			except Exception as e:
-				print(f"Exception {type(e)}", e)
+				print(time_string(), f"Exception {type(e)}", e)
 				await channel.send(f"Flag **{flag}** is not understood.")
 	
 	async def on_message(self,message):
@@ -1266,7 +1278,7 @@ class Client(discord.Client):
 					print(f"User {message.author} requested my help.")
 					embed = self.help_message(command_header+token+"help"+token+"help")
 					if not embed is None:
-						print(f"sending help message")
+						print(time_string(), f"sending help message")
 						await channel.send("はい、サラはここに。", embed=embed)
 				else:
 					# with arguments, change arg[0] and perform its normal task
@@ -1277,7 +1289,7 @@ class Client(discord.Client):
 					await channel.send(self.user.display_name+" is under maintanance. Please wait until maintanance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
 					return
 				request_type = arg[1:]
-				print(f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
+				print(time_string(), f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
 				
 				if hasattr(self,arg[1]):
 					await getattr(self,arg[1])(message, arg)
