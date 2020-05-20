@@ -1,9 +1,11 @@
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time
 import xml.etree.ElementTree as et
 import pandas as pd
 import numpy as np
+import cv2 as cv
+from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
 from bitstring import BitString
@@ -176,9 +178,16 @@ ship_types = wows_encyclopedia.info()['ship_types']
 print("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
 for skill in skill_list:
-    h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
-    h = BitString(h).bin# convert to bits
-    skill_list[skill]['name_hash'] = h
+	h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
+	h = BitString(h).bin# convert to bits
+	skill_list[skill]['name_hash'] = h
+	
+	# get local image location
+	url = skill_list[skill]['icon']
+	url = url[:url.rfind('_')]
+	url = url[url.rfind('/')+1:]
+	skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
+	
 # putting missing values
 skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
 skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
@@ -214,6 +223,12 @@ for page_num in count(1): #range(1,3):
 			if c_type == 'Modernization':
 				upgrade_list[consumable] = consumable_list[consumable]
 				upgrade_list[consumable]['name_hash'] = h
+				
+				url = upgrade_list[consumable]['image']
+				url = url[:url.rfind('_')]
+				url = url[url.rfind('/')+1:]
+				upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
+				
 			if c_type == 'Flags':
 				flag_list[consumable] = consumable_list[consumable]
 				flag_list[consumable]['name_hash'] = h
@@ -337,6 +352,7 @@ root = et.parse(cwd+"/ship_builds.xml").getroot()
 print('Making build dictionary...')
 BUILD_BATTLE_TYPE_CLAN = 0
 BUILD_BATTLE_TYPE_CASUAL = 1
+BUILD_CREATE_BUILD_IMAGES = True
 build_battle_type = {
 	BUILD_BATTLE_TYPE_CLAN   : "competitive",
 	BUILD_BATTLE_TYPE_CASUAL : "casual",
@@ -415,40 +431,24 @@ def find_closest(s, dictionary):
         name = lowest_match[0]
     return name
 def check_build():
+	'''
+		checks ship_build for in incorrectly inputted values and outputs build images
+	'''
+	skill_use_image = cv.imread("./skill_images/icon_perk_use.png", cv.IMREAD_UNCHANGED)
+	skill_use_image_channel = [i for i in cv.split(skill_use_image)]
 	for t in build_battle_type:
 		for s in build[build_battle_type[t]]:
+			image = np.zeros((520,660,4))
 			print("Checking", build_battle_type[t], "battle", "build for ship", s, '...')
-			name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
-			# suggested upgrades
-			if len(upgrades) > 0:
-				print("\tChecking upgrades...")
-				for upgrade in upgrades:
-					print(f"\t\tUpgrade [{upgrade}] ", end='')
-					if upgrade == '*':
-						# any thing
-						print('OK')
-					else:
-						try: # ew, nested try/catch
-							print('OK')
-							get_upgrade_data(upgrade)
-						except Exception as e: 
-							print('Failed')
-							print(f"\t\tException {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
-			else:
-				print("\tNo upgrades found")
-			# suggested skills
-			if len(skills) > 0:
-				print("\tChecking skills...")
-				for skill in skills:
-					print(f"\t\tskill [{skill}] ", end='')
-					try: # ew, nested try/catch
-						print('OK')
-						get_skill_data(skill)
-					except Exception as e: 
-						print('Failed')
-						print(f"\t\tException {type(e)}", e, f"in check_build, listing skill {skill}")
-			else:
-				print("\tNo skills found in build")
+			name, nation, _, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
+			font = ImageFont.truetype('arialbd.ttf', 20)
+			image_pil = Image.fromarray(image, mode='RGBA')
+			draw = ImageDraw.Draw(image_pil)
+			draw.text((0,0), f"{build_battle_type[t].title()} {name.title()}", font=font, fill=(255,255,255,255))
+			category_title = ['Endurance', 'Attack', 'Support', 'Versatility']
+			for s in range(len(category_title)):
+				draw.text((s*180,30), category_title[s], font=font, fill=(255,255,255,255))
+			draw.text((0,330), "Upgrades", font=font, fill=(255,255,255,255))
 			# suggested commander
 			if cmdr != "":
 				print("\tChecking commander...", end='')
@@ -463,6 +463,65 @@ def check_build():
 						print(f"\t\tException {type(e)}", e, "in check_build, listing commander")
 			else:
 				print("\tNo Commander found")
+			draw.text((0,440), "Commander", font=font, fill=(255,255,255,255))
+			draw.text((0,460), "Any" if cmdr == "*" else cmdr, font=font, fill=(255,255,255,255))
+			
+			image = np.array(image_pil)
+			for skill in skill_list:
+				x = skill_list[skill]['type_id']
+				y = skill_list[skill]['tier']
+				img = cv.imread(skill_list[skill]['local_icon'], cv.IMREAD_UNCHANGED)
+				h,w,_ = img.shape
+				image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h] = img
+			# suggested upgrades
+			if len(upgrades) > 0:
+				print("\tChecking upgrades...")
+				upgrade_index = 0
+				for upgrade in upgrades:
+					print(f"\t\tUpgrade [{upgrade}] ", end='')
+					if upgrade == '*':
+						# any thing
+						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
+						print('OK')
+					else:
+						try: # ew, nested try/catch
+							print('OK')
+							local_image = get_upgrade_data(upgrade)[-1]
+							img = cv.imread(local_image, cv.IMREAD_UNCHANGED)
+						except Exception as e: 
+							print('Failed')
+							print(f"\t\tException {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+					y = 6
+					x = upgrade_index
+					h, w, _ = img.shape
+					img = [i for i in cv.split(img)]
+					for i in range(3):
+						image[y*h : (y+1)*h, x*w: (x+1)*w, i] = img[i]
+					image[y*h : (y+1)*h, x*w: (x+1)*w, 3] += img[3]
+					upgrade_index += 1 
+			else:
+				print("\tNo upgrades found")
+			# suggested skills
+			if len(skills) > 0:
+				print("\tChecking skills...")
+				for skill in skills:
+					print(f"\t\tskill [{skill}] ", end='')
+					try: # ew, nested try/catch
+						print('OK')
+						_, id, _, _, tier, _= get_skill_data(skill)
+						x = id
+						y = tier
+						h,w,_ = skill_use_image.shape
+						for i in range(3):
+							image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, i] = skill_use_image_channel[i]
+						image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, 3] += skill_use_image_channel[3]
+						
+					except Exception as e: 
+						print('Failed')
+						print(f"\t\tException {type(e)}", e, f"in check_build, listing skill {skill}")
+			else:
+				print("\tNo skills found in build")
+			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
 def get_ship_data(ship, battle_type='casual'):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
@@ -510,7 +569,7 @@ def get_skill_data(skill):
 					skill_found = True
 					break
 		# found it!
-		name, id, skill_type, perk, tier, icon, _ = skill_list[i].values()
+		name, id, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
 		return name, id, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
@@ -537,7 +596,7 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _ = upgrade_list[i].values()
+		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _, local_image = upgrade_list[i].values()
 		# check availability of upgrade (which tier, ship)
 		usable_in = {'nation':[],'type':[],'tier':[]}
 		for s in ship_list_frame:
@@ -566,7 +625,7 @@ def get_upgrade_data(upgrade):
 		ship_type_restriction = ship_type_usable # if len(ship_type_restriction) > len(ship_type_usable) else (ship_type_restriction,'restricted')
 		tier_restriction = tier_usable # if len(tier_restriction) > len(tier_usable) else (tier_restriction,'restricted')
 		
-		return profile, name, price_gold, image, price_credit, upgrade_type, description, nation_restriction, ship_type_restriction, tier_restriction
+		return profile, name, price_gold, image, price_credit, upgrade_type, description, nation_restriction, ship_type_restriction, tier_restriction, local_image
 	except Exception as e:
 		raise e
 		print(f"Exception {type(e)}: ",e)
@@ -668,10 +727,11 @@ class Client(discord.Client):
 				embed.add_field(name='Usage',value=command_header+token+command)
 				embed.add_field(name='Description',value='Praise the bot for being a good bot')
 			if command == 'build':
-				embed.add_field(name='Usage',value=command_header+token+command+token+'[type] ship')
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[type] ship [image]')
 				embed.add_field(name='Description',value='List name, nationality, type, tier, recommended build of the requested warships\n'+
 					f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n'+
-					'**ship**: Required. Desired ship to output information on.')
+					'**ship**: Required. Desired ship to output information on.\n'+
+					'**image**: Optional. If the word **image** is presence, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.')
 			if command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]')
 				embed.add_field(name='Description',value='List name, type, tier and effect of the requested commander skill')
@@ -766,7 +826,6 @@ class Client(discord.Client):
 	async def build(self, message, arg):
 		channel = message.channel
 		# get voted ship build
-		message_string = message.content
 		# message parse
 		ship_found = False
 		if len(arg) <= 2:
@@ -774,6 +833,9 @@ class Client(discord.Client):
 			if not embed is None:
 				await channel.send(embed=embed)
 		else:
+			requested_image = arg[-1].lower() == 'image'
+			if requested_image:
+				arg = arg[:-1]
 			battle_type = arg[2] # assuming build battle type is provided
 			if battle_type.lower() in build_battle_type_value:
 				# 2nd argument provided is a known argument
@@ -781,85 +843,106 @@ class Client(discord.Client):
 			else:
 				battle_type = 'casual'
 				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
-			try:
+			if requested_image:
 				async with channel.typing():
-					name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
-					print(time_string(), f"returning ship information for <{name}>")
-					ship_type = ship_types[ship_type]
-					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
-					embed.set_thumbnail(url=images['small'])
-					# embed.add_field(name='Name', value=name)
-					embed.add_field(name='Nation', value=nation_dictionary[nation])
-					embed.add_field(name='Type', value="Premium "+ship_type if is_prem else ship_type)
-					embed.add_field(name='Tier', value=tier)
-					
-					footer_message = ""
-					error_value_found = False
-					
-					# suggested upgrades
-					if len(upgrades) > 0:
-						m = ""
-						i = 1
-						for upgrade in upgrades:
-							upgrade_name = "[Missing]"
-							if upgrade == '*':
-								# any thing
-								upgrade_name = "Any"
-							else:
-								try: # ew, nested try/catch
-									upgrade_name = get_upgrade_data(upgrade)[1]
-								except Exception as e: 
-									print(time_string(), f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
-									error_value_found = True
-									upgrade_name = upgrade+" [!]"
-							m += f'(Slot {i}) **'+upgrade_name+'**\n'
-							i += 1
-						footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
-						embed.add_field(name='Suggested Upgrades', value=m,inline=True)
-					else:
-						embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=True)
-					# suggested skills
-					if len(skills) > 0:
-						m = ""
-						i = 1
-						for skill in skills:
-							skill_name = "[Missing]"
-							try: # ew, nested try/catch
-								skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
-							except Exception as e: 
-								print(time_string(), f"Exception {type(e)}", e, f"in ship, listing skill {i}")
-								error_value_found = True
-								skill_name = skill+" [!]"
-							m += f'(Tier {tier}) **'+skill_name+'**\n'
-							i += 1
-						footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
-						embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
-					else:
-						embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=True)
-					# suggested commander
-					if cmdr != "":
-						m = ""
-						if cmdr == "*":
-							m = "Any"
+					try:
+						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
+						print(time_string(), f"returning ship information for <{name}> in image format")
+						filename = f'./{name.lower()}_{battle_type}_build.png'
+						if os.path.isfile(filename):
+							# image exists!
+							await channel.send(file=discord.File(filename))
 						else:
-							try:
-								m = get_commander_data(cmdr)[0]
-							except Exception as e: 
-								print(time_string(), f"Exception {type(e)}", e, "in ship, listing commander")
-								error_value_found = True
-								m = f"{cmdr} [!]"
-						footer_message += "Suggested skills are listed in ascending acquiring order.\n"
-						embed.add_field(name='Suggested Cmdr.', value=m)
-					else:
-						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=True)
-				error_footer_message = ""
-				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-				embed.set_footer(text=error_footer_message+footer_message)
-				await channel.send(embed=embed)
-			except Exception as e:
-				print(time_string(), f"Exception {type(e)}", e)
-				await channel.send(f"Ship **{ship}** is not understood")
+							# does not exists
+							await channel.send(f"An Image build for {name} does not exists. Sending normal message.")
+							await self.build(message, arg)
+						
+					except Exception as e:
+						print(time_string(), f"Exception {type(e)}", e)
+						if type(e) == discord.errors.Forbidden:
+							await channel.send(f"I need the **Attach Files Permission** to use this feature!")
+						else:
+							await channel.send(f"Ship **{ship}** is not understood")
+			else:
+				try:
+					async with channel.typing():
+						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
+						print(time_string(), f"returning ship information for <{name}> in embeded format")
+						ship_type = ship_types[ship_type]
+						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
+						embed.set_thumbnail(url=images['small'])
+						# embed.add_field(name='Name', value=name)
+						embed.add_field(name='Nation', value=nation_dictionary[nation])
+						embed.add_field(name='Type', value="Premium "+ship_type if is_prem else ship_type)
+						embed.add_field(name='Tier', value=tier)
+						
+						footer_message = ""
+						error_value_found = False
+						
+						# suggested upgrades
+						if len(upgrades) > 0:
+							m = ""
+							i = 1
+							for upgrade in upgrades:
+								upgrade_name = "[Missing]"
+								if upgrade == '*':
+									# any thing
+									upgrade_name = "Any"
+								else:
+									try: # ew, nested try/catch
+										upgrade_name = get_upgrade_data(upgrade)[1]
+									except Exception as e: 
+										print(time_string(), f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+										error_value_found = True
+										upgrade_name = upgrade+" [!]"
+								m += f'(Slot {i}) **'+upgrade_name+'**\n'
+								i += 1
+							footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
+							embed.add_field(name='Suggested Upgrades', value=m,inline=True)
+						else:
+							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=True)
+						# suggested skills
+						if len(skills) > 0:
+							m = ""
+							i = 1
+							for skill in skills:
+								skill_name = "[Missing]"
+								try: # ew, nested try/catch
+									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
+								except Exception as e: 
+									print(time_string(), f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+									error_value_found = True
+									skill_name = skill+" [!]"
+								m += f'(Tier {tier}) **'+skill_name+'**\n'
+								i += 1
+							footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
+							embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
+						else:
+							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=True)
+						# suggested commander
+						if cmdr != "":
+							m = ""
+							if cmdr == "*":
+								m = "Any"
+							else:
+								try:
+									m = get_commander_data(cmdr)[0]
+								except Exception as e: 
+									print(time_string(), f"Exception {type(e)}", e, "in ship, listing commander")
+									error_value_found = True
+									m = f"{cmdr} [!]"
+							footer_message += "Suggested skills are listed in ascending acquiring order.\n"
+							embed.add_field(name='Suggested Cmdr.', value=m)
+						else:
+							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=True)
+					error_footer_message = ""
+					if error_value_found:
+						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					embed.set_footer(text=error_footer_message+footer_message)
+					await channel.send(embed=embed)
+				except Exception as e:
+					print(time_string(), f"Exception {type(e)}", e)
+					await channel.send(f"Ship **{ship}** is not understood")
 	async def skill(self, message, arg):
 		channel = message.channel
 		# get information on requested skill
@@ -1163,7 +1246,7 @@ class Client(discord.Client):
 			# user provided an argument
 			try:
 				print(time_string(), f'sending message for upgrade <{upgrade}>')
-				profile, name, price_gold, image, price_credit, _, description, nation_restriction, ship_type_restriction, tier_restriction = get_upgrade_data(upgrade)
+				profile, name, price_gold, image, price_credit, _, description, nation_restriction, ship_type_restriction, tier_restriction, _ = get_upgrade_data(upgrade)
 				embed = discord.Embed(title="Ship Upgrade")
 				embed.set_thumbnail(url=image)
 				embed.add_field(name='Name', value=name)

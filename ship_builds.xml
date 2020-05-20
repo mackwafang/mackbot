@@ -179,7 +179,7 @@
 		</skills>
 		<commander>Luigi Sansonetti</commander>
 	</ship>
-	<ship name="zao">
+	<ship name="zaō">
 		<type>0</type>
 		<upgrades>
 			<upgrade>sam1</upgrade>
