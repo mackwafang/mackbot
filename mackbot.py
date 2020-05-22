@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time
 import xml.etree.ElementTree as et
