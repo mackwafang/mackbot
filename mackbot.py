@@ -9,6 +9,10 @@ from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
 from bitstring import BitString
+from googleapiclient.errors import Error
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
 cwd = sys.path[0]
 if cwd == '':
@@ -133,6 +137,7 @@ skill_name_abbr = {
 	'ifhe':'inertia fuse for he shells',
 	'ifhes':'inertia fuse for he shells',
 	'rl':'radio location',
+	'rpf':'radio location',
 }
 cmdr_name_to_ascii ={
 	'jean-jacques honore':'jean-jacques honoré',
@@ -348,8 +353,8 @@ ship_list_frame = pd.DataFrame(ship_list)
 ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
 ship_list = ship_list_frame.to_dict()
 print('Fetching build file...')
-root = et.parse(cwd+"/ship_builds.xml").getroot()
-print('Making build dictionary...')
+BUILD_EXTRACT_FROM_CACHE = False
+extract_from_web_failed = False
 BUILD_BATTLE_TYPE_CLAN = 0
 BUILD_BATTLE_TYPE_CASUAL = 1
 BUILD_CREATE_BUILD_IMAGES = True
@@ -361,17 +366,72 @@ build_battle_type_value = {
 	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
 	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
 }
-build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
-for ship in root:
-	upgrades = []
-	skills = []
-	build_type = int(ship.find('type').text)
-	for upgrade in ship.find('upgrades'):
-		upgrades.append(upgrade.text)
-	for skill in ship.find('skills'):
-		skills.append(skill.text)
-	cmdr = ship.find('commander').text
-	build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
+if not BUILD_EXTRACT_FROM_CACHE:
+	print("Attempting to fetch from sheets")
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+	# The ID and range of a sample spreadsheet.
+	SAMPLE_SPREADSHEET_ID = '1U4B5U0FHRdFC2JV1M0-4z-gUlOE-qq85GJ7hpgJkN5k'
+	SAMPLE_RANGE_NAME = 'ship_builds!B2:W1000'
+
+	creds = None
+	# The file token.pickle stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('token.pickle'):
+		with open('token.pickle', 'rb') as token:
+			creds = pickle.load(token)
+	# If there are no (valid) credentials available, let the user log in.
+	try:
+		if not creds or not creds.valid:
+			if creds and creds.expired and creds.refresh_token:
+				creds.refresh(Request())
+			else:
+				flow = InstalledAppFlow.from_client_secrets_file(
+					'credentials.json', SCOPES)
+				creds = flow.run_local_server(port=0)
+			# Save the credentials for the next run
+			with open('token.pickle', 'wb') as token:
+				pickle.dump(creds, token)
+				
+		service = build('sheets', 'v4', credentials=creds)
+
+		# Call the Sheets API
+		sheet = service.spreadsheets()
+		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+									range=SAMPLE_RANGE_NAME).execute()
+		values = result.get('values', [])
+
+		if not values:
+			print('No data found.')
+			raise Error
+		else:
+			for row in values:
+				build_type = row[1]
+				ship_name = row[0]
+				upgrades = [i for i in row[2:7] if len(i) > 0]
+				skills = [i for i in row[8:-2] if len(i) > 0]
+				cmdr = row[-1]
+				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+	except Exception as e:
+		extract_from_web_failed = True
+		print(e)
+if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
+	if extract_from_web_failed:
+		print("Get builds from sheets failed")
+	root = et.parse(cwd+"/ship_builds.xml").getroot()
+	print('Making build dictionary from cache')
+	for ship in root:
+		upgrades = []
+		skills = []
+		build_type = int(ship.find('type').text)
+		for upgrade in ship.find('upgrades'):
+			upgrades.append(upgrade.text)
+		for skill in ship.find('skills'):
+			skills.append(skill.text)
+		cmdr = ship.find('commander').text
+		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 
 print("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
@@ -437,7 +497,7 @@ def check_build():
 	skill_use_image = cv.imread("./skill_images/icon_perk_use.png", cv.IMREAD_UNCHANGED)
 	skill_use_image_channel = [i for i in cv.split(skill_use_image)]
 	for t in build_battle_type:
-		for s in build[build_battle_type[t]]:
+		for s in ship_build[build_battle_type[t]]:
 			image = np.zeros((520,660,4))
 			print("Checking", build_battle_type[t], "battle", "build for ship", s, '...')
 			name, nation, _, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
@@ -451,15 +511,13 @@ def check_build():
 			draw.text((0,330), "Upgrades", font=font, fill=(255,255,255,255))
 			# suggested commander
 			if cmdr != "":
-				print("\tChecking commander...", end='')
+				# print("\tChecking commander...", end='')
 				if cmdr == "*":
-					print("OK")
+					pass
 				else:
 					try:
 						get_commander_data(cmdr)
-						print('OK')
 					except Exception as e: 
-						print("Failed")
 						print(f"\t\tException {type(e)}", e, "in check_build, listing commander")
 			else:
 				print("\tNo Commander found")
@@ -475,21 +533,16 @@ def check_build():
 				image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h] = img
 			# suggested upgrades
 			if len(upgrades) > 0:
-				print("\tChecking upgrades...")
 				upgrade_index = 0
 				for upgrade in upgrades:
-					print(f"\t\tUpgrade [{upgrade}] ", end='')
 					if upgrade == '*':
 						# any thing
 						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
-						print('OK')
 					else:
 						try: # ew, nested try/catch
-							print('OK')
 							local_image = get_upgrade_data(upgrade)[-1]
 							img = cv.imread(local_image, cv.IMREAD_UNCHANGED)
-						except Exception as e: 
-							print('Failed')
+						except Exception as e:
 							print(f"\t\tException {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
 					y = 6
 					x = upgrade_index
@@ -503,11 +556,8 @@ def check_build():
 				print("\tNo upgrades found")
 			# suggested skills
 			if len(skills) > 0:
-				print("\tChecking skills...")
 				for skill in skills:
-					print(f"\t\tskill [{skill}] ", end='')
-					try: # ew, nested try/catch
-						print('OK')
+					try:
 						_, id, _, _, tier, _= get_skill_data(skill)
 						x = id
 						y = tier
@@ -517,7 +567,6 @@ def check_build():
 						image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, 3] += skill_use_image_channel[3]
 						
 					except Exception as e: 
-						print('Failed')
 						print(f"\t\tException {type(e)}", e, f"in check_build, listing skill {skill}")
 			else:
 				print("\tNo skills found in build")
@@ -528,6 +577,7 @@ def get_ship_data(ship, battle_type='casual'):
 		
 		raise exceptions for dictionary
 	'''
+	
 	original_arg = ship
 	try:
 		ship_found = False
@@ -542,8 +592,8 @@ def get_ship_data(ship, battle_type='casual'):
 		if ship_found:
 			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
-			if name.lower() in build[battle_type]:
-				upgrades, skills, cmdr = build[battle_type][name.lower()].values()
+			if name.lower() in ship_build[battle_type]:
+				upgrades, skills, cmdr = ship_build[battle_type][name.lower()].values()
 			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr, battle_type
 	except Exception as e:
 		raise e
