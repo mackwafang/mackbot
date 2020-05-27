@@ -317,7 +317,7 @@ ship_tags = {
 		'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
 	}
 }
-regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier)|((\w|-)*))')
+regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 for s in ship_list:
     nat = nation_dictionary[ship_list[s]['nation']]
     tags = []
@@ -912,10 +912,16 @@ class Client(discord.Client):
 							if is_prem:
 								type_icon = type_icon[:-1] + '_premium:'
 							# find the server emoji id for this emoji id
-							for i in server_emojis:
-								if type_icon[1:-1] == i.name:
-									type_icon = str(i)
-									break
+							if len(server_emojis) == 0:
+								type_icon = ""
+							else:
+								if type_icon[1:-1] in [i.name for i in server_emojis]:
+									for i in server_emojis:
+										if type_icon[1:-1] == i.name:
+											type_icon = str(i)
+											break
+								else:
+									type_icon = ""
 							
 							m = f'**{tier_string:<4}** {type_icon} {name} {battle_type.title()} Build'
 							await channel.send(m, file=discord.File(filename))
@@ -1210,11 +1216,16 @@ class Client(discord.Client):
 							if is_prem:
 								type_icon = type_icon[:-1] + '_premium:'
 							# find the server emoji id for this emoji id
-							for i in server_emojis:
-								if type_icon[1:-1] == i.name:
-									type_icon = str(i)
-									break
-									
+							if len(server_emojis) == 0:
+								type_icon = ""
+							else:
+								if type_icon[1:-1] in [i.name for i in server_emojis]:
+									for i in server_emojis:
+										if type_icon[1:-1] == i.name:
+											type_icon = str(i)
+											break
+								else:
+									type_icon = ""
 							m += [f"**{tier_string:<4}** {type_icon} {name}"]
 							
 						num_items = len(m)
@@ -1227,7 +1238,6 @@ class Client(discord.Client):
 						embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
 						m = m[page] # select page
 						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-						print(m)
 						embed.set_footer(text=f"{num_items} ships found")
 						for i in m:
 							embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
