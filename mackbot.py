@@ -900,8 +900,25 @@ class Client(discord.Client):
 						print(time_string(), f"returning ship information for <{name}> in image format")
 						filename = f'./{name.lower()}_{battle_type}_build.png'
 						if os.path.isfile(filename):
+							# get server emoji
+							if message.guild is not None:
+								server_emojis = message.guild.emojis
+							else:
+								server_emojis = []
+							
 							# image exists!
-							await channel.send(file=discord.File(filename))
+							tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+							type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
+							if is_prem:
+								type_icon = type_icon[:-1] + '_premium:'
+							# find the server emoji id for this emoji id
+							for i in server_emojis:
+								if type_icon[1:-1] == i.name:
+									type_icon = str(i)
+									break
+							
+							m = f'**{tier_string:<4}** {type_icon} {name} {battle_type.title()} Build'
+							await channel.send(m, file=discord.File(filename))
 						else:
 							# does not exists
 							await channel.send(f"An Image build for {name} does not exists. Sending normal message.")
@@ -1146,6 +1163,10 @@ class Client(discord.Client):
 								print(f"Exception {type(e)}", e)
 				
 				elif arg[2] == 'ships':
+					if message.guild is not None:
+						server_emojis = message.guild.emojis
+					else:
+						server_emojis = []
 					message_success = False
 					if len(arg) == 3:
 						embed = self.help_message(command_header+token+"help"+token+arg[1]+token+"ships")
@@ -1181,7 +1202,21 @@ class Client(discord.Client):
 								result += [s]
 						print(time_string(), "parsing complete")
 						print(time_string(), "compiling message")
-						m = [f"(T{ship_list[ship]['tier']}) {ship_list[ship]['name']}" for ship in result]
+						m = []
+						for ship in result:
+							name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_ship_data(ship_list[ship]['name'])
+							tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+							type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
+							if is_prem:
+								type_icon = type_icon[:-1] + '_premium:'
+							# find the server emoji id for this emoji id
+							for i in server_emojis:
+								if type_icon[1:-1] == i.name:
+									type_icon = str(i)
+									break
+									
+							m += [f"**{tier_string:<4}** {type_icon} {name}"]
+							
 						num_items = len(m)
 						m.sort()
 						items_per_page = 30
@@ -1192,6 +1227,7 @@ class Client(discord.Client):
 						embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
 						m = m[page] # select page
 						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+						print(m)
 						embed.set_footer(text=f"{num_items} ships found")
 						for i in m:
 							embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
