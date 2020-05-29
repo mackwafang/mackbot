@@ -411,7 +411,6 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				build_type = row[1]
 				ship_name = row[0]
 				upgrades = [i for i in row[2:8] if len(i) > 0]
-				print(upgrades)
 				skills = [i for i in row[8:-2] if len(i) > 0]
 				cmdr = row[-1]
 				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
@@ -1014,6 +1013,7 @@ class Client(discord.Client):
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} [ship_name]]\n"
 					embed.set_footer(text=error_footer_message+footer_message)
 					await channel.send(embed=embed)
 				except Exception as e:
@@ -1243,7 +1243,7 @@ class Client(discord.Client):
 						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
 						embed.set_footer(text=f"{num_items} ships found")
 						for i in m:
-							embed.add_field(name="(Nation) Ship", value=''.join([v+'\n' for v in i]))
+							embed.add_field(name="(Tier) Ship", value=''.join([v+'\n' for v in i]))
 								
 				elif arg[2] == 'commanders':
 					# list all unique commanders
