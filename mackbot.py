@@ -411,9 +411,11 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				build_type = row[1]
 				ship_name = row[0]
 				upgrades = [i for i in row[2:8] if len(i) > 0]
+				print(upgrades)
 				skills = [i for i in row[8:-2] if len(i) > 0]
 				cmdr = row[-1]
 				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+		print("fetching done")
 	except Exception as e:
 		extract_from_web_failed = True
 		print(e)
@@ -432,6 +434,7 @@ if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 			skills.append(skill.text)
 		cmdr = ship.find('commander').text
 		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+	print("build complete")
 
 print("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
