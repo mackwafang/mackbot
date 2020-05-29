@@ -410,7 +410,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 			for row in values:
 				build_type = row[1]
 				ship_name = row[0]
-				upgrades = [i for i in row[2:7] if len(i) > 0]
+				upgrades = [i for i in row[2:8] if len(i) > 0]
 				skills = [i for i in row[8:-2] if len(i) > 0]
 				cmdr = row[-1]
 				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}

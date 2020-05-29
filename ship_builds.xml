@@ -486,7 +486,7 @@
 			<upgrade>asm1</upgrade>
 			<upgrade>prmo</upgrade>
 			<upgrade>csm1</upgrade>
-			<upgrade>mbm3</upgrade>
+			<upgrade>gfcsm2</upgrade>
 		</upgrades>
 		<skills>
 			<skill>pt</skill>
@@ -648,6 +648,86 @@
 			<skill>aft</skill>
 			<skill>fp</skill>
 			<skill>mfcsa</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="z-39">
+		<type>1</type>
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>hsm1</upgrade>
+			<upgrade>ttm1</upgrade>
+			<upgrade>prmo</upgrade>
+			<upgrade>csm1</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>ce</skill>
+			<skill>s</skill>
+			<skill>rl</skill>
+			<skill>ar</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="belfast">
+		<type>1</type>
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>enrop</upgrade>
+			<upgrade>asm1</upgrade>
+			<upgrade>sgm1</upgrade>
+			<upgrade>csm1</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>jack of all trades</skill>
+			<skill>s</skill>
+			<skill>ce</skill>
+			<skill>ifhe</skill>
+			<skill>de</skill>
+			<skill>ar</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="mahan">
+		<type>1</type>
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>enrop</upgrade>
+			<upgrade>ttm1</upgrade>
+			<upgrade>prmo</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pt</skill>
+			<skill>ls</skill>
+			<skill>se</skill>
+			<skill>ce</skill>
+			<skill>s</skill>
+			<skill>rpf</skill>
+			<skill>ar</skill>
+		</skills>
+		<commander>*</commander>
+	</ship>
+	<ship name="république">
+		<type>1</type>
+		<upgrades>
+			<upgrade>mam1</upgrade>
+			<upgrade>ebm1</upgrade>
+			<upgrade>asm1</upgrade>
+			<upgrade>sgm1</upgrade>
+			<upgrade>csm1</upgrade>
+			<upgrade>mbm3</upgrade>
+		</upgrades>
+		<skills>
+			<skill>pm</skill>
+			<skill>em</skill>
+			<skill>s</skill>
+			<skill>ce</skill>
+			<skill>bs</skill>
+			<skill>fp</skill>
+			<skill>ar</skill>
 		</skills>
 		<commander>*</commander>
 	</ship>
