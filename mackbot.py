@@ -372,7 +372,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
 	# The ID and range of a sample spreadsheet.
-	SAMPLE_SPREADSHEET_ID = '1U4B5U0FHRdFC2JV1M0-4z-gUlOE-qq85GJ7hpgJkN5k'
+	SAMPLE_SPREADSHEET_ID = '1RZQZe-DAgVPV3_VMiqClXT7V73_pfQ04oII1HR-MpAk'
 	SAMPLE_RANGE_NAME = 'ship_builds!B2:W1000'
 
 	creds = None
