@@ -18,7 +18,7 @@ cwd = sys.path[0]
 if cwd == '':
 	cwd = '.'
 
-
+logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
 logger = logging.getLogger()
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
@@ -110,6 +110,7 @@ ship_name_to_ascii ={
 	'myougi':'myōgi',
 	'jurien de la graviere':'jurien de la gravière',
 	'khaba':'khabarovsk',
+	'fdr':'franklin d. roosevelt',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -219,10 +220,22 @@ skill_list['34']['perks'] = [
 logging.info("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
 for cmdr in cmdr_list:
-    h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
-    h = BitString(h).bin# convert to bits
-    cmdr_list[cmdr]['name_hash'] = h
-
+	h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
+	h = BitString(h).bin# convert to bits
+	cmdr_list[cmdr]['name_hash'] = h
+logging.info("Fetching Ship List")
+ship_list = {}
+for page in count(1): #range(1,6):
+	try:
+		l = wows_encyclopedia.ships(language='en',page_no=page)
+		for i in l:
+			h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
+			h = BitString(h).bin# convert to bits
+			l[i]['name_hash'] = h
+			ship_list[i] = l[i]
+	except Exception as e:
+		logging.info(type(e), e)
+		break
 logging.info("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
 for page_num in count(1): #range(1,3):
@@ -243,55 +256,195 @@ for page_num in count(1): #range(1,3):
 				url = url[:url.rfind('_')]
 				url = url[url.rfind('/')+1:]
 				upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
+				upgrade_list[consumable]['is_special'] = ''
+				upgrade_list[consumable]['ship_restriction'] = []
+				upgrade_list[consumable]['nation_restriction'] = []
+				upgrade_list[consumable]['tier_restriction'] = []
+				upgrade_list[consumable]['type_restriction'] = []
+				upgrade_list[consumable]['slot'] = ''
+				upgrade_list[consumable]['additional_restriction'] = ''
+				upgrade_list[consumable]['on_other_ships'] = []
 				
 			if c_type == 'Flags':
 				flag_list[consumable] = consumable_list[consumable]
 				flag_list[consumable]['name_hash'] = h
 	except Exception as e:
-		logging.error(type(e), e)
+		if type(e) == wargaming.exceptions.RequestError:
+			if e.args[0] == "PAGE_NO_NOT_FOUND":
+				break
+			else:
+				logging.info(type(e), e)
+		else:
+			logging.info(type(e), e)
 		break
+logging.info('Fetching build file...')
+BUILD_EXTRACT_FROM_CACHE = False
+extract_from_web_failed = False
+BUILD_BATTLE_TYPE_CLAN = 0
+BUILD_BATTLE_TYPE_CASUAL = 1
+BUILD_CREATE_BUILD_IMAGES = True
+build_battle_type = {
+	BUILD_BATTLE_TYPE_CLAN   : "competitive",
+	BUILD_BATTLE_TYPE_CASUAL : "casual",
+}
+build_battle_type_value = {
+	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
+	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
+}
+ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
+if not BUILD_EXTRACT_FROM_CACHE:
+	logging.info("Attempting to fetch from sheets")
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+	# The ID and range of a sample spreadsheet.
+	SAMPLE_SPREADSHEET_ID = sheet_id
+
+	creds = None
+	# The file token.pickle stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('token.pickle'):
+		with open('token.pickle', 'rb') as token:
+			creds = pickle.load(token)
+	# If there are no (valid) credentials available, let the user log in.
+	try:
+		if not creds or not creds.valid:
+			if creds and creds.expired and creds.refresh_token:
+				creds.refresh(Request())
+			else:
+				flow = InstalledAppFlow.from_client_secrets_file(
+					'credentials.json', SCOPES)
+				creds = flow.run_local_server(port=0)
+			# Save the credentials for the next run
+			with open('token.pickle', 'wb') as token:
+				pickle.dump(creds, token)
+				
+		service = build('sheets', 'v4', credentials=creds)
+
+		# Call the Sheets API
+		sheet = service.spreadsheets()
+		# fetch build
+		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+									range='ship_builds!B2:W1000').execute()
+		values = result.get('values', [])
+
+		if not values:
+			print('No data found.')
+			raise Error
+		else:
+			for row in values:
+				build_type = row[1]
+				ship_name = row[0]
+				if ship_name.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
+					ship_name = ship_name_to_ascii[ship_name.lower()] # convert to the appropiate name
+				upgrades = [i for i in row[2:8] if len(i) > 0]
+				skills = [i for i in row[8:-2] if len(i) > 0]
+				cmdr = row[-1]
+				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+		logging.info("Build data fetching done")
+		
+		# fetch upgrade exclusion list
+		logging.info("Excluding Equipments...")
+		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+									range='upgrade_list!A2:R200').execute()
+		values = result.get('values', [])
+		values = [[i[0]] + i[-8:] for i in values]
+		if not values:
+			print('No data found.')
+			raise Error
+		else:
+			for row in values:
+				row = ['' if i == '_' else i for i in row]
+				upgrade_id = row[0]
+				upgrade_type = row[1]
+				usable_dictionary = {'yes':False, 'no':True}
+				upgrade_usable = usable_dictionary[row[2].lower()]
+				upgrade_slot = row[3]
+				upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
+				upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
+				upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
+				upgrade_nation_restrict = [] if len(row[7]) == 0 else row[7].split(', ')
+				upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
+				
+				for u in list(np.array([i for i in upgrade_list.keys()]).copy()):
+					upgrade = upgrade_list[u]
+					if u == upgrade_id:
+						if not upgrade_usable:
+							del upgrade_list[u]
+							pass
+						else:
+							upgrade_list[u]['is_special'] = upgrade_type
+							upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
+							upgrade_list[u]['nation_restriction'] = upgrade_nation_restrict
+							upgrade_list[u]['tier_restriction'] = upgrade_tier_restrict
+							upgrade_list[u]['type_restriction'] = upgrade_type_restrict
+							upgrade_list[u]['slot'] = upgrade_slot
+							upgrade_list[u]['additional_restriction'] = ''
+							upgrade_list[u]['on_other_ships'] = []
+							if len(upgrade_special_restrict) > 0:
+								for s in upgrade_special_restrict:
+									if len(s) > 0:
+										s = s[1:-1].split(', ')
+										print(s)
+										if s[0].lower() == 'None':
+											s[0] = None
+										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
+										upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
+								
+					
+		logging.info("Excluding upgrades done")
+	except Exception as e:
+		extract_from_web_failed = True
+		print(type(e), e)
+		logging.info(e)
+
+if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
+	if extract_from_web_failed:
+		logging.info("Get builds from sheets failed")
+	root = et.parse(cwd+"/ship_builds.xml").getroot()
+	logging.info('Making build dictionary from cache')
+	for ship in root:
+		upgrades = []
+		skills = []
+		build_type = int(ship.find('type').text)
+		for upgrade in ship.find('upgrades'):
+			upgrades.append(upgrade.text)
+		for skill in ship.find('skills'):
+			skills.append(skill.text)
+		cmdr = ship.find('commander').text
+		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+	logging.info("build dictionary complete")
+
+
 logging.info("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
-for i in upgrade_list:
-	upgrade_list[i]['name'] = upgrade_list[i]['name'].replace(chr(160),chr(32))
-	key = ''.join([i[0] for i in upgrade_list[i]['name'].split()]).lower()
-	if not key in upgrade_abbr_list:
-		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
-	else:
-		key = ''.join([i[:2].title() for i in upgrade_list[i]['name'].split()]).lower()[:-1]
-		upgrade_abbr_list[key] = upgrade_list[i]['name'].lower()
-logging.info("Fetching Ship List")
-ship_list = {}
-for page in count(1): #range(1,6):
-	try:
-		l = wows_encyclopedia.ships(language='en',page_no=page)
-		for i in l:
-			h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
-			h = BitString(h).bin# convert to bits
-			l[i]['name_hash'] = h
-			ship_list[i] = l[i]
-	except Exception as e:
-		logging.error(type(e), e)
-		break
+for u in upgrade_list:
+	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
+	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160),chr(32))
+	key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
+	if key in upgrade_abbr_list:
+		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]
+	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()
+
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
 logging.info("Checking cached ship_param file...")
 if os.path.isfile('./'+ship_param_file_name):
-    logging.info("File found. Loading file")
-    with open('./'+ship_param_file_name, 'rb') as f:
-        ship_info = pickle.load(f)
+	logging.info("File found. Loading file")
+	with open('./'+ship_param_file_name, 'rb') as f:
+		ship_info = pickle.load(f)
 else:
-    logging.info("File not found, fetching from weegee")
-    i = 0
-    ship_info = {}
-    for s in ship_list:
-        ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
-        ship_info[s] = ship[s]
-        i += 1
-        logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found.", end='\r')
-    logging.info("Creating cache")
-    with open('./'+ship_param_file_name,'wb') as f:
-        pickle.dump(ship_info, f)
+	logging.info("File not found, fetching from weegee")
+	i = 0
+	ship_info = {}
+	for s in ship_list:
+		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
+		ship_info[s] = ship[s]
+		i += 1
+		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found.", end='\r')
+	logging.info("Creating cache")
+	with open('./'+ship_param_file_name,'wb') as f:
+		pickle.dump(ship_info, f)
 logging.info("Generating ship search tags")
 SHIP_TAG_SLOW_SPD = 0
 SHIP_TAG_FAST_SPD = 1
@@ -328,121 +481,39 @@ ship_tags = {
 }
 regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 for s in ship_list:
-    nat = nation_dictionary[ship_list[s]['nation']]
-    tags = []
-    t = ship_list[s]['type']
-    hull_class = ship_type_to_hull_class[t]
-    if t == 'AirCarrier':
-        t = 'Aircraft Carrier'
-    tier = ship_list[s]['tier']
-    prem = ship_list[s]['is_premium']
-    ship_speed = ship_info[s]['mobility']['max_speed']
-    if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
-        tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
-    if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
-        tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
-    concealment = ship_info[s]['concealment']
-    if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
-        tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
-    try:
-        fireRate = ship_info[s]['artillery']['shot_delay']
-    except:
-        fireRate = np.inf
-    if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-        tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
-    
-    tags += [nat, f't{tier}', t+'s', hull_class]
-    ship_list[s]['tags'] = tags
-    if prem:
-        ship_list[s]['tags'] += ['premium']
-        
+	nat = nation_dictionary[ship_list[s]['nation']]
+	tags = []
+	t = ship_list[s]['type']
+	hull_class = ship_type_to_hull_class[t]
+	if t == 'AirCarrier':
+		t = 'Aircraft Carrier'
+	tier = ship_list[s]['tier']
+	prem = ship_list[s]['is_premium']
+	ship_speed = ship_info[s]['mobility']['max_speed']
+	if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
+		tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
+	if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
+		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
+	concealment = ship_info[s]['concealment']
+	if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
+		tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
+	try:
+		fireRate = ship_info[s]['artillery']['shot_delay']
+	except:
+		fireRate = np.inf
+	if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
+	
+	tags += [nat, f't{tier}', t+'s', hull_class]
+	ship_list[s]['tags'] = tags
+	if prem:
+		ship_list[s]['tags'] += ['premium']
+		
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
 ship_list_frame = pd.DataFrame(ship_list)
 ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
 ship_list = ship_list_frame.to_dict()
-logging.info('Fetching build file...')
-BUILD_EXTRACT_FROM_CACHE = False
-extract_from_web_failed = False
-BUILD_BATTLE_TYPE_CLAN = 0
-BUILD_BATTLE_TYPE_CASUAL = 1
-BUILD_CREATE_BUILD_IMAGES = True
-build_battle_type = {
-	BUILD_BATTLE_TYPE_CLAN   : "competitive",
-	BUILD_BATTLE_TYPE_CASUAL : "casual",
-}
-build_battle_type_value = {
-	"competitive"	: BUILD_BATTLE_TYPE_CLAN,
-	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
-}
-ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
-if not BUILD_EXTRACT_FROM_CACHE:
-	logging.info("Attempting to fetch from sheets")
-	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-	# The ID and range of a sample spreadsheet.
-	SAMPLE_SPREADSHEET_ID = sheet_id
-	SAMPLE_RANGE_NAME = 'ship_builds!B2:W1000'
-
-	creds = None
-	# The file token.pickle stores the user's access and refresh tokens, and is
-	# created automatically when the authorization flow completes for the first
-	# time.
-	if os.path.exists('token.pickle'):
-		with open('token.pickle', 'rb') as token:
-			creds = pickle.load(token)
-	# If there are no (valid) credentials available, let the user log in.
-	try:
-		if not creds or not creds.valid:
-			if creds and creds.expired and creds.refresh_token:
-				creds.refresh(Request())
-			else:
-				flow = InstalledAppFlow.from_client_secrets_file(
-					'credentials.json', SCOPES)
-				creds = flow.run_local_server(port=0)
-			# Save the credentials for the next run
-			with open('token.pickle', 'wb') as token:
-				pickle.dump(creds, token)
-				
-		service = build('sheets', 'v4', credentials=creds)
-
-		# Call the Sheets API
-		sheet = service.spreadsheets()
-		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-									range=SAMPLE_RANGE_NAME).execute()
-		values = result.get('values', [])
-
-		if not values:
-			print('No data found.')
-			raise Error
-		else:
-			for row in values:
-				build_type = row[1]
-				ship_name = row[0]
-				upgrades = [i for i in row[2:8] if len(i) > 0]
-				skills = [i for i in row[8:-2] if len(i) > 0]
-				cmdr = row[-1]
-				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
-		logging.info("fetching done")
-	except Exception as e:
-		extract_from_web_failed = True
-		logging.error(e)
-if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
-	if extract_from_web_failed:
-		print("Get builds from sheets failed")
-	root = et.parse(cwd+"/ship_builds.xml").getroot()
-	logging.info('Making build dictionary from cache')
-	for ship in root:
-		upgrades = []
-		skills = []
-		build_type = int(ship.find('type').text)
-		for upgrade in ship.find('upgrades'):
-			upgrades.append(upgrade.text)
-		for skill in ship.find('skills'):
-			skills.append(skill.text)
-		cmdr = ship.find('commander').text
-		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
-	logging.info("build dictionary complete")
 
 logging.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
@@ -474,33 +545,32 @@ command_list = (
 	'feedback',
 	'map',
 )
-
 def hamming(s1, s2):
-    dist = 0
-    for n in range(len(s1)):
-        if s1[n] != s2[n]:
-            dist += 1
-    return dist
+	dist = 0
+	for n in range(len(s1)):
+		if s1[n] != s2[n]:
+			dist += 1
+	return dist
 def find_closest(s, dictionary):
-    h = BitString("0x"+nilsimsa.Nilsimsa(s.lower()).hexdigest()).bin
-    min_collision = np.inf
-    name = ""
-    lowest_match = []
-    for i in dictionary:
-        ham = hamming(h, dictionary[i]['name_hash'])
-        if ham < min_collision:
-            name = dictionary[i]['name']
-            min_collision = ham
-            lowest_match = [name]
-        elif ham == min_collision:
-            lowest_match += [dictionary[i]['name']]
-    if len(lowest_match) > 1:
-        for i in lowest_match:
-            if len(s) == len(i):
-                name = i
-    else:
-        name = lowest_match[0]
-    return name
+	h = BitString("0x"+nilsimsa.Nilsimsa(s.lower()).hexdigest()).bin
+	min_collision = np.inf
+	name = ""
+	lowest_match = []
+	for i in dictionary:
+		ham = hamming(h, dictionary[i]['name_hash'])
+		if ham < min_collision:
+			name = dictionary[i]['name']
+			min_collision = ham
+			lowest_match = [name]
+		elif ham == min_collision:
+			lowest_match += [dictionary[i]['name']]
+	if len(lowest_match) > 1:
+		for i in lowest_match:
+			if len(s) == len(i):
+				name = i
+	else:
+		name = lowest_match[0]
+	return name
 def check_build():
 	'''
 		checks ship_build for in incorrectly inputted values and outputs build images
@@ -511,7 +581,8 @@ def check_build():
 		for s in ship_build[build_battle_type[t]]:
 			image = np.zeros((520,660,4))
 			logging.info(f"Checking {build_battle_type[t]} battle build for ship {s}...")
-			name, nation, _, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(s, battle_type=build_battle_type[t])
+			
+			name, nation, _, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(s, battle_type=build_battle_type[t])
 			font = ImageFont.truetype('arialbd.ttf', 20)
 			image_pil = Image.fromarray(image, mode='RGBA')
 			draw = ImageDraw.Draw(image_pil)
@@ -529,7 +600,7 @@ def check_build():
 					try:
 						get_commander_data(cmdr)
 					except Exception as e: 
-						logging.error(f"Cmdr check: Exception {type(e)}", e, "in check_build, listing commander")
+						logging.info(f"Cmdr check: Exception {type(e)}", e, "in check_build, listing commander")
 			else:
 				logging.info("Cmdr check: No Commander found")
 			draw.text((0,440), "Commander", font=font, fill=(255,255,255,255))
@@ -550,11 +621,12 @@ def check_build():
 						# any thing
 						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
 					else:
-						try: # ew, nested try/catch
-							local_image = get_upgrade_data(upgrade)[-1]
+						try:
+							local_image = get_upgrade_data(upgrade)[6]
 							img = cv.imread(local_image, cv.IMREAD_UNCHANGED)
 						except Exception as e:
-							logging.error(f"Upgrade check: Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+							logging.info(f"Upgrade check: Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
+					img = np.array(img)
 					y = 6
 					x = upgrade_index
 					h, w, _ = img.shape
@@ -578,11 +650,11 @@ def check_build():
 						image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, 3] += skill_use_image_channel[3]
 						
 					except Exception as e: 
-						logging.error(f"Skill check: Exception {type(e)}", e, f"in check_build, listing skill {skill}")
+						logging.info(f"Skill check: Exception {type(e)}", e, f"in check_build, listing skill {skill}")
 			else:
 				logging.info("Skill check: No skills found in build")
 			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
-def get_ship_data(ship, battle_type='casual'):
+def get_build_data(ship, battle_type='casual'):
 	'''
 		returns name, nation, images, ship type, tier of requested warship name
 		
@@ -634,7 +706,7 @@ def get_skill_data(skill):
 		return name, id, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
-		logging.error(f"Exception {type(e)}: ",e)
+		logging.info(f"Exception {type(e)}: ",e)
 		raise e
 def get_upgrade_data(upgrade):
 	'''
@@ -657,39 +729,12 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _, local_image = upgrade_list[i].values()
-		# check availability of upgrade (which tier, ship)
-		usable_in = {'nation':[],'type':[],'tier':[]}
-		for s in ship_list_frame:
-			_, n, _, ship_type, tier, u, _, _, _, _ = ship_list_frame[s]
-			if int(i) in u: # if the upgrade with id 'i' in the list of upgrades 'u'
-				if not n in usable_in['nation']:
-					usable_in['nation'].append(n)
-				if not ship_type in usable_in['type']:
-					usable_in['type'].append(ship_type)
-				if not tier in usable_in['tier']:
-					usable_in['tier'].append(tier)
-		nation_usable = set(usable_in['nation'])
-		ship_type_usable = set(usable_in['type'])
-		tier_usable = set(usable_in['tier'])
+		profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = upgrade_list[i].values()
 		
-		nation_restriction = set([ship_list[s]['nation'] for s in ship_list])
-		ship_type_restriction = set(ship_types)
-		tier_restriction = set(range(1,11))
-		
-		# find difference
-		nation_restriction = nation_restriction - nation_usable
-		ship_type_restriction = ship_type_restriction - ship_type_usable
-		tier_restriction = tier_restriction - tier_usable
-		
-		nation_restriction = nation_usable # if len(ship_restriction) > len(ship_usable) else (ship_restriction,'restricted')
-		ship_type_restriction = ship_type_usable # if len(ship_type_restriction) > len(ship_type_usable) else (ship_type_restriction,'restricted')
-		tier_restriction = tier_usable # if len(tier_restriction) > len(tier_usable) else (tier_restriction,'restricted')
-		
-		return profile, name, price_gold, image, price_credit, upgrade_type, description, nation_restriction, ship_type_restriction, tier_restriction, local_image
+		return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
 	except Exception as e:
 		raise e
-		logging.error(f"Exception {type(e)}: ",e)
+		logging.info(f"Exception {type(e)}: ",e)
 def get_commander_data(cmdr):
 	'''
 		returns name, icon and nation requested special commander 
@@ -741,7 +786,7 @@ def get_flag_data(flag):
 		
 	except Exception as e:
 		raise e
-		logging.error(f"Exception {type(e)}: ",e)
+		logging.info(f"Exception {type(e)}: ",e)
 def get_map_data(map):
 	'''
 		returns information for the requested map
@@ -754,11 +799,8 @@ def get_map_data(map):
 				return description, image, id, name
 	except Exception as e:
 		raise e
-		logging.error("Exception {type(e): ", e)
+		logging.info("Exception {type(e): ", e)
 		
-def time_string():
-	return "[" + time.strftime("%a %b %d, %Y %H:%M:%S %Z", time.localtime()) + "]"
-
 class Client(discord.Client):
 	async def on_ready(self):
 		await self.change_presence(activity=discord.Game(command_header+token+command_list[0]))
@@ -907,7 +949,7 @@ class Client(discord.Client):
 			if requested_image:
 				async with channel.typing():
 					try:
-						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
+						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
 						logging.info(f"returning ship information for <{name}> in image format")
 						filename = f'./{name.lower()}_{battle_type}_build.png'
 						if os.path.isfile(filename):
@@ -942,7 +984,7 @@ class Client(discord.Client):
 							await self.build(message, arg)
 						
 					except Exception as e:
-						logging.error(f"Exception {type(e)}", e)
+						logging.info(f"Exception {type(e)}", e)
 						if type(e) == discord.errors.Forbidden:
 							await channel.send(f"I need the **Attach Files Permission** to use this feature!")
 						else:
@@ -950,7 +992,7 @@ class Client(discord.Client):
 			else:
 				try:
 					async with channel.typing():
-						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(ship, battle_type=battle_type)
+						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
 						logging.info(f"returning ship information for <{name}> in embeded format")
 						ship_type = ship_types[ship_type]
 						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
@@ -976,9 +1018,9 @@ class Client(discord.Client):
 									try: # ew, nested try/catch
 										upgrade_name = get_upgrade_data(upgrade)[1]
 									except Exception as e: 
-										logging.error(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+										logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 										error_value_found = True
-										upgrade_name = upgrade+" [!]"
+										upgrade_name = upgrade+":warning:"
 								m += f'(Slot {i}) **'+upgrade_name+'**\n'
 								i += 1
 							footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
@@ -994,9 +1036,9 @@ class Client(discord.Client):
 								try: # ew, nested try/catch
 									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
 								except Exception as e: 
-									logging.error(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+									logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 									error_value_found = True
-									skill_name = skill+" [!]"
+									skill_name = skill+":warning:"
 								m += f'(Tier {tier}) **'+skill_name+'**\n'
 								i += 1
 							footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
@@ -1012,9 +1054,9 @@ class Client(discord.Client):
 								try:
 									m = get_commander_data(cmdr)[0]
 								except Exception as e: 
-									logging.error(f"Exception {type(e)}", e, "in ship, listing commander")
+									logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
 									error_value_found = True
-									m = f"{cmdr} [!]"
+									m = f"{cmdr}:warning:"
 							footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 							embed.add_field(name='Suggested Cmdr.', value=m)
 						else:
@@ -1026,7 +1068,7 @@ class Client(discord.Client):
 					embed.set_footer(text=error_footer_message+footer_message)
 					await channel.send(embed=embed)
 				except Exception as e:
-					logging.error(f"Exception {type(e)}", e)
+					logging.info(f"Exception {type(e)}", e)
 					await channel.send(f"Ship **{ship}** is not understood")
 	async def skill(self, message, arg):
 		channel = message.channel
@@ -1087,7 +1129,7 @@ class Client(discord.Client):
 								message_success = True
 							except Exception as e:
 								embed = None
-								logging.error(e, end='')
+								logging.info(e, end='')
 								if type(e) == IndexError:
 									error_message = f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]"
 								else:
@@ -1146,7 +1188,7 @@ class Client(discord.Client):
 								logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
 								error_message = f"Value {arg[3]} is not understood"
 							else:
-								logging.error(f"Exception {type(e)}", e)
+								logging.info(f"Exception {type(e)}", e)
 				
 				elif arg[2] == 'maps':
 					# list all maps
@@ -1177,7 +1219,7 @@ class Client(discord.Client):
 								logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
 								error_message = f"Value {arg[3]} is not understood"
 							else:
-								logging.error(f"Exception {type(e)}", e)
+								logging.info(f"Exception {type(e)}", e)
 				
 				elif arg[2] == 'ships':
 					if message.guild is not None:
@@ -1221,7 +1263,7 @@ class Client(discord.Client):
 						logging.info("compiling message")
 						m = []
 						for ship in result:
-							name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_ship_data(ship_list[ship]['name'])
+							name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_build_data(ship_list[ship]['name'])
 							tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 							type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
 							if is_prem:
@@ -1286,7 +1328,7 @@ class Client(discord.Client):
 							if type(e) == ValueError:
 								pass
 							else:
-								logging.error(f"Exception {type(e)}",e)
+								logging.info(f"Exception {type(e)}",e)
 						# list commanders by nationality
 						if not message_success and error_message == "": #page not listed
 							try:
@@ -1301,7 +1343,7 @@ class Client(discord.Client):
 									embed.add_field(name="Name",value=''.join([v+'\n' for v in i]))
 								
 							except Exception as e:
-								logging.error(f"Exception {type(e)}", e)
+								logging.info(f"Exception {type(e)}", e)
 								
 				elif arg[2] == 'flags':
 					# list all flags
@@ -1353,28 +1395,72 @@ class Client(discord.Client):
 			# user provided an argument
 			try:
 				logging.info(f'sending message for upgrade <{upgrade}>')
-				profile, name, price_gold, image, price_credit, _, description, nation_restriction, ship_type_restriction, tier_restriction, _ = get_upgrade_data(upgrade)
-				embed = discord.Embed(title="Ship Upgrade")
+				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = get_upgrade_data(upgrade)
+				embed_title = 'Ship Upgrade'
+				if is_special.lower() == 'legendary':
+					embed_title = "Legendary Ship Upgrade"
+				elif is_special.lower() == 'coal':
+					embed_title = "Coal Ship Upgrade"
+				embed = discord.Embed(title=embed_title, description="")
 				embed.set_thumbnail(url=image)
-				embed.add_field(name='Name', value=name)
-				embed.add_field(name='Description',value=description)
-				embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]))
-				
-				if len(ship_type_restriction) > 0:
-					m = f"{'All types' if len(ship_type_restriction) == len(ship_types) else ''.join([ship_types[i]+'s, ' for i in sorted(ship_type_restriction)])[:-3]}"
-					embed.add_field(name="Type",value=m)
+				#embed.add_field(name='Name', value=name)
+				if len(name) > 0:
+					embed.description += f"**{name}**\n"
+				else:
+					logging.info("name is empty")
+				if len(slot) > 0:
+					embed.description += f"**Slot {slot}**\n"
+				else:
+					logging.info("slot is empty")
+				if len(description) > 0:
+					embed.add_field(name='Description',value=description, inline=False)
+				else:
+					logging.info("description field empty")
+				if len(profile) > 0:
+					embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]), inline=False)
+				else:
+					logging.info("effect field empty")
+				if len(ship_restriction) > 0:
+					m = ''.join([i+', ' for i in sorted(ship_restriction)])[:-2]
+					if len(m) > 0:
+						embed.add_field(name="Ships",value=m)
+					else:
+						logging.warning('Ships field is empty')
+				if len(on_other_ships) > 0 and is_special.lower() != 'legendary':
+					m = ''.join([f'{s} (Slot {sl})\n' for s, sl in on_other_ships if s not in ship_restriction or s is not None])[:-1]
+					if len(m) > 0:
+						embed.add_field(name="Also found on:",value=m)
+					else:
+						logging.warning('Other ships field is empty')
+				if len(type_restriction) > 0:
+					m =  ''.join([i.title()+', ' for i in sorted(type_restriction)])[:-2]
+				else:
+					m = "All types"
+				embed.add_field(name="Ship Type",value=m)
+
 				if len(tier_restriction) > 0:
-					m = f"{'All tiers' if len(tier_restriction) == 10 else ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]}"
-					embed.add_field(name="Tier",value=m)
+					m = ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]
+				else:
+					m = "All tiers"
+				embed.add_field(name="Tier",value=m)
+				
 				if len(nation_restriction) > 0:
-					m = f"{'All Nations' if len(nation_restriction) == len(nation_dictionary) else ''.join([nation_dictionary[i]+', ' for i in sorted(nation_restriction)])[:-2]}"
-					embed.add_field(name="Nation",value=m)
-						
-				if price_credit > 0:
+					m = ''.join([i+', ' for i in sorted(nation_restriction)])[:-2]
+				else:
+					m = 'All nations'
+				embed.add_field(name="Nation",value=m)
+				
+				if len(special_restriction) > 0:
+					m = special_restriction
+					if len(m) > 0:
+						embed.add_field(name="Additonal Requirements",value=m)		
+					else:
+						logging.log("Additional requirements field empty")
+				if price_credit > 0 and is_special == '':
 					embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 				await channel.send(embed=embed)
 			except Exception as e:
-				logging.error(f"Exception {type(e)}", e)
+				logging.info(f"Exception {type(e)}", e)
 				await channel.send(f"Upgrade **{upgrade}** is not understood.")
 	async def commander(self, message, arg):
 		channel = message.channel
@@ -1399,7 +1485,7 @@ class Client(discord.Client):
 					
 				await channel.send(embed=embed)
 			except Exception as e:
-				logging.error(f"Exception {type(e)}: ", e)
+				logging.info(f"Exception {type(e)}: ", e)
 				await channel.send(f"Commander **{cmdr}** is not understood.")
 	async def map(self, message, arg):
 		channel = message.channel
@@ -1424,7 +1510,7 @@ class Client(discord.Client):
 					
 				await channel.send(embed=embed)
 			except Exception as e:
-				logging.error(f"Exception {type(e)}: ", e)
+				logging.info(f"Exception {type(e)}: ", e)
 				await channel.send(f"Map **{map}** is not understood.")
 	async def flag(self, message, arg):
 		channel = message.channel
@@ -1454,7 +1540,7 @@ class Client(discord.Client):
 					embed.add_field(name='Price (Doub.)', value=price_gold)
 				await channel.send(embed=embed)
 			except Exception as e:
-				logging.error(f"Exception {type(e)}", e)
+				logging.info(f"Exception {type(e)}", e)
 				await channel.send(f"Flag **{flag}** is not understood.")
 	
 	async def on_message(self,message):
