@@ -29,12 +29,16 @@ logger.setLevel(logging.INFO)
 
 nation_dictionary = {
 	'usa': 'US',
+	'us': 'US',
 	'pan_asia': 'Pan-Asian',
 	'ussr': 'Russian',
+	'russian': 'Russian',
 	'europe': 'European',
 	'japan': 'Japanese',
 	'uk': 'British',
+	'british': 'British',
 	'france': 'France',
+	'french': 'France',
 	'germany': 'German',
 	'italy': 'Italian',
 	'commonwealth': 'Commonwealth',
@@ -360,12 +364,14 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				usable_dictionary = {'yes':False, 'no':True}
 				upgrade_usable = usable_dictionary[row[2].lower()]
 				upgrade_slot = row[3]
-				upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
-				upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
-				upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
-				upgrade_nation_restrict = [] if len(row[7]) == 0 else row[7].split(', ')
-				upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
-				
+				try:
+					upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
+					upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
+					upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
+					upgrade_nation_restrict = [] if len(row[7]) == 0 else row[7].split(', ')
+					upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
+				except:
+					continue
 				for u in list(np.array([i for i in upgrade_list.keys()]).copy()):
 					upgrade = upgrade_list[u]
 					if u == upgrade_id:
@@ -390,13 +396,14 @@ if not BUILD_EXTRACT_FROM_CACHE:
 											s[0] = None
 										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
 										upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
-								
+							
 					
 		logging.info("Excluding upgrades done")
 	except Exception as e:
 		extract_from_web_failed = True
 		print(type(e), e)
 		logging.info(e)
+
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -975,7 +982,6 @@ class Client(discord.Client):
 											break
 								else:
 									type_icon = ""
-							
 							m = f'**{tier_string:<4}** {type_icon} {name} {battle_type.title()} Build'
 							await channel.send(m, file=discord.File(filename))
 						else:
@@ -995,12 +1001,18 @@ class Client(discord.Client):
 						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
 						logging.info(f"returning ship information for <{name}> in embeded format")
 						ship_type = ship_types[ship_type]
-						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}")
+						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 						embed.set_thumbnail(url=images['small'])
-						# embed.add_field(name='Name', value=name)
-						embed.add_field(name='Nation', value=nation_dictionary[nation])
-						embed.add_field(name='Type', value="Premium "+ship_type if is_prem else ship_type)
-						embed.add_field(name='Tier', value=tier)
+						# get server emoji
+						if message.guild is not None:
+							server_emojis = message.guild.emojis
+						else:
+							server_emojis = []
+						
+						# image exists!
+						tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+						
+						embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**'
 						
 						footer_message = ""
 						error_value_found = False
@@ -1024,9 +1036,9 @@ class Client(discord.Client):
 								m += f'(Slot {i}) **'+upgrade_name+'**\n'
 								i += 1
 							footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
-							embed.add_field(name='Suggested Upgrades', value=m,inline=True)
+							embed.add_field(name='Suggested Upgrades', value=m,inline=False)
 						else:
-							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=True)
+							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=False)
 						# suggested skills
 						if len(skills) > 0:
 							m = ""
@@ -1042,9 +1054,9 @@ class Client(discord.Client):
 								m += f'(Tier {tier}) **'+skill_name+'**\n'
 								i += 1
 							footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
-							embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=True)
+							embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=False)
 						else:
-							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=True)
+							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=False)
 						# suggested commander
 						if cmdr != "":
 							m = ""
@@ -1060,7 +1072,7 @@ class Client(discord.Client):
 							footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 							embed.add_field(name='Suggested Cmdr.', value=m)
 						else:
-							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=True)
+							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=False)
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
@@ -1279,7 +1291,9 @@ class Client(discord.Client):
 											break
 								else:
 									type_icon = ""
-							m += [f"**{tier_string:<4}** {type_icon} {name}"]
+							if len(type_icon) == 0:
+								type_icon = ship_type_to_hull_class[ship_type]
+							m += [f"**{tier_string:<4} [{type_icon}]** {name}"]
 							
 						num_items = len(m)
 						m.sort()
