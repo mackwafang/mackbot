@@ -9,10 +9,6 @@ from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
 from bitstring import BitString
-from googleapiclient.errors import Error
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 
 cwd = sys.path[0]
 if cwd == '':
@@ -268,6 +264,7 @@ for page_num in count(1): #range(1,3):
 				upgrade_list[consumable]['slot'] = ''
 				upgrade_list[consumable]['additional_restriction'] = ''
 				upgrade_list[consumable]['on_other_ships'] = []
+				upgrade_list[consumable]['tags'] = []
 				
 			if c_type == 'Flags':
 				flag_list[consumable] = consumable_list[consumable]
@@ -297,6 +294,11 @@ build_battle_type_value = {
 }
 ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
 if not BUILD_EXTRACT_FROM_CACHE:
+	from googleapiclient.errors import Error
+	from googleapiclient.discovery import build
+	from google_auth_oauthlib.flow import InstalledAppFlow
+	from google.auth.transport.requests import Request
+	
 	logging.info("Attempting to fetch from sheets")
 	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
@@ -346,64 +348,78 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				cmdr = row[-1]
 				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 		logging.info("Build data fetching done")
-		
-		# fetch upgrade exclusion list
-		logging.info("Excluding Equipments...")
-		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-									range='upgrade_list!A2:R200').execute()
-		values = result.get('values', [])
-		values = [[i[0]] + i[-8:] for i in values]
-		if not values:
-			print('No data found.')
-			raise Error
-		else:
-			for row in values:
+	except Exception as e:
+		extract_from_web_failed = True
+		logging.info(f"Exception raised while fetching builds: {e}")
+	# fetch upgrade exclusion list
+	logging.info("Excluding Equipments...")
+	result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+								range='upgrade_list!A2:S200').execute()
+	values = result.get('values', [])
+	values = [[i[0]] + i[-9:] for i in values]
+
+	if not values:
+		print('No data found.')
+		raise Error
+	else:
+		for row in values:
+			try:
 				row = ['' if i == '_' else i for i in row]
 				upgrade_id = row[0]
 				upgrade_type = row[1]
 				usable_dictionary = {'yes':False, 'no':True}
 				upgrade_usable = usable_dictionary[row[2].lower()]
 				upgrade_slot = row[3]
-				try:
-					upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
-					upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
-					upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
-					upgrade_nation_restrict = [] if len(row[7]) == 0 else row[7].split(', ')
-					upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
-				except:
-					continue
-				for u in list(np.array([i for i in upgrade_list.keys()]).copy()):
-					upgrade = upgrade_list[u]
-					if u == upgrade_id:
-						if not upgrade_usable:
-							del upgrade_list[u]
-							pass
-						else:
+				upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
+				upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
+				upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
+				upgrade_nation_restrict = [] if len(row[7]) == 0 else row[7].split(', ')
+				upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
+				upgrade_tags = [] if len(row[9]) == 0 else row[9].split(', ')
+			except Exception as e:
+				# oops, skip this
+				logging.info("Equipments parsing exception")
+				continue
+			
+			for u in list(np.array([i for i in upgrade_list.keys()]).copy()):
+				upgrade = upgrade_list[u]
+				if u == upgrade_id:
+					if not upgrade_usable:
+						del upgrade_list[u]
+						pass
+					else:
+						try:
 							upgrade_list[u]['is_special'] = upgrade_type
+							if len(upgrade_type) > 0:
+								upgrade_list[u]['tags'] += [upgrade_type.lower()]
 							upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
+							if len(upgrade_ship_restrict) > 0:
+								upgrade_list[u]['tags'] += upgrade_ship_restrict
 							upgrade_list[u]['nation_restriction'] = upgrade_nation_restrict
+							if len(upgrade_nation_restrict) > 0:
+								upgrade_list[u]['tags'] += upgrade_nation_restrict
 							upgrade_list[u]['tier_restriction'] = upgrade_tier_restrict
+							if len(upgrade_tier_restrict) > 0:
+								upgrade_list[u]['tags'] += [f"tier {i}" for i in upgrade_tier_restrict]
 							upgrade_list[u]['type_restriction'] = upgrade_type_restrict
+							if len(upgrade_type_restrict) > 0:
+								upgrade_list[u]['tags'] += upgrade_type_restrict
 							upgrade_list[u]['slot'] = upgrade_slot
-							upgrade_list[u]['additional_restriction'] = ''
-							upgrade_list[u]['on_other_ships'] = []
+							upgrade_list[u]['tags'] += [f"slot {upgrade_slot}"]
+							upgrade_list[u]['tags'] += upgrade_tags
 							if len(upgrade_special_restrict) > 0:
 								for s in upgrade_special_restrict:
 									if len(s) > 0:
 										s = s[1:-1].split(', ')
-										print(s)
 										if s[0].lower() == 'None':
 											s[0] = None
 										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
 										upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
-							
-					
-		logging.info("Excluding upgrades done")
-	except Exception as e:
-		extract_from_web_failed = True
-		print(type(e), e)
-		logging.info(e)
-
+						except Exception as e:
+							# oops, skip this
+							logging.info("Equipments exclusion exception")
+							break
+	logging.info("Excluding upgrades done")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -487,6 +503,7 @@ ship_tags = {
 	}
 }
 regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
+equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page \d{1,2})|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 for s in ship_list:
 	nat = nation_dictionary[ship_list[s]['nation']]
 	tags = []
@@ -736,7 +753,7 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = upgrade_list[i].values()
+		profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _ = upgrade_list[i].values()
 		
 		return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
 	except Exception as e:
@@ -1179,19 +1196,63 @@ class Client(discord.Client):
 					elif len(arg) > 3:
 						# list upgrades
 						try:
-							logging.info("sending list of upgrades")
-							page = int(arg[3])-1
-							m = [f"**{upgrade_abbr_list[i].title()}** ({i.upper()})" for i in upgrade_abbr_list]
-							m.sort()
-							items_per_page = 20
-							num_pages = (len(upgrade_abbr_list) // items_per_page)
+							# parsing search parameters
+							logging.info("starting parameters parsing")
+							search_param = arg[3:]
+							s = equip_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 							
-							m = [m[i:i+items_per_page] for i in range(0,len(upgrade_abbr_list),items_per_page)] # splitting into pages
-							embed = discord.Embed(title="Upgrade List "+f"({page+1}/{num_pages+1})")
-							m = m[page] # select page
-							m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-							for i in m:
-								embed.add_field(name="Upgrade (Abbr.)", value=''.join([v+'\n' for v in i]))
+							tier = ''.join([i[3] for i in s])
+							key = [i[6] for i in s if len(i[6]) > 1]
+							page = [i[5] for i in s if len(i[4]) > 0]
+							slot = [i[1] for i in s if len(i[1]) > 0]
+							embed_title = "Search result for: "
+							
+							try:
+								page = int(page[0])-1
+							except:
+								page = 0
+								
+							if len(tier) > 0:
+								if tier in roman_numeral:
+									tier = roman_numeral[tier]
+								tier = f't{tier}'
+								key += [tier]
+							key = [i.lower() for i in key if not 'page' in i]
+							embed_title += f"{''.join([i.title()+' ' for i in key])}"
+							# look up
+							result = []
+							for u in upgrade_list:
+								tags = [i.lower() for i in upgrade_list[u]['tags']]
+								if np.all([k in tags for k in key]):
+									result += [u]
+							logging.info("parsing complete")
+							logging.info("compiling message")
+							if len(result) > 0:
+								m = []
+								for u in result:
+									upgrade = upgrade_list[u]
+									name = get_upgrade_data(upgrade['name'])[1]
+									for u_b in upgrade_abbr_list:
+										if upgrade_abbr_list[u_b] == name.lower():
+											m += [f"**{name}** ({u_b.upper()})"]
+											break
+									
+								num_items = len(m)
+								m.sort()
+								items_per_page = 30
+								num_pages = (len(m) // items_per_page)
+								m = [m[i:i+items_per_page] for i in range(0,len(result),items_per_page)] # splitting into pages
+								
+								
+								embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
+								m = m[page] # select page
+								m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+								embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_header} upgrade [name/abbreviation]]")
+								for i in m:
+									embed.add_field(name="Upgrade (abbr.)", value=''.join([v+'\n' for v in i]))
+							else:
+								embed = discord.Embed(title=embed_title, description="")
+								embed.description = "No upgrades found"
 						except Exception as e:
 							if type(e) == IndexError:
 									embed = None
@@ -1274,40 +1335,44 @@ class Client(discord.Client):
 						logging.info("parsing complete")
 						logging.info("compiling message")
 						m = []
-						for ship in result:
-							name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_build_data(ship_list[ship]['name'])
-							tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
-							type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
-							if is_prem:
-								type_icon = type_icon[:-1] + '_premium:'
-							# find the server emoji id for this emoji id
-							if len(server_emojis) == 0:
-								type_icon = ""
-							else:
-								if type_icon[1:-1] in [i.name for i in server_emojis]:
-									for i in server_emojis:
-										if type_icon[1:-1] == i.name:
-											type_icon = str(i)
-											break
-								else:
+						if len(result) > 0:
+							for ship in result:
+								name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_build_data(ship_list[ship]['name'])
+								tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+								type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
+								if is_prem:
+									type_icon = type_icon[:-1] + '_premium:'
+								# find the server emoji id for this emoji id
+								if len(server_emojis) == 0:
 									type_icon = ""
-							if len(type_icon) == 0:
-								type_icon = ship_type_to_hull_class[ship_type]
-							m += [f"**{tier_string:<4} [{type_icon}]** {name}"]
+								else:
+									if type_icon[1:-1] in [i.name for i in server_emojis]:
+										for i in server_emojis:
+											if type_icon[1:-1] == i.name:
+												type_icon = str(i)
+												break
+									else:
+										type_icon = ""
+								if len(type_icon) == 0:
+									type_icon = ship_type_to_hull_class[ship_type]
+								m += [f"**{tier_string:<4} [{type_icon}]** {name}"]
+								
+							num_items = len(m)
+							m.sort()
+							items_per_page = 30
+							num_pages = (len(m) // items_per_page)
+							m = [m[i:i+items_per_page] for i in range(0,len(result),items_per_page)] # splitting into pages
 							
-						num_items = len(m)
-						m.sort()
-						items_per_page = 30
-						num_pages = (len(m) // items_per_page)
-						m = [m[i:i+items_per_page] for i in range(0,len(ship_list),items_per_page)] # splitting into pages
-						
-						
-						embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
-						m = m[page] # select page
-						m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
-						embed.set_footer(text=f"{num_items} ships found")
-						for i in m:
-							embed.add_field(name="(Tier) Ship", value=''.join([v+'\n' for v in i]))
+							
+							embed = discord.Embed(title=embed_title+f"({page+1}/{num_pages+1})")
+							m = m[page] # select page
+							m = [m[i:i+items_per_page//2] for i in range(0,len(m),items_per_page//2)] # spliting into columns
+							embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_header} build [ship_name]]")
+							for i in m:
+								embed.add_field(name="(Tier) Ship", value=''.join([v+'\n' for v in i]))
+						else:
+							embed = discord.Embed(title=embed_title, description="")
+							embed.description = "**No ships found**"
 								
 				elif arg[2] == 'commanders':
 					# list all unique commanders
