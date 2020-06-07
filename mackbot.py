@@ -1199,12 +1199,12 @@ class Client(discord.Client):
 							# parsing search parameters
 							logging.info("starting parameters parsing")
 							search_param = arg[3:]
-							s = equip_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
+							s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 							
-							tier = ''.join([i[3] for i in s])
+							slot = ''.join([i[0] for i in s])
 							key = [i[6] for i in s if len(i[6]) > 1]
-							page = [i[5] for i in s if len(i[4]) > 0]
-							slot = [i[1] for i in s if len(i[1]) > 0]
+							page = [i[5] for i in s if len(i[5]) > 1]
+							tier = [i[2] for i in s if len(i[2]) > 1]
 							embed_title = "Search result for: "
 							
 							try:
@@ -1213,16 +1213,20 @@ class Client(discord.Client):
 								page = 0
 								
 							if len(tier) > 0:
-								if tier in roman_numeral:
-									tier = roman_numeral[tier]
-								tier = f't{tier}'
-								key += [tier]
+								for t in tier:
+									if t in roman_numeral:
+										t = roman_numeral[t]
+									tier = f't{t}'
+									key += [t]
+							if len(slot) > 0:
+								key += [slot]
 							key = [i.lower() for i in key if not 'page' in i]
 							embed_title += f"{''.join([i.title()+' ' for i in key])}"
 							# look up
 							result = []
 							for u in upgrade_list:
 								tags = [i.lower() for i in upgrade_list[u]['tags']]
+								print(key, tags)
 								if np.all([k in tags for k in key]):
 									result += [u]
 							logging.info("parsing complete")
@@ -1506,7 +1510,7 @@ class Client(discord.Client):
 					else:
 						logging.warning('Ships field is empty')
 				if len(on_other_ships) > 0 and is_special.lower() != 'legendary':
-					m = ''.join([f'{s} (Slot {sl})\n' for s, sl in on_other_ships if s not in ship_restriction or s is not None])[:-1]
+					m = ''.join([f'{s} (Slot {sl})\n' for s, sl in on_other_ships if (s not in ship_restriction) ^ (s is not None)])[:-1]
 					if len(m) > 0:
 						embed.add_field(name="Also found on:",value=m)
 					else:
