@@ -413,6 +413,8 @@ if not BUILD_EXTRACT_FROM_CACHE:
 										s = s[1:-1].split(', ', maxsplit=2)
 										if s[0].lower() == 'None':
 											s[0] = None
+										else:
+											upgrade_list[u]['tags'] += [s[0]]
 										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
 										upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
 						except Exception as e:
@@ -1226,7 +1228,6 @@ class Client(discord.Client):
 							result = []
 							for u in upgrade_list:
 								tags = [i.lower() for i in upgrade_list[u]['tags']]
-								print(key, tags)
 								if np.all([k in tags for k in key]):
 									result += [u]
 							logging.info("parsing complete")
@@ -1509,8 +1510,14 @@ class Client(discord.Client):
 						embed.add_field(name="Ships",value=m)
 					else:
 						logging.warning('Ships field is empty')
+				print(on_other_ships)
 				if len(on_other_ships) > 0 and is_special.lower() != 'legendary':
-					m = ''.join([f'{s} (Slot {sl})\n' for s, sl in on_other_ships if (s not in ship_restriction) ^ (s is not None)])[:-1]
+					m = ""
+					for s, sl in on_other_ships:
+						if s is not None:
+							if s not in ship_restriction:
+								m += f'{s} (Slot {sl})\n'
+					m = m[:-1]
 					if len(m) > 0:
 						embed.add_field(name="Also found on:",value=m)
 					else:
