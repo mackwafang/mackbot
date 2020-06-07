@@ -410,7 +410,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 							if len(upgrade_special_restrict) > 0:
 								for s in upgrade_special_restrict:
 									if len(s) > 0:
-										s = s[1:-1].split(', ')
+										s = s[1:-1].split(', ', maxsplit=2)
 										if s[0].lower() == 'None':
 											s[0] = None
 										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
