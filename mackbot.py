@@ -217,6 +217,22 @@ skill_list['34']['perks'] = [
 	{'perk_id':1, 'description':'The enemy player will be alerted that a bearing was taken on their ship'},
 	{'perk_id':2, 'description':'Does not work on aircraft carriers'},
 ]
+logging.info("Fetching Module List")
+module_list = {}
+for page in count(1):
+	try:
+		m = wows_encyclopedia.modules(language='en',page_no=page)
+		for i in m:
+			module_list[i] = m[i]
+	except Exception as e:
+		if type(e) == wargaming.exceptions.RequestError:
+			if e.args[0] == "PAGE_NO_NOT_FOUND":
+				break
+			else:
+				logging.info(type(e), e)
+		else:
+			logging.info(type(e), e)
+		break
 logging.info("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
 for cmdr in cmdr_list:
@@ -234,7 +250,13 @@ for page in count(1): #range(1,6):
 			l[i]['name_hash'] = h
 			ship_list[i] = l[i]
 	except Exception as e:
-		logging.info(type(e), e)
+		if type(e) == wargaming.exceptions.RequestError:
+			if e.args[0] == "PAGE_NO_NOT_FOUND":
+				break
+			else:
+				logging.info(type(e), e)
+		else:
+			logging.info(type(e), e)
 		break
 logging.info("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
@@ -538,7 +560,7 @@ for s in ship_list:
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
 ship_list_frame = pd.DataFrame(ship_list)
-ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
+ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier','modules', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
 ship_list = ship_list_frame.to_dict()
 
 logging.info("Fetching Maps")
@@ -570,6 +592,7 @@ command_list = (
 	'flag',
 	'feedback',
 	'map',
+	'ship',
 )
 def hamming(s1, s2):
 	dist = 0
@@ -608,7 +631,7 @@ def check_build():
 			image = np.zeros((520,660,4))
 			logging.info(f"Checking {build_battle_type[t]} battle build for ship {s}...")
 			
-			name, nation, _, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(s, battle_type=build_battle_type[t])
+			name, nation, _, ship_type, tier, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(s, battle_type=build_battle_type[t])
 			font = ImageFont.truetype('arialbd.ttf', 20)
 			image_pil = Image.fromarray(image, mode='RGBA')
 			draw = ImageDraw.Draw(image_pil)
@@ -699,11 +722,27 @@ def get_build_data(ship, battle_type='casual'):
 				ship_found = True
 				break
 		if ship_found:
-			name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, _, _ = ship_list[i].values()
+			name, nation, images, ship_type, tier, modules, equip_upgrades, is_prem, price_gold, _, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
 			if name.lower() in ship_build[battle_type]:
 				upgrades, skills, cmdr = ship_build[battle_type][name.lower()].values()
-			return name, nation, images, ship_type, tier, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr, battle_type
+			return name, nation, images, ship_type, tier, modules, equip_upgrades, is_prem, price_gold, upgrades, skills, cmdr, battle_type
+	except Exception as e:
+		raise e
+def get_ship_data(ship):
+	original_arg = ship
+	try:
+		ship_found = False
+		if ship.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
+			ship = ship_name_to_ascii[ship.lower()] # convert to the appropiate name
+		for i in ship_list:
+			ship_name_in_dict = ship_list[i]['name']
+			# print(ship.lower(),ship_name_in_dict.lower())
+			if ship.lower() == ship_name_in_dict.lower(): # find ship based on name
+				ship_found = True
+				break
+		if ship_found:
+			return ship_info[i]
 	except Exception as e:
 		raise e
 def get_skill_data(skill):
@@ -856,11 +895,15 @@ class Client(discord.Client):
 				embed.add_field(name='Usage',value=command_header+token+command)
 				embed.add_field(name='Description',value='Praise the bot for being a good bot')
 			if command == 'build':
-				embed.add_field(name='Usage',value=command_header+token+command+token+'[type] ship [image]')
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[type]'+token+'build'+token+'[image]')
 				embed.add_field(name='Description',value='List name, nationality, type, tier, recommended build of the requested warships\n'+
 					f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n'+
 					'**ship**: Required. Desired ship to output information on.\n'+
 					'**image**: Optional. If the word **image** is presence, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.')
+			if command == 'ship':
+				embed.add_field(name='Usage',value=command_header+token+command+token+'ship'+token+'')
+				embed.add_field(name='Description',value='List the combat parameters of the requested warships\n'+
+					'**This function is WIP. ~~Because WG API is a mess~~')
 			if command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]')
 				embed.add_field(name='Description',value='List name, type, tier and effect of the requested commander skill')
@@ -885,9 +928,9 @@ class Client(discord.Client):
 						'**type [type_name]**: Optional. Returns all skills of indicated skill type. Acceptable values: **[Attack, Endurance, Support, Versatility]**\n'+
 						'**tier [tier_number]**: Optional. Returns all skills of the indicated tier. Acceptable values: **[1,2,3,4]**')
 					elif arg[3] == 'upgrades':
-						embed.add_field(name='Usage',value=command_header+token+command+token+"upgrades"+token+"[page_number]")
+						embed.add_field(name='Usage',value=command_header+token+command+token+"upgrades"+token+"[queries]")
 						embed.add_field(name='Description',value='List name and the abbreviation of all upgrades.\n'+
-							'**[page_number]**: Required. Select a page number to list upgrades. Acceptable values **[1-4]**\n')
+							f'**[queries]**: Search queries for upgrades (Examples: secondary, torpedoes, slot 4')
 					elif arg[3] == 'commanders':
 						embed.add_field(name='Usage',value=command_header+token+command+token+"commanders"+token+"[page_number/nation]")
 						embed.add_field(name='Description',value='List names of all unique commanders.\n'+
@@ -975,8 +1018,8 @@ class Client(discord.Client):
 			if requested_image:
 				async with channel.typing():
 					try:
-						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
-						logging.info(f"returning ship information for <{name}> in image format")
+						name, nation, images, ship_type, tier, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
+						logging.info(f"returning build information for <{name}> in image format")
 						filename = f'./{name.lower()}_{battle_type}_build.png'
 						if os.path.isfile(filename):
 							# get server emoji
@@ -1017,8 +1060,8 @@ class Client(discord.Client):
 			else:
 				try:
 					async with channel.typing():
-						name, nation, images, ship_type, tier, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
-						logging.info(f"returning ship information for <{name}> in embeded format")
+						name, nation, images, ship_type, tier, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
+						logging.info(f"returning build information for <{name}> in embeded format")
 						ship_type = ship_types[ship_type]
 						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 						embed.set_thumbnail(url=images['small'])
@@ -1101,6 +1144,99 @@ class Client(discord.Client):
 				except Exception as e:
 					logging.info(f"Exception {type(e)}", e)
 					await channel.send(f"Ship **{ship}** is not understood")
+	async def ship(self, message, arg):
+		channel = message.channel
+		# get voted ship build
+		# message parse
+		ship_found = False
+		if len(arg) <= 2:
+			embed = self.help_message(command_header+token+"help"+token+arg[1])
+			if not embed is None:
+				await channel.send(embed=embed)
+		else:
+			ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
+			try:
+				async with channel.typing():
+					ship_param = get_ship_data(ship)
+					name, nation, images, ship_type, tier, modules, _, is_prem, _, _, _, _, _ = get_build_data(ship)
+					logging.info(f"returning ship information for <{name}> in embeded format")
+					
+					ship_type = ship_types[ship_type]
+					embed = discord.Embed(title=f"{ship_type} {name}", description='')
+					embed.set_thumbnail(url=images['small'])
+					# get server emoji
+					if message.guild is not None:
+						server_emojis = message.guild.emojis
+					else:
+						server_emojis = []
+					
+					# image exists!
+					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+					
+					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**\n'
+					
+					footer_message = ""
+					embed.description += f"Matchmaking tier {ship_param['battle_level_range_min']} - {ship_param['battle_level_range_max']}"
+					
+					if len(modules['hull']) > 0:
+						m = ""
+						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+							hull = module_list[str(h)]['profile']['hull']
+							m += f"**{module_list[str(h)]['name']}:** **{hull['health']} HP**\n"
+							if hull['artillery_barrels'] > 0:
+								m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
+							if hull['torpedoes_barrels'] > 0:
+								m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
+							if hull['atba_barrels'] > 0:
+								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
+							if hull['planes_amount'] > 0:
+								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
+							
+						embed.add_field(name="**Hull**", value=m, inline=False)
+					if len(modules['artillery']) > 0:
+						m = ""
+						m += f"**Range: **"
+						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
+							m += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
+						m = m[:-2]
+						m += "k.m.\n"
+						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
+							guns = module_list[str(h)]['profile']['artillery']
+							m += f"**{module_list[str(h)]['name']}:**\n"
+							if guns['max_damage_HE'] > 0:
+								m += f"**HE:** {guns['max_damage_HE']}\n"
+							if guns['max_damage_AP'] > 0:
+								m += f"**AP:** {guns['max_damage_AP']}\n"
+							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
+						embed.add_field(name="**Main Battery**", value=m, inline=False)
+					if ship_param['atbas'] is not None:
+						m = ""
+						
+						m += f"**Range:** {ship_param['atbas']['distance']} k.m.\n"
+						for slot in ship_param['atbas']['slots']:
+							guns = ship_param['atbas']['slots'][slot]
+							m += f"**{guns['name']}:**\n"
+							if guns['damage'] > 0:
+								m += f"**HE:** {guns['damage']}\n"
+							m += f"**Reload:** {guns['shot_delay']}s\n"
+						embed.add_field(name="**Secondary Battery**", value=m, inline=False)
+					if len(modules['torpedoes']) > 0:
+						m = ""
+						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
+							torps = module_list[str(h)]['profile']['torpedoes']
+							m += f"**{module_list[str(h)]['name']} ({torps['distance']} k.m.):**\n"
+							if torps['max_damage'] > 0:
+								m += f"**Damage:** {torps['max_damage']}, "
+							if torps['torpedo_speed'] > 0:
+								m += f"{torps['torpedo_speed']} kts.\n"
+						embed.add_field(name="**Torpedoes**", value=m, inline=False)
+					
+					embed.set_footer(text="Parameters does not take into account upgrades and commander skills")
+				await channel.send(embed=embed)
+			except Exception as e:
+				logging.info(f"Exception {type(e)}", e)
+				await channel.send(f"Ship **{ship}** is not understood")
+
 	async def skill(self, message, arg):
 		channel = message.channel
 		# get information on requested skill
@@ -1342,7 +1478,7 @@ class Client(discord.Client):
 						m = []
 						if len(result) > 0:
 							for ship in result:
-								name, _, _, ship_type, tier, _, is_prem, _, _, _, _, _ = get_build_data(ship_list[ship]['name'])
+								name, _, _, ship_type, tier, _,  _, is_prem, _, _, _, _, _ = get_build_data(ship_list[ship]['name'])
 								tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 								type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
 								if is_prem:
