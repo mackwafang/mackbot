@@ -1199,7 +1199,7 @@ class Client(discord.Client):
 						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
 							m += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
 						m = m[:-2]
-						m += "k.m.\n"
+						m += "km\n"
 						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 							guns = module_list[str(h)]['profile']['artillery']
 							m += f"**{module_list[str(h)]['name']}:**\n"
@@ -1212,7 +1212,7 @@ class Client(discord.Client):
 					if ship_param['atbas'] is not None:
 						m = ""
 						
-						m += f"**Range:** {ship_param['atbas']['distance']} k.m.\n"
+						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
 						for slot in ship_param['atbas']['slots']:
 							guns = ship_param['atbas']['slots'][slot]
 							m += f"**{guns['name']}:**\n"
@@ -1224,7 +1224,7 @@ class Client(discord.Client):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-							m += f"**{module_list[str(h)]['name']} ({torps['distance']} k.m.):**\n"
+							m += f"**{module_list[str(h)]['name']} ({torps['distance']} km):**\n"
 							if torps['max_damage'] > 0:
 								m += f"**Damage:** {torps['max_damage']}, "
 							if torps['torpedo_speed'] > 0:
