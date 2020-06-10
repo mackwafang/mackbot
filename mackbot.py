@@ -488,7 +488,7 @@ else:
 		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
 		ship_info[s] = ship[s]
 		i += 1
-		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found.", end='\r')
+		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found\r")
 	logging.info("Creating cache")
 	with open('./'+ship_param_file_name,'wb') as f:
 		pickle.dump(ship_info, f)
