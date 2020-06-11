@@ -1215,7 +1215,7 @@ class Client(discord.Client):
 						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
 						for slot in ship_param['atbas']['slots']:
 							guns = ship_param['atbas']['slots'][slot]
-							m += f"**{guns['name']}:**\n"
+							m += f"**{guns['name'].replace(chr(10),' ')}:**\n"
 							if guns['damage'] > 0:
 								m += f"**HE:** {guns['damage']}\n"
 							m += f"**Reload:** {guns['shot_delay']}s\n"
@@ -1224,13 +1224,41 @@ class Client(discord.Client):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-							m += f"**{module_list[str(h)]['name']} ({torps['distance']} km):**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km):**\n"
 							if torps['max_damage'] > 0:
 								m += f"**Damage:** {torps['max_damage']}, "
 							if torps['torpedo_speed'] > 0:
 								m += f"{torps['torpedo_speed']} kts.\n"
 						embed.add_field(name="**Torpedoes**", value=m, inline=False)
-					
+					if len(modules['fighter']) > 0:
+						m = ""
+						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+							fighter = module_list[str(h)]['profile']['fighter']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
+							m += f"**Speed:** {fighter['cruise_speed']} kts\n"
+						embed.add_field(name="**Attackers**", value=m, inline=False)
+					if len(modules['torpedo_bomber']) > 0:
+						m = ""
+						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+							bomber = module_list[str(h)]['profile']['torpedo_bomber']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
+							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
+							m += f"**Torpedo:** {bomber['max_damage']}:boom:, {bomber['torpedo_max_speed']} kts\n"
+						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
+					if len(modules['dive_bomber']) > 0:
+						m = ""
+						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+							bomber = module_list[str(h)]['profile']['dive_bomber']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
+							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
+							m += f"**Bomb:** {bomber['max_damage']}:boom: {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
+					if ship_param['concealment'] is not None:
+						m = ""
+						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
+						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
+						embed.add_field(name="**Concealment**", value=m, inline=False)
+						
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills")
 				await channel.send(embed=embed)
 			except Exception as e:
@@ -1253,11 +1281,10 @@ class Client(discord.Client):
 				logging.info(f'sending message for skill <{skill}>')
 				async with channel.typing():
 					name, id, skill_type, perk, tier, icon = get_skill_data(skill)
-					embed = discord.Embed(title="Commander Skill")
+					embed = discord.Embed(title="Commander Skill", description="")
 					embed.set_thumbnail(url=icon)
-					embed.add_field(name='Skill Name', value=name)
-					embed.add_field(name='Tier', value=tier)
-					embed.add_field(name='Category', value=skill_type)
+					embed.description += f"**{name}**\n"
+					embed.description += f"**Tier {tier} {skill_type} Skill**"
 					embed.add_field(name='Description', value=''.join('- '+p["description"]+chr(10) for p in perk) if len(perk) != 0 else '')
 				await channel.send(embed=embed)
 			except Exception as e:
