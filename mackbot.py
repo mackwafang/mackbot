@@ -402,48 +402,73 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				# oops, skip this
 				logging.info("Equipments parsing exception")
 				continue
-			
-			for u in list(np.array([i for i in upgrade_list.keys()]).copy()):
-				upgrade = upgrade_list[u]
-				if u == upgrade_id:
-					if not upgrade_usable:
-						del upgrade_list[u]
-						pass
-					else:
-						try:
-							upgrade_list[u]['is_special'] = upgrade_type
-							if len(upgrade_type) > 0:
-								upgrade_list[u]['tags'] += [upgrade_type.lower()]
-							upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
-							if len(upgrade_ship_restrict) > 0:
-								upgrade_list[u]['tags'] += upgrade_ship_restrict
-							upgrade_list[u]['nation_restriction'] = upgrade_nation_restrict
-							if len(upgrade_nation_restrict) > 0:
-								upgrade_list[u]['tags'] += upgrade_nation_restrict
-							upgrade_list[u]['tier_restriction'] = upgrade_tier_restrict
-							if len(upgrade_tier_restrict) > 0:
-								upgrade_list[u]['tags'] += [f"tier {i}" for i in upgrade_tier_restrict]
-							upgrade_list[u]['type_restriction'] = upgrade_type_restrict
-							if len(upgrade_type_restrict) > 0:
-								upgrade_list[u]['tags'] += upgrade_type_restrict
-							upgrade_list[u]['slot'] = upgrade_slot
-							upgrade_list[u]['tags'] += [f"slot {upgrade_slot}"]
-							upgrade_list[u]['tags'] += upgrade_tags
-							if len(upgrade_special_restrict) > 0:
-								for s in upgrade_special_restrict:
-									if len(s) > 0:
-										s = s[1:-1].split(', ', maxsplit=2)
-										if s[0].lower() == 'None':
-											s[0] = None
-										else:
-											upgrade_list[u]['tags'] += [s[0]]
-										upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
-										upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
-						except Exception as e:
-							# oops, skip this
-							logging.info("Equipments exclusion exception")
-							break
-	logging.info("Excluding upgrades done")
+			u = upgrade_id
+			upgrade = upgrade_list[u]
+			if u == upgrade_id:
+				if not upgrade_usable:
+					del upgrade_list[u]
+					pass
+				else:
+					try:
+						upgrade_list[u]['is_special'] = upgrade_type
+						if len(upgrade_type) > 0:
+							upgrade_list[u]['tags'] += [upgrade_type.lower()]
+						upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
+						if len(upgrade_ship_restrict) > 0:
+							upgrade_list[u]['tags'] += upgrade_ship_restrict
+						upgrade_list[u]['nation_restriction'] = upgrade_nation_restrict
+						if len(upgrade_nation_restrict) > 0:
+							upgrade_list[u]['tags'] += upgrade_nation_restrict
+						upgrade_list[u]['tier_restriction'] = upgrade_tier_restrict
+						if len(upgrade_tier_restrict) > 0:
+							upgrade_list[u]['tags'] += [f"tier {i}" for i in upgrade_tier_restrict]
+						upgrade_list[u]['type_restriction'] = upgrade_type_restrict
+						if len(upgrade_type_restrict) > 0:
+							upgrade_list[u]['tags'] += upgrade_type_restrict
+						upgrade_list[u]['slot'] = upgrade_slot
+						upgrade_list[u]['tags'] += [f"slot {upgrade_slot}"]
+						upgrade_list[u]['tags'] += upgrade_tags
+						if len(upgrade_special_restrict) > 0:
+							for s in upgrade_special_restrict:
+								if len(s) > 0:
+									s = s[1:-1].split(', ', maxsplit=2)
+									if s[0].lower() == 'None':
+										s[0] = None
+									else:
+										upgrade_list[u]['tags'] += [s[0]]
+									upgrade_list[u]['on_other_ships'] += [(s[0],s[1])]
+									upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
+					except Exception as e:
+						# oops, skip this
+						logging.info("Equipments exclusion exception")
+						break
+	logging.info("Feeding missing values")
+	result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+								range='module_list!B2:M1000').execute()
+	values = result.get('values', [])
+	values = [[i[0]] + i[4:] for i in values]
+	for module_id, barrels, max_damage_sap, attack_size, squad_size, payload, payload_damage, fire_chance, flood_chance in values:
+		try:
+			m = str(module_id)
+			module = module_list[m]
+			if module['type'] == 'Artillery' or module['type'] == "Torpedoes":
+				module_list[m]['profile']['barrels'] = int(barrels)
+			if module['type'] == "Torpedoes":
+				module_list[m]['profile']['torpedoes']['torpedo_flood_probability'] = int(flood_chance)
+			if module['type'] == 'Artillery':
+				module_list[m]['profile']['artillery']['max_damage_sap'] = int(max_damage_sap)
+			if module['type'] == 'Fighter' or module['type'] == 'TorpedoBomber' or module['type'] == 'DiveBomber':
+				module_list[m]['profile']['attack_size'] = int(attack_size)
+				module_list[m]['profile']['squad_size'] = int(squad_size)
+				module_list[m]['profile']['payload'] = int(payload)
+				if module['type'] == 'Fighter':
+					module_list[m]['profile']['fighter']['max_damage'] = int(payload_damage)
+					module_list[m]['profile']['fighter']['rocket_burn_probability'] = int(fire_chance)
+				if module['type'] == 'TorpedoBomber':
+					module_list[m]['profile']['torpedo_bomber']['torpedo_flood_probability'] = int(flood_chance)
+		except Exception as e:
+			logging.warning("Module data insertion error")
+	logging.info("Adding missing shit from Weegee's DB complete")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -527,7 +552,7 @@ ship_tags = {
 	}
 }
 regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
-equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page \d{1,2})|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
+equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 for s in ship_list:
 	nat = nation_dictionary[ship_list[s]['nation']]
 	tags = []
@@ -1202,7 +1227,7 @@ class Client(discord.Client):
 						m += "km\n"
 						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 							guns = module_list[str(h)]['profile']['artillery']
-							m += f"**{module_list[str(h)]['name']}:**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({module_list[str(h)]['profile']['barrels']} barrels{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
 							if guns['max_damage_HE'] > 0:
 								m += f"**HE:** {guns['max_damage_HE']}\n"
 							if guns['max_damage_AP'] > 0:
@@ -1224,35 +1249,35 @@ class Client(discord.Client):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km):**\n"
-							if torps['max_damage'] > 0:
-								m += f"**Damage:** {torps['max_damage']}, "
-							if torps['torpedo_speed'] > 0:
-								m += f"{torps['torpedo_speed']} kts.\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {module_list[str(h)]['profile']['barrels']} tube{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
+							m += f"**Damage:** {torps['max_damage']} "
+							m += f"(:water_polo:{torps['torpedo_flood_probability']}%) "
+							m += f"{torps['torpedo_speed']} kts.\n"
 						embed.add_field(name="**Torpedoes**", value=m, inline=False)
 					if len(modules['fighter']) > 0:
 						m = ""
-						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
 							fighter = module_list[str(h)]['profile']['fighter']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
 							m += f"**Speed:** {fighter['cruise_speed']} kts\n"
+							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
 						embed.add_field(name="**Attackers**", value=m, inline=False)
 					if len(modules['torpedo_bomber']) > 0:
 						m = ""
-						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
 							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
-							m += f"**Torpedo:** {bomber['max_damage']}:boom:, {bomber['torpedo_max_speed']} kts\n"
+							m += f"**Torpedo:** :boom:{bomber['max_damage']} (:water_polo:{bomber['torpedo_flood_probability']}%), {bomber['torpedo_max_speed']} kts\n"
 						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
 					if len(modules['dive_bomber']) > 0:
 						m = ""
-						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['max_health']):
+						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
 							bomber = module_list[str(h)]['profile']['dive_bomber']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
 							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
-							m += f"**Bomb:** {bomber['max_damage']}:boom: {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
-						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
+							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+						embed.add_field(name="**Bombers**", value=m, inline=False)
 					if ship_param['concealment'] is not None:
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
@@ -1264,7 +1289,6 @@ class Client(discord.Client):
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
 				await channel.send(f"Ship **{ship}** is not understood")
-
 	async def skill(self, message, arg):
 		channel = message.channel
 		# get information on requested skill
@@ -1366,10 +1390,10 @@ class Client(discord.Client):
 							search_param = arg[3:]
 							s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 							
-							slot = ''.join([i[0] for i in s])
-							key = [i[6] for i in s if len(i[6]) > 1]
-							page = [i[5] for i in s if len(i[5]) > 1]
-							tier = [i[2] for i in s if len(i[2]) > 1]
+							slot = ''.join([i[1] for i in s])
+							key = [i[7] for i in s if len(i[7]) > 1]
+							page = [i[6] for i in s if len(i[6]) > 1]
+							tier = [i[3] for i in s if len(i[3]) > 1]
 							embed_title = "Search result for: "
 							
 							try:
