@@ -224,6 +224,9 @@ for page in count(1):
 		m = wows_encyclopedia.modules(language='en',page_no=page)
 		for i in m:
 			module_list[i] = m[i]
+			module_list[i]['fetch_new_data_from_sheets'] = False
+			if module_list[i]['type'] not in ['Artillery', 'Torpedoes', 'Fighters', 'TorpedoBomber', 'DiveBomber']:
+				module_list[i]['fetch_new_data_from_sheets'] = True
 	except Exception as e:
 		if type(e) == wargaming.exceptions.RequestError:
 			if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -466,8 +469,11 @@ if not BUILD_EXTRACT_FROM_CACHE:
 					module_list[m]['profile']['fighter']['rocket_burn_probability'] = int(fire_chance)
 				if module['type'] == 'TorpedoBomber':
 					module_list[m]['profile']['torpedo_bomber']['torpedo_flood_probability'] = int(flood_chance)
+			module_list[m]['fetch_new_data_from_sheets'] = True
 		except Exception as e:
 			logging.warning("Module data insertion error")
+	print(f"Modules that has not been updated. {[m for m in module_list if not module_list[m]['fetch_new_data_from_sheets']]}")
+		
 	logging.info("Adding missing shit from Weegee's DB complete")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
@@ -1227,7 +1233,7 @@ class Client(discord.Client):
 						m += "km\n"
 						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 							guns = module_list[str(h)]['profile']['artillery']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({module_list[str(h)]['profile']['barrels']} barrels{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({module_list[str(h)]['profile']['barrels']} barrel{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
 							if guns['max_damage_HE'] > 0:
 								m += f"**HE:** {guns['max_damage_HE']}\n"
 							if guns['max_damage_AP'] > 0:
@@ -1250,8 +1256,7 @@ class Client(discord.Client):
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {module_list[str(h)]['profile']['barrels']} tube{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
-							m += f"**Damage:** {torps['max_damage']} "
-							m += f"(:water_polo:{torps['torpedo_flood_probability']}%) "
+							m += f"**Damage:** {torps['max_damage']}, "
 							m += f"{torps['torpedo_speed']} kts.\n"
 						embed.add_field(name="**Torpedoes**", value=m, inline=False)
 					if len(modules['fighter']) > 0:
@@ -1268,7 +1273,7 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
 							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
-							m += f"**Torpedo:** :boom:{bomber['max_damage']} (:water_polo:{bomber['torpedo_flood_probability']}%), {bomber['torpedo_max_speed']} kts\n"
+							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
 						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
 					if len(modules['dive_bomber']) > 0:
 						m = ""
