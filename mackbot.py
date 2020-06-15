@@ -239,7 +239,7 @@ for page in count(1):
 		break
 		
 logging.info("Loading Game Params json")
-with open('GameParams_Extractor/GameParams.json') as f:
+with open('GameParams.json') as f:
     game_data = json.load(f)
 find_game_data_item = lambda x: [i for i in game_data if x in i]
 find_module_by_tag = lambda x: [i for i in module_list if x == module_list[i]['tag']][0]
@@ -1269,7 +1269,7 @@ class Client(discord.Client):
 								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
 							if hull['planes_amount'] > 0:
 								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
-							
+							m += '\n'
 						embed.add_field(name="**Hull**", value=m, inline=False)
 					if len(modules['artillery']) > 0:
 						m = ""
@@ -1288,6 +1288,8 @@ class Client(discord.Client):
 							if guns['max_damage_AP']:
 								m += f"**AP:** {guns['max_damage_AP']}\n"
 							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
+							
+							m += '\n'
 						embed.add_field(name="**Main Battery**", value=m, inline=False)
 					if ship_param['atbas'] is not None:
 						m = ""
@@ -1299,6 +1301,8 @@ class Client(discord.Client):
 							if guns['damage'] > 0:
 								m += f"**HE:** {guns['damage']}\n"
 							m += f"**Reload:** {guns['shot_delay']}s\n"
+							
+							m += '\n'
 						embed.add_field(name="**Secondary Battery**", value=m, inline=False)
 					if len(modules['torpedoes']) > 0:
 						m = ""
@@ -1307,6 +1311,8 @@ class Client(discord.Client):
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
 							m += f"**Damage:** {torps['max_damage']}, "
 							m += f"{torps['torpedo_speed']} kts.\n"
+							
+							m += '\n'
 						embed.add_field(name="**Torpedoes**", value=m, inline=False)
 					if len(modules['fighter']) > 0:
 						m = ""
@@ -1318,6 +1324,8 @@ class Client(discord.Client):
 							m += f"**Aircraft:** {fighter['cruise_speed']} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+							
+							m += '\n'
 						embed.add_field(name="**Attackers**", value=m, inline=False)
 					if len(modules['torpedo_bomber']) > 0:
 						m = ""
@@ -1329,6 +1337,8 @@ class Client(discord.Client):
 							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
+							
+							m += '\n'
 						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
 					if len(modules['dive_bomber']) > 0:
 						m = ""
@@ -1340,6 +1350,8 @@ class Client(discord.Client):
 							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+							
+							m += '\n'
 						embed.add_field(name="**Bombers**", value=m, inline=False)
 					if ship_param['concealment'] is not None:
 						m = ""
