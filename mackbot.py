@@ -1,6 +1,6 @@
 DEBUG_IS_MAINTANCE = False
 
-import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging
+import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
 import xml.etree.ElementTree as et
 import pandas as pd
 import numpy as np
@@ -111,6 +111,7 @@ ship_name_to_ascii ={
 	'jurien de la graviere':'jurien de la gravière',
 	'khaba':'khabarovsk',
 	'fdr':'franklin d. roosevelt',
+	'shima':'shimakaze',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -236,6 +237,13 @@ for page in count(1):
 		else:
 			logging.info(type(e), e)
 		break
+		
+logging.info("Loading Game Params json")
+with open('GameParams_Extractor/GameParams.json') as f:
+    game_data = json.load(f)
+find_game_data_item = lambda x: [i for i in game_data if x in i]
+find_module_by_tag = lambda x: [i for i in module_list if x == module_list[i]['tag']][0]
+
 logging.info("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
 for cmdr in cmdr_list:
@@ -445,36 +453,6 @@ if not BUILD_EXTRACT_FROM_CACHE:
 						# oops, skip this
 						logging.info("Equipments exclusion exception")
 						break
-	logging.info("Feeding missing values")
-	result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-								range='module_list!B2:M1000').execute()
-	values = result.get('values', [])
-	values = [[i[0]] + i[4:] for i in values]
-	for module_id, barrels, max_damage_sap, attack_size, squad_size, payload, payload_damage, fire_chance, flood_chance in values:
-		try:
-			m = str(module_id)
-			module = module_list[m]
-			if module['type'] == 'Artillery' or module['type'] == "Torpedoes":
-				module_list[m]['profile']['barrels'] = int(barrels)
-			if module['type'] == "Torpedoes":
-				module_list[m]['profile']['torpedoes']['torpedo_flood_probability'] = int(flood_chance)
-			if module['type'] == 'Artillery':
-				module_list[m]['profile']['artillery']['max_damage_sap'] = int(max_damage_sap)
-			if module['type'] == 'Fighter' or module['type'] == 'TorpedoBomber' or module['type'] == 'DiveBomber':
-				module_list[m]['profile']['attack_size'] = int(attack_size)
-				module_list[m]['profile']['squad_size'] = int(squad_size)
-				module_list[m]['profile']['payload'] = int(payload)
-				if module['type'] == 'Fighter':
-					module_list[m]['profile']['fighter']['max_damage'] = int(payload_damage)
-					module_list[m]['profile']['fighter']['rocket_burn_probability'] = int(fire_chance)
-				if module['type'] == 'TorpedoBomber':
-					module_list[m]['profile']['torpedo_bomber']['torpedo_flood_probability'] = int(flood_chance)
-			module_list[m]['fetch_new_data_from_sheets'] = True
-		except Exception as e:
-			logging.warning("Module data insertion error")
-	print(f"Modules that has not been updated. {[m for m in module_list if not module_list[m]['fetch_new_data_from_sheets']]}")
-		
-	logging.info("Adding missing shit from Weegee's DB complete")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -493,6 +471,74 @@ if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 	logging.info("build dictionary complete")
 
+for s in ship_list:
+	ship = ship_list[s]
+	module_full_id_str = find_game_data_item(ship['ship_id_str'])
+	for i in module_full_id_str:
+		module_data = game_data[i]
+		ship_upgrade_info = module_data['ShipUpgradeInfo']
+		for _info in ship_upgrade_info: # for each upgradable modules
+			if type(ship_upgrade_info[_info]) == dict:
+				module_id = find_module_by_tag(_info)
+				if ship_upgrade_info[_info]['ucType'] == '_Artillery':
+					#get turret parameter
+					gun = ship_upgrade_info[_info]['components']['artillery'][0]
+					gun = module_data[gun]
+					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
+					for g in gun: # for each turret
+						turret_data = game_data[g]
+						for a in turret_data['ammoList']:
+							ammo = game_data[a]
+							# print(ammo['alphaDamage'], ammo['ammoType'], f"{ammo['burnProb']} fire %")
+							module_list[module_id]['profile']['artillery']['numBarrels'] = turret_data['numBarrels']
+							if ammo['ammoType'] == 'HE':
+								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
+							if ammo['ammoType'] == 'CS':
+								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
+				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':
+					#get turret parameter
+					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
+					gun = module_data[gun]
+					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
+					for g in gun: # for each turret
+						turret_data = game_data[g]
+						# print(turret_data['numBarrels'])
+						module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
+				if ship_upgrade_info[_info]['ucType'] == '_Fighter':
+					#get turret parameter
+					planes = ship_upgrade_info[_info]['components']['fighter'][0]
+					planes = module_data[planes].values()
+					for p in planes:
+						plane = game_data[p]
+						projectile = game_data[plane['bombName']]
+						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+						module_list[module_id]['attack_size'] = plane['attackerSize']
+						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['payload'] = plane['attackCount']
+						module_list[module_id]['profile']['fighter']['max_damage'] = int(projectile['alphaDamage'])
+						module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
+				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
+					#get turret parameter
+					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
+					planes = module_data[planes].values()
+					for p in planes:
+						plane = game_data[p]
+						projectile = game_data[plane['bombName']]
+						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+						module_list[module_id]['attack_size'] = plane['attackerSize']
+						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['payload'] = plane['attackCount']
+				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+					#get turret parameter
+					planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
+					planes = module_data[planes].values()
+					for p in planes:
+						plane = game_data[p]
+						projectile = game_data[plane['bombName']]
+						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+						module_list[module_id]['attack_size'] = plane['attackerSize']
+						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['payload'] = plane['attackCount']
 
 logging.info("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
@@ -600,6 +646,7 @@ for m in map_list:
 	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
 	h = BitString(h).bin# convert to bits
 	map_list[m]['name_hash'] = h
+del game_data # free up memory
 logging.info("Preprocessing Done")
 
 command_header = 'mackbot'
@@ -1233,10 +1280,12 @@ class Client(discord.Client):
 						m += "km\n"
 						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 							guns = module_list[str(h)]['profile']['artillery']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({module_list[str(h)]['profile']['barrels']} barrel{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
-							if guns['max_damage_HE'] > 0:
-								m += f"**HE:** {guns['max_damage_HE']}\n"
-							if guns['max_damage_AP'] > 0:
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({guns['numBarrels']} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
+							if guns['max_damage_HE']:
+								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%)\n"
+							if 'max_damage_SAP' in guns:
+								m += f"**SAP:** {guns['max_damage_SAP']}\n"
+							if guns['max_damage_AP']:
 								m += f"**AP:** {guns['max_damage_AP']}\n"
 							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
 						embed.add_field(name="**Main Battery**", value=m, inline=False)
@@ -1255,32 +1304,41 @@ class Client(discord.Client):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {module_list[str(h)]['profile']['barrels']} tube{'s' if module_list[str(h)]['profile']['barrels'] > 1 else ''}):**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
 							m += f"**Damage:** {torps['max_damage']}, "
 							m += f"{torps['torpedo_speed']} kts.\n"
 						embed.add_field(name="**Torpedoes**", value=m, inline=False)
 					if len(modules['fighter']) > 0:
 						m = ""
 						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
+							fighter_module = module_list[str(h)]
 							fighter = module_list[str(h)]['profile']['fighter']
+							n_attacks = fighter_module['squad_size']//fighter_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
-							m += f"**Speed:** {fighter['cruise_speed']} kts\n"
+							m += f"**Aircraft:** {fighter['cruise_speed']} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
 						embed.add_field(name="**Attackers**", value=m, inline=False)
 					if len(modules['torpedo_bomber']) > 0:
 						m = ""
 						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
+							bomber_module = module_list[str(h)]
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
+							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
 						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
 					if len(modules['dive_bomber']) > 0:
 						m = ""
 						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
+							bomber_module = module_list[str(h)]
 							bomber = module_list[str(h)]['profile']['dive_bomber']
+							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Speed:** {bomber['cruise_speed']} kts\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
 						embed.add_field(name="**Bombers**", value=m, inline=False)
 					if ship_param['concealment'] is not None:
