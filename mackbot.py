@@ -1,5 +1,6 @@
 DEBUG_IS_MAINTANCE = False
 
+# loading cheats
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
 import xml.etree.ElementTree as et
 import pandas as pd
@@ -10,10 +11,12 @@ from itertools import count
 from numpy.random import randint
 from bitstring import BitString
 
+# dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
 if cwd == '':
 	cwd = '.'
 
+# logging shenanigans
 logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -22,7 +25,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-
+# dictionary to convert user input to output nations
 nation_dictionary = {
 	'usa': 'US',
 	'us': 'US',
@@ -40,6 +43,7 @@ nation_dictionary = {
 	'commonwealth': 'Commonwealth',
 	'pan_america': 'Pan-American'
 }
+# convert weegee ship type to usn hull classifications
 ship_type_to_hull_class = {
 	'Destroyer': 'DD',
 	'AirCarrier': 'CV',
@@ -47,6 +51,8 @@ ship_type_to_hull_class = {
 	'Cruiser': 'C',
 	'Submarine': 'SS'
 }
+# dictionary to convert user inputted ship name to non-ascii ship name
+# TODO: find an automatic method
 ship_name_to_ascii ={
 	'[zao]':'[zaō]',
 	'arp myoko':'arp myōkō',
@@ -150,6 +156,7 @@ skill_name_abbr = {
 	'rl':'radio location',
 	'rpf':'radio location',
 }
+# see the ship name conversion dictionary comment
 cmdr_name_to_ascii ={
 	'jean-jacques honore':'jean-jacques honoré',
 	'paul kastner':'paul kästner',
@@ -169,6 +176,7 @@ cmdr_name_to_ascii ={
 	'charles-henri honore':'charles-henri honoré',
 	'jerzy swirski':'Jerzy Świrski',
 }
+# here because of lazy
 roman_numeral = {
 	'i': 	1,
 	'ii': 	2,
@@ -182,15 +190,18 @@ roman_numeral = {
 	'x': 	10,
 }
 
+# actual stuff
 logging.info("Fetching WoWS Encyclopedia")
+# load important stuff
 with open(cwd+"/.env") as f:
 	s = f.read().split('\n')[:-1]
 	wg_token = s[0][s[0].find('=')+1:]
 	bot_token = s[1][s[1].find('=')+1:]
 	sheet_id = s[2][s[2].find('=')+1:]
 
+# get weegee's wows encyclopedia
 wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
-ship_types = wows_encyclopedia.info()['ship_types']
+ship_types = wows_encyclopedia.info()['ship_types'] 
 
 logging.info("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
@@ -226,7 +237,7 @@ for page in count(1):
 		for i in m:
 			module_list[i] = m[i]
 			module_list[i]['fetch_new_data_from_sheets'] = False
-			if module_list[i]['type'] not in ['Artillery', 'Torpedoes', 'Fighters', 'TorpedoBomber', 'DiveBomber']:
+			if module_list[i]['type'] not in ['Artillery', 'Torpedoes', 'Fighters', 'TorpedoBomber', 'DiveBomber', 'Engine', 'Armor']:
 				module_list[i]['fetch_new_data_from_sheets'] = True
 	except Exception as e:
 		if type(e) == wargaming.exceptions.RequestError:
@@ -271,23 +282,29 @@ for page in count(1): #range(1,6):
 		break
 logging.info("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
-for page_num in count(1): #range(1,3):
+for page_num in count(1):
+	# continuously count, because weegee don't list howmany pages there are
 	try:
 		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+		# consumables of some page page_num
 		for consumable in consumable_list:
 			c_type = consumable_list[consumable]['type']
 			h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
 			h = BitString(h).bin# convert to bits
 			if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
+				# grab camouflages and stores
 				camo_list[consumable] = consumable_list[consumable]
 				camo_list[consumable]['name_hash'] = h
 			if c_type == 'Modernization':
+				# grab upgrades and store
 				upgrade_list[consumable] = consumable_list[consumable]
 				upgrade_list[consumable]['name_hash'] = h
 				
 				url = upgrade_list[consumable]['image']
 				url = url[:url.rfind('_')]
 				url = url[url.rfind('/')+1:]
+				
+				# initializing stuff for excluding obsolete upgrades
 				upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
 				upgrade_list[consumable]['is_special'] = ''
 				upgrade_list[consumable]['ship_restriction'] = []
@@ -300,15 +317,20 @@ for page_num in count(1): #range(1,3):
 				upgrade_list[consumable]['tags'] = []
 				
 			if c_type == 'Flags':
+				# grab flags
 				flag_list[consumable] = consumable_list[consumable]
 				flag_list[consumable]['name_hash'] = h
 	except Exception as e:
 		if type(e) == wargaming.exceptions.RequestError:
 			if e.args[0] == "PAGE_NO_NOT_FOUND":
+				# counter went outside of max number of pages.
+				# expected behavior, done
 				break
 			else:
+				# something else came up that is not a "exceed max number of pages"
 				logging.info(type(e), e)
 		else:
+			# we done goof now
 			logging.info(type(e), e)
 		break
 logging.info('Fetching build file...')
@@ -317,6 +339,7 @@ extract_from_web_failed = False
 BUILD_BATTLE_TYPE_CLAN = 0
 BUILD_BATTLE_TYPE_CASUAL = 1
 BUILD_CREATE_BUILD_IMAGES = True
+# dunno why this exists, keep it
 build_battle_type = {
 	BUILD_BATTLE_TYPE_CLAN   : "competitive",
 	BUILD_BATTLE_TYPE_CASUAL : "casual",
@@ -327,6 +350,7 @@ build_battle_type_value = {
 }
 ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
 if not BUILD_EXTRACT_FROM_CACHE:
+	# extracting build and upgrade exclusion data from google sheets
 	from googleapiclient.errors import Error
 	from googleapiclient.discovery import build
 	from google_auth_oauthlib.flow import InstalledAppFlow
@@ -402,6 +426,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				upgrade_type = row[1]
 				usable_dictionary = {'yes':False, 'no':True}
 				upgrade_usable = usable_dictionary[row[2].lower()]
+				# grabbing columns
 				upgrade_slot = row[3]
 				upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
 				upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
@@ -410,13 +435,15 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				upgrade_special_restrict = [] if len(row[8]) == 0 else row[8].split('_')
 				upgrade_tags = [] if len(row[9]) == 0 else row[9].split(', ')
 			except Exception as e:
-				# oops, skip this
+				# oops
 				logging.info("Equipments parsing exception")
 				continue
+			# acutally checking for obsolete and filing new data
 			u = upgrade_id
 			upgrade = upgrade_list[u]
 			if u == upgrade_id:
 				if not upgrade_usable:
+					# upgrade obsolete, remove
 					del upgrade_list[u]
 					pass
 				else:
@@ -471,16 +498,17 @@ if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 	logging.info("build dictionary complete")
 
+logging.info("Filling missing informations of modules")
 for s in ship_list:
 	ship = ship_list[s]
 	module_full_id_str = find_game_data_item(ship['ship_id_str'])
 	for i in module_full_id_str:
 		module_data = game_data[i]
-		ship_upgrade_info = module_data['ShipUpgradeInfo']
+		ship_upgrade_info = module_data['ShipUpgradeInfo'] # get upgradable modules
 		for _info in ship_upgrade_info: # for each upgradable modules
-			if type(ship_upgrade_info[_info]) == dict:
-				module_id = find_module_by_tag(_info)
-				if ship_upgrade_info[_info]['ucType'] == '_Artillery':
+			if type(ship_upgrade_info[_info]) == dict: # if there are data
+				module_id = find_module_by_tag(_info) # what is this module?
+				if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 					#get turret parameter
 					gun = ship_upgrade_info[_info]['components']['artillery'][0]
 					gun = module_data[gun]
@@ -495,22 +523,21 @@ for s in ship_list:
 								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
 							if ammo['ammoType'] == 'CS':
 								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
-				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':
+				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
 					#get turret parameter
 					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 					gun = module_data[gun]
 					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
 					for g in gun: # for each turret
 						turret_data = game_data[g]
-						# print(turret_data['numBarrels'])
 						module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
-				if ship_upgrade_info[_info]['ucType'] == '_Fighter':
-					#get turret parameter
+				if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
+					#get fighter parameter
 					planes = ship_upgrade_info[_info]['components']['fighter'][0]
 					planes = module_data[planes].values()
 					for p in planes:
 						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
+						projectile = game_data[plane['bombName']] # get rocket params
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
@@ -518,7 +545,7 @@ for s in ship_list:
 						module_list[module_id]['profile']['fighter']['max_damage'] = int(projectile['alphaDamage'])
 						module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
 				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
-					#get turret parameter
+					#get torp bomber parameter
 					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
 					planes = module_data[planes].values()
 					for p in planes:
@@ -544,11 +571,11 @@ logging.info("Auto build Modification Abbreviation")
 upgrade_abbr_list = {}
 for u in upgrade_list:
 	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
-	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160),chr(32))
+	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160),chr(32)) # replace weird 0-width character with a space
 	key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
-	if key in upgrade_abbr_list:
-		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]
-	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()
+	if key in upgrade_abbr_list: # if the abbreviation of this upgrade is in the list already
+		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1] # create a new abbreviation
+	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower() # add this abbreviation
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
@@ -569,6 +596,7 @@ else:
 	logging.info("Creating cache")
 	with open('./'+ship_param_file_name,'wb') as f:
 		pickle.dump(ship_info, f)
+	logging.info("Cache creation complete")
 logging.info("Generating ship search tags")
 SHIP_TAG_SLOW_SPD = 0
 SHIP_TAG_FAST_SPD = 1
@@ -598,8 +626,8 @@ ship_tags = {
 		'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
-		'min_threshold': 4,
-		'max_threshold': 6,
+		'min_air_spot_range': 4,
+		'min_sea_spot_range': 6,
 		'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
 	}
 }
@@ -612,19 +640,24 @@ for s in ship_list:
 	hull_class = ship_type_to_hull_class[t]
 	if t == 'AirCarrier':
 		t = 'Aircraft Carrier'
-	tier = ship_list[s]['tier']
-	prem = ship_list[s]['is_premium']
+	tier = ship_list[s]['tier'] # add tier to search 
+	prem = ship_list[s]['is_premium'] # is bote premium
 	ship_speed = ship_info[s]['mobility']['max_speed']
+	# add tags based on speed
 	if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
 		tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
 	if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
 		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
 	concealment = ship_info[s]['concealment']
-	if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_threshold'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['max_threshold']:
+	# add tags based on detection range
+	if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
 		tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
+	# add tags based on gun firerate
 	try:
+		# some ships have main battery guns
 		fireRate = ship_info[s]['artillery']['shot_delay']
 	except:
+		# some dont
 		fireRate = np.inf
 	if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
@@ -636,6 +669,7 @@ for s in ship_list:
 		
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
+# filter data tyoe
 ship_list_frame = pd.DataFrame(ship_list)
 ship_list_frame = ship_list_frame.filter(items=['name','nation','images','type','tier','modules', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
 ship_list = ship_list_frame.to_dict()
@@ -782,11 +816,39 @@ def check_build():
 				logging.info("Skill check: No skills found in build")
 			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
 def get_build_data(ship, battle_type='casual'):
-	'''
+	"""
 		returns name, nation, images, ship type, tier of requested warship name
 		
+		Arguments:
+		-------
+			- ship : (string)
+				Ship name of build to be returned
+				
+			- battle_type : (string), optional
+				type of enviornemnt should this build be used in
+				acceptable values:
+					casual
+					competitive
+		
+		Returns:
+		-------
+		tuple:
+			name			- (str) name of warship
+			nation			- (str) nation of warship	
+			images			- (dict) images of warship on WG's server
+			ship_type		- (str) warship type
+			tier			- (int) warship tier
+			modules			- (list) list of researchable modules
+			equip_upgrades	- (list) list of equipable upgrades
+			is_prem			- (bool) is warships premium?
+			price_gold		- (int) price in doubloons
+			upgrades		- (list) list of suggested upgrades
+			skills			- (list) list of suggested commander skill
+			cmdr			- (str) suggested cmdr. this value may be '*', which indicates "any commander"
+			battle_type		- (str) build enviornment (casual or competitive)
+			
 		raise exceptions for dictionary
-	'''
+	"""
 	
 	original_arg = ship
 	try:
@@ -808,6 +870,20 @@ def get_build_data(ship, battle_type='casual'):
 	except Exception as e:
 		raise e
 def get_ship_data(ship):
+	"""
+		returns combat parameters of requested warship name
+		
+		Arguments:
+		-------
+			- ship : (string)
+				Ship name of combat parameter to be returned
+		
+		Returns:
+		-------
+		dictionary containing ship data
+			
+		raise exceptions for dictionary
+	"""
 	original_arg = ship
 	try:
 		ship_found = False
@@ -824,11 +900,26 @@ def get_ship_data(ship):
 	except Exception as e:
 		raise e
 def get_skill_data(skill):
-	'''
-		returns name, id, skill type, perk, tier, and icon for the requested skill
+	"""
+		returns informations of a requested commander skill
 		
-		raises exception from dictionary
-	'''
+		Arguments:
+		-------
+			- skill : (string)
+				Skill's full name or abbreviation
+		
+		Returns:
+		-------
+		tuple:
+			name		- (str) name of skill
+			id			- (int) horizontal location (0-7)
+			skill_type	- (str) category
+			perk		- (dict) bonuses
+			tier		- (int) tier (1-4)
+			icon		- (dict) image url
+			
+		raise exceptions for dictionary
+	"""
 	skill = skill.lower()
 	try:
 		skill_found = False
@@ -852,11 +943,36 @@ def get_skill_data(skill):
 		logging.info(f"Exception {type(e)}: ",e)
 		raise e
 def get_upgrade_data(upgrade):
-	'''
-		returns name for the requested upgrade 
+	"""
+		returns informations of a requested warship upgrade
 		
-		raises exception from dictionary
-	'''
+		Arguments:
+		-------
+			- upgrade : (string)
+				Upgrade's full name or abbreviation
+		
+		Returns:
+		-------
+		tuple:
+			profile					- (dict) upgrade's bonuses
+			name					- (str) upgrade name
+			price_gold				- (int) upgrade price in doubloons
+			image					- (str) image url
+			price_credit			- (int) price in credits
+			description				- (str) summary of upgrade
+			local_image				- (str) local location of upgrade 
+			is_special				- (bool) is upgrade a legendary upgrade?
+			ship_restriction		- (list) list of ships that can only equip this
+			nation_restriction		- (list) list of nations that this upgrade can be found
+			tier_restriction		- (list) list of tiers that this upgrade can be found
+			type_restriction		- (list) which ship types can this upgrade be found on
+			slot					- (int) which slot can this upgrade be equiped on
+			special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
+										[Ship, Slot, Comments]
+			on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
+			
+		raise exceptions for dictionary
+	"""
 	upgrade = upgrade.lower()
 	try:
 		upgrade_found = False
@@ -879,11 +995,24 @@ def get_upgrade_data(upgrade):
 		raise e
 		logging.info(f"Exception {type(e)}: ",e)
 def get_commander_data(cmdr):
-	'''
-		returns name, icon and nation requested special commander 
+	"""
+		returns informations of a requested warship upgrade
 		
+		Arguments:
+		-------
+			- cmdr : (string)
+				Commander's full name
+		
+		Returns:
+		-------
+		tuple:
+			name	- (str) commander's name
+			icons	- (str) image url on WG's server
+			nation	- (str) Commander's nationality
+			
 		raise exceptions for dictionary
-	'''
+	"""
+	
 	cmdr = cmdr.lower()
 	try:
 		cmdr_found = False
@@ -905,11 +1034,27 @@ def get_commander_data(cmdr):
 		logging.erro(f"Exception {type(e)}",e)
 		raise e
 def get_flag_data(flag):
-	'''
-		returns information for the requested flag
+	"""
+		returns informations of a requested warship upgrade
 		
-		raises exception from dictionary
-	'''
+		Arguments:
+		-------
+			- cmdr : (string)
+				Commander's full name
+		
+		Returns:
+		-------
+		tuple:
+			profile			- (dict) flag's bonuses
+			name			- (str) flag name
+			price_gold		- (int) flag's price in doubloons
+			image			- (str) image url on WG's server
+			price_credit	- (int) flag's price in credits
+			description		- (str) flag's summary
+			
+		raise exceptions for dictionary
+	"""
+	
 	flag = flag.lower()
 	try:
 		flag_found = False
@@ -924,16 +1069,32 @@ def get_flag_data(flag):
 				if flag.lower() == flag_list[i]['name'].lower():
 					flag_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, upgrade_type, description, _ = flag_list[i].values()
-		return profile, name, price_gold, image, price_credit, upgrade_type, description
+		profile, name, price_gold, image, _, price_credit, _, description, _ = flag_list[i].values()
+		return profile, name, price_gold, image, price_credit, description
 		
 	except Exception as e:
 		raise e
 		logging.info(f"Exception {type(e)}: ",e)
 def get_map_data(map):
-	'''
-		returns information for the requested map
-	'''
+	"""
+		returns informations of a requested warship upgrade
+		
+		Arguments:
+		-------
+			- map : (string)
+				map's name
+		
+		Returns:
+		-------
+		tuple:
+			description	- (str) map's description
+			image		- (str) image url on WG's server
+			id			- (str) map id
+			name		- (str) map's name
+			
+		raise exceptions for dictionary
+	"""
+	
 	map = map.lower()
 	try:
 		for m in map_list:
@@ -1053,6 +1214,7 @@ class Client(discord.Client):
 			embed.add_field(name='Error',value="Invalid command.")
 		return embed
 	async def help(self, message, arg):
+		# send help message
 		channel = message.channel
 		embed = self.help_message(message.content)
 		if not embed is None:
@@ -1269,6 +1431,13 @@ class Client(discord.Client):
 								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
 							if hull['planes_amount'] > 0:
 								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
+							if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
+								m += '\n'
+								if ship_param['armour']['flood_damage'] > 0:
+									m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
+								if ship_param['armour']['flood_prob'] > 0:
+									m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
+							
 							m += '\n'
 						embed.add_field(name="**Hull**", value=m, inline=False)
 					if len(modules['artillery']) > 0:
@@ -1353,11 +1522,19 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="**Bombers**", value=m, inline=False)
+					if len(modules['engine']) > 0:
+						m = ""
+						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
+							print(module_list[str(e)]['profile'])
+							engine = module_list[str(e)]['profile']['engine']
+							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
+							m += '\n'
+						embed.add_field(name="**Engine**", value=m, inline=True)
 					if ship_param['concealment'] is not None:
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
-						embed.add_field(name="**Concealment**", value=m, inline=False)
+						embed.add_field(name="**Concealment**", value=m, inline=True)
 						
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills")
 				await channel.send(embed=embed)
@@ -1880,7 +2057,7 @@ class Client(discord.Client):
 			# user provided an argument
 			try:
 				logging.info(f'sending message for flag <{flag}>')
-				profile, name, price_gold, image, price_credit, _, description = get_flag_data(flag)
+				profile, name, price_gold, image, price_credit, description = get_flag_data(flag)
 				embed = discord.Embed(title="Flag Information")
 				embed.set_thumbnail(url=image)
 				embed.add_field(name='Name', value=name)
