@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 # loading cheats
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
