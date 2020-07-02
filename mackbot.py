@@ -52,7 +52,7 @@ ship_type_to_hull_class = {
 	'Submarine': 'SS'
 }
 # dictionary to convert user inputted ship name to non-ascii ship name
-# TODO: find an automatic method
+# TODO: find an automatic method, maybe
 ship_name_to_ascii ={
 	'[zao]':'[zaō]',
 	'arp myoko':'arp myōkō',
@@ -118,6 +118,8 @@ ship_name_to_ascii ={
 	'khaba':'khabarovsk',
 	'fdr':'franklin d. roosevelt',
 	'shima':'shimakaze',
+	'nevsky':'nlexander nevsky',
+	'al nevsky':'nlexander nevsky',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -252,6 +254,8 @@ for page in count(1):
 logging.info("Loading Game Params json")
 with open('GameParams.json') as f:
     game_data = json.load(f)
+
+# find game data items by tags
 find_game_data_item = lambda x: [i for i in game_data if x in i]
 find_module_by_tag = lambda x: [i for i in module_list if x == module_list[i]['tag']][0]
 
@@ -525,7 +529,7 @@ for s in ship_list:
 								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
 					continue
 				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
-					#get turret parameter
+					#get torps parameter
 					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 					gun = module_data[gun]
 					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
@@ -572,7 +576,7 @@ for s in ship_list:
 						module_list[module_id]['payload'] = plane['attackCount']
 					continue
 
-logging.info("Auto build Modification Abbreviation")
+logging.info("Creating Modification Abbreviation")
 upgrade_abbr_list = {}
 for u in upgrade_list:
 	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
@@ -713,12 +717,24 @@ command_list = (
 	'ship',
 )
 def hamming(s1, s2):
+	'''
+		find the hamming distance between two strings
+	'''
 	dist = 0
 	for n in range(len(s1)):
 		if s1[n] != s2[n]:
 			dist += 1
 	return dist
 def find_closest(s, dictionary):
+	'''
+		partially implemented
+		
+		returns the closest matched item
+		
+		arg:
+			s 			- look up key
+			dictionary 	- where to look for key
+	'''
 	h = BitString("0x"+nilsimsa.Nilsimsa(s.lower()).hexdigest()).bin
 	min_collision = np.inf
 	name = ""
@@ -740,7 +756,7 @@ def find_closest(s, dictionary):
 	return name
 def check_build():
 	'''
-		checks ship_build for in incorrectly inputted values and outputs build images
+		checks ship_build for in incorrectly inputted values and outputs to stdout, and write build images
 	'''
 	skill_use_image = cv.imread("./skill_images/icon_perk_use.png", cv.IMREAD_UNCHANGED)
 	skill_use_image_channel = [i for i in cv.split(skill_use_image)]
@@ -1112,6 +1128,9 @@ def get_map_data(map):
 		logging.info("Exception {type(e): ", e)
 		
 class Client(discord.Client):
+	"""
+		the discord client
+	"""
 	async def on_ready(self):
 		await self.change_presence(activity=discord.Game(command_header+token+command_list[0]))
 		logging.info("Logged on")
@@ -1146,9 +1165,9 @@ class Client(discord.Client):
 					'**ship**: Required. Desired ship to output information on.\n'+
 					'**image**: Optional. If the word **image** is presence, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',inline=False)
 			elif command == 'ship':
-				embed.add_field(name='Usage',value=command_header+token+command+token+'ship'+token+'',inline=False)
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[ship]'+token+'(parameters)',inline=False)
 				embed.add_field(name='Description',value='List the combat parameters of the requested warships\n'+
-					'**This function is WIP. ~~Because WG API is a mess~~',inline=False)
+					'**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',inline=False)
 			elif command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]',inline=False)
 				embed.add_field(name='Description',value='List name, type, tier and effect of the requested commander skill',inline=False)
@@ -1262,6 +1281,7 @@ class Client(discord.Client):
 				battle_type = 'casual'
 				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
 			if requested_image:
+				# try to get image format for this build
 				async with channel.typing():
 					try:
 						name, nation, images, ship_type, tier, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
@@ -1301,14 +1321,16 @@ class Client(discord.Client):
 						logging.info(f"Exception {type(e)}", e)
 						if type(e) == discord.errors.Forbidden:
 							await channel.send(f"I need the **Attach Files Permission** to use this feature!")
+							await self.build(message, arg)
 						else:
 							await channel.send(f"Ship **{ship}** is not understood")
 			else:
+				# get text-based format build
 				try:
 					async with channel.typing():
 						name, nation, images, ship_type, tier, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
 						logging.info(f"returning build information for <{name}> in embeded format")
-						ship_type = ship_types[ship_type]
+						ship_type = ship_types[ship_type] #convert weegee ship type to hull classifications
 						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 						embed.set_thumbnail(url=images['small'])
 						# get server emoji
@@ -1317,7 +1339,6 @@ class Client(discord.Client):
 						else:
 							server_emojis = []
 						
-						# image exists!
 						tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 						
 						embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**'
@@ -1384,7 +1405,7 @@ class Client(discord.Client):
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} [ship_name]]\n"
+					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 					embed.set_footer(text=error_footer_message+footer_message)
 					await channel.send(embed=embed)
 				except Exception as e:
@@ -1392,7 +1413,6 @@ class Client(discord.Client):
 					await channel.send(f"Ship **{ship}** is not understood")
 	async def ship(self, message, arg):
 		channel = message.channel
-		# get voted ship build
 		# message parse
 		ship_found = False
 		if len(arg) <= 2:
@@ -1442,14 +1462,15 @@ class Client(discord.Client):
 					aa_filter = 8
 					conceal_filter = 9
 					
-					ship_filter = 0b1111111111
+					ship_filter = 0b1111111111 # assuming no filter is provided, display all
 					# grab filters
 					if len(param_filter) > 0:
-						ship_filter = 0b0000000000
+						ship_filter = 0b0000000000 # filter is requested, set disable all
 						# s = ship_param_filter_regex.findall(''.join([i + ' ' for i in param_filter]))
-						s = ship_param_filter_regex.findall(param_filter)
-						is_filter_requested = lambda x: 1 if len([i[x] for i in s if len(i[x]) > 0]) > 0 else 0
-						slot = ''.join([i[1] for i in s])
+						s = ship_param_filter_regex.findall(param_filter) # what am i looking for?
+						is_filter_requested = lambda x: 1 if len([i[x] for i in s if len(i[x]) > 0]) > 0 else 0 # lambda function. check length of regex capture groups. if len > 0, request is valid
+						# slot = ''.join([i[1] for i in s]) # wtf is this. too scared to remove
+						# enables proper filter
 						ship_filter |= is_filter_requested(1) << hull_filter
 						ship_filter |= is_filter_requested(2) << guns_filter
 						ship_filter |= is_filter_requested(3) << atbas_filter
@@ -1474,26 +1495,22 @@ class Client(discord.Client):
 						m = ""
 						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 							hull = module_list[str(h)]['profile']['hull']
+							print(hull)
 							m += f"**{module_list[str(h)]['name']}:** **{hull['health']} HP**\n"
 							if hull['artillery_barrels'] > 0:
 								m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
-								continue
 							if hull['torpedoes_barrels'] > 0:
 								m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
-								continue
 							if hull['atba_barrels'] > 0:
 								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
-								continue
 							if hull['planes_amount'] > 0:
 								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
-								continue
 							if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
 								m += '\n'
 								if ship_param['armour']['flood_damage'] > 0:
 									m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
 								if ship_param['armour']['flood_prob'] > 0:
 									m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
-								continue
 							
 							m += '\n'
 						embed.add_field(name="**Hull**", value=m, inline=False)
@@ -1582,7 +1599,6 @@ class Client(discord.Client):
 					if len(modules['engine']) > 0 and is_filtered(engine_filter):
 						m = ""
 						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
-							print(module_list[str(e)]['profile'])
 							engine = module_list[str(e)]['profile']['engine']
 							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
@@ -1593,7 +1609,8 @@ class Client(discord.Client):
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
 						embed.add_field(name="**Concealment**", value=m, inline=True)
 						
-					embed.set_footer(text="Parameters does not take into account upgrades and commander skills")
+					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n"+
+						f"For specific parameters, use [mackbot ship {ship} (parameters)]")
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
