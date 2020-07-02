@@ -118,8 +118,8 @@ ship_name_to_ascii ={
 	'khaba':'khabarovsk',
 	'fdr':'franklin d. roosevelt',
 	'shima':'shimakaze',
-	'nevsky':'nlexander nevsky',
-	'al nevsky':'nlexander nevsky',
+	'nevsky':'alexander nevsky',
+	'al nevsky':'alexander nevsky',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
