@@ -120,6 +120,9 @@ ship_name_to_ascii ={
 	'shima':'shimakaze',
 	'nevsky':'alexander nevsky',
 	'al nevsky':'alexander nevsky',
+	'erich': 'erich loewenhardt',
+	'parseval': 'august von parseval',
+	'richthofen': 'manfred von richthofen',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -284,6 +287,7 @@ for page in count(1): #range(1,6):
 		else:
 			logging.info(type(e), e)
 		break
+del ship_list['3445503440'], ship_list['3340744656'], ship_list['3335501808']
 logging.info("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
 for page_num in count(1):
@@ -1431,8 +1435,6 @@ class Client(discord.Client):
 			if not param_filter:
 				ship = ship[:-1]
 
-			print(ship, has_filter, param_filter)
-			
 			try:
 				async with channel.typing():
 					ship_param = get_ship_data(ship)
@@ -1513,7 +1515,7 @@ class Client(discord.Client):
 									m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
 							
 							m += '\n'
-						embed.add_field(name="**Hull**", value=m, inline=False)
+						embed.add_field(name="__**Hull**__", value=m, inline=False)
 					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
 						m = ""
 						m += f"**Range: **"
@@ -1533,7 +1535,7 @@ class Client(discord.Client):
 							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
 							
 							m += '\n'
-						embed.add_field(name="**Main Battery**", value=m, inline=False)
+						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 					if ship_param['atbas'] is not None and is_filtered(atbas_filter):
 						m = ""
 						
@@ -1546,7 +1548,7 @@ class Client(discord.Client):
 							m += f"**Reload:** {guns['shot_delay']}s\n"
 							
 							m += '\n'
-						embed.add_field(name="**Secondary Battery**", value=m, inline=False)
+						embed.add_field(name="__**Secondary Battery**__", value=m, inline=False)
 					if len(modules['torpedoes']) > 0 and is_filtered(torps_filter):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
@@ -1556,7 +1558,7 @@ class Client(discord.Client):
 							m += f"{torps['torpedo_speed']} kts.\n"
 							
 							m += '\n'
-						embed.add_field(name="**Torpedoes**", value=m, inline=False)
+						embed.add_field(name="__**Torpedoes**__", value=m, inline=False)
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
 						m = ""
 						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
@@ -1569,7 +1571,7 @@ class Client(discord.Client):
 							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
 							
 							m += '\n'
-						embed.add_field(name="**Attackers**", value=m, inline=False)
+						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
 						m = ""
 						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
@@ -1582,7 +1584,7 @@ class Client(discord.Client):
 							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
 							
 							m += '\n'
-						embed.add_field(name="**Torpedo Bomber**", value=m, inline=False)
+						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=False)
 					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
 						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
@@ -1595,19 +1597,19 @@ class Client(discord.Client):
 							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
 							
 							m += '\n'
-						embed.add_field(name="**Bombers**", value=m, inline=False)
+						embed.add_field(name="__**Bombers**__", value=m, inline=False)
 					if len(modules['engine']) > 0 and is_filtered(engine_filter):
 						m = ""
 						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
 							engine = module_list[str(e)]['profile']['engine']
 							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
-						embed.add_field(name="**Engine**", value=m, inline=True)
+						embed.add_field(name="__**Engine**__", value=m, inline=True)
 					if ship_param['concealment'] is not None and is_filtered(conceal_filter):
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
-						embed.add_field(name="**Concealment**", value=m, inline=True)
+						embed.add_field(name="__**Concealment**__", value=m, inline=True)
 						
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n"+
 						f"For specific parameters, use [mackbot ship {ship} (parameters)]")
