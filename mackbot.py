@@ -123,6 +123,9 @@ ship_name_to_ascii ={
 	'erich': 'erich loewenhardt',
 	'parseval': 'august von parseval',
 	'richthofen': 'manfred von richthofen',
+	'admiral makarov': 'makarov',
+	'admiral graf spee': 'graf spee',
+	'hsf admiral graf spee': 'graf spee',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
