@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 # loading cheats
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
@@ -2272,11 +2272,11 @@ class Client(discord.Client):
 					skill_bonus_string = ''
 					
 					for c in cmdr_data['Skills']:
-						skill = cmdr_data['Skills'][c]
+						skill = cmdr_data['Skills'][c].copy()
 						if skill['isEpic']:
 							skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
 							skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'							
-							for v in  ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
+							for v in ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
 								del skill[v]
 							if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
 								for descriptor in skill:
