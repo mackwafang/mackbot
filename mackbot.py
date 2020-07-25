@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 # loading cheats
 import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
@@ -123,9 +123,10 @@ ship_name_to_ascii ={
 	'erich': 'erich loewenhardt',
 	'parseval': 'august von parseval',
 	'richthofen': 'manfred von richthofen',
-	'admiral makarov': 'makarov',
-	'admiral graf spee': 'graf spee',
-	'hsf admiral graf spee': 'graf spee',
+	'makarov': 'admiral makarov',
+	'graf spee': 'admiral graf spee',
+	'hsf graf spee': 'hsf admiral graf spee',
+	'donskoi': 'dmitri donskoi',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -183,6 +184,8 @@ cmdr_name_to_ascii ={
 	'leon terraux':'léon terraux',
 	'charles-henri honore':'charles-henri honoré',
 	'jerzy swirski':'Jerzy Świrski',
+	'swirski':'Jerzy Świrski',
+	'halsey':'william f. Halsey jr.',
 }
 # here because of lazy
 roman_numeral = {
@@ -259,7 +262,7 @@ for page in count(1):
 		
 logging.info("Loading Game Params json")
 with open('GameParams.json') as f:
-    game_data = json.load(f)
+	game_data = json.load(f)
 
 # find game data items by tags
 find_game_data_item = lambda x: [i for i in game_data if x in i]
@@ -271,6 +274,131 @@ for cmdr in cmdr_list:
 	h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
 	h = BitString(h).bin# convert to bits
 	cmdr_list[cmdr]['name_hash'] = h
+cmdr_skill_descriptor = {
+	'AIGunsEfficiencyModifier': {
+		 'nearAuraDamageCoefficientDescriptor': 'Continuous damage by AA mounts',
+		 'smallGunReloadCoefficientDescriptor': 'Reload time of main battery guns with a caliber up to and including 139 mm, and secondary battery guns',
+	},
+	'AIGunsRangeModifier': {
+		 'advancedOuterAuraDamageCoefficientDescriptor': 'Damage from AA shell explosions:',
+		 'smallGunRangeCoefficientDescriptor': ' Firing range of main battery guns with a caliber up to and including 139 mm, and secondary battery guns:',
+	},
+	'AccuracyIncreaseRateModifier': {
+		 'diveBomberDescriptor': 'Bomber aiming speed:',
+		 'fighterDescriptor': 'Attack aircraft aiming speed:',
+		 'torpedoBomberDescriptor': 'Torpedo bomber aiming speed:',
+	},
+	'AdditionalSmokescreensModifier': {
+		 'radiusCoefficientDescriptor': 'Radius of the smoke screen:',
+	},
+	'AimingFightersPointModifier': {
+		 'extraFighterCountDescriptor': 'Number of aircraft:',
+		 'fighterLifeTimeCoefficientDescriptor': 'Fighter action time',
+	},
+	'AirSupremacyModifier': {
+		 'hangarSizeBonusDescriptor': 'Aircraft hanger size:',
+		 'planeSpawnTimeCoefficientDescriptor': 'Aircraft restoreation time:',
+	},
+	'AllSkillsCooldownModifier': {
+		 'reloadCoefficientDescriptor': 'Consumable reload time:',
+	},
+	'ArtilleryAlertModifier': {
+		 'alertMinDistanceDescriptor': 'Warning about a salvo fired at your ship from a distance of more than ',
+	},
+	'AutoRepairModifier': {
+		 'critTimeCoefficientDescriptor': 'Time of repair, fire extinguishing, and recovery from flooding:',
+	},
+	'CentralATBAModifier': {
+		 'atbaIdealRadiusHiDescriptor': 'Maximum dispersion of shells for the secondary armament of Tier VII–X ships:',
+		 'atbaIdealRadiusLoDescriptor': 'Maximum dispersion of shells for the secondary armament of Tier I–VI ships:',
+	},
+	'CentralAirDefenceModifier': {
+		 'prioSectorCooldownCoefficientDescriptor': 'Priority AA sector preparation time:',
+		 'prioSectorPhaseDurationCoefficientDescriptor': '',
+		 'prioSectorStartPhaseStrengthCoefficientDescriptor': 'Instantaneous Damage:',
+		 'prioSectorStrengthCoefficientDescriptor': '',
+	},
+	'EmergencyTeamCooldownModifier': {
+		 'reloadCoefficientDescriptor': 'Reload time of the Damage Control Party consumable:',
+	},
+	'FireProbabilityModifier': {
+		 'bombProbabilityBonusDescriptor': 'Bombs fire chance:',
+		 'probabilityBonusDescriptor': 'HE shells fire chance:',
+		 'rocketProbabilityBonusDescriptor': 'HE rockets fire chance:',
+	},
+	'FireResistanceModifier': {
+		 'probabilityCoefficientDescriptor': 'Risk of catching fire:',
+	},
+	'FlightSpeedModifier': {
+		 'flightSpeedCoefficientDescriptor': 'Aircraft cruising speed:',
+	},
+	'ForsageDurationModifier': {
+		 'forsageDurationCoefficientDescriptor': 'Engine boost time:',
+	},
+	'ForsageRestorationModifier': {
+	},
+	'IntuitionModifier': {
+		 'switchAmmoReloadCoefDescriptor': 'Time taken to switch shell type:',
+	},
+	'LandmineExploderModifier': {
+		 'chanceToSetOnFireBonusBigDescriptor': 'Chances of fire:',
+		 'chanceToSetOnFireBonusSmallDescriptor': 'Chances of fire:',
+		 'thresholdPenetrationCoefficientBigDescriptor': 'HE armor penetration:',
+		 'thresholdPenetrationCoefficientSmallDescriptor': 'HE armor penetration:',
+	},
+	'LastChanceModifier': {
+		 'hpStepDescriptor': 'Ship lost health per bonus:',
+		 'squadronHealthStepDescriptor': 'Squadron lost health per bonus:',
+		 'squadronSpeedStepDescriptor': 'Ship squadron speed increase:',
+		 'timeStepDescriptor': 'Consumable increase per bonus:',
+	},
+	'LastEffortModifier': {
+		 'critRudderTimeCoefficientDescriptor': 'Engine/Steering gear penalty:',
+	},
+	'MainGunsRotationModifier': {
+		 'bigGunBonusDescriptor': 'Tranvese speed of guns > 139mm:',
+		 'smallGunBonusDescriptor': 'Tranvese speed of guns <= 139mm:',
+	},
+	'MeticulousPreventionModifier': {
+		 'critProbCoefficientDescriptor': 'Risk of modules becoming incapacitated:',
+	},
+	'NearAuraDamageTakenModifier': {
+		 'nearAuraDamageTakenCoefficientDescriptor': 'Continuous damage from AA mounts:',
+	},
+	'NearEnemyIntuitionModifier': {
+	},
+	'PriorityTargetModifier': {
+	},
+	'SuperintendentModifier': {
+		 'additionalConsumablesDescriptor': 'Additional consumable:',
+	},
+	'SurvivalModifier': {
+		 'healthPerLevelDescriptor': 'Ship HP per tier:',
+		 'planeHealthPerLevelDescriptor': 'Aircraft HP per tier',
+	},
+	'TorpedoAcceleratorModifier': {
+		 'planeTorpedoRangeCoefficientDescriptor': 'Aircraft torpedo range:',
+		 'planeTorpedoSpeedBonusDescriptor': 'Aircraft torpedo speed:',
+		 'torpedoRangeCoefficientDescriptor': 'Ship-launched torpedo range:',
+		 'torpedoSpeedBonusDescriptor': 'Ship-launched torpedo speed:',
+	},
+	'TorpedoAlertnessModifier': {
+		 'planeRangeCoefficientDescriptor': 'Torpedo acquisition range by air:',
+		 'rangeCoefficientDescriptor': 'Torpedo acquisition range by sea:',
+	},
+	'TorpedoReloadModifier': {
+		 'launcherCoefficientDescriptor': 'Torpedo reload speed:',
+	},
+	'VisibilityModifier': {
+		 'aircraftCarrierCoefficientDescriptor': 'Detectability of aircraft carriers:',
+		 'battleshipCoefficientDescriptor': 'Detectability of battleships:',
+		 'cruiserCoefficientDescriptor': 'Detectability of cruisers:',
+		 'destroyerCoefficientDescriptor': 'Detectability of destroyers:',
+		 'squadronCoefficientDescriptor': 'Detectability of squadrons:',
+		 'submarineCoefficientDescriptor': 'Detectability of submarines:',
+	},
+}
+
 logging.info("Fetching Ship List")
 ship_list = {}
 for page in count(1): #range(1,6):
@@ -679,7 +807,7 @@ for s in ship_list:
 	if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
 	
-	tags += [nat, f't{tier}', t+'s', hull_class]
+	tags += [nat, f't{tier}',t ,t+'s', hull_class]
 	ship_list[s]['tags'] = tags
 	if prem:
 		ship_list[s]['tags'] += ['premium']
@@ -697,7 +825,7 @@ for m in map_list:
 	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
 	h = BitString(h).bin# convert to bits
 	map_list[m]['name_hash'] = h
-del game_data # free up memory
+# del game_data # free up memory
 logging.info("Preprocessing Done")
 
 command_header = 'mackbot'
@@ -965,8 +1093,52 @@ def get_skill_data(skill):
 					skill_found = True
 					break
 		# found it!
-		name, id, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
-		return name, id, skill_type, perk, tier, icon
+		name, column, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
+		return name, column, skill_type, perk, tier, icon
+	except Exception as e:
+		# oops, probably not found
+		logging.info(f"Exception {type(e)}: ",e)
+		raise e
+def get_skill_data_by_grid(column, tier):
+	"""
+		returns informations of a requested commander skill by column and tier
+
+		Arguments:
+		-------
+			- column : (int)
+				which column to search (0-7)
+			- tier : (int)
+				which skill tier to look for (1-4)
+
+		Returns:
+		-------
+		tuple:
+			name		- (str) name of skill
+			id			- (int) horizontal location (0-7)
+			skill_type	- (str) category
+			perk		- (dict) bonuses
+			tier		- (int) tier (1-4)
+			icon		- (dict) image url
+
+		raise exceptions for dictionary
+	"""
+	try:
+		skill_found = False
+		# assuming input is full skill name
+		for i in skill_list:
+			if column == skill_list[i]['type_id'] and tier == skill_list[i]['tier']:
+				skill_found = True
+				break
+		# parsed item is probably an abbreviation, checking abbreviation
+		if not skill_found:
+			skill = skill_name_abbr[skill.lower()]
+			for i in skill_list:
+				if skill.lower() == skill_list[i]['name'].lower():
+					skill_found = True
+					break
+		# found it!
+		name, column, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
+		return name, column, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
 		logging.info(f"Exception {type(e)}: ",e)
@@ -1058,9 +1230,9 @@ def get_commander_data(cmdr):
 				icons = cmdr_list[i]['icons'][0]['1']
 				nation = cmdr_list[i]['nation']
 				
-				return name, icons, nation
+				return name, icons, nation, i
 	except Exception as e:
-		logging.erro(f"Exception {type(e)}",e)
+		logging.error(f"Exception {type(e)}",e)
 		raise e
 def get_flag_data(flag):
 	"""
@@ -1877,8 +2049,8 @@ class Client(discord.Client):
 									else:
 										type_icon = ""
 								if len(type_icon) == 0:
-									type_icon = ship_type_to_hull_class[ship_type]
-								m += [f"**{tier_string:<4} [{type_icon}]** {name}"]
+									type_icon = "["+ship_type_to_hull_class[ship_type]+"]"
+								m += [f"**{tier_string:<4} {type_icon}** {name}"]
 								
 							num_items = len(m)
 							m.sort()
@@ -2085,11 +2257,38 @@ class Client(discord.Client):
 			try:
 				async with channel.typing():
 					logging.info(f'sending message for commander <{cmdr}>')
-					name, icon, nation = get_commander_data(cmdr)
+					name, icon, nation, cmdr_id = get_commander_data(cmdr)
 					embed = discord.Embed(title="Commander")
 					embed.set_thumbnail(url=icon)
-					embed.add_field(name='Name',value=name)
-					embed.add_field(name='Nation',value=nation_dictionary[nation])
+					embed.add_field(name='Name',value=name, inline=False)
+					embed.add_field(name='Nation',value=nation_dictionary[nation], inline=False)
+					
+					cmdr_data = None
+					for i in game_data:
+						if game_data[i]['typeinfo']['type'] == 'Crew':
+							if cmdr_id == str(game_data[i]['id']):
+								cmdr_data = game_data[i]
+								
+					skill_bonus_string = ''
+					
+					for c in cmdr_data['Skills']:
+						skill = cmdr_data['Skills'][c]
+						if skill['isEpic']:
+							skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
+							skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'							
+							for v in  ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
+								del skill[v]
+							if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
+								for descriptor in skill:
+									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {skill[descriptor]}\n"
+							else:
+								for descriptor in skill:
+									if abs(skill[descriptor]-1) > 0:
+										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {int(round((skill[descriptor]-1)*100))}%\n"
+					if len(skill_bonus_string) > 0:
+						embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
+					else:
+						embed.add_field(name='Skill Bonuses', value="None", inline=False)
 					
 				await channel.send(embed=embed)
 			except Exception as e:
