@@ -850,6 +850,7 @@ command_list = (
 	'feedback',
 	'map',
 	'ship',
+	'doubloons',
 )
 def hamming(s1, s2):
 	'''
@@ -1414,6 +1415,10 @@ class Client(discord.Client):
 			elif command == 'feedback':
 				embed.add_field(name='Usage',value=command_header+token+command,inline=False)
 				embed.add_field(name='Description',value='Send a feedback form link for mackbot.',inline=False)
+			elif command == 'doubloons':
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[doubloons]'+token+'[dollar/$]',inline=False)
+				embed.add_field(name='Description',value='Returns the price in dollars of now much of the requested number of doubloons\n'+
+					"**[dollars/$]**: Optional. Reverse the conversion to dollars to doublons.",inline=False)
 		else:
 			embed.add_field(name='Error',value="Invalid command.",inline=False)
 		return embed
@@ -2359,6 +2364,45 @@ class Client(discord.Client):
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
 				await channel.send(f"Flag **{flag}** is not understood.")
+	async def doubloons(self, message, arg):
+		channel = message.channel
+		# get information on requested flag
+		message_string = message.content
+		upgrade_found = False
+		# message parse
+		doub = arg[2]  # message_string[message_string.rfind('-')+1:]
+		if len(arg) <= 2:
+			# argument is empty, send help message
+			embed = self.help_message(command_header+token+"help"+token+arg[1])
+			if not embed is None:
+				await channel.send(embed=embed)
+		else:
+			# user provided an argument
+			try:
+				if len(arg) == 4:
+					# check reverse conversion
+					if arg[3].lower() in ['dollars', '$']:
+						dollar = float(doub)
+						dollar_formula = lambda x: (x ** (1/0.9)) / 0.0067 
+						embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
+						embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
+						embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
+						
+				else:
+					doub = int(doub)
+					value_exceed = not (500 <= doub and doub <= 25000)
+					doub_formula = lambda x: (0.0067 * doub)**(0.9)
+					
+					embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
+					embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
+					embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
+					if value_exceed:
+						embed.set_footer(text=":warning: You are unable to buy the requested doubloons")
+						
+				await channel.send(embed=embed)
+			except Exception as e:
+				logging.info(f"Exception {type(e)}", e)
+				await channel.send(f"Value **{doub}** is not a number (or an internal error has occured).")
 	
 	async def on_message(self,message):
 		channel = message.channel
