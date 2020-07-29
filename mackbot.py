@@ -2280,13 +2280,23 @@ class Client(discord.Client):
 								del skill[v]
 							if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
 								for descriptor in skill:
-									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {skill[descriptor]}\n"
+									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f}\n"
+									if c == 'MainGunsRotationModifier':
+										skill_bonus_string += ' °/sec.'
 							else:
 								for descriptor in skill:
-									if abs(skill[descriptor]-1) > 0:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {int(round((skill[descriptor]-1)*100))}%\n"
+									if c == 'TorpedoAcceleratorModifier':
+										if descriptor in ['planeTorpedoSpeedBonus', 'torpedoSpeedBonus']:
+											skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f} kts.\n"
+										else:
+											skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {'+' if skill[descriptor]-1 > 0 else ''}{int(round((skill[descriptor]-1)*100))}%\n"
+									else:
+										if abs(skill[descriptor]-1) > 0:
+											skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor+'Descriptor']} {'+' if skill[descriptor]-1 > 0 else ''}{int(round((skill[descriptor]-1)*100))}%\n"
+							skill_bonus_string += '\n'
 					if len(skill_bonus_string) > 0:
 						embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
+						embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
 					else:
 						embed.add_field(name='Skill Bonuses', value="None", inline=False)
 					
