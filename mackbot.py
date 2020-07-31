@@ -127,6 +127,7 @@ ship_name_to_ascii ={
 	'graf spee': 'admiral graf spee',
 	'hsf graf spee': 'hsf admiral graf spee',
 	'donskoi': 'dmitri donskoi',
+	'petro': 'petropavlovsk',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -723,6 +724,7 @@ for s in ship_list:
 					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
 					for g in gun: # for each turret
 						turret_data = game_data[g]
+						module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
 						for a in turret_data['ammoList']:
 							ammo = game_data[a]
 							# print(ammo['alphaDamage'], ammo['ammoType'], f"{ammo['burnProb']} fire %")
@@ -1689,8 +1691,19 @@ class Client(discord.Client):
 					ship_param = get_ship_data(ship)
 					name, nation, images, ship_type, tier, consumables, modules, _, is_prem, _, _, _, _, _ = get_build_data(ship)
 					logging.info(f"returning ship information for <{name}> in embeded format")
-					
 					ship_type = ship_types[ship_type]
+					
+					if ship_type == 'Cruiser':
+						highest_caliber = sorted(modules['artillery'], key=lambda x : module_list[str(x)]['profile']['artillery']['caliber'], reverse=True)
+						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
+						
+						print(highest_caliber)
+						if (highest_caliber <= 155):
+							ship_type = "Light Cruiser"
+						elif (highest_caliber <= 203):
+							ship_type = "Heavy Cruiser"
+						else:
+							ship_type = "Battlecruiser"
 					embed = discord.Embed(title=f"{ship_type} {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 					# get server emoji
@@ -1766,6 +1779,7 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=False)
+						
 					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
 						m = ""
 						m += f"**Range: **"
@@ -1860,7 +1874,6 @@ class Client(discord.Client):
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
 						embed.add_field(name="__**Concealment**__", value=m, inline=True)
-					print(consumables, f"{ship_filter:b}")
 					if len(consumables) > 0 and is_filtered(consumable_filter):
 						m = ""
 						for consumable_slot in consumables:
@@ -1885,13 +1898,16 @@ class Client(discord.Client):
 									if consumable_type == 'artilleryBoosters':
 										consumable_detail = f'Reload Time: -50%'
 									if consumable_type == 'regenCrew':
-										consumable_detail = f'Repairs {consumable["regenerationHPSpeed"]*100}% of max HP / sec.'
+										consumable_detail = f'Repairs {consumable["regenerationHPSpeed"]*100}% of max HP / sec.\n'
+										for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+											hull = module_list[str(h)]['profile']['hull']
+											consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec.\n"
 									if consumable_type == 'rls':
 										consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f}km'
 									if consumable_type == 'scout':
 										consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
 									if consumable_type == 'smokeGenerator':
-										consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60))+"m" if consumable["lifeTime"] >= 60 else ""} {consumable["lifeTime"] % 60:1.0f}s\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while using.'
+										consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60))+"m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60))+"s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
 									if consumable_type == 'sonar':
 										consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f}km'
 									if consumable_type == 'speedBoosters':
@@ -1902,8 +1918,8 @@ class Client(discord.Client):
 									m += f"**{consumable_name}**\n"
 									if ship_filter == 2 ** (consumable_filter):
 										m += f"{charges} charge{'s' if charges != 1 else ''}, "
-										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {action_time % 60:1.0f}s duration, "
-										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {cd_time % 60:1.0f}s cooldown.\n"
+										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60))+'s' if action_time % 60 > 0 else ''} duration, "
+										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60))+'s' if cd_time % 60 > 0 else ''} cooldown.\n"
 										if len(consumable_detail) > 0:
 											m += consumable_detail
 											m += '\n'
