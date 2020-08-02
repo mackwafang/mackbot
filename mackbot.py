@@ -128,6 +128,7 @@ ship_name_to_ascii ={
 	'hsf graf spee': 'hsf admiral graf spee',
 	'donskoi': 'dmitri donskoi',
 	'petro': 'petropavlovsk',
+	'henri': 'henri iv',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -143,6 +144,7 @@ skill_name_abbr = {
 	'ieb':'improved engine boost',
 	'ce':'concealment expert',
 	'jat':'jack of all trades',
+	'joat':'jack of all trades',
 	'fp':'fire prevention',
 	'ss':'sight stabilization',
 	'ie':'improved engines',
@@ -553,6 +555,7 @@ build_battle_type_value = {
 	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
 }
 ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
+# fetch ship builds
 if not BUILD_EXTRACT_FROM_CACHE:
 	# extracting build and upgrade exclusion data from google sheets
 	from googleapiclient.errors import Error
@@ -1075,7 +1078,8 @@ def get_build_data(ship, battle_type='casual'):
 			skills			- (list) list of suggested commander skill
 			cmdr			- (str) suggested cmdr. this value may be '*', which indicates "any commander"
 			battle_type		- (str) build enviornment (casual or competitive)
-			
+		or
+			None, if no build exists
 		raise exceptions for dictionary
 	"""
 	
@@ -1412,12 +1416,13 @@ class Client(discord.Client):
 			elif command == 'build':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[type]'+token+'build'+token+'[image]',inline=False)
 				embed.add_field(name='Description',value='List name, nationality, type, tier, recommended build of the requested warships\n'+
-					f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n'+
-					'**ship**: Required. Desired ship to output information on.\n'+
-					'**image**: Optional. If the word **image** is presence, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',inline=False)
+					'**ship**: Required. Desired ship to request a build.\n\n'+
+					f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n\n'+
+					'**[image]**: Optional. If the word **image** is present, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',inline=False)
 			elif command == 'ship':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[ship]'+token+'(parameters)',inline=False)
-				embed.add_field(name='Description',value='List the combat parameters of the requested warships\n'+
+				embed.add_field(name='Description',value='List the combat parameters of the requested warships\n\n'+
+					'**ship**: Required. Desired ship to get combat information.\n\n'+
 					'**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',inline=False)
 			elif command == 'skill':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[skill/abbr]',inline=False)
@@ -1600,63 +1605,72 @@ class Client(discord.Client):
 						
 						footer_message = ""
 						error_value_found = False
-						
-						# suggested upgrades
-						if len(upgrades) > 0:
-							m = ""
-							i = 1
-							for upgrade in upgrades:
-								upgrade_name = "[Missing]"
-								if upgrade == '*':
-									# any thing
-									upgrade_name = "Any"
-								else:
-									try: # ew, nested try/catch
-										upgrade_name = get_upgrade_data(upgrade)[1]
-									except Exception as e: 
-										logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
-										error_value_found = True
-										upgrade_name = upgrade+":warning:"
-								m += f'(Slot {i}) **'+upgrade_name+'**\n'
-								i += 1
-							footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
-							embed.add_field(name='Suggested Upgrades', value=m,inline=False)
-						else:
-							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=False)
-						# suggested skills
-						if len(skills) > 0:
-							m = ""
-							i = 1
-							for skill in skills:
-								skill_name = "[Missing]"
-								try: # ew, nested try/catch
-									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
-								except Exception as e: 
-									logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
-									error_value_found = True
-									skill_name = skill+":warning:"
-								m += f'(Tier {tier}) **'+skill_name+'**\n'
-								i += 1
-							footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
-							embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=False)
-						else:
-							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=False)
-						# suggested commander
-						if cmdr != "":
-							m = ""
-							if cmdr == "*":
-								m = "Any"
+						if len(upgrades) > 0 and len(skills) > 0 and len(cmdr) > 0:
+							# suggested upgrades
+							if len(upgrades) > 0:
+								m = ""
+								i = 1
+								for upgrade in upgrades:
+									upgrade_name = "[Missing]"
+									if upgrade == '*':
+										# any thing
+										upgrade_name = "Any"
+									else:
+										try: # ew, nested try/catch
+											upgrade_name = get_upgrade_data(upgrade)[1]
+										except Exception as e: 
+											logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+											error_value_found = True
+											upgrade_name = upgrade+":warning:"
+									m += f'(Slot {i}) **'+upgrade_name+'**\n'
+									i += 1
+								footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
+								embed.add_field(name='Suggested Upgrades', value=m,inline=False)
 							else:
-								try:
-									m = get_commander_data(cmdr)[0]
-								except Exception as e: 
-									logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
-									error_value_found = True
-									m = f"{cmdr}:warning:"
-							footer_message += "Suggested skills are listed in ascending acquiring order.\n"
-							embed.add_field(name='Suggested Cmdr.', value=m)
+								embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=False)
+							# suggested skills
+							if len(skills) > 0:
+								m = ""
+								i = 1
+								for skill in skills:
+									skill_name = "[Missing]"
+									try: # ew, nested try/catch
+										skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
+									except Exception as e: 
+										logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+										error_value_found = True
+										skill_name = skill+":warning:"
+									m += f'(Tier {tier}) **'+skill_name+'**\n'
+									i += 1
+								footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
+								embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=False)
+							else:
+								embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=False)
+							# suggested commander
+							if cmdr != "":
+								m = ""
+								if cmdr == "*":
+									m = "Any"
+								else:
+									try:
+										m = get_commander_data(cmdr)[0]
+									except Exception as e: 
+										logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
+										error_value_found = True
+										m = f"{cmdr}:warning:"
+								# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
+								embed.add_field(name='Suggested Cmdr.', value=m)
+							else:
+								embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=False)
 						else:
-							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=False)
+							m = "mackbot does not know any build for this ship :("
+							u, c, s = get_build_data(ship, battle_type='casual' if battle_type == 'competitive' else 'competitive')[-4:-1]
+							print(u, c, s)
+							if len(u) > 0 and len(c) > 0 and len(s) > 0:
+								m += '\n\n'
+								m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} for this ship!\n"
+								m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
+							embed.add_field(name=f'No known {battle_type} build', value=m,inline=False)
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
