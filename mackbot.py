@@ -1025,11 +1025,14 @@ def check_build():
 					img = np.array(img)
 					y = 6
 					x = upgrade_index
-					h, w, _ = img.shape
-					img = [i for i in cv.split(img)]
-					for i in range(3):
-						image[y*h : (y+1)*h, x*w: (x+1)*w, i] = img[i]
-					image[y*h : (y+1)*h, x*w: (x+1)*w, 3] += img[3]
+					if img is not None:
+						h, w, _ = img.shape
+						img = [i for i in cv.split(img)]
+						for i in range(3):
+							image[y*h : (y+1)*h, x*w: (x+1)*w, i] = img[i]
+						image[y*h : (y+1)*h, x*w: (x+1)*w, 3] += img[3]
+					else:
+						logging.info(f"Image is none at upgrade {upgrade}")
 					upgrade_index += 1 
 			else:
 				logging.info("Upgrade check: No upgrades found")
