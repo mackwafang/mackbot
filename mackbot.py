@@ -1013,6 +1013,7 @@ def check_build():
 			if len(upgrades) > 0:
 				upgrade_index = 0
 				for upgrade in upgrades:
+					print(upgrade)
 					if upgrade == '*':
 						# any thing
 						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
@@ -1025,14 +1026,11 @@ def check_build():
 					img = np.array(img)
 					y = 6
 					x = upgrade_index
-					if img is not None:
-						h, w, _ = img.shape
-						img = [i for i in cv.split(img)]
-						for i in range(3):
-							image[y*h : (y+1)*h, x*w: (x+1)*w, i] = img[i]
-						image[y*h : (y+1)*h, x*w: (x+1)*w, 3] += img[3]
-					else:
-						logging.info(f"Image is none at upgrade {upgrade}")
+					h, w, _ = img.shape
+					img = [i for i in cv.split(img)]
+					for i in range(3):
+						image[y*h : (y+1)*h, x*w: (x+1)*w, i] = img[i]
+					image[y*h : (y+1)*h, x*w: (x+1)*w, 3] += img[3]
 					upgrade_index += 1 
 			else:
 				logging.info("Upgrade check: No upgrades found")
