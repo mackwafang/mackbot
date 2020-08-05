@@ -126,6 +126,9 @@ ship_name_to_ascii ={
 	'makarov': 'admiral makarov',
 	'graf spee': 'admiral graf spee',
 	'hsf graf spee': 'hsf admiral graf spee',
+	'muchen': 'münchen',
+	'hipper': 'admiral hipper',
+	'eugen': 'prinz eugen',
 	'donskoi': 'dmitri donskoi',
 	'petro': 'petropavlovsk',
 	'henri': 'henri iv',
@@ -1662,10 +1665,10 @@ class Client(discord.Client):
 								embed.add_field(name='Suggested Cmdr.', value=m)
 							else:
 								embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=False)
+							footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 						else:
 							m = "mackbot does not know any build for this ship :("
 							u, c, s = get_build_data(ship, battle_type='casual' if battle_type == 'competitive' else 'competitive')[-4:-1]
-							print(u, c, s)
 							if len(u) > 0 and len(c) > 0 and len(s) > 0:
 								m += '\n\n'
 								m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} for this ship!\n"
@@ -1674,7 +1677,6 @@ class Client(discord.Client):
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 					embed.set_footer(text=error_footer_message+footer_message)
 					await channel.send(embed=embed)
 				except Exception as e:
