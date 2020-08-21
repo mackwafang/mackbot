@@ -132,6 +132,7 @@ ship_name_to_ascii ={
 	'donskoi': 'dmitri donskoi',
 	'petro': 'petropavlovsk',
 	'henri': 'henri iv',
+	'loewenhardt': 'erich loewenhardt',
 }
 # dictionary that stores skill abbreviation
 skill_name_abbr = {
@@ -797,6 +798,7 @@ for u in upgrade_list:
 	if key in upgrade_abbr_list: # if the abbreviation of this upgrade is in the list already
 		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1] # create a new abbreviation
 	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower() # add this abbreviation
+legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'].lower() == 'legendary'}
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
@@ -1013,7 +1015,6 @@ def check_build():
 			if len(upgrades) > 0:
 				upgrade_index = 0
 				for upgrade in upgrades:
-					print(upgrade)
 					if upgrade == '*':
 						# any thing
 						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
@@ -1043,8 +1044,8 @@ def check_build():
 						y = tier
 						h,w,_ = skill_use_image.shape
 						for i in range(3):
-							image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, i] = skill_use_image_channel[i]
-						image[y*h : (y+1)*h, (x + (x // 2))*w: (x+(x // 2)+1)*h, 3] += skill_use_image_channel[3]
+							image[y*h : (y+1)*h, (x + (x // 2))*w : (x+(x // 2)+1)*h, i] = skill_use_image_channel[i]
+						image[y*h : (y+1)*h, (x + (x // 2))*w : (x+(x // 2)+1)*h, 3] += skill_use_image_channel[3]
 						
 					except Exception as e: 
 						logging.info(f"Skill check: Exception {type(e)}", e, f"in check_build, listing skill {skill}")
@@ -1136,6 +1137,49 @@ def get_ship_data(ship):
 			return ship_info[i]
 	except Exception as e:
 		raise e
+def get_legendary_upgrade_by_ship_name(ship):
+	"""
+		returns informations of a requested legendary warship upgrade
+		
+		Arguments:
+		-------
+			- ship : (string)
+				ship name
+		
+		Returns:
+		-------
+		tuple:
+			profile					- (dict) upgrade's bonuses
+			name					- (str) upgrade name
+			price_gold				- (int) upgrade price in doubloons
+			image					- (str) image url
+			price_credit			- (int) price in credits
+			description				- (str) summary of upgrade
+			local_image				- (str) local location of upgrade 
+			is_special				- (bool) is upgrade a legendary upgrade?
+			ship_restriction		- (list) list of ships that can only equip this
+			nation_restriction		- (list) list of nations that this upgrade can be found
+			tier_restriction		- (list) list of tiers that this upgrade can be found
+			type_restriction		- (list) which ship types can this upgrade be found on
+			slot					- (int) which slot can this upgrade be equiped on
+			special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
+										[Ship, Slot, Comments]
+			on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
+			
+		otherwise:
+			None - if legendary upgrade does not exists
+			
+		raise exceptions for dictionary
+	"""
+	# convert ship names with utf-8 chars to ascii
+	if ship in ship_name_to_ascii:
+		ship = ship_name_to_ascii[ship]
+	for u in legendary_upgrades:
+		upgrade = legendary_upgrades[u]
+		if upgrade['ship_restriction'][0].lower() == ship:
+			profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _  = upgrade.values()
+			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
+	return None
 def get_skill_data(skill):
 	"""
 		returns informations of a requested commander skill
@@ -1672,7 +1716,7 @@ class Client(discord.Client):
 							u, c, s = get_build_data(ship, battle_type='casual' if battle_type == 'competitive' else 'competitive')[-4:-1]
 							if len(u) > 0 and len(c) > 0 and len(s) > 0:
 								m += '\n\n'
-								m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} for this ship!\n"
+								m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
 								m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
 							embed.add_field(name=f'No known {battle_type} build', value=m,inline=False)
 					error_footer_message = ""
@@ -2324,9 +2368,21 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 		else:
 			# user provided an argument
+			
+			search_func = None
+			try:
+				# does user provide upgrade name?
+				get_upgrade_data(upgrade)
+				search_func = get_upgrade_data
+				logging.info("user requested an upgrade name")
+			except:
+				# does user provide ship name?
+				get_legendary_upgrade_by_ship_name(upgrade)
+				search_func = get_legendary_upgrade_by_ship_name
+				logging.info("user requested an legendary upgrade")
 			try:
 				logging.info(f'sending message for upgrade <{upgrade}>')
-				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = get_upgrade_data(upgrade)
+				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = search_func(upgrade)
 				embed_title = 'Ship Upgrade'
 				if is_special.lower() == 'legendary':
 					embed_title = "Legendary Ship Upgrade"
