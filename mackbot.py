@@ -1,7 +1,7 @@
 DEBUG_IS_MAINTANCE = False
 
 # loading cheats
-import wargaming, os, nilsimsa, re, sys, pickle, discord, time, logging, json
+import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib
 import xml.etree.ElementTree as et
 import pandas as pd
 import numpy as np
@@ -9,7 +9,6 @@ import cv2 as cv
 from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
-from bitstring import BitString
 
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
@@ -224,10 +223,6 @@ ship_types = wows_encyclopedia.info()['ship_types']
 logging.info("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
 for skill in skill_list:
-	h = "0x"+nilsimsa.Nilsimsa(skill_list[skill]['name'].lower()).hexdigest() # hash using nilsimsa
-	h = BitString(h).bin# convert to bits
-	skill_list[skill]['name_hash'] = h
-	
 	# get local image location
 	url = skill_list[skill]['icon']
 	url = url[:url.rfind('_')]
@@ -277,10 +272,6 @@ find_module_by_tag = lambda x: [i for i in module_list if x == module_list[i]['t
 
 logging.info("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
-for cmdr in cmdr_list:
-	h = "0x"+nilsimsa.Nilsimsa(cmdr_list[cmdr]['first_names'][0].lower()).hexdigest() # hash using nilsimsa
-	h = BitString(h).bin# convert to bits
-	cmdr_list[cmdr]['name_hash'] = h
 cmdr_skill_descriptor = {
 	'AIGunsEfficiencyModifier': {
 		 'nearAuraDamageCoefficientDescriptor': 'Continuous damage by AA mounts',
@@ -476,9 +467,6 @@ for page in count(1): #range(1,6):
 	try:
 		l = wows_encyclopedia.ships(language='en',page_no=page)
 		for i in l:
-			h = "0x"+nilsimsa.Nilsimsa(l[i]['name'].lower()).hexdigest() # hash using nilsimsa
-			h = BitString(h).bin# convert to bits
-			l[i]['name_hash'] = h
 			ship_list[i] = l[i]
 	except Exception as e:
 		if type(e) == wargaming.exceptions.RequestError:
@@ -499,16 +487,12 @@ for page_num in count(1):
 		# consumables of some page page_num
 		for consumable in consumable_list:
 			c_type = consumable_list[consumable]['type']
-			h = "0x"+nilsimsa.Nilsimsa(consumable_list[consumable]['name'].lower()).hexdigest() # hash using nilsimsa
-			h = BitString(h).bin# convert to bits
 			if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
 				# grab camouflages and stores
 				camo_list[consumable] = consumable_list[consumable]
-				camo_list[consumable]['name_hash'] = h
 			if c_type == 'Modernization':
 				# grab upgrades and store
 				upgrade_list[consumable] = consumable_list[consumable]
-				upgrade_list[consumable]['name_hash'] = h
 				
 				url = upgrade_list[consumable]['image']
 				url = url[:url.rfind('_')]
@@ -529,7 +513,6 @@ for page_num in count(1):
 			if c_type == 'Flags':
 				# grab flags
 				flag_list[consumable] = consumable_list[consumable]
-				flag_list[consumable]['name_hash'] = h
 	except Exception as e:
 		if type(e) == wargaming.exceptions.RequestError:
 			if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -663,6 +646,8 @@ if not BUILD_EXTRACT_FROM_CACHE:
 						upgrade_list[u]['is_special'] = upgrade_type
 						if len(upgrade_type) > 0:
 							upgrade_list[u]['tags'] += [upgrade_type.lower()]
+							if upgrade_list[u]['tags'].lower() == 'legendary':
+								upgrade_list[u]['tags'] += ['unique']
 						upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
 						if len(upgrade_ship_restrict) > 0:
 							upgrade_list[u]['tags'] += upgrade_ship_restrict
@@ -895,15 +880,11 @@ logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
 # filter data tyoe
 ship_list_frame = pd.DataFrame(ship_list)
-ship_list_frame = ship_list_frame.filter(items=['name', 'nation', 'images', 'type', 'tier', 'consumables', 'modules', 'upgrades', 'is_premium', 'price_gold', 'name_hash', 'tags'],axis=0)
+ship_list_frame = ship_list_frame.filter(items=['name', 'nation', 'images', 'type', 'tier', 'consumables', 'modules', 'upgrades', 'is_premium', 'price_gold', 'tags'],axis=0)
 ship_list = ship_list_frame.to_dict()
 
 logging.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
-for m in map_list:
-	h = "0x"+nilsimsa.Nilsimsa(map_list[m]['name'].lower()).hexdigest() # hash using nilsimsa
-	h = BitString(h).bin# convert to bits
-	map_list[m]['name_hash'] = h
 # del game_data # free up memory
 logging.info("Preprocessing Done")
 
@@ -931,44 +912,6 @@ command_list = (
 	'ship',
 	'doubloons',
 )
-def hamming(s1, s2):
-	'''
-		find the hamming distance between two strings
-	'''
-	dist = 0
-	for n in range(len(s1)):
-		if s1[n] != s2[n]:
-			dist += 1
-	return dist
-def find_closest(s, dictionary):
-	'''
-		partially implemented
-		
-		returns the closest matched item
-		
-		arg:
-			s 			- look up key
-			dictionary 	- where to look for key
-	'''
-	h = BitString("0x"+nilsimsa.Nilsimsa(s.lower()).hexdigest()).bin
-	min_collision = np.inf
-	name = ""
-	lowest_match = []
-	for i in dictionary:
-		ham = hamming(h, dictionary[i]['name_hash'])
-		if ham < min_collision:
-			name = dictionary[i]['name']
-			min_collision = ham
-			lowest_match = [name]
-		elif ham == min_collision:
-			lowest_match += [dictionary[i]['name']]
-	if len(lowest_match) > 1:
-		for i in lowest_match:
-			if len(s) == len(i):
-				name = i
-	else:
-		name = lowest_match[0]
-	return name
 def check_build():
 	'''
 		checks ship_build for in incorrectly inputted values and outputs to stdout, and write build images
@@ -1022,6 +965,8 @@ def check_build():
 						try:
 							local_image = get_upgrade_data(upgrade)[6]
 							img = cv.imread(local_image, cv.IMREAD_UNCHANGED)
+							if img is None:
+								img = cv.imread('./modernization_icons/icon_modernization_missing.png', cv.IMREAD_UNCHANGED)
 						except Exception as e:
 							logging.info(f"Upgrade check: Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
 					img = np.array(img)
@@ -1100,7 +1045,7 @@ def get_build_data(ship, battle_type='casual'):
 				ship_found = True
 				break
 		if ship_found:
-			name, nation, images, ship_type, tier, consumables, modules, equip_upgrades, is_prem, price_gold, _, _ = ship_list[i].values()
+			name, nation, images, ship_type, tier, consumables, modules, equip_upgrades, is_prem, price_gold, _ = ship_list[i].values()
 			upgrades, skills, cmdr = {}, {}, ""
 			if name.lower() in ship_build[battle_type]:
 				upgrades, skills, cmdr = ship_build[battle_type][name.lower()].values()
@@ -1177,7 +1122,7 @@ def get_legendary_upgrade_by_ship_name(ship):
 	for u in legendary_upgrades:
 		upgrade = legendary_upgrades[u]
 		if upgrade['ship_restriction'][0].lower() == ship:
-			profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _  = upgrade.values()
+			profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships  = upgrade.values()
 			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
 	return None
 def get_skill_data(skill):
@@ -1217,7 +1162,7 @@ def get_skill_data(skill):
 					skill_found = True
 					break
 		# found it!
-		name, column, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
+		name, column, skill_type, perk, tier, icon, _ = skill_list[i].values()
 		return name, column, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
@@ -1261,7 +1206,7 @@ def get_skill_data_by_grid(column, tier):
 					skill_found = True
 					break
 		# found it!
-		name, column, skill_type, perk, tier, icon, _, _ = skill_list[i].values()
+		name, column, skill_type, perk, tier, icon, _ = skill_list[i].values()
 		return name, column, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
@@ -1313,7 +1258,7 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _ = upgrade_list[i].values()
+		profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _ = upgrade_list[i].values()
 		
 		return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
 	except Exception as e:
@@ -1394,7 +1339,7 @@ def get_flag_data(flag):
 				if flag.lower() == flag_list[i]['name'].lower():
 					flag_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, _, description, _ = flag_list[i].values()
+		profile, name, price_gold, image, _, price_credit, _, description = flag_list[i].values()
 		return profile, name, price_gold, image, price_credit, description
 		
 	except Exception as e:
@@ -1424,7 +1369,7 @@ def get_map_data(map):
 	try:
 		for m in map_list:
 			if map == map_list[m]['name'].lower():
-				description, image, id, name, _ = map_list[m].values()
+				description, image, id, name = map_list[m].values()
 				return description, image, id, name
 	except Exception as e:
 		raise e
@@ -1528,8 +1473,10 @@ class Client(discord.Client):
 						embed.add_field(name='Error',value="Invalid command.",inline=False)
 						 
 			elif command == 'upgrade':
-				embed.add_field(name='Usage',value=command_header+token+command+token+'[upgrade/abbr]',inline=False)
-				embed.add_field(name='Description',value='List the name and description of the requested warship upgrade',inline=False)
+				embed.add_field(name='Usage',value=command_header+token+command+token+'[upgrade/abbr/ship_name]',inline=False)
+				embed.add_field(name='Description',value='List the name and description of the requested warship upgrade'+
+					'**[upgrade/abbr/ship_name]**: Required.\n*upgrade/abbr*: Provide the name or the abbreviation name of the upgrade to get information on it.\n'
+					'*ship_name*. Provide the ship name to return the legendary upgrade for that ship.',inline=False)
 			elif command == 'commander':
 				embed.add_field(name='Usage',value=command_header+token+command+token+'[cmdr_name]',inline=False)
 				embed.add_field(name='Description',value='List the nationality of the requested commander',inline=False)
@@ -1726,7 +1673,14 @@ class Client(discord.Client):
 					await channel.send(embed=embed)
 				except Exception as e:
 					logging.info(f"Exception {type(e)}", e)
-					await channel.send(f"Ship **{ship}** is not understood")
+					# error, ship name not understood
+					ship_name_list = [ship_list[i]['name'] for i in ship_list]
+					closest_match = difflib.get_close_matches(ship, ship_name_list)
+					closest_match_string = ""
+					if len(closest_match) > 0:
+						closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+					
+					await channel.send(f"Ship **{ship}** is not understood" + closest_match_string)
 	async def ship(self, message, arg):
 		channel = message.channel
 		# message parse
@@ -1992,7 +1946,14 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
-				await channel.send(f"Ship **{ship}** is not understood")
+				# error, ship name not understood
+				ship_name_list = [ship_list[i]['name'] for i in ship_list]
+				closest_match = difflib.get_close_matches(ship, ship_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
+				await channel.send(f"Ship **{ship}** is not understood" + closest_match_string)
 	async def skill(self, message, arg):
 		channel = message.channel
 		# get information on requested skill
@@ -2017,7 +1978,14 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info("Exception", type(e), ":", e)
-				await channel.send(f"Skill **{skill}** is not understood.")
+				# error, ship name not understood
+				skill_name_list = [skill_list[i]['name'] for i in skill_list]
+				closest_match = difflib.get_close_matches(skill, skill_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
+				await channel.send(f"Skill **{skill}** is not understood." + closest_match_string)
 	async def list(self, message, arg):
 		channel = message.channel
 		# list command
@@ -2454,7 +2422,14 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
-				await channel.send(f"Upgrade **{upgrade}** is not understood.")
+				# error, ship name not understood
+				upgrade_name_list = [upgrade_list[i]['name'] for i in upgrade_list]
+				closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
+				await channel.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
 	async def commander(self, message, arg):
 		channel = message.channel
 		# get information on requested commander
@@ -2516,6 +2491,13 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}: ", e)
+				# error, ship name not understood
+				cmdr_name_list = [cmdr_list[i]['name'] for i in cmdr_list]
+				closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
 				await channel.send(f"Commander **{cmdr}** is not understood.")
 	async def map(self, message, arg):
 		channel = message.channel
@@ -2541,6 +2523,13 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}: ", e)
+				# error, ship name not understood
+				map_name_list = [map_list[i]['name'] for i in map_list]
+				closest_match = difflib.get_close_matches(map, map_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
 				await channel.send(f"Map **{map}** is not understood.")
 	async def flag(self, message, arg):
 		channel = message.channel
@@ -2571,6 +2560,13 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
+				# error, ship name not understood
+				flag_name_list = [flag_list[i]['name'] for i in flag_list]
+				closest_match = difflib.get_close_matches(flag, flag_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				
 				await channel.send(f"Flag **{flag}** is not understood.")
 	async def doubloons(self, message, arg):
 		channel = message.channel
