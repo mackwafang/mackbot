@@ -16,7 +16,7 @@ if cwd == '':
 	cwd = '.'
 
 # logging shenanigans
-logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
+# logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
 logger = logging.getLogger()
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
@@ -133,44 +133,6 @@ ship_name_to_ascii ={
 	'henri': 'henri iv',
 	'loewenhardt': 'erich loewenhardt',
 }
-# dictionary that stores skill abbreviation
-skill_name_abbr = {
-	'bft':'basic firing training',
-	'bs':'basics of survivability',
-	'em':'expert marksman',
-	'tae':'torpedo armament expertise',
-	'ha':'high alert',
-	'v':'vigilance',
-	'de':'demolition expert',
-	'aft':'advanced firing training',
-	'aa':'aircraft armor',
-	'ieb':'improved engine boost',
-	'ce':'concealment expert',
-	'jat':'jack of all trades',
-	'joat':'jack of all trades',
-	'fp':'fire prevention',
-	'ss':'sight stabilization',
-	'ie':'improved engines',
-	's':'superintendent',
-	'pm':'preventive maintenance',
-	'ifa':'incoming fire alert',
-	'ls':'last stand',
-	'el':'expert loader',
-	'ar':'adrenaline rush',
-	'ta':'torpedo acceleration',
-	'se':'survivability expert',
-	'mfcsa':'manual fire control for secondary armament',
-	'maaf':'massive aa fire',
-	'pt':'priority target',
-	'as':'air supremacy',
-	'sse':'smoke screen expert',
-	'dcf':'direction center for fighters',
-	'lg':'last gasp',
-	'ifhe':'inertia fuse for he shells',
-	'ifhes':'inertia fuse for he shells',
-	'rl':'radio location',
-	'rpf':'radio location',
-}
 # see the ship name conversion dictionary comment
 cmdr_name_to_ascii = {
 	'jean-jacques honore':'jean-jacques honoré',
@@ -222,13 +184,24 @@ ship_types = wows_encyclopedia.info()['ship_types']
 
 logging.info("Fetching Skill List")
 skill_list = wows_encyclopedia.crewskills()
+# dictionary that stores skill abbreviation
+skill_name_abbr = {}
 for skill in skill_list:
+	# generate abbreviation
+	abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
+	skill_name_abbr[abbr_name] = skill_list[skill]['name'].lower()
 	# get local image location
 	url = skill_list[skill]['icon']
 	url = url[:url.rfind('_')]
 	url = url[url.rfind('/')+1:]
 	skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
-	
+# additional abbreviation
+with open('skill_name_abbr.csv') as f:
+	s = f.read().split('\n')
+	for i in s:
+		k, v = i.split(',')
+		skill_name_abbr[k] = v
+
 # putting missing values
 skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
 skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
@@ -1382,7 +1355,6 @@ class Client(discord.Client):
 	async def on_ready(self):
 		await self.change_presence(activity=discord.Game(command_header+token+command_list[0]))
 		logging.info("Logged on")
-	
 	def help_message(self,message):
 		# help message
 		arg = message.split(token)
@@ -1764,7 +1736,6 @@ class Client(discord.Client):
 						ship_filter |= is_filter_requested(11) << consumable_filter
 						del is_filter_requested
 						
-					embed_title = "Search result for: "
 					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**\n'
 					
 					footer_message = ""
@@ -1916,15 +1887,15 @@ class Client(discord.Client):
 										consumable_detail = f'Repairs {consumable["regenerationHPSpeed"]*100}% of max HP / sec.\n'
 										for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 											hull = module_list[str(h)]['profile']['hull']
-											consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec.\n"
+											consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
 									if consumable_type == 'rls':
-										consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f}km'
+										consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
 									if consumable_type == 'scout':
 										consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
 									if consumable_type == 'smokeGenerator':
 										consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60))+"m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60))+"s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
 									if consumable_type == 'sonar':
-										consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f}km'
+										consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f} km'
 									if consumable_type == 'speedBoosters':
 										consumable_detail = f'Max Speed: +{consumable["boostCoeff"]*100:0.0f}%'
 									if consumable_type == 'torpedoReloader':
@@ -2607,7 +2578,6 @@ class Client(discord.Client):
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
 				await channel.send(f"Value **{doub}** is not a number (or an internal error has occured).")
-	
 	async def on_message(self,message):
 		channel = message.channel
 		arg = message.content.split(token)
@@ -2641,7 +2611,7 @@ class Client(discord.Client):
 						await channel.send("Mack's raifu: M1918 BAR https://en.gfwiki.com/wiki/M1918")
 				# if not arg[1] in command_list:
 					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
-
+	
 if __name__ == "__main__":
 	client = Client()
 	check_build()
