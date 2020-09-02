@@ -1,7 +1,7 @@
 DEBUG_IS_MAINTANCE = False
 
 # loading cheats
-import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib
+import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
 import xml.etree.ElementTree as et
 import pandas as pd
 import numpy as np
@@ -515,13 +515,16 @@ build_battle_type_value = {
 	"casual" 		: BUILD_BATTLE_TYPE_CASUAL,
 }
 ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
-# fetch ship builds
+# fetch ship builds and additional upgrade information
 if not BUILD_EXTRACT_FROM_CACHE:
 	# extracting build and upgrade exclusion data from google sheets
 	from googleapiclient.errors import Error
 	from googleapiclient.discovery import build
 	from google_auth_oauthlib.flow import InstalledAppFlow
 	from google.auth.transport.requests import Request
+	
+	# silence file_cache_warning
+	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
 	
 	logging.info("Attempting to fetch from sheets")
 	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -619,7 +622,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 						upgrade_list[u]['is_special'] = upgrade_type
 						if len(upgrade_type) > 0:
 							upgrade_list[u]['tags'] += [upgrade_type.lower()]
-							if upgrade_list[u]['tags'].lower() == 'legendary':
+							if upgrade_list[u]['is_special'].lower() == 'legendary':
 								upgrade_list[u]['tags'] += ['unique']
 						upgrade_list[u]['ship_restriction'] = upgrade_ship_restrict
 						if len(upgrade_ship_restrict) > 0:
@@ -648,8 +651,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 									upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
 					except Exception as e:
 						# oops, skip this
-						logging.info("Equipments exclusion exception")
-						break
+						logging.info(f"Equipments exclusion exception {e} at upgrade id {u}")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -681,7 +683,11 @@ for s in ship_list:
 		ship_upgrade_info = module_data['ShipUpgradeInfo'] # get upgradable modules
 		for _info in ship_upgrade_info: # for each upgradable modules
 			if type(ship_upgrade_info[_info]) == dict: # if there are data
-				module_id = find_module_by_tag(_info) # what is this module?
+				try:
+					module_id = find_module_by_tag(_info) # what is this module?
+				except:
+					logging.critical(f"Module with tag {_info} is not found")
+					exit(1)
 				if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 					#get turret parameter
 					gun = ship_upgrade_info[_info]['components']['artillery'][0]
@@ -1095,7 +1101,7 @@ def get_legendary_upgrade_by_ship_name(ship):
 	for u in legendary_upgrades:
 		upgrade = legendary_upgrades[u]
 		if upgrade['ship_restriction'][0].lower() == ship:
-			profile, name, price_gold, image, _, price_credit, _, description, _, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships  = upgrade.values()
+			profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, tags = upgrade.values()
 			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
 	return None
 def get_skill_data(skill):
@@ -1788,7 +1794,6 @@ class Client(discord.Client):
 						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 					if ship_param['atbas'] is not None and is_filtered(atbas_filter):
 						m = ""
-						print(ship_param['atbas'])
 						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
 						for slot in ship_param['atbas']['slots']:
 							guns = ship_param['atbas']['slots'][slot]
@@ -2323,9 +2328,9 @@ class Client(discord.Client):
 				logging.info(f'sending message for upgrade <{upgrade}>')
 				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = search_func(upgrade)
 				embed_title = 'Ship Upgrade'
-				if is_special.lower() == 'legendary':
+				if 'legendary' in is_special:
 					embed_title = "Legendary Ship Upgrade"
-				elif is_special.lower() == 'coal':
+				elif 'coal' in is_special:
 					embed_title = "Coal Ship Upgrade"
 				embed = discord.Embed(title=embed_title, description="")
 				embed.set_thumbnail(url=image)
@@ -2353,7 +2358,7 @@ class Client(discord.Client):
 					else:
 						logging.warning('Ships field is empty')
 				print(on_other_ships)
-				if len(on_other_ships) > 0 and is_special.lower() != 'legendary':
+				if len(on_other_ships) > 0 and 'legendary' in is_special:
 					m = ""
 					for s, sl in on_other_ships:
 						if s is not None:
@@ -2388,7 +2393,7 @@ class Client(discord.Client):
 						embed.add_field(name="Additonal Requirements",value=m)		
 					else:
 						logging.log("Additional requirements field empty")
-				if price_credit > 0 and is_special == '':
+				if price_credit > 0 and len(is_special) == 0:
 					embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 				await channel.send(embed=embed)
 			except Exception as e:
