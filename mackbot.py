@@ -713,6 +713,7 @@ for s in ship_list:
 					for g in gun: # for each turret
 						turret_data = game_data[g]
 						module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
+						
 					continue
 				if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
 					#get fighter parameter
@@ -784,6 +785,7 @@ else:
 	with open('./'+ship_param_file_name,'wb') as f:
 		pickle.dump(ship_info, f)
 	logging.info("Cache creation complete")
+
 logging.info("Generating ship search tags")
 SHIP_TAG_SLOW_SPD = 0
 SHIP_TAG_FAST_SPD = 1
@@ -805,7 +807,7 @@ ship_tags = {
 	SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
 		'min_threshold': 30,
 		'max_threshold': 99,
-		'description': "Any ships in this category have a **base speed** of **35 knots or faster**",
+		'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
 	},
 	SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
 		'min_threshold': 0,
@@ -1506,9 +1508,11 @@ class Client(discord.Client):
 			requested_image = arg[-1].lower() == 'image'
 			if requested_image:
 				arg = arg[:-1]
-			battle_type = arg[2] # assuming build battle type is provided
-			if battle_type.lower() in build_battle_type_value:
+			battle_type = arg[2].lower() # assuming build battle type is provided
+			additional_comp_keywords = ['comp']
+			if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
 				# 2nd argument provided is a known argument
+				battle_type = 'competitive'
 				ship = ''.join([i+' ' for i in arg[3:]])[:-1] # grab ship name
 			else:
 				battle_type = 'casual'
@@ -1556,7 +1560,13 @@ class Client(discord.Client):
 							await channel.send(f"I need the **Attach Files Permission** to use this feature!")
 							await self.build(message, arg)
 						else:
-							await channel.send(f"Ship **{ship}** is not understood")
+							ship_name_list = [ship_list[i]['name'] for i in ship_list]
+							closest_match = difflib.get_close_matches(ship, ship_name_list)
+							closest_match_string = ""
+							if len(closest_match) > 0:
+								closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+							
+							await channel.send(f"Ship **{ship}** is not understood.{closest_match_string}")
 			else:
 				# get text-based format build
 				try:
@@ -1597,7 +1607,6 @@ class Client(discord.Client):
 											upgrade_name = upgrade+":warning:"
 									m += f'(Slot {i}) **'+upgrade_name+'**\n'
 									i += 1
-								footer_message += "**use mackbot list [upgrade] for desired info on upgrade**\n"
 								embed.add_field(name='Suggested Upgrades', value=m,inline=False)
 							else:
 								embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:",inline=False)
@@ -1615,7 +1624,6 @@ class Client(discord.Client):
 										skill_name = skill+":warning:"
 									m += f'(Tier {tier}) **'+skill_name+'**\n'
 									i += 1
-								footer_message += "**use mackbot skill [skill] for desired info on desired skill**\n"
 								embed.add_field(name='Suggested Cmdr. Skills', value=m,inline=False)
 							else:
 								embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:",inline=False)
@@ -1636,6 +1644,7 @@ class Client(discord.Client):
 							else:
 								embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:",inline=False)
 							footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
+							footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 						else:
 							m = "mackbot does not know any build for this ship :("
 							u, c, s = get_build_data(ship, battle_type='casual' if battle_type == 'competitive' else 'competitive')[-4:-1]
@@ -1809,8 +1818,8 @@ class Client(discord.Client):
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {int(torps['numBarrels'])} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
-							m += f"**Damage:** {torps['max_damage']}, "
-							m += f"{torps['torpedo_speed']} kts.\n"
+							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
+							m += f"**Damage:** {torps['max_damage']}\n"
 							
 							m += '\n'
 						embed.add_field(name="__**Torpedoes**__", value=m, inline=False)
@@ -2561,17 +2570,19 @@ class Client(discord.Client):
 			try:
 				if len(arg) == 4:
 					# check reverse conversion
+					# dollars to doubloons
 					if arg[3].lower() in ['dollars', '$']:
 						dollar = float(doub)
-						dollar_formula = lambda x: (x ** (1/0.9)) / 0.0067 
+						dollar_formula = lambda x: x / 250
 						embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
 						embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
 						embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
 						
 				else:
+					# doubloon to dollars
 					doub = int(doub)
 					value_exceed = not (500 <= doub and doub <= 25000)
-					doub_formula = lambda x: (0.0067 * doub)**(0.9)
+					doub_formula = lambda x: x * 250
 					
 					embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
 					embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
@@ -2614,8 +2625,6 @@ class Client(discord.Client):
 						await channel.send("Mack's waifu: Saratoga\nhttps://kancolle.fandom.com/wiki/Saratoga")
 					if arg[1] == 'raifu':
 						await channel.send("Mack's raifu: M1918 BAR https://en.gfwiki.com/wiki/M1918")
-				# if not arg[1] in command_list:
-					# await channel.send(f"I don't know command **{arg[1]}**. Please check the help page by tagging me or use **{command_header+token+command_list[0]}**")
 	
 if __name__ == "__main__":
 	client = Client()
