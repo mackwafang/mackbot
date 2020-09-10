@@ -2573,7 +2573,7 @@ class Client(discord.Client):
 					# dollars to doubloons
 					if arg[3].lower() in ['dollars', '$']:
 						dollar = float(doub)
-						dollar_formula = lambda x: x / 250
+						dollar_formula = lambda x: x * 250
 						embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
 						embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
 						embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
@@ -2582,7 +2582,7 @@ class Client(discord.Client):
 					# doubloon to dollars
 					doub = int(doub)
 					value_exceed = not (500 <= doub and doub <= 25000)
-					doub_formula = lambda x: x * 250
+					doub_formula = lambda x: x / 250
 					
 					embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
 					embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
