@@ -619,7 +619,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 					pass
 				else:
 					try:
-						upgrade_list[u]['is_special'] = upgrade_type
+						upgrade_list[u]['is_special'] = upgrade_type.lower()
 						if len(upgrade_type) > 0:
 							upgrade_list[u]['tags'] += [upgrade_type.lower()]
 							if upgrade_list[u]['is_special'].lower() == 'legendary':
@@ -2336,6 +2336,7 @@ class Client(discord.Client):
 			try:
 				logging.info(f'sending message for upgrade <{upgrade}>')
 				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = search_func(upgrade)
+				print(is_special)
 				embed_title = 'Ship Upgrade'
 				if 'legendary' in is_special:
 					embed_title = "Legendary Ship Upgrade"
