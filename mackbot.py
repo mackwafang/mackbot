@@ -579,7 +579,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 		extract_from_web_failed = True
 		logging.info(f"Exception raised while fetching builds: {e}")
 	# fetch upgrade exclusion list
-	logging.info("Excluding Equipments...")
+	logging.info("Excluding obsulete equipments...")
 	result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
 								range='upgrade_list!A2:S200').execute()
 	values = result.get('values', [])
@@ -597,7 +597,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				usable_dictionary = {'yes':False, 'no':True}
 				upgrade_usable = usable_dictionary[row[2].lower()]
 				# grabbing columns
-				upgrade_slot = row[3]
+				# upgrade_slot = row[3]
 				upgrade_ship_restrict = [] if len(row[4]) == 0 else row[4].split(', ')
 				upgrade_tier_restrict = [] if len(row[5]) == 0 else [int(i) for i in row[5].split(', ')]
 				upgrade_type_restrict = [] if len(row[6]) == 0 else row[6].split(', ')
@@ -636,6 +636,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 						upgrade_list[u]['type_restriction'] = upgrade_type_restrict
 						if len(upgrade_type_restrict) > 0:
 							upgrade_list[u]['tags'] += upgrade_type_restrict
+						upgrade_slot = [game_data[i]['slot'] for i in game_data if str(game_data[i]['id']) == upgrade_id][0] + 1
 						upgrade_list[u]['slot'] = upgrade_slot
 						upgrade_list[u]['tags'] += [f"slot {upgrade_slot}"]
 						upgrade_list[u]['tags'] += upgrade_tags
@@ -651,7 +652,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 									upgrade_list[u]['additional_restriction'] = '' if s[2].lower() == 'None' else s[2]
 					except Exception as e:
 						# oops, skip this
-						logging.info(f"Equipments exclusion exception {e} at upgrade id {u}")
+						logging.info(f"Equipments exclusion exception [{e}] at upgrade id {u}")
 
 if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
@@ -902,7 +903,7 @@ def check_build():
 	for t in build_battle_type:
 		for s in ship_build[build_battle_type[t]]:
 			image = np.zeros((520,660,4))
-			logging.info(f"Checking {build_battle_type[t]} battle build for ship {s}...")
+			logging.info(f"Checking {build_battle_type[t]} build for {s}...")
 			
 			name, nation, _, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(s, battle_type=build_battle_type[t])
 			font = ImageFont.truetype('arialbd.ttf', 20)
@@ -2336,23 +2337,22 @@ class Client(discord.Client):
 			try:
 				logging.info(f'sending message for upgrade <{upgrade}>')
 				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = search_func(upgrade)
-				print(is_special)
+				
 				embed_title = 'Ship Upgrade'
 				if 'legendary' in is_special:
 					embed_title = "Legendary Ship Upgrade"
 				elif 'coal' in is_special:
 					embed_title = "Coal Ship Upgrade"
+					
 				embed = discord.Embed(title=embed_title, description="")
 				embed.set_thumbnail(url=image)
 				#embed.add_field(name='Name', value=name)
+				
 				if len(name) > 0:
 					embed.description += f"**{name}**\n"
 				else:
 					logging.info("name is empty")
-				if len(slot) > 0:
-					embed.description += f"**Slot {slot}**\n"
-				else:
-					logging.info("slot is empty")
+				embed.description += f"**Slot {slot}**\n"
 				if len(description) > 0:
 					embed.add_field(name='Description',value=description, inline=False)
 				else:
