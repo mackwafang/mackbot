@@ -825,38 +825,42 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo(?:es)?)?( bombers?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:concealment)|(?:dectection))|((?:aa)|(?:anti-air))|(consumables?))*')
 for s in ship_list:
-	nat = nation_dictionary[ship_list[s]['nation']]
-	tags = []
-	t = ship_list[s]['type']
-	hull_class = ship_type_to_hull_class[t]
-	if t == 'AirCarrier':
-		t = 'Aircraft Carrier'
-	tier = ship_list[s]['tier'] # add tier to search 
-	prem = ship_list[s]['is_premium'] # is bote premium
-	ship_speed = ship_info[s]['mobility']['max_speed']
-	# add tags based on speed
-	if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
-		tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
-	if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
-		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
-	concealment = ship_info[s]['concealment']
-	# add tags based on detection range
-	if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
-		tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
-	# add tags based on gun firerate
 	try:
-		# some ships have main battery guns
-		fireRate = ship_info[s]['artillery']['shot_delay']
-	except:
-		# some dont
-		fireRate = np.inf
-	if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-		tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
-	
-	tags += [nat, f't{tier}',t ,t+'s', hull_class]
-	ship_list[s]['tags'] = tags
-	if prem:
-		ship_list[s]['tags'] += ['premium']
+		nat = nation_dictionary[ship_list[s]['nation']]
+		tags = []
+		t = ship_list[s]['type']
+		hull_class = ship_type_to_hull_class[t]
+		if t == 'AirCarrier':
+			t = 'Aircraft Carrier'
+		tier = ship_list[s]['tier'] # add tier to search 
+		prem = ship_list[s]['is_premium'] # is bote premium
+		ship_speed = ship_info[s]['mobility']['max_speed']
+		# add tags based on speed
+		if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
+			tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
+		if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
+			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
+		concealment = ship_info[s]['concealment']
+		# add tags based on detection range
+		if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
+			tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
+		# add tags based on gun firerate
+		try:
+			# some ships have main battery guns
+			fireRate = ship_info[s]['artillery']['shot_delay']
+		except:
+			# some dont
+			fireRate = np.inf
+		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
+		
+		tags += [nat, f't{tier}',t ,t+'s', hull_class]
+		ship_list[s]['tags'] = tags
+		if prem:
+			ship_list[s]['tags'] += ['premium']
+	except Exception as e:
+		if type(e) == KeyError:
+			logging.warning(f"Ship {s} not found")
 		
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
