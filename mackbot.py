@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
@@ -402,7 +402,6 @@ for page_num in count(1):
 				upgrade_list[consumable]['type_restriction'] = []
 				upgrade_list[consumable]['slot'] = ''
 				upgrade_list[consumable]['additional_restriction'] = ''
-				upgrade_list[consumable]['on_other_ships'] = []
 				upgrade_list[consumable]['tags'] = []
 				
 			if c_type == 'Flags':
@@ -421,6 +420,39 @@ for page_num in count(1):
 			# we done goof now
 			logging.info(type(e), e)
 		break
+logging.info('Adding upgrade information')
+obsolete_upgrade = []
+for i in game_data:
+	value = game_data[i]
+	if value['typeinfo']['type'] == 'Modernization':
+		upgrade = value
+		if upgrade['slot'] == -1:
+			# upgrade obsolete
+			obsolete_upgrade += [str(upgrade['id'])]
+			pass
+		else:
+			# upgrade usable
+			uid = str(upgrade['id'])
+			
+			upgrade_list[uid]['is_special'] = {
+				0 : '',
+				1 : 'Coal',
+				3 : 'Unique'
+			}[upgrade['type']]
+			upgrade_list[uid]['slot'] = upgrade['slot'] + 1
+			upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
+			upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
+			upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
+			upgrade_list[uid]['tier_restriction'] = [t for t in upgrade['shiplevel']]
+
+			upgrade_list[uid]['tags'] += [
+				upgrade_list[uid]['type_restriction'],
+				upgrade_list[uid]['tier_restriction'],
+			]
+logging.info('Removing obsolete upgrades')
+for i in obsolete_upgrade:
+	del upgrade_list[i]
+
 logging.info('Fetching build file...')
 BUILD_EXTRACT_FROM_CACHE = False
 extract_from_web_failed = False
@@ -611,7 +643,7 @@ for u in upgrade_list:
 	if key in upgrade_abbr_list: # if the abbreviation of this upgrade is in the list already
 		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1] # create a new abbreviation
 	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower() # add this abbreviation
-legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'].lower() == 'legendary'}
+legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
@@ -955,8 +987,8 @@ def get_legendary_upgrade_by_ship_name(ship):
 	for u in legendary_upgrades:
 		upgrade = legendary_upgrades[u]
 		if upgrade['ship_restriction'][0].lower() == ship:
-			profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, tags = upgrade.values()
-			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
+			profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, tags = upgrade.values()
+			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction
 	return None
 def get_skill_data(skill):
 	"""
@@ -1091,9 +1123,9 @@ def get_upgrade_data(upgrade):
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships, _ = upgrade_list[i].values()
+		profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, _ = upgrade_list[i].values()
 		
-		return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships
+		return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction
 	except Exception as e:
 		raise e
 		logging.info(f"Exception {type(e)}: ",e)
@@ -2175,6 +2207,7 @@ class Client(discord.Client):
 			# user provided an argument
 			
 			search_func = None
+			# getting appropriate search function
 			try:
 				# does user provide upgrade name?
 				get_upgrade_data(upgrade)
@@ -2185,14 +2218,15 @@ class Client(discord.Client):
 				get_legendary_upgrade_by_ship_name(upgrade)
 				search_func = get_legendary_upgrade_by_ship_name
 				logging.info("user requested an legendary upgrade")
+				
 			try:
 				logging.info(f'sending message for upgrade <{upgrade}>')
-				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships = search_func(upgrade)
+				profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction = search_func(upgrade)
 				
 				embed_title = 'Ship Upgrade'
-				if 'legendary' in is_special:
+				if is_special == 'Unique':
 					embed_title = "Legendary Ship Upgrade"
-				elif 'coal' in is_special:
+				elif is_special == 'Coal':
 					embed_title = "Coal Ship Upgrade"
 					
 				embed = discord.Embed(title=embed_title, description="")
@@ -2212,42 +2246,35 @@ class Client(discord.Client):
 					embed.add_field(name='Effect',value=''.join([profile[detail]['description']+'\n' for detail in profile]), inline=False)
 				else:
 					logging.info("effect field empty")
-				if len(ship_restriction) > 0:
-					m = ''.join([i+', ' for i in sorted(ship_restriction)])[:-2]
-					if len(m) > 0:
-						embed.add_field(name="Ships",value=m)
+				if not is_special == 'Unique':
+					if len(type_restriction) > 0:
+						m =  ''.join([i.title()+', ' for i in sorted(type_restriction)])[:-2]
 					else:
-						logging.warning('Ships field is empty')
-				print(on_other_ships)
-				if len(on_other_ships) > 0 and 'legendary' in is_special:
-					m = ""
-					for s, sl in on_other_ships:
-						if s is not None:
-							if s not in ship_restriction:
-								m += f'{s} (Slot {sl})\n'
-					m = m[:-1]
-					if len(m) > 0:
-						embed.add_field(name="Also found on:",value=m)
-					else:
-						logging.warning('Other ships field is empty')
-				if len(type_restriction) > 0:
-					m =  ''.join([i.title()+', ' for i in sorted(type_restriction)])[:-2]
-				else:
-					m = "All types"
-				embed.add_field(name="Ship Type",value=m)
+						m = "All types"
+					embed.add_field(name="Ship Type",value=m)
 
-				if len(tier_restriction) > 0:
-					m = ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]
-				else:
-					m = "All tiers"
-				embed.add_field(name="Tier",value=m)
+					if len(tier_restriction) > 0:
+						m = ''.join([str(i)+', ' for i in sorted(tier_restriction)])[:-2]
+					else:
+						m = "All tiers"
+					embed.add_field(name="Tier",value=m)
+					
+					if len(nation_restriction) > 0:
+						m = ''.join([i+', ' for i in sorted(nation_restriction)])[:-2]
+					else:
+						m = 'All nations'
+					embed.add_field(name="Nation",value=m)
 				
-				if len(nation_restriction) > 0:
-					m = ''.join([i+', ' for i in sorted(nation_restriction)])[:-2]
-				else:
-					m = 'All nations'
-				embed.add_field(name="Nation",value=m)
-				
+					if len(ship_restriction) > 0:
+						m = ''.join([i+', ' for i in sorted(ship_restriction)])[:-2]
+						if len(m) > 0:
+							ship_restrict_title = {
+								'': "Also Found On",
+								'Coal': "Also Found On",
+							}[is_special]
+							embed.add_field(name=ship_restrict_title, value=m)
+						else:
+							logging.warning('Ships field is empty')
 				if len(special_restriction) > 0:
 					m = special_restriction
 					if len(m) > 0:
