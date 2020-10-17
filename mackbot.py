@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
@@ -582,8 +582,10 @@ for s in ship_list:
 							module_list[module_id]['profile']['artillery']['numBarrels'] = turret_data['numBarrels']
 							if ammo['ammoType'] == 'HE':
 								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
+								module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
 							if ammo['ammoType'] == 'CS':
 								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
+								module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
 					continue
 				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
 					#get torps parameter
@@ -605,9 +607,13 @@ for s in ship_list:
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
 						module_list[module_id]['payload'] = plane['attackCount']
+						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 						module_list[module_id]['profile']['fighter']['max_damage'] = int(projectile['alphaDamage'])
+						module_list[module_id]['profile']['fighter']['rocket_type'] = projectile['ammoType']
 						module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
+						module_list[module_id]['profile']['fighter']['rocket_pen'] = int(projectile['alphaPiercingHE'])
 					continue
 				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
 					#get torp bomber parameter
@@ -619,7 +625,9 @@ for s in ship_list:
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['payload'] = plane['attackCount']
+						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
+						module_list[module_id]['payload'] = plane['projectilesPerAttack']
+						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 					continue
 				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
 					#get turret parameter
@@ -631,7 +639,11 @@ for s in ship_list:
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
 						module_list[module_id]['payload'] = plane['attackCount']
+						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+						module_list[module_id]['bomb_type'] = projectile['ammoType']
+						module_list[module_id]['bomb_pen'] = projectile['alphaPiercingHE']
 					continue
 
 logging.info("Creating Modification Abbreviation")
@@ -1583,7 +1595,6 @@ class Client(discord.Client):
 						highest_caliber = sorted(modules['artillery'], key=lambda x : module_list[str(x)]['profile']['artillery']['caliber'], reverse=True)
 						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
 						
-						print(highest_caliber)
 						if (highest_caliber <= 155):
 							ship_type = "Light Cruiser"
 						elif (highest_caliber <= 203):
@@ -1638,7 +1649,6 @@ class Client(discord.Client):
 					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**\n'
 					
 					footer_message = ""
-					embed.description += f"Matchmaking tier {ship_param['battle_level_range_min']} - {ship_param['battle_level_range_max']}"
 					
 					is_filtered = lambda x: (ship_filter >> x) & 1 == 1
 					
@@ -1676,9 +1686,9 @@ class Client(discord.Client):
 							guns = module_list[str(h)]['profile']['artillery']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({int(guns['numBarrels'])} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
 							if guns['max_damage_HE']:
-								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%)\n"
+								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, Pen {guns['pen_HE']} mm)\n"
 							if 'max_damage_SAP' in guns:
-								m += f"**SAP:** {guns['max_damage_SAP']}\n"
+								m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm)\n"
 							if guns['max_damage_AP']:
 								m += f"**AP:** {guns['max_damage_AP']}\n"
 							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
@@ -1714,9 +1724,9 @@ class Client(discord.Client):
 							fighter = module_list[str(h)]['profile']['fighter']
 							n_attacks = fighter_module['squad_size']//fighter_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
-							m += f"**Aircraft:** {fighter['cruise_speed']} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed']*fighter_module['speed_max']:0.1f} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+							m += f"**Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%, Pen. '+str(fighter['rocket_pen'])+'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
 							
 							m += '\n'
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
@@ -1727,7 +1737,7 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.1f} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
 							
@@ -1740,9 +1750,9 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['dive_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Aircraft:** {bomber['cruise_speed']} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.1f} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+							m += f"**Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%, Pen. '+str(bomber_module['bomb_pen'])+'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
 							
 							m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=False)
