@@ -717,7 +717,7 @@ ship_tags = {
 }
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
-ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo(?:es)?)?( bombers?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:concealment)|(?:dectection))|((?:aa)|(?:anti-air))|(consumables?))*')
+ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo(?:es)?)?( bombers?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
 for s in ship_list:
 	try:
 		nat = nation_dictionary[ship_list[s]['nation']]
@@ -1640,9 +1640,9 @@ class Client(discord.Client):
 						ship_filter |= is_filter_requested(2) << guns_filter
 						ship_filter |= is_filter_requested(3) << atbas_filter
 						ship_filter |= is_filter_requested(4) << torps_filter
+						ship_filter |= is_filter_requested(rockets_filter) << rockets_filter
 						ship_filter |= (is_filter_requested(4) & is_filter_requested(5)) << torpbomber_filter
 						ship_filter |= is_filter_requested(6) << bomber_filter
-						ship_filter |= is_filter_requested(7) << rockets_filter
 						ship_filter |= is_filter_requested(8) << engine_filter
 						ship_filter |= is_filter_requested(9) << aa_filter
 						ship_filter |= is_filter_requested(10) << conceal_filter
