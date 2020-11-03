@@ -555,99 +555,102 @@ for s in ship_list:
 	ship = ship_list[s]
 	module_full_id_str = find_game_data_item(ship['ship_id_str'])
 	for i in module_full_id_str:
-		module_data = game_data[i]
-		
-		# grab consumables
-		ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
-		
-		ship_upgrade_info = module_data['ShipUpgradeInfo'] # get upgradable modules
-		for _info in ship_upgrade_info: # for each upgradable modules
-			if type(ship_upgrade_info[_info]) == dict: # if there are data
-				try:
-					module_id = find_module_by_tag(_info) # what is this module?
-				except:
-					logging.critical(f"Module with tag {_info} is not found")
-					exit(1)
-				if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
-					#get turret parameter
-					gun = ship_upgrade_info[_info]['components']['artillery'][0]
-					gun = module_data[gun]
-					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
-					for g in gun: # for each turret
-						turret_data = game_data[g]
-						module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
-						for a in turret_data['ammoList']:
-							ammo = game_data[a]
-							# print(ammo['alphaDamage'], ammo['ammoType'], f"{ammo['burnProb']} fire %")
-							module_list[module_id]['profile']['artillery']['numBarrels'] = turret_data['numBarrels']
-							if ammo['ammoType'] == 'HE':
-								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
-								module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
-							if ammo['ammoType'] == 'CS':
-								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
-					continue
-				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
-					#get torps parameter
-					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
-					gun = module_data[gun]
-					gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
-					for g in gun: # for each turret
-						turret_data = game_data[g]
-						module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
-						
-					continue
-				if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
-					#get fighter parameter
-					planes = ship_upgrade_info[_info]['components']['fighter'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']] # get rocket params
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['attackCount']
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						module_list[module_id]['profile']['fighter']['max_damage'] = int(projectile['alphaDamage'])
-						module_list[module_id]['profile']['fighter']['rocket_type'] = projectile['ammoType']
-						module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
-						module_list[module_id]['profile']['fighter']['rocket_pen'] = int(projectile['alphaPiercingHE'])
-					continue
-				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
-					#get torp bomber parameter
-					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['projectilesPerAttack']
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-					continue
-				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
-					#get turret parameter
-					planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['attackCount']
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						module_list[module_id]['bomb_type'] = projectile['ammoType']
-						module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-					continue
+		try:
+			module_data = game_data[i]
+			
+			# grab consumables
+			ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
+			
+			ship_upgrade_info = module_data['ShipUpgradeInfo'] # get upgradable modules
+			for _info in ship_upgrade_info: # for each upgradable modules
+				if type(ship_upgrade_info[_info]) == dict: # if there are data
+					try:
+						module_id = find_module_by_tag(_info) # what is this module?
+					except:
+						logging.critical(f"Module with tag {_info} is not found")
+						exit(1)
+					if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
+						#get turret parameter
+						gun = ship_upgrade_info[_info]['components']['artillery'][0]
+						gun = module_data[gun]
+						gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
+						for g in gun: # for each turret
+							turret_data = game_data[g]
+							module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
+							for a in turret_data['ammoList']:
+								ammo = game_data[a]
+								# print(ammo['alphaDamage'], ammo['ammoType'], f"{ammo['burnProb']} fire %")
+								module_list[module_id]['profile']['artillery']['numBarrels'] = turret_data['numBarrels']
+								if ammo['ammoType'] == 'HE':
+									module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
+									module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
+								if ammo['ammoType'] == 'CS':
+									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
+									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
+						continue
+					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
+						#get torps parameter
+						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
+						gun = module_data[gun]
+						gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
+						for g in gun: # for each turret
+							turret_data = game_data[g]
+							module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
+							
+						continue
+					if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
+						#get fighter parameter
+						planes = ship_upgrade_info[_info]['components']['fighter'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']] # get rocket params
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
+							module_list[module_id]['payload'] = plane['attackCount']
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['profile']['fighter']['max_damage'] = int(projectile['alphaDamage'])
+							module_list[module_id]['profile']['fighter']['rocket_type'] = projectile['ammoType']
+							module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
+							module_list[module_id]['profile']['fighter']['rocket_pen'] = int(projectile['alphaPiercingHE'])
+						continue
+					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
+						#get torp bomber parameter
+						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
+							module_list[module_id]['payload'] = plane['projectilesPerAttack']
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+						continue
+					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+						#get turret parameter
+						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax'] # squadron max speed, in multiplier
+							module_list[module_id]['payload'] = plane['attackCount']
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+						continue
+		except:
+			pass
 
 logging.info("Creating Modification Abbreviation")
 upgrade_abbr_list = {}
@@ -2078,9 +2081,10 @@ class Client(discord.Client):
 						# look up
 						result = []
 						for s in ship_list:
-							tags = [i.lower() for i in ship_list[s]['tags']]
-							if np.all([k.lower() in tags for k in key]):
-								result += [s]
+							if type(ship_list[s]['tags']) == list:
+								tags = [i.lower() for i in ship_list[s]['tags']]
+								if np.all([k.lower() in tags for k in key]):
+									result += [s]
 						logging.info("parsing complete")
 						logging.info("compiling message")
 						m = []
