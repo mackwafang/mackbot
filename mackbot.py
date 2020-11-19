@@ -2,7 +2,6 @@ DEBUG_IS_MAINTANCE = False
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
-import xml.etree.ElementTree as et
 import pandas as pd
 import numpy as np
 import cv2 as cv
@@ -550,6 +549,27 @@ if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 	logging.info("build dictionary complete")
 
+logging.info("Fetching Ship Parameters")
+ship_param_file_name = 'ship_param'
+logging.info("Checking cached ship_param file...")
+if os.path.isfile('./'+ship_param_file_name):
+	logging.info("File found. Loading file")
+	with open('./'+ship_param_file_name, 'rb') as f:
+		ship_info = pickle.load(f)
+else:
+	logging.info("File not found, fetching from weegee")
+	i = 0
+	ship_info = {}
+	for s in ship_list:
+		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
+		ship_info[s] = ship[s]
+		i += 1
+		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found\r")
+	logging.info("Creating cache")
+	with open('./'+ship_param_file_name,'wb') as f:
+		pickle.dump(ship_info, f)
+	logging.info("Cache creation complete")
+
 logging.info("Filling missing informations of modules")
 for s in ship_list:
 	ship = ship_list[s]
@@ -580,13 +600,18 @@ for s in ship_list:
 							for a in turret_data['ammoList']:
 								ammo = game_data[a]
 								# print(ammo['alphaDamage'], ammo['ammoType'], f"{ammo['burnProb']} fire %")
-								module_list[module_id]['profile']['artillery']['numBarrels'] = turret_data['numBarrels']
+								module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
 								if ammo['ammoType'] == 'HE':
 									module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb']*100)
 									module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
 								if ammo['ammoType'] == 'CS':
 									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
 									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
+									
+							# check for belfast and belfast '43
+							if 'Belfast' in ship['name']:
+								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
+								module_list[module_id]['profile']['artillery']['pen_HE'] = 0
 						continue
 					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
 						#get torps parameter
@@ -663,27 +688,6 @@ for u in upgrade_list:
 	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower() # add this abbreviation
 legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
 
-logging.info("Fetching Ship Parameters")
-ship_param_file_name = 'ship_param'
-logging.info("Checking cached ship_param file...")
-if os.path.isfile('./'+ship_param_file_name):
-	logging.info("File found. Loading file")
-	with open('./'+ship_param_file_name, 'rb') as f:
-		ship_info = pickle.load(f)
-else:
-	logging.info("File not found, fetching from weegee")
-	i = 0
-	ship_info = {}
-	for s in ship_list:
-		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
-		ship_info[s] = ship[s]
-		i += 1
-		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found\r")
-	logging.info("Creating cache")
-	with open('./'+ship_param_file_name,'wb') as f:
-		pickle.dump(ship_info, f)
-	logging.info("Cache creation complete")
-
 logging.info("Generating ship search tags")
 SHIP_TAG_SLOW_SPD = 0
 SHIP_TAG_FAST_SPD = 1
@@ -757,7 +761,7 @@ for s in ship_list:
 			ship_list[s]['tags'] += ['premium']
 	except Exception as e:
 		if type(e) == KeyError:
-			logging.warning(f"Ship {s} not found")
+			logging.warning(f"Ship Tags Generator: Ship {s} not found")
 		
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
@@ -1692,7 +1696,11 @@ class Client(discord.Client):
 							guns = module_list[str(h)]['profile']['artillery']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({int(guns['numBarrels'])} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
 							if guns['max_damage_HE']:
-								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, Pen {guns['pen_HE']} mm)\n"
+								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%"
+								if guns['pen_HE'] > 0:
+									m += f", Pen {guns['pen_HE']} mm)\n"
+								else:
+									m += ')\n'
 							if 'max_damage_SAP' in guns:
 								m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm)\n"
 							if guns['max_damage_AP']:
@@ -2480,7 +2488,7 @@ class Client(discord.Client):
 				else:
 					# doubloon to dollars
 					doub = int(doub)
-					value_exceed = not (500 <= doub and doub <= 25000)
+					value_exceed = not (500 <= doub and doub <= 100000)
 					doub_formula = lambda x: x / 250
 					
 					embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
