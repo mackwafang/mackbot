@@ -95,11 +95,16 @@ roman_numeral = {
 # actual stuff
 logging.info("Fetching WoWS Encyclopedia")
 # load important stuff
-with open(cwd+"/.env") as f:
-	s = f.read().split('\n')[:-1]
-	wg_token = s[0][s[0].find('=')+1:]
-	bot_token = s[1][s[1].find('=')+1:]
-	sheet_id = s[2][s[2].find('=')+1:]
+if "sheets_credential" in os.enviorn:
+	wg_token = os.enviorn['wg_token']
+	bot_token = os.enviorn['bot_token']
+	sheet_id = os.enviorn['sheet_id']
+else:
+	with open(cwd+"/.env") as f:
+		s = f.read().split('\n')[:-1]
+		wg_token = s[0][s[0].find('=')+1:]
+		bot_token = s[1][s[1].find('=')+1:]
+		sheet_id = s[2][s[2].find('=')+1:]
 
 # get weegee's wows encyclopedia
 wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclopedia
@@ -504,6 +509,11 @@ if not BUILD_EXTRACT_FROM_CACHE:
 			if creds and creds.expired and creds.refresh_token:
 				creds.refresh(Request())
 			else:
+				if "sheets_credential" in os.environ:
+					import json
+					cred = eval(os.environ['sheets_credential'])
+					with open("credentials.json") as f:
+						json.dump(cred, f)
 				flow = InstalledAppFlow.from_client_secrets_file(
 					'credentials.json', SCOPES)
 				creds = flow.run_local_server(port=0)
