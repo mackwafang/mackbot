@@ -17,23 +17,9 @@ if cwd == '':
 # logging shenanigans
 # logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
 # adding this so that shows no traceback during discord client is on
-class TracebackInfoFilter(logging.Filter):
-	"""Clear or restore the exception on log records"""
-	def __init__(self, clear=True):
-		self.clear = clear
-	def filter(self, record):
-		if self.clear:
-			record._exc_info_hidden, record.exc_info = record.exc_info, None
-			# clear the exception traceback text cache, if created.
-			record.exc_text = None
-		elif hasattr(record, "_exc_info_hidden"):
-			record.exc_info = record._exc_info_hidden
-			del record._exc_info_hidden
-		return True
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
-handler.addFilter(TracebackInfoFilter())
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -391,7 +377,7 @@ for page in count(1): #range(1,6):
 		else:
 			logging.info(type(e), e)
 		break
-del ship_list['3445503440'], ship_list['3340744656'], ship_list['3335501808']
+
 logging.info("Fetching Camo, Flags and Modification List")
 camo_list, flag_list, upgrade_list, flag_list = {}, {}, {}, {}
 for page_num in count(1):
