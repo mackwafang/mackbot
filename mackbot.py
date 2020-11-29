@@ -95,10 +95,10 @@ roman_numeral = {
 # actual stuff
 logging.info("Fetching WoWS Encyclopedia")
 # load important stuff
-if "sheets_credential" in os.enviorn:
-	wg_token = os.enviorn['wg_token']
-	bot_token = os.enviorn['bot_token']
-	sheet_id = os.enviorn['sheet_id']
+if "sheets_credential" in os.environ:
+	wg_token = os.environ['wg_token']
+	bot_token = os.environ['bot_token']
+	sheet_id = os.environ['sheet_id']
 else:
 	with open(cwd+"/.env") as f:
 		s = f.read().split('\n')[:-1]
