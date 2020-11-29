@@ -164,7 +164,8 @@ for page in count(1):
 		break
 
 # creating GameParams json from GameParams.data
-if os.path.isfile(os.path.join(".", "GameParams.data")) and not os.path.isfile(os.path.join(".", "GameParams.json")):
+assert os.path.isfile(os.path.join(".", "GameParams.data")) 
+if not os.path.isfile(os.path.join(".", "GameParams.json")):
 	logging.info("Creating GameParams.json")
 	import OneFileToRuleThemAll
 logging.info("Loading GameParams.json")
@@ -2567,7 +2568,4 @@ class Client(discord.Client):
 if __name__ == "__main__":
 	client = Client()
 	check_build()
-	try:
-		client.run(bot_token)
-	except Exception as e:
-		print(f"{type(e)}",e)
+	client.run(bot_token)
