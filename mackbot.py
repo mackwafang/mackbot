@@ -16,8 +16,24 @@ if cwd == '':
 
 # logging shenanigans
 # logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
+# adding this so that shows no traceback during discord client is on
+class TracebackInfoFilter(logging.Filter):
+	"""Clear or restore the exception on log records"""
+	def __init__(self, clear=True):
+		self.clear = clear
+	def filter(self, record):
+		if self.clear:
+			record._exc_info_hidden, record.exc_info = record.exc_info, None
+			# clear the exception traceback text cache, if created.
+			record.exc_text = None
+		elif hasattr(record, "_exc_info_hidden"):
+			record.exc_info = record._exc_info_hidden
+			del record._exc_info_hidden
+		return True
+
 logger = logging.getLogger()
 handler = logging.StreamHandler()
+handler.addFilter(TracebackInfoFilter())
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -155,8 +171,12 @@ for page in count(1):
 		else:
 			logging.info(type(e), e)
 		break
-		
-logging.info("Loading Game Params json")
+
+# creating GameParams json from GameParams.data
+if os.path.isfile(os.path.join(".", "GameParams.data")) and not os.path.isfile(os.path.join(".", "GameParams.json")):
+	logging.info("Creating GameParams.json")
+	import OneFileToRuleThemAll
+logging.info("Loading GameParams.json")
 with open('GameParams.json') as f:
 	game_data = json.load(f)
 
@@ -917,7 +937,9 @@ def get_build_data(ship, battle_type='casual'):
 			battle_type		- (str) build enviornment (casual or competitive)
 		or
 			None, if no build exists
-		raise exceptions for dictionary
+		raise InvalidShipName exception if name provided is incorrect
+		or
+		NoBuildFound exception if no build is found
 	"""
 	
 	original_arg = ship
@@ -1425,9 +1447,12 @@ class Client(discord.Client):
 				ship = ''.join([i+' ' for i in arg[2:]])[:-1] # grab ship name
 			if requested_image:
 				# try to get image format for this build
-				async with channel.typing():
-					try:
-						name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
+				try:
+					async with channel.typing():
+						output = get_build_data(ship, battle_type=battle_type)
+						if output is None:
+							raise NameError("NoBuildFound")
+						name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = output
 						logging.info(f"returning build information for <{name}> in image format")
 						filename = f'./{name.lower()}_{battle_type}_build.png'
 						if os.path.isfile(filename):
@@ -1459,25 +1484,28 @@ class Client(discord.Client):
 							# does not exists
 							await channel.send(f"An Image build for {name} does not exists. Sending normal message.")
 							await self.build(message, arg)
-						
-					except Exception as e:
-						logging.info(f"Exception {type(e)}", e)
-						if type(e) == discord.errors.Forbidden:
-							await channel.send(f"I need the **Attach Files Permission** to use this feature!")
-							await self.build(message, arg)
-						else:
-							ship_name_list = [ship_list[i]['name'] for i in ship_list]
-							closest_match = difflib.get_close_matches(ship, ship_name_list)
-							closest_match_string = ""
-							if len(closest_match) > 0:
-								closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 							
-							await channel.send(f"Ship **{ship}** is not understood.{closest_match_string}")
+				except Exception as e:
+					logging.info(f"Exception {type(e)}", e)
+					if type(e) == discord.errors.Forbidden:
+						await channel.send(f"I need the **Attach Files Permission** to use this feature!")
+						await self.build(message, arg)
+					else:
+						ship_name_list = [ship_list[i]['name'] for i in ship_list]
+						closest_match = difflib.get_close_matches(ship, ship_name_list)
+						closest_match_string = ""
+						if len(closest_match) > 0:
+							closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+						
+						await channel.send(f"Ship **{ship}** is not understood.{closest_match_string}")
 			else:
 				# get text-based format build
 				try:
 					async with channel.typing():
-						name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_build_data(ship, battle_type=battle_type)
+						output = get_build_data(ship, battle_type=battle_type)
+						if output is None:
+							raise NameError("NoBuildFound")
+						name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = output
 						logging.info(f"returning build information for <{name}> in embeded format")
 						ship_type = ship_types[ship_type] #convert weegee ship type to hull classifications
 						embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
@@ -1597,7 +1625,10 @@ class Client(discord.Client):
 			try:
 				async with channel.typing():
 					ship_param = get_ship_data(ship)
-					name, nation, images, ship_type, tier, consumables, modules, _, is_prem, _, _, _, _, _ = get_build_data(ship)
+					output = get_build_data(ship)
+					if output is None:
+						raise NameError("NoShipFound")
+					name, nation, images, ship_type, tier, consumables, modules, _, is_prem, _, _, _, _, _ = output
 					logging.info(f"returning ship information for <{name}> in embeded format")
 					ship_type = ship_types[ship_type]
 					
@@ -2337,7 +2368,11 @@ class Client(discord.Client):
 			try:
 				async with channel.typing():
 					logging.info(f'sending message for commander <{cmdr}>')
-					name, icon, nation, cmdr_id = get_commander_data(cmdr)
+					
+					output = get_commander_data(cmdr)
+					if output is None:
+						raise NameError("NoCommanderFound")
+					name, icon, nation, cmdr_id = output
 					embed = discord.Embed(title="Commander")
 					embed.set_thumbnail(url=icon)
 					embed.add_field(name='Name',value=name, inline=False)
@@ -2384,7 +2419,7 @@ class Client(discord.Client):
 			except Exception as e:
 				logging.info(f"Exception {type(e)}: ", e)
 				# error, ship name not understood
-				cmdr_name_list = [cmdr_list[i]['name'] for i in cmdr_list]
+				cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
 				closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
 				closest_match_string = ""
 				if len(closest_match) > 0:
