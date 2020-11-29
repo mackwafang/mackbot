@@ -1,2 +1,3 @@
 numpy==1.16.5
 discord.py==1.2.5
+wargaming==2018.5.0
