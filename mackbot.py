@@ -164,12 +164,8 @@ for page in count(1):
 		break
 
 # creating GameParams json from GameParams.data
-assert os.path.isfile(os.path.join(".", "GameParams.data")) 
-if not os.path.isfile(os.path.join(".", "GameParams.json")):
-	logging.info("Creating GameParams.json")
-	import OneFileToRuleThemAll
 logging.info("Loading GameParams.json")
-with open('GameParams.json') as f:
+with open('GameParamsPruned.json') as f:
 	game_data = json.load(f)
 
 # find game data items by tags
