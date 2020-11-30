@@ -506,11 +506,6 @@ if not BUILD_EXTRACT_FROM_CACHE:
 			if creds and creds.expired and creds.refresh_token:
 				creds.refresh(Request())
 			else:
-				# if "sheets_credential" in os.environ:
-					# import json
-					# cred = eval(os.environ['sheets_credential'])
-					# with open("credentials.json", 'w') as f:
-						# json.dump(cred, f)
 				flow = InstalledAppFlow.from_client_secrets_file(
 					'credentials.json', SCOPES)
 				creds = flow.run_local_server(port=0)
@@ -544,22 +539,26 @@ if not BUILD_EXTRACT_FROM_CACHE:
 	except Exception as e:
 		extract_from_web_failed = True
 		logging.info(f"Exception raised while fetching builds: {e}")
-if False:
-#if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
+
+if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 	if extract_from_web_failed:
 		logging.info("Get builds from sheets failed")
-	root = et.parse(cwd+"/ship_builds.xml").getroot()
+	with open("ship_builds.json") as f:
+		builds = json.load(f)
 	logging.info('Making build dictionary from cache')
-	for ship in root:
-		upgrades = []
-		skills = []
-		build_type = int(ship.find('type').text)
-		for upgrade in ship.find('upgrades'):
-			upgrades.append(upgrade.text)
-		for skill in ship.find('skills'):
-			skills.append(skill.text)
-		cmdr = ship.find('commander').text
-		ship_build[build_battle_type[build_type]][ship.attrib['name']] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+	for i in builds:
+		build = builds[i]
+		
+		ship_name = build['ship']
+		if ship_name in ship_name_to_ascii:
+			ship_name = ship_name_to_ascii[ship_name]
+		
+		build_type = build['type']
+		
+		upgrades = [u for u in build['upgrades'] if len(u) > 0]
+		skills = [s for s in build['skills'] if len(s) > 0]
+		cmdr = build['cmdr']
+		ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
 	logging.info("build dictionary complete")
 
 logging.info("Fetching Ship Parameters")
