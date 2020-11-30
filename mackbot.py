@@ -545,7 +545,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 		extract_from_web_failed = True
 		logging.info(f"Exception raised while fetching builds: {e}")
 
-if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
+if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed or False:
 	if extract_from_web_failed:
 		logging.info("Get builds from sheets failed")
 	root = et.parse(cwd+"/ship_builds.xml").getroot()
