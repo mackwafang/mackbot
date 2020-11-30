@@ -509,7 +509,7 @@ if not BUILD_EXTRACT_FROM_CACHE:
 				if "sheets_credential" in os.environ:
 					import json
 					cred = eval(os.environ['sheets_credential'])
-					with open("credentials.json") as f:
+					with open("credentials.json", 'w') as f:
 						json.dump(cred, f)
 				flow = InstalledAppFlow.from_client_secrets_file(
 					'credentials.json', SCOPES)
