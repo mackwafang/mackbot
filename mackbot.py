@@ -506,11 +506,11 @@ if not BUILD_EXTRACT_FROM_CACHE:
 			if creds and creds.expired and creds.refresh_token:
 				creds.refresh(Request())
 			else:
-				if "sheets_credential" in os.environ:
-					import json
-					cred = eval(os.environ['sheets_credential'])
-					with open("credentials.json", 'w') as f:
-						json.dump(cred, f)
+				# if "sheets_credential" in os.environ:
+					# import json
+					# cred = eval(os.environ['sheets_credential'])
+					# with open("credentials.json", 'w') as f:
+						# json.dump(cred, f)
 				flow = InstalledAppFlow.from_client_secrets_file(
 					'credentials.json', SCOPES)
 				creds = flow.run_local_server(port=0)
