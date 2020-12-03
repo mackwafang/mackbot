@@ -576,7 +576,9 @@ else:
 		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
 		ship_info[s] = ship[s]
 		i += 1
-		logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found\r")
+		print(f"Fetching ship parameters. {i}/{len(ship_list)} ships found", end='\r')
+	print()
+	logging.info("Fetch complete")
 	logging.info("Creating cache")
 	with open('./'+ship_param_file_name,'wb') as f:
 		pickle.dump(ship_info, f)
@@ -601,6 +603,50 @@ for s in ship_list:
 					except:
 						logging.critical(f"Module with tag {_info} is not found")
 						exit(1)
+						
+					if ship_upgrade_info[_info]['ucType'] == '_Hull':
+						
+						# initialize AA dictionary
+						module_list[module_id]['profile']['anti_air'] = {}
+						
+						min_aa_range = np.Inf
+						max_aa_range = -np.Inf
+						
+						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
+						aa_defense = module_data[aa_defense]
+						for a in [a for a in aa_defense if 'Aura' in a]:
+							aa_data = aa_defense[a]
+							if 'Aura' in a:
+								if aa_data['type'] == 'near':
+									module_list[module_id]['profile']['anti_air']['near_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								if aa_data['type'] == 'medium':
+									module_list[module_id]['profile']['anti_air']['medium_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								min_aa_range = min(min_aa_range, aa_data['minDistance'])
+								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+								
+						try:
+							if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+								# get far AA armament from secondary
+								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
+							else:
+								# no AA armament from secondary, try primary guns
+								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
+							for a in [a for a in aa_defense_far if 'Far' in a]:
+								aa_data = aa_defense_far[a]
+
+								if 'Bubbles' not in a:
+									module_list[module_id]['profile']['anti_air']['far_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								else:
+									module_list[module_id]['profile']['anti_air']['flak_count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+									module_list[module_id]['profile']['anti_air']['flak_damage'] = aa_data['bubbleDamage']
+								min_aa_range = min(min_aa_range, aa_data['minDistance'])
+								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+
+							module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
+							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
+						except:
+							pass
+						
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 						#get turret parameter
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
@@ -629,10 +675,12 @@ for s in ship_list:
 						#get torps parameter
 						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 						gun = module_data[gun]
-						gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
-						for g in gun: # for each turret
-							turret_data = game_data[g]
+						# gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
+						for g in [turret for turret in [g for g in gun if 'HP' in g]]: # for each turret
+							turret_data = gun[g]
 							module_list[module_id]['profile']['torpedoes']['numBarrels'] = turret_data['numBarrels']
+							module_list[module_id]['profile']['torpedoes']['shotDelay'] = turret_data['shotDelay']
+							break
 							
 						continue
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
@@ -1624,6 +1672,7 @@ class Client(discord.Client):
 					logging.info(f"returning ship information for <{name}> in embeded format")
 					ship_type = ship_types[ship_type]
 					
+					
 					if ship_type == 'Cruiser':
 						highest_caliber = sorted(modules['artillery'], key=lambda x : module_list[str(x)]['profile']['artillery']['caliber'], reverse=True)
 						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
@@ -1744,13 +1793,35 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Secondary Battery**__", value=m, inline=False)
+						
+					# anti air
+					if len(modules['hull']) > 0 and is_filtered(aa_filter):
+						m = ""
+						for hull in modules['hull']:
+							aa = module_list[str(hull)]['profile']['anti_air']
+							hull_name = module_list[str(h)]['name']
+							m += f"**{hull_name}**\n"
+							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] // 1000:0.1f} km\n"
+							m += f"**Flak:** {int(aa['flak_count'])} burst{'s' if aa['flak_count'] > 0 else ''}, {int(aa['flak_count']*aa['flak_damage'])}:boom:\n"
+							if "near_damage" in aa:
+								m += f"**Short Range:** {int(aa['near_damage'])}\n"
+							if "medium_damage" in aa:
+								m += f"**Mid Range:** {int(aa['medium_damage'])}\n"
+							if "far_damage" in aa:
+								m += f"**Long Range:** {int(aa['far_damage'])}\n"
+							m += '\n'
+						embed.add_field(name="__**Anti-Air**__", value=m, inline=False)
+					
 					if len(modules['torpedoes']) > 0 and is_filtered(torps_filter):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({torps['distance']} km, {int(torps['numBarrels'])} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
-							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
+							reload_minute = torps['shotDelay'] // 60
+							reload_second = torps['shotDelay'] % 60
+							m += f"**Reload:** {'' if reload_second > 0 else reload_minute+'m'} {reload_second}s\n"
 							m += f"**Damage:** {torps['max_damage']}\n"
+							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
 							
 							m += '\n'
 						embed.add_field(name="__**Torpedoes**__", value=m, inline=False)
