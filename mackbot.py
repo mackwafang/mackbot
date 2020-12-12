@@ -607,10 +607,11 @@ for s in ship_list:
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
 						# initialize AA dictionary
 						module_list[module_id]['profile']['anti_air'] = {
-							'near': {},
-							'medium': {},
-							'far': {},
-							'flak': {},
+							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
+							'near': {'damage': 0,},
+							'medium': {'damage': 0,},
+							'far': {'damage': 0,},
+							'flak': {'damage': 0,},
 						}
 						
 						min_aa_range = np.Inf
@@ -618,14 +619,15 @@ for s in ship_list:
 						
 						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
 						aa_defense = module_data[aa_defense]
+						
 						for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
 							aa_data = aa_defense[a]
 							if aa_data['type'] == 'near':
-								module_list[module_id]['profile']['anti_air']['near']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
 								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
 								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
 							if aa_data['type'] == 'medium':
-								module_list[module_id]['profile']['anti_air']['medium']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
 								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
 								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
 							min_aa_range = min(min_aa_range, aa_data['minDistance'])
@@ -637,17 +639,19 @@ for s in ship_list:
 						else:
 							# AA armament from primary guns
 							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
+						
 						for a in [a for a in aa_defense_far if 'Far' in a]:
 							aa_data = aa_defense_far[a]
 
 							if 'Bubbles' not in a:
-								module_list[module_id]['profile']['anti_air']['far']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
 								module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
 							else:
 								module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-								module_list[module_id]['profile']['anti_air']['flak']['damage'] = aa_data['bubbleDamage']
+								module_list[module_id]['profile']['anti_air']['flak']['damage'] += aa_data['bubbleDamage']
 								module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
 								module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+							
 							min_aa_range = min(min_aa_range, aa_data['minDistance'])
 							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 
@@ -1726,21 +1730,21 @@ class Client(discord.Client):
 						ship_filter = 0b00000000000 # filter is requested, disable all
 						# s = ship_param_filter_regex.findall(''.join([i + ' ' for i in param_filter]))
 						s = ship_param_filter_regex.findall(param_filter) # what am i looking for?
-						is_filter_requested = lambda x: 1 if len([i[x] for i in s if len(i[x]) > 0]) > 0 else 0 #check length of regex capture groups. if len > 0, request is valid
+						is_filter_requested = lambda x: 1 if len([i[x-1] for i in s if len(i[x-1]) > 0]) > 0 else 0 #check length of regex capture groups. if len > 0, request is valid
 						
 						# enables proper filter
-						ship_filter |= is_filter_requested(1) << hull_filter
-						ship_filter |= is_filter_requested(2) << guns_filter
-						ship_filter |= is_filter_requested(3) << atbas_filter
-						ship_filter |= is_filter_requested(4) << torps_filter
-						ship_filter |= is_filter_requested(rockets_filter) << rockets_filter
-						ship_filter |= (is_filter_requested(4) & is_filter_requested(5)) << torpbomber_filter
-						ship_filter |= is_filter_requested(6) << bomber_filter
-						ship_filter |= is_filter_requested(8) << engine_filter
-						ship_filter |= is_filter_requested(9) << aa_filter
-						ship_filter |= is_filter_requested(10) << conceal_filter
-						ship_filter |= is_filter_requested(11) << consumable_filter
-						del is_filter_requested
+						slot = ''.join([i[1] for i in s])
+						ship_filter |= is_filter_requested(2) << hull_filter
+						ship_filter |= is_filter_requested(3) << guns_filter
+						ship_filter |= is_filter_requested(4) << atbas_filter
+						ship_filter |= is_filter_requested(5) << torps_filter
+						ship_filter |= is_filter_requested(8) << rockets_filter
+						ship_filter |= (is_filter_requested(5) & is_filter_requested(6)) << torpbomber_filter
+						ship_filter |= is_filter_requested(7) << bomber_filter
+						ship_filter |= is_filter_requested(9) << engine_filter
+						ship_filter |= is_filter_requested(10) << aa_filter
+						ship_filter |= is_filter_requested(11) << conceal_filter
+						ship_filter |= is_filter_requested(12) << consumable_filter
 						
 					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium "+ship_type if is_prem else ship_type}**\n'
 					
@@ -1798,7 +1802,7 @@ class Client(discord.Client):
 							m += f"**Reload:** {60/guns['gun_rate']:0.1f}s\n"
 							
 							m += '\n'
-						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+						embed.add_field(name="__**Main Battery**__", value=m)
 						
 					# secondary armaments 
 					if ship_param['atbas'] is not None and is_filtered(atbas_filter):
@@ -1812,28 +1816,36 @@ class Client(discord.Client):
 							m += f"**Reload:** {guns['shot_delay']}s\n"
 							
 							m += '\n'
-						embed.add_field(name="__**Secondary Battery**__", value=m, inline=False)
+						embed.add_field(name="__**Secondary Battery**__", value=m)
 						
 					# anti air
 					if len(modules['hull']) > 0 and is_filtered(aa_filter):
 						m = ""
-						for hull in modules['hull']:
-							aa = module_list[str(hull)]['profile']['anti_air']
-							flak = aa['flak']
-							near = aa['near']
-							medium = aa['medium']
-							far = aa['far']
-							
+						
+						if ship_filter == 2 ** (aa_filter):
+							for hull in modules['hull']:
+								aa = module_list[str(hull)]['profile']['anti_air']
+								m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+								# provide more AA detail
+								flak = aa['flak']
+								near = aa['near']
+								medium = aa['medium']
+								far = aa['far']
+								
+								m += f"**{name} ({aa['hull']})**\n"
+								m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {int(flak['count']*flak['damage'])}:boom:\n"
+								if near['damage'] > 0:
+									m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance']*100)}%)\n"
+								if medium['damage'] > 0:
+									m += f"**Mid Range:** {medium['damage']:0.1f} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance']*100)}%)\n"
+								if far['damage'] > 0:
+									m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance']*100)}%)\n"
+								m += '\n'
+						else:
+							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
 							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
-							m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {int(flak['count']*flak['damage'])}:boom:\n"
-							if len(near) > 0:
-								m += f"**Short Range:** {int(near['damage'])} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance']*100)}%)\n"
-							if len(medium) > 0:
-								m += f"**Mid Range:** {int(medium['damage'])} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance']*100)}%)\n"
-							if len(far) > 0:
-								m += f"**Long Range:** {int(far['damage'])} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance']*100)}%)\n"
-							m += '\n'
-						embed.add_field(name="__**Anti-Air**__", value=m, inline=False)
+						embed.add_field(name="__**Anti-Air**__", value=m)
 					
 					# torpedoes
 					if len(modules['torpedoes']) > 0 and is_filtered(torps_filter):
@@ -1848,7 +1860,7 @@ class Client(discord.Client):
 							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
 							
 							m += '\n'
-						embed.add_field(name="__**Torpedoes**__", value=m, inline=False)
+						embed.add_field(name="__**Torpedoes**__", value=m)
 						
 					# attackers
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
@@ -1858,13 +1870,13 @@ class Client(discord.Client):
 							fighter = module_list[str(h)]['profile']['fighter']
 							n_attacks = fighter_module['squad_size']//fighter_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
-							m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed']*fighter_module['speed_max']:0.0f} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-							m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%, Pen. '+str(fighter['rocket_pen'])+'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
-							
-							m += '\n'
-						embed.add_field(name="__**Attackers**__", value=m, inline=False)
+							if ship_filter == 2 ** (rockets_filter):
+								m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed']*fighter_module['speed_max']:0.0f} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
+								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%, Pen. '+str(fighter['rocket_pen'])+'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+								m += '\n'
+						embed.add_field(name="__**Attackers**__", value=m)
 						
 					# torpedo bomber
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
@@ -1874,13 +1886,13 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
-							
-							m += '\n'
-						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=False)
+							if ship_filter == (2 ** (torps_filter) | 2 ** (torpbomber_filter)):
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
+								m += '\n'
+						embed.add_field(name="__**Torpedo Bomber**__", value=m)
 						
 					# dive bombers
 					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
@@ -1890,13 +1902,13 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['dive_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
-							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%, Pen. '+str(bomber_module['bomb_pen'])+'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
-							
-							m += '\n'
-						embed.add_field(name="__**Bombers**__", value=m, inline=False)
+							if ship_filter == 2 ** (bomber_filter):
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%, Pen. '+str(bomber_module['bomb_pen'])+'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+								m += '\n'
+						embed.add_field(name="__**Bombers**__", value=m)
 						
 					# engine
 					if len(modules['engine']) > 0 and is_filtered(engine_filter):
@@ -1905,14 +1917,14 @@ class Client(discord.Client):
 							engine = module_list[str(e)]['profile']['engine']
 							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
-						embed.add_field(name="__**Engine**__", value=m, inline=True)
+						embed.add_field(name="__**Engine**__", value=m, inline=False)
 						
 					# concealment
 					if ship_param['concealment'] is not None and is_filtered(conceal_filter):
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
-						embed.add_field(name="__**Concealment**__", value=m, inline=True)
+						embed.add_field(name="__**Concealment**__", value=m, inline=False)
 						
 					# consumables
 					if len(consumables) > 0 and is_filtered(consumable_filter):
@@ -1933,31 +1945,32 @@ class Client(discord.Client):
 									charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables'] 
 									action_time = consumable['workTime']
 									cd_time = consumable['reloadTime']
-									consumable_detail = ""
-									if consumable_type == 'airDefenseDisp':
-										consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"]*100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"]*100:0.0f}%'
-									if consumable_type == 'artilleryBoosters':
-										consumable_detail = f'Reload Time: -50%'
-									if consumable_type == 'regenCrew':
-										consumable_detail = f'Repairs {consumable["regenerationHPSpeed"]*100}% of max HP / sec.\n'
-										for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-											hull = module_list[str(h)]['profile']['hull']
-											consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
-									if consumable_type == 'rls':
-										consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
-									if consumable_type == 'scout':
-										consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
-									if consumable_type == 'smokeGenerator':
-										consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60))+"m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60))+"s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
-									if consumable_type == 'sonar':
-										consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f} km'
-									if consumable_type == 'speedBoosters':
-										consumable_detail = f'Max Speed: +{consumable["boostCoeff"]*100:0.0f}%'
-									if consumable_type == 'torpedoReloader':
-										consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
 									
 									m += f"**{consumable_name}**\n"
-									if ship_filter == 2 ** (consumable_filter):
+									if ship_filter == 2 ** (consumable_filter): # shows detail of consumable
+										consumable_detail = ""
+										if consumable_type == 'airDefenseDisp':
+											consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"]*100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"]*100:0.0f}%'
+										if consumable_type == 'artilleryBoosters':
+											consumable_detail = f'Reload Time: -50%'
+										if consumable_type == 'regenCrew':
+											consumable_detail = f'Repairs {consumable["regenerationHPSpeed"]*100}% of max HP / sec.\n'
+											for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+												hull = module_list[str(h)]['profile']['hull']
+												consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
+										if consumable_type == 'rls':
+											consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
+										if consumable_type == 'scout':
+											consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
+										if consumable_type == 'smokeGenerator':
+											consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60))+"m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60))+"s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
+										if consumable_type == 'sonar':
+											consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f} km'
+										if consumable_type == 'speedBoosters':
+											consumable_detail = f'Max Speed: +{consumable["boostCoeff"]*100:0.0f}%'
+										if consumable_type == 'torpedoReloader':
+											consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
+										
 										m += f"{charges} charge{'s' if charges != 1 else ''}, "
 										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60))+'s' if action_time % 60 > 0 else ''} duration, "
 										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60))+'s' if cd_time % 60 > 0 else ''} cooldown.\n"
@@ -1967,8 +1980,8 @@ class Client(discord.Client):
 								m += '\n'
 						embed.add_field(name="__**Consumables**__", value=m, inline=False)
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n"+
-						f"For specific parameters, use [mackbot ship {ship} (parameters)]\n"+
-						f"For detailed information for this ship's consumables, use [mackbot ship {ship} (consumables)]")
+						f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"+
+						f"Parameters values include, but not limited to: guns, secondaries, attackers, torps, bombers, engine, concealment")
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
