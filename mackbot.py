@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
@@ -605,47 +605,54 @@ for s in ship_list:
 						exit(1)
 						
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
-						
 						# initialize AA dictionary
-						module_list[module_id]['profile']['anti_air'] = {}
+						module_list[module_id]['profile']['anti_air'] = {
+							'near': {},
+							'medium': {},
+							'far': {},
+							'flak': {},
+						}
 						
 						min_aa_range = np.Inf
 						max_aa_range = -np.Inf
 						
 						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
 						aa_defense = module_data[aa_defense]
-						for a in [a for a in aa_defense if 'Aura' in a]:
+						for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
 							aa_data = aa_defense[a]
-							if 'Aura' in a:
-								if aa_data['type'] == 'near':
-									module_list[module_id]['profile']['anti_air']['near_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								if aa_data['type'] == 'medium':
-									module_list[module_id]['profile']['anti_air']['medium_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								min_aa_range = min(min_aa_range, aa_data['minDistance'])
-								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-								
-						try:
-							if len(ship_upgrade_info[_info]['components']['atba']) > 0:
-								# get far AA armament from secondary
-								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
+							if aa_data['type'] == 'near':
+								module_list[module_id]['profile']['anti_air']['near']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
+								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+							if aa_data['type'] == 'medium':
+								module_list[module_id]['profile']['anti_air']['medium']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
+								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
+							min_aa_range = min(min_aa_range, aa_data['minDistance'])
+							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+						
+						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+							# none found from primary guns get far AA armament from secondary
+							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
+						else:
+							# AA armament from primary guns
+							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
+						for a in [a for a in aa_defense_far if 'Far' in a]:
+							aa_data = aa_defense_far[a]
+
+							if 'Bubbles' not in a:
+								module_list[module_id]['profile']['anti_air']['far']['damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
 							else:
-								# no AA armament from secondary, try primary guns
-								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
-							for a in [a for a in aa_defense_far if 'Far' in a]:
-								aa_data = aa_defense_far[a]
+								module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+								module_list[module_id]['profile']['anti_air']['flak']['damage'] = aa_data['bubbleDamage']
+								module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
+								module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+							min_aa_range = min(min_aa_range, aa_data['minDistance'])
+							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 
-								if 'Bubbles' not in a:
-									module_list[module_id]['profile']['anti_air']['far_damage'] = aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								else:
-									module_list[module_id]['profile']['anti_air']['flak_count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-									module_list[module_id]['profile']['anti_air']['flak_damage'] = aa_data['bubbleDamage']
-								min_aa_range = min(min_aa_range, aa_data['minDistance'])
-								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-
-							module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
-							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
-						except:
-							pass
+						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
+						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 						
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 						#get turret parameter
@@ -840,7 +847,7 @@ token = ' '
 
 good_bot_messages = (
 	'Thank you!',
-	'Yūdachi tattara kekkō ganbatta poii? Teitoku-san homete hometei!',
+	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
 	':3',
 	':heart:',
 )
@@ -1674,12 +1681,17 @@ class Client(discord.Client):
 					
 					
 					if ship_type == 'Cruiser':
+						# reclassify cruisers to their correct classification based on the washington naval treaty
+						
+						# check for the highest caliber
 						highest_caliber = sorted(modules['artillery'], key=lambda x : module_list[str(x)]['profile']['artillery']['caliber'], reverse=True)
 						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
 						
 						if (highest_caliber <= 155):
+							# if caliber less than or equal to 155mm
 							ship_type = "Light Cruiser"
 						elif (highest_caliber <= 203):
+							# if caliber between 155mm and up to 203mm
 							ship_type = "Heavy Cruiser"
 						else:
 							ship_type = "Battlecruiser"
@@ -1694,6 +1706,8 @@ class Client(discord.Client):
 					# emoji exists!
 					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 					
+					
+					# defines ship params filtering 
 					hull_filter = 0
 					guns_filter = 1
 					atbas_filter = 2
@@ -1709,11 +1723,11 @@ class Client(discord.Client):
 					ship_filter = 0b11111111111 # assuming no filter is provided, display all
 					# grab filters
 					if len(param_filter) > 0:
-						ship_filter = 0b00000000000 # filter is requested, set disable all
+						ship_filter = 0b00000000000 # filter is requested, disable all
 						# s = ship_param_filter_regex.findall(''.join([i + ' ' for i in param_filter]))
 						s = ship_param_filter_regex.findall(param_filter) # what am i looking for?
-						is_filter_requested = lambda x: 1 if len([i[x] for i in s if len(i[x]) > 0]) > 0 else 0 # lambda function. check length of regex capture groups. if len > 0, request is valid
-						# slot = ''.join([i[1] for i in s]) # wtf is this. too scared to remove
+						is_filter_requested = lambda x: 1 if len([i[x] for i in s if len(i[x]) > 0]) > 0 else 0 #check length of regex capture groups. if len > 0, request is valid
+						
 						# enables proper filter
 						ship_filter |= is_filter_requested(1) << hull_filter
 						ship_filter |= is_filter_requested(2) << guns_filter
@@ -1734,6 +1748,9 @@ class Client(discord.Client):
 					
 					is_filtered = lambda x: (ship_filter >> x) & 1 == 1
 					
+					# output information as  embeded fields
+					
+					# General hull info
 					if len(modules['hull']) > 0 and is_filtered(hull_filter):
 						m = ""
 						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
@@ -1757,6 +1774,7 @@ class Client(discord.Client):
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=False)
 						
+					# guns info
 					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
 						m = ""
 						m += f"**Range: **"
@@ -1781,6 +1799,8 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+						
+					# secondary armaments 
 					if ship_param['atbas'] is not None and is_filtered(atbas_filter):
 						m = ""
 						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
@@ -1799,19 +1819,23 @@ class Client(discord.Client):
 						m = ""
 						for hull in modules['hull']:
 							aa = module_list[str(hull)]['profile']['anti_air']
-							hull_name = module_list[str(h)]['name']
-							m += f"**{hull_name}**\n"
-							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] // 1000:0.1f} km\n"
-							m += f"**Flak:** {int(aa['flak_count'])} burst{'s' if aa['flak_count'] > 0 else ''}, {int(aa['flak_count']*aa['flak_damage'])}:boom:\n"
-							if "near_damage" in aa:
-								m += f"**Short Range:** {int(aa['near_damage'])}\n"
-							if "medium_damage" in aa:
-								m += f"**Mid Range:** {int(aa['medium_damage'])}\n"
-							if "far_damage" in aa:
-								m += f"**Long Range:** {int(aa['far_damage'])}\n"
+							flak = aa['flak']
+							near = aa['near']
+							medium = aa['medium']
+							far = aa['far']
+							
+							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+							m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {int(flak['count']*flak['damage'])}:boom:\n"
+							if len(near) > 0:
+								m += f"**Short Range:** {int(near['damage'])} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance']*100)}%)\n"
+							if len(medium) > 0:
+								m += f"**Mid Range:** {int(medium['damage'])} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance']*100)}%)\n"
+							if len(far) > 0:
+								m += f"**Long Range:** {int(far['damage'])} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance']*100)}%)\n"
 							m += '\n'
 						embed.add_field(name="__**Anti-Air**__", value=m, inline=False)
 					
+					# torpedoes
 					if len(modules['torpedoes']) > 0 and is_filtered(torps_filter):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
@@ -1825,6 +1849,8 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Torpedoes**__", value=m, inline=False)
+						
+					# attackers
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
 						m = ""
 						for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
@@ -1839,6 +1865,8 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
+						
+					# torpedo bomber
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
 						m = ""
 						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
@@ -1853,6 +1881,8 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=False)
+						
+					# dive bombers
 					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
 						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
@@ -1867,6 +1897,8 @@ class Client(discord.Client):
 							
 							m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=False)
+						
+					# engine
 					if len(modules['engine']) > 0 and is_filtered(engine_filter):
 						m = ""
 						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
@@ -1874,11 +1906,15 @@ class Client(discord.Client):
 							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
 						embed.add_field(name="__**Engine**__", value=m, inline=True)
+						
+					# concealment
 					if ship_param['concealment'] is not None and is_filtered(conceal_filter):
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
 						embed.add_field(name="__**Concealment**__", value=m, inline=True)
+						
+					# consumables
 					if len(consumables) > 0 and is_filtered(consumable_filter):
 						m = ""
 						for consumable_slot in consumables:
