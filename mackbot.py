@@ -1,13 +1,14 @@
 DEBUG_IS_MAINTANCE = False
 
 # loading cheats
-import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, pprint
+import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib
 import pandas as pd
 import numpy as np
 import cv2 as cv
 from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
+from pprint import pprint
 
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
@@ -602,15 +603,15 @@ for s in ship_list:
 						module_id = find_module_by_tag(_info) # what is this module?
 					except:
 						logging.critical(f"Module with tag {_info} is not found")
-						exit(1)
+						break
 						
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
 						# initialize AA dictionary
 						module_list[module_id]['profile']['anti_air'] = {
 							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
-							'near': {'damage': 0,},
-							'medium': {'damage': 0,},
-							'far': {'damage': 0,},
+							'near': {'damage': 0, 'hitChance':0},
+							'medium': {'damage': 0, 'hitChance':0},
+							'far': {'damage': 0, 'hitChance':0},
 							'flak': {'damage': 0,},
 						}
 						
@@ -657,6 +658,19 @@ for s in ship_list:
 
 						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
 						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
+						
+						combined_aa_damage = (
+							(module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.5)+
+							(module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'])+
+							(module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2)
+						)
+						aa_rating = 0
+						if combined_aa_damage > 0:
+							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
+							aa_rating = ((combined_aa_damage/(int(ship['tier'])*10))) * aa_range_scaling
+						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating*10)
+						
+						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 						
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 						#get turret parameter
@@ -745,7 +759,7 @@ for s in ship_list:
 							module_list[module_id]['bomb_type'] = projectile['ammoType']
 							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
 						continue
-		except:
+		except Exception as e:
 			pass
 
 logging.info("Creating Modification Abbreviation")
@@ -764,12 +778,14 @@ SHIP_TAG_SLOW_SPD = 0
 SHIP_TAG_FAST_SPD = 1
 SHIP_TAG_FAST_GUN = 2
 SHIP_TAG_STEALTH = 3
+SHIP_TAG_AA = 4
 
 SHIP_TAG_LIST = (
 	'slow',
 	'fast',
 	'fast-firing',
 	'stealth',
+	'anti-air',
 )
 ship_tags = {
 	SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
@@ -791,7 +807,12 @@ ship_tags = {
 		'min_air_spot_range': 4,
 		'min_sea_spot_range': 6,
 		'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
-	}
+	},
+	SHIP_TAG_LIST[SHIP_TAG_AA]: {
+		'min_aa_range': 5.8,
+		'damage_threshold_multiplier': 75,
+		'description': "Any ships in this category have an **anti-air gun range** larger than **5.8 km** or the combined (short + medium + long range) expected AA-DPS is **50 times the ship's tier**",
+	},
 }
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
@@ -825,6 +846,16 @@ for s in ship_list:
 			fireRate = np.inf
 		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
+		# add tags based on aa
+		for hull in ship_info[s]['anti_aircraft']:
+			if hull not in ['defense', 'slots']:
+				aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
+				aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
+				if aa_rating > 5 and int(tier) > 3 and aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]:
+					if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
+						tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
+						break
+		
 		
 		tags += [nat, f't{tier}',t ,t+'s', hull_class]
 		ship_list[s]['tags'] = tags
@@ -833,7 +864,16 @@ for s in ship_list:
 	except Exception as e:
 		if type(e) == KeyError:
 			logging.warning(f"Ship Tags Generator: Ship {s} not found")
-		
+
+AA_RATING_DESCRIPTOR = {
+	"Very Low"			: [0, 20],
+	"Low"				: [20, 40],
+	"Moderate"			: [40, 50],
+	"High"				: [50, 70],
+	"Dangerous"			: [70, 80],
+	"Very Dangerous"	: [80, np.inf],
+}
+
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
 # filter data tyoe
@@ -1768,12 +1808,12 @@ class Client(discord.Client):
 								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
 							if hull['planes_amount'] > 0:
 								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
-							if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
-								m += '\n'
-								if ship_param['armour']['flood_damage'] > 0:
-									m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
-								if ship_param['armour']['flood_prob'] > 0:
-									m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
+							# if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
+								# m += '\n'
+								# if ship_param['armour']['flood_damage'] > 0:
+									# m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
+								# if ship_param['armour']['flood_prob'] > 0:
+									# m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
 							
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=False)
@@ -1825,16 +1865,23 @@ class Client(discord.Client):
 						if ship_filter == 2 ** (aa_filter):
 							for hull in modules['hull']:
 								aa = module_list[str(hull)]['profile']['anti_air']
+								m += f"**{name} ({aa['hull']})**\n"
 								m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+								
+								rating_descriptor = ""
+								for d in AA_RATING_DESCRIPTOR:
+									low, high = AA_RATING_DESCRIPTOR[d]
+									if low <= aa['rating'] and aa['rating'] <= high:
+										rating_descriptor = d
+										break
+								m += f"**AA Rating:** {int(aa['rating'])} ({rating_descriptor})\n"
 								# provide more AA detail
 								flak = aa['flak']
 								near = aa['near']
 								medium = aa['medium']
 								far = aa['far']
-								
-								m += f"**{name} ({aa['hull']})**\n"
-								m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
-								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {int(flak['count']*flak['damage'])}:boom:\n"
+								if flak['damage'] > 0:
+									m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {int(flak['count']*flak['damage'])}:boom:\n"
 								if near['damage'] > 0:
 									m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance']*100)}%)\n"
 								if medium['damage'] > 0:
@@ -1844,7 +1891,17 @@ class Client(discord.Client):
 								m += '\n'
 						else:
 							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
+							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in modules['hull']]) / len(modules['hull'])
 							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+							
+							rating_descriptor = ""
+							for d in AA_RATING_DESCRIPTOR:
+								low, high = AA_RATING_DESCRIPTOR[d]
+								if low <= average_rating and average_rating <= high:
+									rating_descriptor = d
+									break
+							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
+							
 						embed.add_field(name="__**Anti-Air**__", value=m)
 					
 					# torpedoes
@@ -1869,14 +1926,14 @@ class Client(discord.Client):
 							fighter_module = module_list[str(h)]
 							fighter = module_list[str(h)]['profile']['fighter']
 							n_attacks = fighter_module['squad_size']//fighter_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({fighter['max_health']} HP)**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')}**\n"
 							if ship_filter == 2 ** (rockets_filter):
-								m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed']*fighter_module['speed_max']:0.0f} kts, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed']*fighter_module['speed_max']:0.0f} kts, {fighter['max_health']} HP, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
 								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:'+str(fighter['rocket_burn_probability'])+'%, Pen. '+str(fighter['rocket_pen'])+'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
 								m += '\n'
-						embed.add_field(name="__**Attackers**__", value=m)
+						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 						
 					# torpedo bomber
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
@@ -1885,9 +1942,9 @@ class Client(discord.Client):
 							bomber_module = module_list[str(h)]
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')}**\n"
 							if ship_filter == (2 ** (torps_filter) | 2 ** (torpbomber_filter)):
-								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
 								m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
@@ -1901,9 +1958,9 @@ class Client(discord.Client):
 							bomber_module = module_list[str(h)]
 							bomber = module_list[str(h)]['profile']['dive_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')} ({bomber['max_health']} HP)**\n"
+							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')}**\n"
 							if ship_filter == 2 ** (bomber_filter):
-								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
 								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']} {'(:fire:'+str(bomber['bomb_burn_probability'])+'%, Pen. '+str(bomber_module['bomb_pen'])+'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
