@@ -811,7 +811,7 @@ ship_tags = {
 	SHIP_TAG_LIST[SHIP_TAG_AA]: {
 		'min_aa_range': 5.8,
 		'damage_threshold_multiplier': 75,
-		'description': "Any ships in this category have an **anti-air gun range** larger than **5.8 km** or the combined (short + medium + long range) expected AA-DPS is **50 times the ship's tier**",
+		'description': "Any ships in this category have an **anti-air gun range** larger than **5.8 km** or the ship's **AA rating (according to mackbot) is at least 50**",
 	},
 }
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
@@ -851,10 +851,9 @@ for s in ship_list:
 			if hull not in ['defense', 'slots']:
 				aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
 				aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
-				if aa_rating > 5 and int(tier) > 3 and aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]:
+				if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]:
 					if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
 						tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
-						break
 		
 		
 		tags += [nat, f't{tier}',t ,t+'s', hull_class]
