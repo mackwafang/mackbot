@@ -618,9 +618,11 @@ for s in ship_list:
 						min_aa_range = np.Inf
 						max_aa_range = -np.Inf
 						
+						# grab anti-air guns information
 						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
 						aa_defense = module_data[aa_defense]
 						
+						# finding details of passive AA
 						for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
 							aa_data = aa_defense[a]
 							if aa_data['type'] == 'near':
@@ -634,6 +636,7 @@ for s in ship_list:
 							min_aa_range = min(min_aa_range, aa_data['minDistance'])
 							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 						
+						# getting flak guns info
 						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
 							# none found from primary guns get far AA armament from secondary
 							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
@@ -643,11 +646,12 @@ for s in ship_list:
 						
 						for a in [a for a in aa_defense_far if 'Far' in a]:
 							aa_data = aa_defense_far[a]
-
 							if 'Bubbles' not in a:
+								# long range passive AA
 								module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
 								module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
 							else:
+								# flaks
 								module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
 								module_list[module_id]['profile']['anti_air']['flak']['damage'] += aa_data['bubbleDamage']
 								module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
@@ -659,6 +663,7 @@ for s in ship_list:
 						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
 						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 						
+						# calculate aa rating
 						combined_aa_damage = (
 							(module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.5)+
 							(module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'])+
@@ -667,6 +672,8 @@ for s in ship_list:
 						aa_rating = 0
 						if combined_aa_damage > 0:
 							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
+							if aa_range_scaling > 1:
+								aa_range_scaling = aa_range_scaling ** 2
 							aa_rating = ((combined_aa_damage/(int(ship['tier'])*10))) * aa_range_scaling
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating*10)
 						
@@ -865,12 +872,13 @@ for s in ship_list:
 			logging.warning(f"Ship Tags Generator: Ship {s} not found")
 
 AA_RATING_DESCRIPTOR = {
-	"Very Low"			: [0, 20],
-	"Low"				: [20, 40],
-	"Moderate"			: [40, 50],
-	"High"				: [50, 70],
-	"Dangerous"			: [70, 80],
-	"Very Dangerous"	: [80, np.inf],
+	"Non-Existence"				: [0, 1],
+	"Very Weak"					: [1, 20],
+	"Weak"						: [20, 40],
+	"Moderate"					: [40, 50],
+	"High"						: [50, 70],
+	"Dangerous"					: [70, 90],
+	"Very Dangerous"			: [90, np.inf],
 }
 
 logging.info("Filtering Ships and Categories")
@@ -2458,7 +2466,11 @@ class Client(discord.Client):
 					
 				embed = discord.Embed(title=embed_title, description="")
 				embed.set_thumbnail(url=image)
-				#embed.add_field(name='Name', value=name)
+				# get server emoji
+				if message.guild is not None:
+					server_emojis = message.guild.emojis
+				else:
+					server_emojis = []
 				
 				if len(name) > 0:
 					embed.description += f"**{name}**\n"
@@ -2475,7 +2487,19 @@ class Client(discord.Client):
 					logging.info("effect field empty")
 				if not is_special == 'Unique':
 					if len(type_restriction) > 0:
-						m =  ''.join([i.title()+', ' for i in sorted(type_restriction)])[:-2]
+						# find the server emoji id for this emoji id
+						if len(server_emojis) == 0:
+							m =  ''.join([i.title()+', ' for i in sorted(type_restriction)])[:-2]
+						else:
+							m = ''
+							for t in type_restriction:
+								t = 'carrier' if t == 'Aircraft Carrier' else t
+								for e in server_emojis:
+									if t.lower() == e.name:
+										m += str(e) + ' '
+										break
+							else:
+								type_icon = ""
 					else:
 						m = "All types"
 					embed.add_field(name="Ship Type",value=m)
