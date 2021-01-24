@@ -1,0 +1,15 @@
+{
+	"help" : true,
+	"goodbot" : true,
+	"build" : false,
+	"skill" : false,
+	"whoami" : true,
+	"list" : true,
+	"upgrade" : true,
+	"commander" : true,
+	"flag" : true,
+	"feedback" : true,
+	"map" : true,
+	"ship" : true,
+	"doubloons" : true
+}

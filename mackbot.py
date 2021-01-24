@@ -10,6 +10,9 @@ from itertools import count
 from numpy.random import randint
 from pprint import pprint
 
+with open("./command_list.json") as f:
+	command_list = json.load(f)
+
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
 if cwd == '':
@@ -112,38 +115,28 @@ wows_encyclopedia = wargaming.WoWS(wg_token,region='na',language='en').encyclope
 ship_types = wows_encyclopedia.info()['ship_types'] 
 
 logging.info("Fetching Skill List")
-skill_list = wows_encyclopedia.crewskills()
-# dictionary that stores skill abbreviation
-skill_name_abbr = {}
-for skill in skill_list:
-	# generate abbreviation
-	abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
-	skill_name_abbr[abbr_name] = skill_list[skill]['name'].lower()
-	# get local image location
-	url = skill_list[skill]['icon']
-	url = url[:url.rfind('_')]
-	url = url[url.rfind('/')+1:]
-	skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
-# additional abbreviation
-with open('skill_name_abbr.csv') as f:
-	s = f.read().split('\n')
-	for i in s:
-		k, v = i.split(',')
-		skill_name_abbr[k] = v
-
-# putting missing values
-skill_list['19']['perks'] = [{'perk_id':0, 'description':'A warning about a salvo fired at your ship from a distance of more than 4.5 km'}]
-skill_list['20']['perks'] = [{'perk_id':0, 'description':'When the engine or steering gears are incapacitated, they continue to operate but with a penalty'}]
-skill_list['28']['perks'] = [
-	{'perk_id':0, 'description':'The detection indicator will show the number of opponents currently aiming at your ship with thier main battery guns'},
-	{'perk_id':1, 'description':'For an aircraft carrier\'s squadron, the detection indicator will show the numbers of ships whose AA defenses are current firing at your planes.'}
-]
-skill_list['32']['perks'] = [{'perk_id':0, 'description':'Completely restores the engine boost for the last attacking flight of the aircraft carrier\'s squadron'}]
-skill_list['34']['perks'] = [
-	{'perk_id':0, 'description':'Shows the direction of the nearest enemy ship'},
-	{'perk_id':1, 'description':'The enemy player will be alerted that a bearing was taken on their ship'},
-	{'perk_id':2, 'description':'Does not work on aircraft carriers'},
-]
+try:
+	skill_list = wows_encyclopedia.crewskills()
+	# dictionary that stores skill abbreviation
+	skill_name_abbr = {}
+	for skill in skill_list:
+		# generate abbreviation
+		abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
+		skill_name_abbr[abbr_name] = skill_list[skill]['name'].lower()
+		# get local image location
+		url = skill_list[skill]['icon']
+		url = url[:url.rfind('_')]
+		url = url[url.rfind('/')+1:]
+		skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
+	# additional abbreviation
+	with open('skill_name_abbr.csv') as f:
+		s = f.read().split('\n')
+		for i in s:
+			k, v = i.split(',')
+			skill_name_abbr[k] = v
+except:
+	skill_list = {}
+	skill_name_abbr = {}
 logging.info("Fetching Module List")
 module_list = {}
 for page in count(1):
@@ -902,25 +895,15 @@ good_bot_messages = (
 	':3',
 	':heart:',
 )
-command_list = (
-	'help',
-	'goodbot',
-	'build',
-	'skill',
-	'whoami',
-	'list',
-	'upgrade',
-	'commander',
-	'flag',
-	'feedback',
-	'map',
-	'ship',
-	'doubloons',
-)
+
+
 def check_build():
 	'''
 		checks ship_build for in incorrectly inputted values and outputs to stdout, and write build images
 	'''
+	if not command_list['build']:
+		logging.info("Build check passed due to build command is disabled.")
+		return
 	skill_use_image = cv.imread("./skill_images/icon_perk_use.png", cv.IMREAD_UNCHANGED)
 	skill_use_image_channel = [i for i in cv.split(skill_use_image)]
 	for t in build_battle_type:
@@ -1387,7 +1370,7 @@ class Client(discord.Client):
 		the discord client
 	"""
 	async def on_ready(self):
-		await self.change_presence(activity=discord.Game(command_header+token+command_list[0]))
+		await self.change_presence(activity=discord.Game(command_header+token+'help'))
 		logging.info("Logged on")
 	def help_message(self,message):
 		# help message
@@ -1504,7 +1487,7 @@ class Client(discord.Client):
 		channel = message.channel
 		embed = self.help_message(message.content)
 		if not embed is None:
-			logging.info(f"sending help message for command <{command_list[0]}>")
+			logging.info(f"sending help message for command <help>")
 			await channel.send(embed=embed)
 	async def whoami(self,message, arg):
 		channel = message.channel
@@ -1515,7 +1498,7 @@ class Client(discord.Client):
 		channel = message.channel
 		# good bot
 		r = randint(len(good_bot_messages))
-		logging.info(f"send reply message for {command_list[1]}")
+		logging.info(f"send reply message for {command_list['goodbot']}")
 		await channel.send(good_bot_messages[r]) # block until message is sent
 	async def feedback(self, message, arg):
 		channel = message.channel
@@ -2752,7 +2735,10 @@ class Client(discord.Client):
 				logging.info(f'User <{message.author}> in <{message.guild}, {message.channel}> requested command "<{request_type}>"')
 				
 				if hasattr(self,arg[1]):
-					await getattr(self,arg[1])(message, arg)
+					if command_list[arg[1]]:
+						await getattr(self,arg[1])(message, arg)
+					else:
+						await channel.send("Command is temporary disabled.")
 				else:
 					# hidden command
 					if arg[1] == 'waifu':
