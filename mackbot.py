@@ -1,7 +1,7 @@
 DEBUG_IS_MAINTANCE = False
 
 # loading cheats
-import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib
+import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback
 import pandas as pd
 import numpy as np
 import cv2 as cv
@@ -12,6 +12,9 @@ from pprint import pprint
 
 with open("./command_list.json") as f:
 	command_list = json.load(f)
+	
+print("commands usable:")
+pprint(command_list)
 
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
@@ -471,89 +474,90 @@ build_battle_type_value = {
 }
 ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]:{}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]:{}}
 # fetch ship builds and additional upgrade information
-if not BUILD_EXTRACT_FROM_CACHE:
-	# extracting build and upgrade exclusion data from google sheets
-	from googleapiclient.errors import Error
-	from googleapiclient.discovery import build
-	from google_auth_oauthlib.flow import InstalledAppFlow
-	from google.auth.transport.requests import Request
-	
-	# silence file_cache_warning
-	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
-	
-	logging.info("Attempting to fetch from sheets")
-	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+if command_list['build']:
+	if not BUILD_EXTRACT_FROM_CACHE:
+		# extracting build and upgrade exclusion data from google sheets
+		from googleapiclient.errors import Error
+		from googleapiclient.discovery import build
+		from google_auth_oauthlib.flow import InstalledAppFlow
+		from google.auth.transport.requests import Request
+		
+		# silence file_cache_warning
+		logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+		
+		logging.info("Attempting to fetch from sheets")
+		SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
-	# The ID and range of a sample spreadsheet.
-	SAMPLE_SPREADSHEET_ID = sheet_id
+		# The ID and range of a sample spreadsheet.
+		SAMPLE_SPREADSHEET_ID = sheet_id
 
-	creds = None
-	# The file token.pickle stores the user's access and refresh tokens, and is
-	# created automatically when the authorization flow completes for the first
-	# time.
-	if os.path.exists('token.pickle'):
-		with open('token.pickle', 'rb') as token:
-			creds = pickle.load(token)
-	# If there are no (valid) credentials available, let the user log in.
-	try:
-		if not creds or not creds.valid:
-			if creds and creds.expired and creds.refresh_token:
-				creds.refresh(Request())
+		creds = None
+		# The file token.pickle stores the user's access and refresh tokens, and is
+		# created automatically when the authorization flow completes for the first
+		# time.
+		if os.path.exists('token.pickle'):
+			with open('token.pickle', 'rb') as token:
+				creds = pickle.load(token)
+		# If there are no (valid) credentials available, let the user log in.
+		try:
+			if not creds or not creds.valid:
+				if creds and creds.expired and creds.refresh_token:
+					creds.refresh(Request())
+				else:
+					flow = InstalledAppFlow.from_client_secrets_file(
+						'credentials.json', SCOPES)
+					creds = flow.run_local_server(port=0)
+				# Save the credentials for the next run
+				with open('token.pickle', 'wb') as token:
+					pickle.dump(creds, token)
+					
+			service = build('sheets', 'v4', credentials=creds)
+
+			# Call the Sheets API
+			sheet = service.spreadsheets()
+			# fetch build
+			result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
+										range='ship_builds!B2:W1000').execute()
+			values = result.get('values', [])
+
+			if not values:
+				print('No data found.')
+				raise Error
 			else:
-				flow = InstalledAppFlow.from_client_secrets_file(
-					'credentials.json', SCOPES)
-				creds = flow.run_local_server(port=0)
-			# Save the credentials for the next run
-			with open('token.pickle', 'wb') as token:
-				pickle.dump(creds, token)
-				
-		service = build('sheets', 'v4', credentials=creds)
+				for row in values:
+					build_type = row[1]
+					ship_name = row[0]
+					if ship_name.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
+						ship_name = ship_name_to_ascii[ship_name.lower()] # convert to the appropiate name
+					upgrades = [i for i in row[2:8] if len(i) > 0]
+					skills = [i for i in row[8:-2] if len(i) > 0]
+					cmdr = row[-1]
+					ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+			logging.info("Build data fetching done")
+		except Exception as e:
+			extract_from_web_failed = True
+			logging.info(f"Exception raised while fetching builds: {e}")
 
-		# Call the Sheets API
-		sheet = service.spreadsheets()
-		# fetch build
-		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-									range='ship_builds!B2:W1000').execute()
-		values = result.get('values', [])
-
-		if not values:
-			print('No data found.')
-			raise Error
-		else:
-			for row in values:
-				build_type = row[1]
-				ship_name = row[0]
-				if ship_name.lower() in ship_name_to_ascii: #does name includes non-ascii character (outside prinable ?
-					ship_name = ship_name_to_ascii[ship_name.lower()] # convert to the appropiate name
-				upgrades = [i for i in row[2:8] if len(i) > 0]
-				skills = [i for i in row[8:-2] if len(i) > 0]
-				cmdr = row[-1]
-				ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
-		logging.info("Build data fetching done")
-	except Exception as e:
-		extract_from_web_failed = True
-		logging.info(f"Exception raised while fetching builds: {e}")
-
-if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
-	if extract_from_web_failed:
-		logging.info("Get builds from sheets failed")
-	with open("ship_builds.json") as f:
-		builds = json.load(f)
-	logging.info('Making build dictionary from cache')
-	for i in builds:
-		build = builds[i]
-		
-		ship_name = build['ship']
-		if ship_name in ship_name_to_ascii:
-			ship_name = ship_name_to_ascii[ship_name]
-		
-		build_type = build['type']
-		
-		upgrades = [u for u in build['upgrades'] if len(u) > 0]
-		skills = [s for s in build['skills'] if len(s) > 0]
-		cmdr = build['cmdr']
-		ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
-	logging.info("build dictionary complete")
+	if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
+		if extract_from_web_failed:
+			logging.info("Get builds from sheets failed")
+		with open("ship_builds.json") as f:
+			builds = json.load(f)
+		logging.info('Making build dictionary from cache')
+		for i in builds:
+			build = builds[i]
+			
+			ship_name = build['ship']
+			if ship_name in ship_name_to_ascii:
+				ship_name = ship_name_to_ascii[ship_name]
+			
+			build_type = build['type']
+			
+			upgrades = [u for u in build['upgrades'] if len(u) > 0]
+			skills = [s for s in build['skills'] if len(s) > 0]
+			cmdr = build['cmdr']
+			ship_build[build_type][ship_name] = {"upgrades":upgrades, "skills":skills, "cmdr":cmdr}
+		logging.info("build dictionary complete")
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
@@ -600,78 +604,82 @@ for s in ship_list:
 						
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
 						# initialize AA dictionary
-						module_list[module_id]['profile']['anti_air'] = {
-							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
-							'near': {'damage': 0, 'hitChance':0},
-							'medium': {'damage': 0, 'hitChance':0},
-							'far': {'damage': 0, 'hitChance':0},
-							'flak': {'damage': 0,},
-						}
-						
-						min_aa_range = np.Inf
-						max_aa_range = -np.Inf
-						
-						# grab anti-air guns information
-						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
-						aa_defense = module_data[aa_defense]
-						
-						# finding details of passive AA
-						for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
-							aa_data = aa_defense[a]
-							if aa_data['type'] == 'near':
-								module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
-								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
-							if aa_data['type'] == 'medium':
-								module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
-								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
-							min_aa_range = min(min_aa_range, aa_data['minDistance'])
-							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-						
-						# getting flak guns info
-						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
-							# none found from primary guns get far AA armament from secondary
-							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
-						else:
-							# AA armament from primary guns
-							aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
-						
-						for a in [a for a in aa_defense_far if 'Far' in a]:
-							aa_data = aa_defense_far[a]
-							if 'Bubbles' not in a:
-								# long range passive AA
-								module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
-							else:
-								# flaks
-								module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-								module_list[module_id]['profile']['anti_air']['flak']['damage'] += aa_data['bubbleDamage']
-								module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
-								module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+						if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
+							module_list[module_id]['profile']['anti_air'] = {
+								'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
+								'near': {'damage': 0, 'hitChance':0},
+								'medium': {'damage': 0, 'hitChance':0},
+								'far': {'damage': 0, 'hitChance':0},
+								'flak': {'damage': 0,},
+							}
 							
-							min_aa_range = min(min_aa_range, aa_data['minDistance'])
-							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+							min_aa_range = np.Inf
+							max_aa_range = -np.Inf
+							
+							# grab anti-air guns information
+							aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
+							aa_defense = module_data[aa_defense]
+							
+							# finding details of passive AA
+							for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
+								aa_data = aa_defense[a]
+								if aa_data['type'] == 'near':
+									module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+								if aa_data['type'] == 'medium':
+									module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
+								min_aa_range = min(min_aa_range, aa_data['minDistance'])
+								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+							
+							# getting flak guns info
+							try:
+								if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+									# none found from primary guns get far AA armament from secondary
+									aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
+								else:
+									# AA armament from primary guns
+									aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
+							except:
+									aa_defense_Far = []
+							for a in [a for a in aa_defense_far if 'Far' in a]:
+								aa_data = aa_defense_far[a]
+								if 'Bubbles' not in a:
+									# long range passive AA
+									module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage']/aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
+								else:
+									# flaks
+									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+									module_list[module_id]['profile']['anti_air']['flak']['damage'] += aa_data['bubbleDamage']
+									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
+									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+								
+								min_aa_range = min(min_aa_range, aa_data['minDistance'])
+								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 
-						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
-						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
-						
-						# calculate aa rating
-						combined_aa_damage = (
-							(module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.5)+
-							(module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'])+
-							(module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2)
-						)
-						aa_rating = 0
-						if combined_aa_damage > 0:
-							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
-							if aa_range_scaling > 1:
-								aa_range_scaling = aa_range_scaling ** 2
-							aa_rating = ((combined_aa_damage/(int(ship['tier'])*10))) * aa_range_scaling
-						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating*10)
-						
-						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
-						
+							module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
+							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
+							
+							# calculate aa rating
+							combined_aa_damage = (
+								(module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.5)+
+								(module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'])+
+								(module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2)
+							)
+							aa_rating = 0
+							if combined_aa_damage > 0:
+								aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
+								if aa_range_scaling > 1:
+									aa_range_scaling = aa_range_scaling ** 2
+								aa_rating = ((combined_aa_damage/(int(ship['tier'])*10))) * aa_range_scaling
+							module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating*10)
+							if ship_info[s]['anti_aircraft'] is None:
+								ship_info[s]['anti_aircraft'] = {}
+							ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
+							
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery': # guns, guns, guns!
 						#get turret parameter
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
@@ -695,7 +703,7 @@ for s in ship_list:
 							if 'Belfast' in ship['name']:
 								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
 								module_list[module_id]['profile']['artillery']['pen_HE'] = 0
-						continue
+								
 					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes': # torpedooes
 						#get torps parameter
 						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
@@ -707,7 +715,6 @@ for s in ship_list:
 							module_list[module_id]['profile']['torpedoes']['shotDelay'] = turret_data['shotDelay']
 							break
 							
-						continue
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter': # useless spotter
 						#get fighter parameter
 						planes = ship_upgrade_info[_info]['components']['fighter'][0]
@@ -726,7 +733,7 @@ for s in ship_list:
 							module_list[module_id]['profile']['fighter']['rocket_type'] = projectile['ammoType']
 							module_list[module_id]['profile']['fighter']['rocket_burn_probability'] = int(projectile['burnProb']*100)
 							module_list[module_id]['profile']['fighter']['rocket_pen'] = int(projectile['alphaPiercingHE'])
-						continue
+						
 					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
 						#get torp bomber parameter
 						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
@@ -741,7 +748,7 @@ for s in ship_list:
 							module_list[module_id]['payload'] = plane['projectilesPerAttack']
 							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						continue
+						
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
 						#get turret parameter
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
@@ -758,9 +765,11 @@ for s in ship_list:
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 							module_list[module_id]['bomb_type'] = projectile['ammoType']
 							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-						continue
+						
 		except Exception as e:
-			pass
+			if not type(e) == KeyError:
+				print("at ship id", s)
+				traceback.print_exc(type(e), e, None)
 
 logging.info("Creating Modification Abbreviation")
 upgrade_abbr_list = {}
@@ -816,7 +825,7 @@ ship_tags = {
 }
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
-ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo(?:es)?)?( bombers?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
+ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
 for s in ship_list:
 	try:
 		nat = nation_dictionary[ship_list[s]['nation']]
@@ -847,13 +856,14 @@ for s in ship_list:
 		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
 		# add tags based on aa
-		for hull in ship_info[s]['anti_aircraft']:
-			if hull not in ['defense', 'slots']:
-				aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
-				aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
-				if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]:
-					if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
-						tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
+		if ship_info[s]['anti_aircraft'] is not None:
+			for hull in ship_info[s]['anti_aircraft']:
+				if hull not in ['defense', 'slots']:
+					aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
+					aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
+					if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]['min_aa_range']:
+						if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
+							tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
 		
 		
 		tags += [nat, f't{tier}',t ,t+'s', hull_class]
@@ -863,6 +873,9 @@ for s in ship_list:
 	except Exception as e:
 		if type(e) == KeyError:
 			logging.warning(f"Ship Tags Generator: Ship {s} not found")
+		else:
+			logging.warning("%s %s at ship id %s" % (type(e), e, s))
+			traceback.print_exception(type(e), e, None)
 
 AA_RATING_DESCRIPTOR = {
 	"Non-Existence"				: [0, 1],
@@ -1767,9 +1780,9 @@ class Client(discord.Client):
 						ship_filter |= is_filter_requested(2) << hull_filter
 						ship_filter |= is_filter_requested(3) << guns_filter
 						ship_filter |= is_filter_requested(4) << atbas_filter
-						ship_filter |= is_filter_requested(5) << torps_filter
+						ship_filter |= is_filter_requested(6) << torps_filter
 						ship_filter |= is_filter_requested(8) << rockets_filter
-						ship_filter |= (is_filter_requested(5) & is_filter_requested(6)) << torpbomber_filter
+						ship_filter |= is_filter_requested(5) << torpbomber_filter
 						ship_filter |= is_filter_requested(7) << bomber_filter
 						ship_filter |= is_filter_requested(9) << engine_filter
 						ship_filter |= is_filter_requested(10) << aa_filter
@@ -1933,7 +1946,7 @@ class Client(discord.Client):
 							bomber = module_list[str(h)]['profile']['torpedo_bomber']
 							n_attacks = bomber_module['squad_size']//bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10),' ')}**\n"
-							if ship_filter == (2 ** (torps_filter) | 2 ** (torpbomber_filter)):
+							if ship_filter == 2 ** (torpbomber_filter):
 								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed']*bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
@@ -2005,6 +2018,7 @@ class Client(discord.Client):
 											for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 												hull = module_list[str(h)]['profile']['hull']
 												consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
+											consumable_detail = consumable_detail[:-1]
 										if consumable_type == 'rls':
 											consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
 										if consumable_type == 'scout':
