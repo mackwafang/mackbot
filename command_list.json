@@ -11,5 +11,6 @@
 	"feedback" : true,
 	"map" : true,
 	"ship" : true,
-	"doubloons" : true
+	"doubloons" : true,
+	"code" : true
 }
