@@ -1435,10 +1435,12 @@ class Client(discord.Client):
 				m.sort()
 				m = ''.join(m)
 				embed.add_field(name='All Commands', value=m)
-		elif command == 'goodbot':
+		else:
+			embed.add_field(name='Error', value="Invalid command.", inline=False)
+		if command == 'goodbot':
 			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
 			embed.add_field(name='Description', value='Praise the bot for being a good bot', inline=False)
-		elif command == 'build':
+		if command == 'build':
 			embed.add_field(name='Usage',
 							value=command_header + token + command + token + '[type]' + token + 'build' + token + '[image]',
 							inline=False)
@@ -1448,7 +1450,7 @@ class Client(discord.Client):
 								  f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n\n' +
 								  '**[image]**: Optional. If the word **image** is present, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',
 							inline=False)
-		elif command == 'ship':
+		if command == 'ship':
 			embed.add_field(name='Usage',
 							value=command_header + token + command + token + '[ship]' + token + '(parameters)',
 							inline=False)
@@ -1456,20 +1458,20 @@ class Client(discord.Client):
 													  '**ship**: Required. Desired ship to get combat information.\n\n' +
 													  '**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',
 							inline=False)
-		elif command == 'skill':
+		if command == 'skill':
 			embed.add_field(name='Usage', value=command_header + token + command + token + '[skill/abbr]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List name, type, tier and effect of the requested commander skill', inline=False)
-		elif command == 'map':
+		if command == 'map':
 			embed.add_field(name='Usage', value=command_header + token + command + token + '[map_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List name and display the map of the requested map',
 							inline=False)
-		elif command == 'whoami':
+		if command == 'whoami':
 			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
 			embed.add_field(name='Description', value='Who\'s this bot?', inline=False)
-		elif command == 'list':
+		if command == 'list':
 			if len(arg) == 3:
 				embed.add_field(name='Usage',
 								value=command_header + token + command + token + "[skills/upgrades/commanders/flags]",
@@ -1536,7 +1538,7 @@ class Client(discord.Client):
 				else:
 					embed.add_field(name='Error', value="Invalid command.", inline=False)
 
-		elif command == 'upgrade':
+		if command == 'upgrade':
 			embed.add_field(name='Usage',
 							value=command_header + token + command + token + '[upgrade/abbr/ship_name]',
 							inline=False)
@@ -1545,20 +1547,20 @@ class Client(discord.Client):
 								  '**[upgrade/abbr/ship_name]**: Required.\n*upgrade/abbr*: Provide the name or the abbreviation name of the upgrade to get information on it.\n'
 								  '*ship_name*. Provide the ship name to return the legendary upgrade for that ship.',
 							inline=False)
-		elif command == 'commander':
+		if command == 'commander':
 			embed.add_field(name='Usage', value=command_header + token + command + token + '[cmdr_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the nationality of the requested commander',
 							inline=False)
-		elif command == 'flag':
+		if command == 'flag':
 			embed.add_field(name='Usage', value=command_header + token + command + token + '[flag_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the name and description of the requested signal flag',
 							inline=False)
-		elif command == 'feedback':
+		if command == 'feedback':
 			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
 			embed.add_field(name='Description', value='Send a feedback form link for mackbot.', inline=False)
-		elif command == 'doubloons':
+		if command == 'doubloons':
 			embed.add_field(name='Usage',
 							value=command_header + token + command + token + '[doubloons]' + token + '[dollar/$]',
 							inline=False)
@@ -1566,15 +1568,13 @@ class Client(discord.Client):
 							value='Returns the price in dollars of now much of the requested number of doubloons\n' +
 								  "**[dollars/$]**: Optional. Reverse the conversion to dollars to doublons.",
 							inline=False)
-		elif command == 'code':
+		if command == 'code':
 			embed.add_field(name='Usage',
 							value=command_header + token + command + token + "code",
 							inline=False)
 			embed.add_field(name='Description',
 							value='Returns the URL to WG\'s coupon redeem page with the appropriate code',
 							inline=False)
-		else:
-			embed.add_field(name='Error', value="Invalid command.", inline=False)
 		return embed
 
 	async def help(self, message, arg):
@@ -2817,8 +2817,6 @@ class Client(discord.Client):
 		# get information on requested flag
 		message_string = message.content
 		upgrade_found = False
-		# message parse
-		doub = arg[2]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
 			# argument is empty, send help message
 			embed = self.help_message(command_header + token + "help" + token + arg[1])
@@ -2827,6 +2825,8 @@ class Client(discord.Client):
 		else:
 			# user provided an argument
 			try:
+				# message parse
+				doub = arg[2]  # message_string[message_string.rfind('-')+1:]
 				if len(arg) == 4:
 					# check reverse conversion
 					# dollars to doubloons
