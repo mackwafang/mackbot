@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = False
+DEBUG_IS_MAINTANCE = True
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback
@@ -51,7 +51,7 @@ nation_dictionary = {
 	'pan_america': 'Pan-American'
 }
 # convert weegee ship type to usn hull classifications
-ship_type_to_hull_class = {
+hull_classification_converter = {
 	'Destroyer': 'DD',
 	'AirCarrier': 'CV',
 	'Battleship': 'BB',
@@ -117,29 +117,27 @@ else:
 wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 
+# loading skills list
 logging.info("Fetching Skill List")
+skill_list = {}
 try:
-	skill_list = wows_encyclopedia.crewskills()
+	with open("skill_list.json") as f:
+		skill_list = json.load(f)
+		skill_list = dict([(s['id'], s) for s in skill_list])
 	# dictionary that stores skill abbreviation
 	skill_name_abbr = {}
 	for skill in skill_list:
 		# generate abbreviation
 		abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
-		skill_name_abbr[abbr_name] = skill_list[skill]['name'].lower()
+		skill_list[skill]['abbr'] = abbr_name
+		# skill_name_abbr[abbr_name] = skill_list[skill]['name'].lower()
 		# get local image location
-		url = skill_list[skill]['icon']
-		url = url[:url.rfind('_')]
-		url = url[url.rfind('/') + 1:]
-		skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
-	# additional abbreviation
-	with open('skill_name_abbr.csv') as f:
-		s = f.read().split('\n')
-		for i in s:
-			k, v = i.split(',')
-			skill_name_abbr[k] = v
+		# url = skill_list[skill]['icon']
+		# url = url[:url.rfind('_')]
+		# url = url[url.rfind('/') + 1:]
+		# skill_list[skill]['local_icon'] = f'./skill_images/{url}.png'
 except:
-	skill_list = {}
-	skill_name_abbr = {}
+	pass
 logging.info("Fetching Module List")
 module_list = {}
 for page in count(1):
@@ -172,130 +170,7 @@ find_module_by_tag = lambda x: [i for i in module_list if x == module_list[i]['t
 
 logging.info("Fetching Commander List")
 cmdr_list = wows_encyclopedia.crews()
-cmdr_skill_descriptor = {
-	'AIGunsEfficiencyModifier': {
-		'nearAuraDamageCoefficientDescriptor': 'Continuous damage by AA mounts',
-		'smallGunReloadCoefficientDescriptor': 'Reload time of main battery guns with a caliber up to and including 139 mm, and secondary battery guns',
-	},
-	'AIGunsRangeModifier': {
-		'advancedOuterAuraDamageCoefficientDescriptor': 'Damage from AA shell explosions:',
-		'smallGunRangeCoefficientDescriptor': ' Firing range of main battery guns with a caliber up to and including 139 mm, and secondary battery guns:',
-	},
-	'AccuracyIncreaseRateModifier': {
-		'diveBomberDescriptor': 'Bomber aiming speed:',
-		'fighterDescriptor': 'Attack aircraft aiming speed:',
-		'torpedoBomberDescriptor': 'Torpedo bomber aiming speed:',
-	},
-	'AdditionalSmokescreensModifier': {
-		'radiusCoefficientDescriptor': 'Radius of the smoke screen:',
-	},
-	'AimingFightersPointModifier': {
-		'extraFighterCountDescriptor': 'Number of aircraft:',
-		'fighterLifeTimeCoefficientDescriptor': 'Fighter action time',
-	},
-	'AirSupremacyModifier': {
-		'hangarSizeBonusDescriptor': 'Aircraft hanger size:',
-		'planeSpawnTimeCoefficientDescriptor': 'Aircraft restoreation time:',
-	},
-	'AllSkillsCooldownModifier': {
-		'reloadCoefficientDescriptor': 'Consumable reload time:',
-	},
-	'ArtilleryAlertModifier': {
-		'alertMinDistanceDescriptor': 'Warning about a salvo fired at your ship from a distance of more than ',
-	},
-	'AutoRepairModifier': {
-		'critTimeCoefficientDescriptor': 'Time of repair, fire extinguishing, and recovery from flooding:',
-	},
-	'CentralATBAModifier': {
-		'atbaIdealRadiusHiDescriptor': 'Maximum dispersion of shells for the secondary armament of Tier VII–X ships:',
-		'atbaIdealRadiusLoDescriptor': 'Maximum dispersion of shells for the secondary armament of Tier I–VI ships:',
-	},
-	'CentralAirDefenceModifier': {
-		'prioSectorCooldownCoefficientDescriptor': 'Priority AA sector preparation time:',
-		'prioSectorPhaseDurationCoefficientDescriptor': '',
-		'prioSectorStartPhaseStrengthCoefficientDescriptor': 'Instantaneous Damage:',
-		'prioSectorStrengthCoefficientDescriptor': '',
-	},
-	'EmergencyTeamCooldownModifier': {
-		'reloadCoefficientDescriptor': 'Reload time of the Damage Control Party consumable:',
-	},
-	'FireProbabilityModifier': {
-		'bombProbabilityBonusDescriptor': 'Bombs fire chance:',
-		'probabilityBonusDescriptor': 'HE shells fire chance:',
-		'rocketProbabilityBonusDescriptor': 'HE rockets fire chance:',
-	},
-	'FireResistanceModifier': {
-		'probabilityCoefficientDescriptor': 'Risk of catching fire:',
-	},
-	'FlightSpeedModifier': {
-		'flightSpeedCoefficientDescriptor': 'Aircraft cruising speed:',
-	},
-	'ForsageDurationModifier': {
-		'forsageDurationCoefficientDescriptor': 'Engine boost time:',
-	},
-	'ForsageRestorationModifier': {
-	},
-	'IntuitionModifier': {
-		'switchAmmoReloadCoefDescriptor': 'Time taken to switch shell type:',
-	},
-	'LandmineExploderModifier': {
-		'chanceToSetOnFireBonusBigDescriptor': 'Chances of fire:',
-		'chanceToSetOnFireBonusSmallDescriptor': 'Chances of fire:',
-		'thresholdPenetrationCoefficientBigDescriptor': 'HE armor penetration:',
-		'thresholdPenetrationCoefficientSmallDescriptor': 'HE armor penetration:',
-	},
-	'LastChanceModifier': {
-		'hpStepDescriptor': 'Ship lost health per bonus:',
-		'squadronHealthStepDescriptor': 'Squadron lost health per bonus:',
-		'squadronSpeedStepDescriptor': 'Ship squadron speed increase:',
-		'timeStepDescriptor': 'Consumable increase per bonus:',
-	},
-	'LastEffortModifier': {
-		'critRudderTimeCoefficientDescriptor': 'Engine/Steering gear penalty:',
-	},
-	'MainGunsRotationModifier': {
-		'bigGunBonusDescriptor': 'Tranvese speed of guns > 139mm:',
-		'smallGunBonusDescriptor': 'Tranvese speed of guns <= 139mm:',
-	},
-	'MeticulousPreventionModifier': {
-		'critProbCoefficientDescriptor': 'Risk of modules becoming incapacitated:',
-	},
-	'NearAuraDamageTakenModifier': {
-		'nearAuraDamageTakenCoefficientDescriptor': 'Continuous damage from AA mounts:',
-	},
-	'NearEnemyIntuitionModifier': {
-	},
-	'PriorityTargetModifier': {
-	},
-	'SuperintendentModifier': {
-		'additionalConsumablesDescriptor': 'Additional consumable:',
-	},
-	'SurvivalModifier': {
-		'healthPerLevelDescriptor': 'Ship HP per tier:',
-		'planeHealthPerLevelDescriptor': 'Aircraft HP per tier',
-	},
-	'TorpedoAcceleratorModifier': {
-		'planeTorpedoRangeCoefficientDescriptor': 'Aircraft torpedo range:',
-		'planeTorpedoSpeedBonusDescriptor': 'Aircraft torpedo speed:',
-		'torpedoRangeCoefficientDescriptor': 'Ship-launched torpedo range:',
-		'torpedoSpeedBonusDescriptor': 'Ship-launched torpedo speed:',
-	},
-	'TorpedoAlertnessModifier': {
-		'planeRangeCoefficientDescriptor': 'Torpedo acquisition range by air:',
-		'rangeCoefficientDescriptor': 'Torpedo acquisition range by sea:',
-	},
-	'TorpedoReloadModifier': {
-		'launcherCoefficientDescriptor': 'Torpedo reload speed:',
-	},
-	'VisibilityModifier': {
-		'aircraftCarrierCoefficientDescriptor': 'Detectability of aircraft carriers:',
-		'battleshipCoefficientDescriptor': 'Detectability of battleships:',
-		'cruiserCoefficientDescriptor': 'Detectability of cruisers:',
-		'destroyerCoefficientDescriptor': 'Detectability of destroyers:',
-		'squadronCoefficientDescriptor': 'Detectability of squadrons:',
-		'submarineCoefficientDescriptor': 'Detectability of submarines:',
-	},
-}
+
 consumable_descriptor = {
 	'airDefenseDisp': {
 		'name': 'Defensive Anti-Air Fire',
@@ -839,7 +714,7 @@ for s in ship_list:
 		nat = nation_dictionary[ship_list[s]['nation']]
 		tags = []
 		t = ship_list[s]['type']
-		hull_class = ship_type_to_hull_class[t]
+		hull_class = hull_classification_converter[t]
 		if t == 'AirCarrier':
 			t = 'Aircraft Carrier'
 		tier = ship_list[s]['tier']  # add tier to search
@@ -1148,84 +1023,56 @@ def get_legendary_upgrade_by_ship_name(ship):
 	return None
 
 
-def get_skill_data(skill):
+def get_skill_data(skill, tree):
 	"""
 		returns informations of a requested commander skill
 
 		Arguments:
 		-------
 			- skill : (string)
-				Skill's full name or abbreviation
+				Skill's full name
 
 		Returns:
 		-------
 		tuple:
 			name		- (str) name of skill
-			id			- (int) horizontal location (0-7)
-			skill_type	- (str) category
-			perk		- (dict) bonuses
-			tier		- (int) tier (1-4)
-			icon		- (dict) image url
+			tree		- (str) skill belong to this ship type. found in hull_classification_converter
+			description	- (str) skill's desctiption
+			effect		- (str) skill's effect
+			x			- (int) skill's column
+			y			- (int) skill's tier (cost)
+			category	- (str) skill's category
 
 		raise exceptions for dictionary
 	"""
 	skill = skill.lower()
 	try:
-		skill_found = False
-		# assuming input is full skill name
-		for i in skill_list:
-			if skill.lower() == skill_list[i]['name'].lower():
-				skill_found = True
-				break
-		# parsed item is probably an abbreviation, checking abbreviation
-		if not skill_found:
-			skill = skill_name_abbr[skill.lower()]
-			for i in skill_list:
-				if skill.lower() == skill_list[i]['name'].lower():
-					skill_found = True
-					break
-		# found it!
-		name, column, skill_type, perk, tier, icon, _ = skill_list[i].values()
-		return name, column, skill_type, perk, tier, icon
-	except Exception as e:
-		# oops, probably not found
-		logging.info(f"Exception {type(e)}: ", e)
-		raise e
+		# filter skills by tree
+		ship_class_lookup = [i.lower() for i in hull_classification_converter.keys()] + [i.lower() for i in hull_classification_converter.values()]
+		hull_class_lower = dict([(i.lower(), hull_classification_converter[i].lower()) for i in hull_classification_converter])
 
+		if tree not in ship_class_lookup:
+			# requested type is not in
+			raise ValueError(f"Expected {[i for i in ship_class_lookup]}. Got {tree}.")
+		else:
+			# convert from hull classification to word
 
-def get_skill_data_by_grid(column, tier):
-	"""
-		returns informations of a requested commander skill by column and tier
+			if tree not in hull_class_lower:
+				for h in hull_class_lower:
+					if hull_class_lower[h].lower() == tree:
+						tree = h.lower()
+						break
 
-		Arguments:
-		-------
-			- column : (int)
-				which column to search (0-7)
-			- tier : (int)
-				which skill tier to look for (1-4)
+			# looking for skill
+			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
+			for f_s in filtered_skill_list:
+				if filtered_skill_list[f_s]['name'].lower() == skill:
+					s = filtered_skill_list[f_s].copy()
+					if s['tree'] == 'AirCarrier':
+						s['tree'] = "Aircraft Carrier"
+					return s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
+			return None
 
-		Returns:
-		-------
-		tuple:
-			name		- (str) name of skill
-			id			- (int) horizontal location (0-7)
-			skill_type	- (str) category
-			perk		- (dict) bonuses
-			tier		- (int) tier (1-4)
-			icon		- (dict) image url
-
-		raise exceptions for dictionary
-	"""
-	try:
-		skill_found = False
-		# assuming input is full skill name
-		for i in skill_list:
-			if column == skill_list[i]['type_id'] and tier == skill_list[i]['tier']:
-				skill_found = True
-				break
-		# found it!
-		name, column, skill_type, perk, tier, icon, _ = skill_list[i].values()
-		return name, column, skill_type, perk, tier, icon
 	except Exception as e:
 		# oops, probably not found
 		logging.info(f"Exception {type(e)}: ", e)
@@ -2155,30 +2002,33 @@ class Client(discord.Client):
 	async def skill(self, message, arg):
 		channel = message.channel
 		# get information on requested skill
-		message_string = message.content
-		skill_found = False
+		# message_string = message.content
+		# skill_found = False
 		# message parse
-		skill = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
-		if len(arg) <= 2:
+		if len(arg) <= 3:
 			embed = self.help_message(command_header + token + "help" + token + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
 			try:
+				ship_class = arg[2].lower()
+				if ship_class.lower() in ['cv', 'carrier']:
+					ship_class = 'AirCarrier'
+				skill = ''.join([i + ' ' for i in arg[3:]])[:-1]  # message_string[message_string.rfind('-')+1:]
+
 				logging.info(f'sending message for skill <{skill}>')
 				async with channel.typing():
-					name, id, skill_type, perk, tier, icon = get_skill_data(skill)
+					name, tree, description, effect, column, tier, category = get_skill_data(skill, ship_class)
 					embed = discord.Embed(title="Commander Skill", description="")
-					embed.set_thumbnail(url=icon)
+					# embed.set_thumbnail(url=icon)
 					embed.description += f"**{name}**\n"
-					embed.description += f"**Tier {tier} {skill_type} Skill**"
-					embed.add_field(name='Description',
-									value=''.join('- ' + p["description"] + chr(10) for p in perk) if len(
-										perk) != 0 else '')
+					embed.description += f"**Tier {tier} {tree} {category} Skill**"
+					embed.add_field(name='Description', value=description, inline=False)
+					embed.add_field(name='Effect', value=effect, inline=False)
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info("Exception", type(e), ":", e)
-				# error, ship name not understood
+				# error, skill name not understood
 				skill_name_list = [skill_list[i]['name'] for i in skill_list]
 				closest_match = difflib.get_close_matches(skill, skill_name_list)
 				closest_match_string = ""
@@ -2192,7 +2042,6 @@ class Client(discord.Client):
 		# list command
 		m = []
 		embed = discord.Embed()
-		send_help_message = False
 		error_message = ""
 		async with channel.typing():
 			if len(arg) > 2:
@@ -2201,13 +2050,13 @@ class Client(discord.Client):
 					if len(arg) == 3:
 						# did not provide a filter, send all skills
 						embed = discord.Embed(name="Commander Skill")
-						m = ["**" + skill_list[i]['name'] + '** (' + ''.join(
-							[c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90]) + ')' + chr(10) for i in
-							 skill_list]
+						m = [
+							f"**({hull_classification_converter[skill_list[s]['tree']]} {skill_list[s]['y']+1})** {skill_list[s]['name']}" + chr(10) for s in skill_list
+						]
 						m.sort()
 						m = [m[i:i + 10] for i in range(0, len(m), 10)]
 						for i in m:
-							embed.add_field(name="Skill (Abbr.)", value=''.join([v for v in i]))
+							embed.add_field(name="Skill", value=''.join([v for v in i]))
 					elif len(arg) > 3:
 						# asking for specific category
 						if arg[3] == 'type':
@@ -2430,7 +2279,7 @@ class Client(discord.Client):
 									else:
 										type_icon = ""
 								if len(type_icon) == 0:
-									type_icon = "[" + ship_type_to_hull_class[ship_type] + "]"
+									type_icon = "[" + hull_classification_converter[ship_type] + "]"
 								m += [f"**{tier_string:<4} {type_icon}** {name}"]
 
 							num_items = len(m)
@@ -2697,6 +2546,7 @@ class Client(discord.Client):
 							if cmdr_id == str(game_data[i]['id']):
 								cmdr_data = game_data[i]
 
+					'''
 					skill_bonus_string = ''
 
 					for c in cmdr_data['Skills']:
@@ -2722,12 +2572,13 @@ class Client(discord.Client):
 										if abs(skill[descriptor] - 1) > 0:
 											skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
 							skill_bonus_string += '\n'
+					
 					if len(skill_bonus_string) > 0:
 						embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
 						embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
 					else:
 						embed.add_field(name='Skill Bonuses', value="None", inline=False)
-
+					'''
 				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}: ", e)

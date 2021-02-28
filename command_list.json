@@ -2,7 +2,7 @@
 	"help" : true,
 	"goodbot" : true,
 	"build" : false,
-	"skill" : false,
+	"skill" : true,
 	"whoami" : true,
 	"list" : true,
 	"upgrade" : true,
