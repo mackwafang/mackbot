@@ -1,4 +1,4 @@
-DEBUG_IS_MAINTANCE = True
+DEBUG_IS_MAINTANCE = False
 
 # loading cheats
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback
@@ -1349,11 +1349,11 @@ class Client(discord.Client):
 					embed.add_field(name='Description',
 									value='List name and the abbreviation of all commander skills.\n' +
 										'**query**:\n' +
-										'Acceptable terms: **ship_class**, **tier x**, **page [x]**\n' +
+										'Acceptable terms: **ship_class**, **tier [x]**, **page [x]**\n' +
 										'\n' +
 										'**ship_class**: Acceptable terms: [carrier, battleship, cruiser, destroyer, dd, bb, c, cv]\n' +
-										'**tier [x]**: Replace [x] with a value 1-4 to filter cost' +
-										'**page [x]**: Replace [x] with a value to change page.',
+										'**tier [x]**: Replace [x] with a value 1-4 to filter cost.\n' +
+										'**page [x]**: Replace [x] with a value to change page.\n',
 									inline=False)
 				elif arg[3] == 'upgrades':
 					embed.add_field(name='Usage',
