@@ -1,0 +1,962 @@
+[
+  {
+    "id": 0,
+    "tree": "AirCarrier",
+    "name": "Last Gasp",
+    "description": "Completely restores engine boost for the last attacking flight.",
+    "effect": "Aircraft engine boost refill: +100%",
+    "x": 0,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 1,
+    "tree": "AirCarrier",
+    "name": "Improved Engine Boost",
+    "description": "Increase engine boost time of the carrier's squadron.",
+    "effect": "Aircraft engine boost duration: +5%",
+    "x": 1,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 2,
+    "tree": "AirCarrier",
+    "name": "Engine Techie",
+    "description": "Reduce the cooldown time of squadron's Engine Cooling.",
+    "effect": "Engine Cooling cooldown time: -20%",
+    "x": 2,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 3,
+    "tree": "AirCarrier",
+    "name": "Air Supremacy",
+    "description": "Decrease aircraft servicing time.",
+    "effect": "Aircraft restoration time: -5%",
+    "x": 3,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 4,
+    "tree": "AirCarrier",
+    "name": "Direction Center for Fighters",
+    "description": "Provide an additional fighter for carrier's patrol fighters.",
+    "effect": "CAP Fighter consumable: +1 fighter",
+    "x": 4,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 5,
+    "tree": "AirCarrier",
+    "name": "Search and Destroy",
+    "description": "Extends the patrol radious of squadron's Patrol Fighter or Interceptors.",
+    "effect": "Fighter patrol radius: +10%",
+    "x": 5,
+    "y": 0,
+    "category": "Support"
+  },
+  {
+    "id": 6,
+    "tree": "AirCarrier",
+    "name": "Torpedo Bomber",
+    "description": "Shortens the aerial torpedo's arming distance.",
+    "effect": "Torpedo arming distance: -10%",
+    "x": 0,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 7,
+    "tree": "AirCarrier",
+    "name": "Swift Fish",
+    "description": "Improve aerial torpedo speed.",
+    "effect": "Aerial torpedo speed: +5%",
+    "x": 1,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 8,
+    "tree": "AirCarrier",
+    "name": "Improved Engines",
+    "description": "Increase squadron's crusing speed.",
+    "effect": "Crusing speed: +2.5%",
+    "x": 2,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 9,
+    "tree": "AirCarrier",
+    "name": "Repair Specialist",
+    "description": "Provide an additional and longer action time of squadron's In-Flight Repair consumable.",
+    "effect": "In-Flight Repair: +1 charge\nIn-Flight Repair action time: +10%",
+    "x": 3,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 10,
+    "tree": "AirCarrier",
+    "name": "Secondary Armament Expert",
+    "description": "Improves secondary battery reload time, continuous AA damage, and flak AA damage.",
+    "effect": "Secondary battery reload time: -10%\nContinuous AA damage: +10%\nFlak AA damage: +10%",
+    "x": 4,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 11,
+    "tree": "AirCarrier",
+    "name": "Patrol Group Leader",
+    "description": "Provide an additional fighter for squadron's Patrol Fighter or Interceptor consumable.",
+    "effect": "Patrol Fighter: +1 fighter\nInterceptor: +1 fighter",
+    "x": 5,
+    "y": 1,
+    "category": "Support"
+  },
+  {
+    "id": 12,
+    "tree": "AirCarrier",
+    "name": "Sight Stabilization",
+    "description": "Reduce time to reach the smallest reticle for attacking squadrons.",
+    "effect": "Attacker aiming speed: +7.5%\nTorpedo bomber aiming speed: +7.5%\nBomber aiming Speed: +7.5%",
+    "x": 0,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 13,
+    "tree": "AirCarrier",
+    "name": "Enhanced Armor-Piercing Ammunition",
+    "description": "Increase damage of aerial AP armaments.",
+    "effect": "AP rocket damage: +3%\nAP bomb damage: +3%",
+    "x": 1,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 14,
+    "tree": "AirCarrier",
+    "name": "Demolition Expert",
+    "description": "Increase chance of causing fire with aerial bombs and rockets.",
+    "effect": "HE rockets fire chance: +1%\nHE bombs fire chance: +5%",
+    "x": 2,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 15,
+    "tree": "AirCarrier",
+    "name": "Aircraft Armor",
+    "description": "Reduce intake of continous AA damage for squadrons.",
+    "effect": "Continuous AA damage: -10%",
+    "x": 3,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 16,
+    "tree": "AirCarrier",
+    "name": "Survivalibilty Expert",
+    "description": "Increase squadron's HP.",
+    "effect": "Aircraft's HP: +25 HP per tier",
+    "x": 4,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 17,
+    "tree": "AirCarrier",
+    "name": "Interceptor",
+    "description": "Replace Patrol Fighters consumable with Interceptors.",
+    "effect": "Inteceptor's patrol radius: +10%\nCannot attack enemy fighters.\nCannot spot enemy ships.",
+    "x": 5,
+    "y": 2,
+    "category": "Support"
+  },
+  {
+    "id": 18,
+    "tree": "AirCarrier",
+    "name": "Bomber Flight Control",
+    "description": "Increase cruising speed of bombers.",
+    "effect": "Bomber cruising speed: +5%",
+    "x": 0,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 19,
+    "tree": "AirCarrier",
+    "name": "Proximity Fuze",
+    "description": "Decreases Torpedo Protection of target struck by torpedo.",
+    "effect": "Torpedo Protection of hit ship: -10%",
+    "x": 1,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 20,
+    "tree": "AirCarrier",
+    "name": "Close Quarter Expert",
+    "description": "Much more dangerous anti-surface batteries.",
+    "effect": "Secondary battery range: +20%\nSecondary battery dispersion: -30%",
+    "x": 2,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 21,
+    "tree": "AirCarrier",
+    "name": "Enhanced Aircraft Armor",
+    "description": "Reduced damage taken from Flak",
+    "effect": "Flak damage received: -25%",
+    "x": 3,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 22,
+    "tree": "AirCarrier",
+    "name": "Hidden Menance",
+    "description": "Decreases concealment at the cost of squadron return speed.",
+    "effect": "Detection range: -15%\nDamage Control Party cooldown: -20%\nSpeed of returning squadrons: -50%",
+    "x": 4,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 23,
+    "tree": "AirCarrier",
+    "name": "Enhanced Reaction",
+    "description": "Time for Patrol Fighters and Interceptors to start engaging enemy aircraft reduced.",
+    "effect": "Time before attacking: -80%\nTime to Arrive: +50%\nAction time of consumable: -25%",
+    "x": 5,
+    "y": 3,
+    "category": "Support"
+  },
+  {
+    "id": 24,
+    "tree": "Battleship",
+    "name": "Gun Feeder",
+    "description": "Accelerate shell type switching if all main battery guns are reloaded.",
+    "effect": "-50% to reload time when shell type is switched",
+    "x": 0,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 25,
+    "tree": "Battleship",
+    "name": "Pyrotechnician",
+    "description": "Increase chance of causing fires on enemy ships.",
+    "effect": "HE fire chance for main and secondary battery: +1%",
+    "x": 1,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 26,
+    "tree": "Battleship",
+    "name": "Consumables Specialist",
+    "description": "Reduce consumables cooldown time.",
+    "effect": "Catapult Fighter: -10% cooldown time\nSpotting Aircraft: -10% cooldown time\nMain Battery Reload Booster: -10% cooldown time\nTorpedo Reload Booster: -10% cooldown time\nDefensive AA FIre: -10% cooldown time",
+    "x": 2,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 27,
+    "tree": "Battleship",
+    "name": "Emergency Repair Specialist",
+    "description": "Reduce cooldown time of Damage Control Party and Repair Party.",
+    "effect": "Damage Control Party cooldown: -3%\nRepair Party cooldown: -3%",
+    "x": 3,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 28,
+    "tree": "Battleship",
+    "name": "Incoming Fire Alert",
+    "description": "Warns of long-range main battery shells.",
+    "effect": "Receives a warning of a salvo fired at your ship from a distance longer than 4.5km",
+    "x": 4,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 29,
+    "tree": "Battleship",
+    "name": "Preventive Maintance",
+    "description": "Reduces the risk of main turrets, torpedo tubes, steering gear, and engine becoming incapacitated.",
+    "effect": "Risk of incapacitation of modules: -30%",
+    "x": 5,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 30,
+    "tree": "Battleship",
+    "name": "Grease the Gears",
+    "description": "Increase turret rotation.",
+    "effect": "Turrent turn rate: +20%",
+    "x": 0,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 31,
+    "tree": "Battleship",
+    "name": "Inertia Fuse for HE Shells",
+    "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
+    "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
+    "x": 1,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 32,
+    "tree": "Battleship",
+    "name": "Consumables Enhancements",
+    "description": "Longer lasting consumables.",
+    "effect": "Smoke Generator: +10% action time\nHydroacoustic Search: +10% action time\nEngine Boost: +10% action time\nSurveillance Radar: +10% action time",
+    "x": 2,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 33,
+    "tree": "Battleship",
+    "name": "Vigilance",
+    "description": "Extend the ship's torpedo acquisition's range.",
+    "effect": "Detection range of enemy torpedoes: +25%",
+    "x": 3,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 34,
+    "tree": "Battleship",
+    "name": "Priority Target",
+    "description": "Display the number of enemies aiming at your ship.",
+    "effect": "Display the number of enemies aiming at your ship",
+    "x": 4,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 35,
+    "tree": "Battleship",
+    "name": "AA Gunner",
+    "description": "Increase continuous AA and flak damage.",
+    "effect": "Continuous AA damage: +10%\nAA flak damage: +10%",
+    "x": 5,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 36,
+    "tree": "Battleship",
+    "name": "Super-Heavy AP Shells",
+    "description": "Increase AP shell damage in exchance for longer fire and flooding durations.",
+    "effect": "AP shell damage: +5%\nFire and flood duration: +30%",
+    "x": 0,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 37,
+    "tree": "Battleship",
+    "name": "Long-Range Secondary Battery Shells",
+    "description": "Longer secondary battery ranges.",
+    "effect": "Secondary battery firing range: +20%",
+    "x": 1,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 38,
+    "tree": "Battleship",
+    "name": "Adrenaline Rush",
+    "description": "Increase reload speed of all armaments as the ship's health decrease.",
+    "effect": "Reload time of all arments: -0.2% per 1% of HP\nAA continuous damage: +0.2% per 1% of HP",
+    "x": 2,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 39,
+    "tree": "Battleship",
+    "name": "Basics of Survivability",
+    "description": "Reduce time for firefighting, flooding control, and module repairs.",
+    "effect": "Fire duration: -15%\nFlooding duration: -15%\nModule incapcitation duration: -15%",
+    "x": 3,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 40,
+    "tree": "Battleship",
+    "name": "Enhanced Anti-Torpedo Protection",
+    "description": "Improves torpedo damage reduction.",
+    "effect": "Ship's torpedo damage and flood chance reduction: +10% (additive)",
+    "x": 4,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 41,
+    "tree": "Battleship",
+    "name": "Expert AA Marksman",
+    "description": "More flak bursts and improve AA damage on a priority sector.",
+    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%",
+    "x": 5,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 42,
+    "tree": "Battleship",
+    "name": "Dead Eye",
+    "description": "Lower dispersion of main battery shells if there are no enemies within the normal detectability range.",
+    "effect": "Dispersion of main battery shells: -10%",
+    "x": 0,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 43,
+    "tree": "Battleship",
+    "name": "Improved Secondary Battery Aiming",
+    "description": "Greatly increases accuracy of secondary battery on targets that are manually designated.",
+    "effect": "Dispersion against designated target: -35%",
+    "x": 1,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 44,
+    "tree": "Battleship",
+    "name": "Close Quater Combat",
+    "description": "Improves secondary battery reload speed. If there is an enemy spotted within the secondary battery range, improves reload speed of main battery guns.",
+    "effect": "Secondary battery reload speed: -10%\nMain battery reload: -10%",
+    "x": 2,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 45,
+    "tree": "Battleship",
+    "name": "Emergency Repair Expert",
+    "description": "Provide longer and an additional charge of Damage Control Party and Repair Party.",
+    "effect": "Damage Control Party: +1 charge\nRepair Party: +1 charge\n\nDamage Control Party action time: +10%\nRepair Party action time: +10%",
+    "x": 3,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 46,
+    "tree": "Battleship",
+    "name": "Concealment Expert",
+    "description": "Reduced the detectability range.",
+    "effect": "Detection range: -10%",
+    "x": 4,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 47,
+    "tree": "Battleship",
+    "name": "Fire Prevention Expert",
+    "description": "Reduce the risk of catching fire and reduce the number of possible fires on the ship.",
+    "effect": "Risk of fire: -10%\nNumber of fires burning at once: 3",
+    "x": 5,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 48,
+    "tree": "Cruiser",
+    "name": "Grease the Gears",
+    "description": "Faster turret rotation to help turrets keep up with maneuvers.",
+    "effect": "Main battery traverse speed: +15%",
+    "x": 0,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 49,
+    "tree": "Cruiser",
+    "name": "Swift Fish",
+    "description": "Increase torpedo speed.",
+    "effect": "Torpedo speed: +5%",
+    "x": 1,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 50,
+    "tree": "Cruiser",
+    "name": "Consumables Specialist",
+    "description": "Reduce consumables cooldown time.",
+    "effect": "Catapult Fighter: -10% cooldown time\nSpotting Aircraft: -10% cooldown time\nMain Battery Reload Booster: -10% cooldown time\nTorpedo Reload Booster: -10% cooldown time\nDefensive AA FIre: -10% cooldown time",
+    "x": 2,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 51,
+    "tree": "Cruiser",
+    "name": "Gun Feeder",
+    "description": "Accelerate shell type switching if all main battery guns are reloaded.",
+    "effect": "-50% to reload time when shell type is switched",
+    "x": 3,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 52,
+    "tree": "Cruiser",
+    "name": "Incoming Fire Alert",
+    "description": "Warns of long-range main battery shells.",
+    "effect": "Receives a warning of a salvo fired at your ship from a distance longer than 4.5km",
+    "x": 4,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 53,
+    "tree": "Cruiser",
+    "name": "Last Stand",
+    "description": "Engine and steering geras continue to operate when it is incapacitated with a penalty.",
+    "effect": "Engine and steering gear remains operational at 50%",
+    "x": 5,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 54,
+    "tree": "Cruiser",
+    "name": "Pyrotechnician",
+    "description": "Increase chance of causing fires on enemy ships.",
+    "effect": "HE fire chance for main and secondary battery: +1%",
+    "x": 0,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 55,
+    "tree": "Cruiser",
+    "name": "Fill the Tubes",
+    "description": "Reduces torpedo reduce time.",
+    "effect": "Torpedo reload time: -5%",
+    "x": 1,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 56,
+    "tree": "Cruiser",
+    "name": "Consumable Enhancements",
+    "description": "Longer lasting consumables.",
+    "effect": "Smoke Generator: +10% action time\nHydroacoustic Search: +10% action time\nEngine Boost: +10% action time\nSurveillance Radar: +10% action time",
+    "x": 2,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 57,
+    "tree": "Cruiser",
+    "name": "Eye in the Sky",
+    "description": "Reduces spotter plane's cooldown time but reduces action time, but provide additional spotting plane.",
+    "effect": "Spotting Plane: +2 charges\nSpotting Plane cooldown time: -50%\nSpotting Plane action time: -50%",
+    "x": 3,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 58,
+    "tree": "Cruiser",
+    "name": "Priority Target",
+    "description": "Display the number of enemies aiming at your ship.",
+    "effect": "Display the number of enemies aiming at your ship",
+    "x": 4,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 59,
+    "tree": "Cruiser",
+    "name": "Expert AA Marksman",
+    "description": "More flak bursts and improve AA damage on a priority sector.",
+    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%",
+    "x": 5,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 60,
+    "tree": "Cruiser",
+    "name": "Heavy HE and SAP shells",
+    "description": "Increase damage for HE and SAP shells but increase the detectability range of ships that have guns above a certain caliber.",
+    "effect": "Main battery HE damage: +15%\nMain battery SAP damage: +15%\nDetectability of ships with main battery larger than 149mm: +15%",
+    "x": 0,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 61,
+    "tree": "Cruiser",
+    "name": "Enhanced Torpedo Explosive Charge",
+    "description": "Increase torpedo damage.",
+    "effect": "Torpedo damage: +15%",
+    "x": 1,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 62,
+    "tree": "Cruiser",
+    "name": "Adrenaline Rush",
+    "description": "Increase reload speed of all armaments as the ship's health decrease.",
+    "effect": "Reload time of all arments: -0.2% per 1% of HP\nAA continuous damage: +0.2% per 1% of HP",
+    "x": 2,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 63,
+    "tree": "Cruiser",
+    "name": "Heavy AP Shells",
+    "description": "Increase AP shells damage of guns above certain caliber.",
+    "effect": "AP shell damage of guns greater than 190mm: +5%",
+    "x": 3,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 64,
+    "tree": "Cruiser",
+    "name": "Superindentent",
+    "description": "Provide an additional charge for all consumables onboard.",
+    "effect": "All consumables: +1 charge",
+    "x": 4,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 65,
+    "tree": "Cruiser",
+    "name": "Survivabillity Expert",
+    "description": "Increase ship's hit points.",
+    "effect": "Ship's max HP: +350 HP per ship tier",
+    "x": 5,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 66,
+    "tree": "Cruiser",
+    "name": "Top Grade Gunner",
+    "description": "Inproves reload of secondary guns. If there is an enemy ship spotted within the ship's standard detectability range, improve main battery guns reload.",
+    "effect": "Secondary battery reload: -10%\nMain battery reload: -8%",
+    "x": 0,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 67,
+    "tree": "Cruiser",
+    "name": "Outnumbered",
+    "description": "If there are more enemy ships than allied ship within the ship's standard firing range, increase ship speed and reduce main battery dispersion.",
+    "effect": "Ship speed: +8%\nMain battery dispersion: -10%",
+    "x": 1,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 68,
+    "tree": "Cruiser",
+    "name": "Radio Location",
+    "description": "Show the direction of the nearest enemy.",
+    "effect": "Display the arc that approximate the nearest enemy's location.",
+    "x": 2,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 69,
+    "tree": "Cruiser",
+    "name": "Inertia Fuse for HE Shells",
+    "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
+    "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
+    "x": 3,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 70,
+    "tree": "Cruiser",
+    "name": "Concealment Expert",
+    "description": "Reduced the detectability range.",
+    "effect": "Detection range: -10%",
+    "x": 4,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 71,
+    "tree": "Cruiser",
+    "name": "AA Gunner",
+    "description": "Increase continuous AA and flak damage.",
+    "effect": "Continuous AA damage: +20%\nAA flak damage: +20%",
+    "x": 5,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 72,
+    "tree": "Destroyer",
+    "name": "Grease The Gears",
+    "description": "Faster turret rotation to help turrets keep up with maneuvers.",
+    "effect": "Main battery traverse speed: +15%",
+    "x": 0,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 73,
+    "tree": "Destroyer",
+    "name": "Liquidator",
+    "description": "Increase chanced to cause flooding on a torpedo strike.",
+    "effect": "Chance to to cause flooding: +30%",
+    "x": 1,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 74,
+    "tree": "Destroyer",
+    "name": "Consumables Specialist",
+    "description": "Reduces consumable cooldown time.",
+    "effect": "Catapult Fighter: -10% cooldown time\nSpotting Aircraft: -10% cooldown time\nMain Battery Reload Booster: -10% cooldown time\nTorpedo Reload Booster: -10% cooldown time\nDefensive AA FIre: -10% cooldown time",
+    "x": 2,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 75,
+    "tree": "Destroyer",
+    "name": "Gun Feeder",
+    "description": "Accelerate shell type switching if all main battery guns are reloaded.",
+    "effect": "-50% to reload time when shell type is switched",
+    "x": 3,
+    "y": 0,
+    "category": "Attack"
+  },
+  {
+    "id": 76,
+    "tree": "Destroyer",
+    "name": "Incoming Fire Alert",
+    "description": "Warns of long-range main battery shells.",
+    "effect": "Receives a warning of a salvo fired at your ship from a distance longer than 4.5km",
+    "x": 4,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 77,
+    "tree": "Destroyer",
+    "name": "Preventive Maintenace",
+    "description": "Reduces the risk of main turrets, torpedo tubes, steering gear, and engine becoming incapacitated.",
+    "effect": "Risk of incapacitation of modules: -30%",
+    "x": 5,
+    "y": 0,
+    "category": "Defense"
+  },
+  {
+    "id": 78,
+    "tree": "Destroyer",
+    "name": "Pyrotechnician",
+    "description": "Increase chance of causing fires on enemy ships.",
+    "effect": "HE fire chance for main and secondary battery: +1%",
+    "x": 0,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 79,
+    "tree": "Destroyer",
+    "name": "Swift Fish",
+    "description": "Faster Torpedoes.",
+    "effect": "Torpedo Speed: +5%",
+    "x": 1,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 80,
+    "tree": "Destroyer",
+    "name": "Consumables Enhancements",
+    "description": "Longer lasting consumables.",
+    "effect": "Smoke Generator: +10% action time\nHydroacoustic Search: +10% action time\nEngine Boost: +10% action time\nSurveillance Radar: +10% action time",
+    "x": 2,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 81,
+    "tree": "Destroyer",
+    "name": "Extra-Heavy AP Shells",
+    "description": "Increased AP shell damage.",
+    "effect": "Main battery AP shell damage: +5%",
+    "x": 3,
+    "y": 1,
+    "category": "Attack"
+  },
+  {
+    "id": 82,
+    "tree": "Destroyer",
+    "name": "Priority Target",
+    "description": "Display the number of enemies aiming at your ship.",
+    "effect": "Display the number of enemies aiming at your ship",
+    "x": 4,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 83,
+    "tree": "Destroyer",
+    "name": "Last Stand",
+    "description": "Engine and steering geras continue to operate when it is incapacitated with a penalty.",
+    "effect": "Engine and steering gear remains operational at 50%",
+    "x": 5,
+    "y": 1,
+    "category": "Defense"
+  },
+  {
+    "id": 84,
+    "tree": "Destroyer",
+    "name": "Main Battery and AA Specialist",
+    "description": "Improved firepower.",
+    "effect": "Main batttery reload time: -5%\nContinuous AA damage: +10%",
+    "x": 0,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 85,
+    "tree": "Destroyer",
+    "name": "Fill the Tubes",
+    "description": "Reduces torpedo reduce time.",
+    "effect": "Torpedo reload time: -5%",
+    "x": 1,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 86,
+    "tree": "Destroyer",
+    "name": "Adrenaline Rush",
+    "description": "Increase reload speed of all armaments as the ship's health decrease.",
+    "effect": "Reload time of all arments: -0.2% per 1% of HP\nAA continuous damage: +0.2% per 1% of HP",
+    "x": 2,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 87,
+    "tree": "Destroyer",
+    "name": "Inertia Fuse for HE Shells",
+    "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
+    "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
+    "x": 3,
+    "y": 2,
+    "category": "Attack"
+  },
+  {
+    "id": 88,
+    "tree": "Destroyer",
+    "name": "Superindentent",
+    "description": "Provide an additional charge for all consumables onboard.",
+    "effect": "All consumables: +1 charge",
+    "x": 4,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 89,
+    "tree": "Destroyer",
+    "name": "Survivabillity Expert",
+    "description": "Increase ship's hit points.",
+    "effect": "Ship's max HP: +350 HP per ship tier",
+    "x": 5,
+    "y": 2,
+    "category": "Defense"
+  },
+  {
+    "id": 90,
+    "tree": "Destroyer",
+    "name": "Main battery and AA Expert",
+    "description": "Even more firepower.",
+    "effect": "Main batttery range: +20%\nFlak damage: +15%",
+    "x": 0,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 91,
+    "tree": "Destroyer",
+    "name": "Swift in Silence",
+    "description": "Speed bonus while ship is undetected.",
+    "effect": "Main battery reload time: +5%\nShip speed while undetected: +8%",
+    "x": 1,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 92,
+    "tree": "Destroyer",
+    "name": "Radio Location",
+    "description": "Show the direction of the nearest enemy.",
+    "effect": "Display the arc that approximate the nearest enemy's location.",
+    "x": 2,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 93,
+    "tree": "Destroyer",
+    "name": "Fearless Brawler",
+    "description": "Decreased main battery reload time while ship is detected.",
+    "effect": "Flak burst per salvo: +1\nDetection range: +5%\nMain battery reload time while detected: -10%",
+    "x": 3,
+    "y": 3,
+    "category": "Attack"
+  },
+  {
+    "id": 94,
+    "tree": "Destroyer",
+    "name": "Concealment Expert",
+    "description": "Reduced the detectability range.",
+    "effect": "Detection range: -10%",
+    "x": 4,
+    "y": 3,
+    "category": "Defense"
+  },
+  {
+    "id": 95,
+    "tree": "Destroyer",
+    "name": "Dazzle",
+    "description": "When ship is spotted, accuracy of enemy shells fired at you is decreased.",
+    "effect": "Dispersion to enemy shells fired at you for 15 seconds: +20%",
+    "x": 5,
+    "y": 3,
+    "category": "Defense"
+  }
+]

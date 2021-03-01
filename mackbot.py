@@ -103,18 +103,18 @@ roman_numeral = {
 logging.info("Fetching WoWS Encyclopedia")
 # load important stuff
 if "sheets_credential" in os.environ:
-	wg_token = os.environ['wg_token']
-	bot_token = os.environ['bot_token']
+	wg_cmd_sep = os.environ['wg_cmd_sep']
+	bot_cmd_sep = os.environ['bot_cmd_sep']
 	sheet_id = os.environ['sheet_id']
 else:
 	with open(cwd + "/.env") as f:
 		s = f.read().split('\n')[:-1]
-		wg_token = s[0][s[0].find('=') + 1:]
-		bot_token = s[1][s[1].find('=') + 1:]
+		wg_cmd_sep = s[0][s[0].find('=') + 1:]
+		bot_cmd_sep = s[1][s[1].find('=') + 1:]
 		sheet_id = s[2][s[2].find('=') + 1:]
 
 # get weegee's wows encyclopedia
-wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
+wows_encyclopedia = wargaming.WoWS(wg_cmd_sep, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 
 # loading skills list
@@ -371,24 +371,24 @@ if command_list['build']:
 		SAMPLE_SPREADSHEET_ID = sheet_id
 
 		creds = None
-		# The file token.pickle stores the user's access and refresh tokens, and is
+		# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
 		# created automatically when the authorization flow completes for the first
 		# time.
-		if os.path.exists('token.pickle'):
-			with open('token.pickle', 'rb') as token:
-				creds = pickle.load(token)
+		if os.path.exists('cmd_sep.pickle'):
+			with open('cmd_sep.pickle', 'rb') as cmd_sep:
+				creds = pickle.load(cmd_sep)
 		# If there are no (valid) credentials available, let the user log in.
 		try:
 			if not creds or not creds.valid:
-				if creds and creds.expired and creds.refresh_token:
+				if creds and creds.expired and creds.refresh_cmd_sep:
 					creds.refresh(Request())
 				else:
 					flow = InstalledAppFlow.from_client_secrets_file(
 						'credentials.json', SCOPES)
 					creds = flow.run_local_server(port=0)
 				# Save the credentials for the next run
-				with open('token.pickle', 'wb') as token:
-					pickle.dump(creds, token)
+				with open('cmd_sep.pickle', 'wb') as cmd_sep:
+					pickle.dump(creds, cmd_sep)
 
 			service = build('sheets', 'v4', credentials=creds)
 
@@ -707,6 +707,7 @@ ship_tags = {
 	},
 }
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
+skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|(?:page (\d{1,2}))|(?:tier (\d{1,2}))')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
 for s in ship_list:
@@ -782,7 +783,7 @@ map_list = wows_encyclopedia.battlearenas()
 logging.info("Preprocessing Done")
 
 command_header = 'mackbot'
-token = ' '
+cmd_sep = ' '
 
 good_bot_messages = (
 	'Thank you!',
@@ -1023,7 +1024,7 @@ def get_legendary_upgrade_by_ship_name(ship):
 	return None
 
 
-def get_skill_data(skill, tree):
+def get_skill_data(tree, skill):
 	"""
 		returns informations of a requested commander skill
 
@@ -1063,10 +1064,18 @@ def get_skill_data(skill, tree):
 						tree = h.lower()
 						break
 
-			# looking for skill
+			# looking for skill based on full name
 			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
 			for f_s in filtered_skill_list:
 				if filtered_skill_list[f_s]['name'].lower() == skill:
+					s = filtered_skill_list[f_s].copy()
+					if s['tree'] == 'AirCarrier':
+						s['tree'] = "Aircraft Carrier"
+					return s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
+			# looking for skill based on abbreviation
+			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
+			for f_s in filtered_skill_list:
+				if filtered_skill_list[f_s]['abbr'].lower() == skill:
 					s = filtered_skill_list[f_s].copy()
 					if s['tree'] == 'AirCarrier':
 						s['tree'] = "Aircraft Carrier"
@@ -1256,12 +1265,12 @@ class Client(discord.Client):
 	"""
 
 	async def on_ready(self):
-		await self.change_presence(activity=discord.Game(command_header + token + 'help'))
+		await self.change_presence(activity=discord.Game(command_header + cmd_sep + 'help'))
 		logging.info("Logged on")
 
 	def help_message(self, message):
 		# help message
-		arg = message.split(token)
+		arg = message.split(cmd_sep)
 		embed = discord.Embed(title=f"Command Help")
 		try:
 			command = arg[2]
@@ -1273,7 +1282,7 @@ class Client(discord.Client):
 				embed.add_field(name='Command', value="help")
 		if command in command_list:
 			if command == 'help':
-				embed.add_field(name='Usage', value=command_header + token + command + token + '[command]',
+				embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[command]',
 								inline=False)
 				embed.add_field(name='Description',
 								value='List proper usage for [command]. Omit -[command] to list all possible commands',
@@ -1285,11 +1294,11 @@ class Client(discord.Client):
 		else:
 			embed.add_field(name='Error', value="Invalid command.", inline=False)
 		if command == 'goodbot':
-			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Praise the bot for being a good bot', inline=False)
 		if command == 'build':
 			embed.add_field(name='Usage',
-							value=command_header + token + command + token + '[type]' + token + 'build' + token + '[image]',
+							value=command_header + cmd_sep + command + cmd_sep + '[type]' + cmd_sep + 'build' + cmd_sep + '[image]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List name, nationality, type, tier, recommended build of the requested warships\n' +
@@ -1299,32 +1308,35 @@ class Client(discord.Client):
 							inline=False)
 		if command == 'ship':
 			embed.add_field(name='Usage',
-							value=command_header + token + command + token + '[ship]' + token + '(parameters)',
+							value=command_header + cmd_sep + command + cmd_sep + '[ship]' + cmd_sep + '(parameters)',
 							inline=False)
 			embed.add_field(name='Description', value='List the combat parameters of the requested warships\n\n' +
 													  '**ship**: Required. Desired ship to get combat information.\n\n' +
 													  '**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',
 							inline=False)
 		if command == 'skill':
-			embed.add_field(name='Usage', value=command_header + token + command + token + '[skill/abbr]',
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + "[ship_class]" + cmd_sep + '[skill/abbr]',
 							inline=False)
 			embed.add_field(name='Description',
-							value='List name, type, tier and effect of the requested commander skill', inline=False)
+							value='List name, type, tier and effect of the requested commander skill\n\n'
+									'**ship_class**: Select skill tree to filter. Acceptable value [carrier, battleship, cruiser, destroyer, dd, bb, c, cv]\n' +
+									'**skill**: Skill name or abbreviation to get detail of.',
+							inline=False)
 		if command == 'map':
-			embed.add_field(name='Usage', value=command_header + token + command + token + '[map_name]',
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[map_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List name and display the map of the requested map',
 							inline=False)
 		if command == 'whoami':
-			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Who\'s this bot?', inline=False)
 		if command == 'list':
 			if len(arg) == 3:
 				embed.add_field(name='Usage',
-								value=command_header + token + command + token + "[skills/upgrades/commanders/flags]",
+								value=command_header + cmd_sep + command + cmd_sep + "[skills/upgrades/commanders/flags]",
 								inline=False)
 				embed.add_field(name='Description',
-								value=f'Select a category to list all items of the requested category. type **{command_header + token + command + token} [skills/upgrades/commanders]** for help on the category.{chr(10)}' +
+								value=f'Select a category to list all items of the requested category. type **{command_header + cmd_sep + command + cmd_sep} [skills/upgrades/commanders]** for help on the category.{chr(10)}' +
 									  '**skills**: List all skills.\n' +
 									  '**upgrades**: List all upgrades.\n' +
 									  '**commanders**: List all commanders.\n' +
@@ -1332,35 +1344,39 @@ class Client(discord.Client):
 			else:
 				if arg[3] == 'skills':
 					embed.add_field(name='Usage',
-									value=command_header + token + command + token + "skills" + token + "[type/tier] [type_name/tier_number]",
+									value=command_header + cmd_sep + command + cmd_sep + "skills" + cmd_sep + "[query]",
 									inline=False)
 					embed.add_field(name='Description',
 									value='List name and the abbreviation of all commander skills.\n' +
-										  '**type [type_name]**: Optional. Returns all skills of indicated skill type. Acceptable values: **[Attack, Endurance, Support, Versatility]**\n' +
-										  '**tier [tier_number]**: Optional. Returns all skills of the indicated tier. Acceptable values: **[1,2,3,4]**',
+										'**query**:\n' +
+										'Acceptable terms: **ship_class**, **tier x**, **page [x]**\n' +
+										'\n' +
+										'**ship_class**: Acceptable terms: [carrier, battleship, cruiser, destroyer, dd, bb, c, cv]\n' +
+										'**tier [x]**: Replace [x] with a value 1-4 to filter cost' +
+										'**page [x]**: Replace [x] with a value to change page.',
 									inline=False)
 				elif arg[3] == 'upgrades':
 					embed.add_field(name='Usage',
-									value=command_header + token + command + token + "upgrades" + token + "[queries]",
+									value=command_header + cmd_sep + command + cmd_sep + "upgrades" + cmd_sep + "[queries]",
 									inline=False)
 					embed.add_field(name='Description', value='List name and the abbreviation of all upgrades.\n' +
 															  f'**[queries]**: Search queries for upgrades (Examples: secondary, torpedoes, slot 4',
 									inline=False)
 				elif arg[3] == 'commanders':
 					embed.add_field(name='Usage',
-									value=command_header + token + command + token + "commanders" + token + "[page_number/nation]",
+									value=command_header + cmd_sep + command + cmd_sep + "commanders" + cmd_sep + "[page_number/nation]",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all unique commanders.\n' +
 															  f'**[page_number]** Required. Select a page number to list commanders.\n' +
 															  f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([nation_dictionary[i] + ", " for i in nation_dictionary][:-3])}]**',
 									inline=False)
 				elif arg[3] == 'flags':
-					embed.add_field(name='Usage', value=command_header + token + command + token + "flags",
+					embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + "flags",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all signal flags.\n', inline=False)
 				elif arg[3] == 'maps':
 					embed.add_field(name='Usage',
-									value=command_header + token + command + token + "maps" + token + "[page_num]",
+									value=command_header + cmd_sep + command + cmd_sep + "maps" + cmd_sep + "[page_num]",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all maps.\n' +
 															  f'**[page_number]** Required. Select a page number to list maps.\n',
@@ -1377,7 +1393,7 @@ class Client(discord.Client):
 						add_help_string += "Requested tags:\n" + ''.join([i + '\n' for i in help_desc])[:-1]
 
 					embed.add_field(name='Usage',
-									value=command_header + token + command + token + "ships" + token + "[search tags]\n",
+									value=command_header + cmd_sep + command + cmd_sep + "ships" + cmd_sep + "[search tags]\n",
 									inline=False)
 					embed.add_field(name='Description',
 									value='List all available ships with the tags provided.\n' + add_help_string,
@@ -1387,7 +1403,7 @@ class Client(discord.Client):
 
 		if command == 'upgrade':
 			embed.add_field(name='Usage',
-							value=command_header + token + command + token + '[upgrade/abbr/ship_name]',
+							value=command_header + cmd_sep + command + cmd_sep + '[upgrade/abbr/ship_name]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List the name and description of the requested warship upgrade' +
@@ -1395,21 +1411,21 @@ class Client(discord.Client):
 								  '*ship_name*. Provide the ship name to return the legendary upgrade for that ship.',
 							inline=False)
 		if command == 'commander':
-			embed.add_field(name='Usage', value=command_header + token + command + token + '[cmdr_name]',
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[cmdr_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the nationality of the requested commander',
 							inline=False)
 		if command == 'flag':
-			embed.add_field(name='Usage', value=command_header + token + command + token + '[flag_name]',
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[flag_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the name and description of the requested signal flag',
 							inline=False)
 		if command == 'feedback':
-			embed.add_field(name='Usage', value=command_header + token + command, inline=False)
+			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Send a feedback form link for mackbot.', inline=False)
 		if command == 'doubloons':
 			embed.add_field(name='Usage',
-							value=command_header + token + command + token + '[doubloons]' + token + '[dollar/$]',
+							value=command_header + cmd_sep + command + cmd_sep + '[doubloons]' + cmd_sep + '[dollar/$]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='Returns the price in dollars of now much of the requested number of doubloons\n' +
@@ -1417,7 +1433,7 @@ class Client(discord.Client):
 							inline=False)
 		if command == 'code':
 			embed.add_field(name='Usage',
-							value=command_header + token + command + token + "code",
+							value=command_header + cmd_sep + command + cmd_sep + "code",
 							inline=False)
 			embed.add_field(name='Description',
 							value='Returns the URL to WG\'s coupon redeem page with the appropriate code',
@@ -1457,7 +1473,7 @@ class Client(discord.Client):
 		# message parse
 		ship_found = False
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -1638,7 +1654,7 @@ class Client(discord.Client):
 		# message parse
 		ship_found = False
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if not embed is None:
 				await channel.send(embed=embed)
 		else:
@@ -1863,126 +1879,126 @@ class Client(discord.Client):
 						m += f"**Damage:** {torps['max_damage']}\n"
 						m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
 						m += '\n'
-				embed.add_field(name="__**Torpedoes**__", value=m)
+					embed.add_field(name="__**Torpedoes**__", value=m)
 
-				# attackers
-				if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
-					m = ""
-					for h in sorted(modules['fighter'],
-									key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
-						fighter_module = module_list[str(h)]
-						fighter = module_list[str(h)]['profile']['fighter']
-						n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
-						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** rockets_filter:
-							m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts, {fighter['max_health']} HP, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-							m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['rocket_burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+					# attackers
+					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
+						m = ""
+						for h in sorted(modules['fighter'],
+										key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
+							fighter_module = module_list[str(h)]
+							fighter = module_list[str(h)]['profile']['fighter']
+							n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
+							if ship_filter == 2 ** rockets_filter:
+								m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts, {fighter['max_health']} HP, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
+								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['rocket_burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+								m += '\n'
+						embed.add_field(name="__**Attackers**__", value=m, inline=False)
+
+					# torpedo bomber
+					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
+						m = ""
+						for h in sorted(modules['torpedo_bomber'],key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
+							bomber_module = module_list[str(h)]
+							bomber = module_list[str(h)]['profile']['torpedo_bomber']
+							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
+							if ship_filter == 2 ** torpbomber_filter:
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
+								m += '\n'
+						embed.add_field(name="__**Torpedo Bomber**__", value=m)
+
+					# dive bombers
+					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
+						m = ""
+						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
+							bomber_module = module_list[str(h)]
+							bomber = module_list[str(h)]['profile']['dive_bomber']
+							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
+							if ship_filter == 2 ** bomber_filter:
+								m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']} {'(:fire:' + str(bomber['bomb_burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
+								m += '\n'
+						embed.add_field(name="__**Bombers**__", value=m)
+
+					# engine
+					if len(modules['engine']) > 0 and is_filtered(engine_filter):
+						m = ""
+						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
+							engine = module_list[str(e)]['profile']['engine']
+							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
-					embed.add_field(name="__**Attackers**__", value=m, inline=False)
+						embed.add_field(name="__**Engine**__", value=m, inline=False)
 
-				# torpedo bomber
-				if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
-					m = ""
-					for h in sorted(modules['torpedo_bomber'],key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
-						bomber_module = module_list[str(h)]
-						bomber = module_list[str(h)]['profile']['torpedo_bomber']
-						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** torpbomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**Torpedo:** :boom:{bomber['max_damage']}, {bomber['torpedo_max_speed']} kts\n"
-							m += '\n'
-					embed.add_field(name="__**Torpedo Bomber**__", value=m)
+					# concealment
+					if ship_param['concealment'] is not None and is_filtered(conceal_filter):
+						m = ""
+						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
+						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
+						embed.add_field(name="__**Concealment**__", value=m, inline=False)
 
-				# dive bombers
-				if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
-					m = ""
-					for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
-						bomber_module = module_list[str(h)]
-						bomber = module_list[str(h)]['profile']['dive_bomber']
-						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** bomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']}-{bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts, {bomber['max_health']} HP, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
-							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
-							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']} {'(:fire:' + str(bomber['bomb_burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['bomb_burn_probability'] > 0 else ''}\n"
-							m += '\n'
-					embed.add_field(name="__**Bombers**__", value=m)
+					# consumables
+					if len(consumables) > 0 and is_filtered(consumable_filter):
+						m = ""
+						for consumable_slot in consumables:
+							if len(consumables[consumable_slot]['abils']) > 0:
+								m += f"**Slot {consumables[consumable_slot]['slot'] + 1}:**"
+								if len(consumables[consumable_slot]['abils']) > 1:
+									m += " (Choose one)"
+								m += '\n'
+								for c in consumables[consumable_slot]['abils']:
+									consumable_id, consumable_type = c
+									consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
+									consumable_name = consumable_descriptor[consumable['consumableType']]['name']
+									# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
+									consumable_type = consumable["consumableType"]
 
-				# engine
-				if len(modules['engine']) > 0 and is_filtered(engine_filter):
-					m = ""
-					for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
-						engine = module_list[str(e)]['profile']['engine']
-						m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
-						m += '\n'
-					embed.add_field(name="__**Engine**__", value=m, inline=False)
+									charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
+									action_time = consumable['workTime']
+									cd_time = consumable['reloadTime']
 
-				# concealment
-				if ship_param['concealment'] is not None and is_filtered(conceal_filter):
-					m = ""
-					m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
-					m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
-					embed.add_field(name="__**Concealment**__", value=m, inline=False)
+									m += f"**{consumable_name}**\n"
+									if ship_filter == 2 ** consumable_filter:  # shows detail of consumable
+										consumable_detail = ""
+										if consumable_type == 'airDefenseDisp':
+											consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
+										if consumable_type == 'artilleryBoosters':
+											consumable_detail = f'Reload Time: -50%'
+										if consumable_type == 'regenCrew':
+											consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
+											for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+												hull = module_list[str(h)]['profile']['hull']
+												consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
+											consumable_detail = consumable_detail[:-1]
+										if consumable_type == 'rls':
+											consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
+										if consumable_type == 'scout':
+											consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
+										if consumable_type == 'smokeGenerator':
+											consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60)) + "m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60)) + "s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
+										if consumable_type == 'sonar':
+											consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f} km'
+										if consumable_type == 'speedBoosters':
+											consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
+										if consumable_type == 'torpedoReloader':
+											consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
 
-				# consumables
-				if len(consumables) > 0 and is_filtered(consumable_filter):
-					m = ""
-				for consumable_slot in consumables:
-					if len(consumables[consumable_slot]['abils']) > 0:
-						m += f"**Slot {consumables[consumable_slot]['slot'] + 1}:**"
-						if len(consumables[consumable_slot]['abils']) > 1:
-							m += " (Choose one)"
-						m += '\n'
-						for c in consumables[consumable_slot]['abils']:
-							consumable_id, consumable_type = c
-							consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
-							consumable_name = consumable_descriptor[consumable['consumableType']]['name']
-							# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
-							consumable_type = consumable["consumableType"]
-
-							charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
-							action_time = consumable['workTime']
-							cd_time = consumable['reloadTime']
-
-							m += f"**{consumable_name}**\n"
-							if ship_filter == 2 ** consumable_filter:  # shows detail of consumable
-								consumable_detail = ""
-								if consumable_type == 'airDefenseDisp':
-									consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
-								if consumable_type == 'artilleryBoosters':
-									consumable_detail = f'Reload Time: -50%'
-								if consumable_type == 'regenCrew':
-									consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
-									for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-										hull = module_list[str(h)]['profile']['hull']
-										consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP\n"
-									consumable_detail = consumable_detail[:-1]
-								if consumable_type == 'rls':
-									consumable_detail = f'Range: {round(consumable["distShip"] / 3) / 10:0.1f} km'
-								if consumable_type == 'scout':
-									consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
-								if consumable_type == 'smokeGenerator':
-									consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60)) + "m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60)) + "s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
-								if consumable_type == 'sonar':
-									consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] / 3) / 10:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] / 3) / 10:0.1f} km'
-								if consumable_type == 'speedBoosters':
-									consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
-								if consumable_type == 'torpedoReloader':
-									consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
-
-								m += f"{charges} charge{'s' if charges != 1 else ''}, "
-								m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
-								m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
-								if len(consumable_detail) > 0:
-									m += consumable_detail
-									m += '\n'
-						m += '\n'
+										m += f"{charges} charge{'s' if charges != 1 else ''}, "
+										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
+										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
+										if len(consumable_detail) > 0:
+											m += consumable_detail
+											m += '\n'
+								m += '\n'
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n" +
 										  f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n" +
@@ -2006,23 +2022,22 @@ class Client(discord.Client):
 		# skill_found = False
 		# message parse
 		if len(arg) <= 3:
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
 			try:
 				ship_class = arg[2].lower()
-				if ship_class.lower() in ['cv', 'carrier']:
-					ship_class = 'AirCarrier'
 				skill = ''.join([i + ' ' for i in arg[3:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 
 				logging.info(f'sending message for skill <{skill}>')
 				async with channel.typing():
-					name, tree, description, effect, column, tier, category = get_skill_data(skill, ship_class)
-					embed = discord.Embed(title="Commander Skill", description="")
+					name, tree, description, effect, column, tier, category = get_skill_data(ship_class, skill)
+					embed = discord.Embed(title=f"{name}", description="")
 					# embed.set_thumbnail(url=icon)
-					embed.description += f"**{name}**\n"
-					embed.description += f"**Tier {tier} {tree} {category} Skill**"
+					embed.description += f"**{tree} Skill**\n"
+					embed.description += f"**Tier {tier} {category} Skill**\n"
+					embed.description += f"**Column {column}**"
 					embed.add_field(name='Description', value=description, inline=False)
 					embed.add_field(name='Effect', value=effect, inline=False)
 				await channel.send(embed=embed)
@@ -2047,69 +2062,65 @@ class Client(discord.Client):
 			if len(arg) > 2:
 				if arg[2] == 'skills':
 					# list all skills
-					if len(arg) == 3:
+					if len(arg) < 3:
+						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "skills")
+					else:
 						# did not provide a filter, send all skills
+
 						embed = discord.Embed(name="Commander Skill")
+
+						search_param = arg[3:]
+						search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
+
+						filtered_skill_list = skill_list.copy()
+
+						# filter by ship class
+						ship_class = [i[0] for i in search_param if len(i[0]) > 0]
+						# convert hull classification to ship type full name
+						ship_class = ship_class[0] if len(ship_class) >= 1 else ''
+						if len(ship_class) > 0:
+							if len(ship_class) <= 2:
+								for h in hull_classification_converter:
+									if ship_class == hull_classification_converter[h].lower():
+										ship_class = h.lower()
+										break
+							if ship_class.lower() in ['cv', 'carrier']:
+								ship_class = 'aircarrier'
+							filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['tree'].lower() == ship_class])
+						# filter by skill tier
+						tier = [i[2] for i in search_param if len(i[2]) > 0]
+						tier = int(tier[0]) if len(tier) >= 1 else 0
+						if tier != 0:
+							filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['y'] + 1 == tier])
+
+						# select page
+						page = [i[1] for i in search_param if len(i[1]) > 0]
+						page = int(page[0]) if len(page) >= 1 else 0
+
+						# generate list of skills
 						m = [
-							f"**({hull_classification_converter[skill_list[s]['tree']]} {skill_list[s]['y']+1})** {skill_list[s]['name']}" + chr(10) for s in skill_list
+							f"**({hull_classification_converter[filtered_skill_list[s]['tree']]} T{filtered_skill_list[s]['y']+1})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list
 						]
+
+						# splitting list into pages
+						num_items = len(m)
 						m.sort()
-						m = [m[i:i + 10] for i in range(0, len(m), 10)]
+						items_per_page = 24
+						num_pages = (len(m) // items_per_page)
+						m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
+
+						embed = discord.Embed(title="Commander Skill (%i/%i)" % (page + 1, num_pages))
+						m = m[page]  # select page
+						# spliting selected page into columns
+						m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
 						for i in m:
-							embed.add_field(name="Skill", value=''.join([v for v in i]))
-					elif len(arg) > 3:
-						# asking for specific category
-						if arg[3] == 'type':
-							# get all skills of this type
-							try:
-								skill_type = arg[4]  # get type
-								embed = discord.Embed(name=f"{skill_type} Commander Skill")
-								m = [f"(Tier {skill_list[i]['tier']}) **" + skill_list[i]['name'] + '** (' + ''.join(
-									[c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90]) + ')' +
-									 chr(10)
-									 for i in skill_list if skill_list[i]['type_name'].lower() == skill_type.lower()]
-								m.sort()
-								m = ''.join([i for i in m])
-								embed.add_field(name="(Tier) Skill (Abbr.)", value=m)
-								message_success = True
-							except Exception as e:
-								embed = None
-								logging.info(e, end='')
-								if type(e) == IndexError:
-									error_message = f"Please specify a skill type! Acceptable values: [Attack, Endurance, Support, Versatility]"
-								else:
-									logging.info(f"Skill listing argument <{arg[4]}> is invalid.")
-									error_message = f"Value {arg[4]} is not understood"
-						elif arg[3] == 'tier':
-							# get all skills of this tier
-							try:
-								tier = int(arg[4])  # get tier number
-								embed = discord.Embed(name=f"Tier {tier} Commander Skill")
-								m = [f"({skill_list[i]['type_name']}) **" + skill_list[i]['name'] + '** (' + ''.join(
-									[c for c in skill_list[i]['name'] if 64 < ord(c) and ord(c) < 90]) + ')' + chr(10)
-									 for i in skill_list if skill_list[i]['tier'] == tier]
-								m.sort()
-								m = ''.join([i for i in m])
-								embed.add_field(name="(Category) Skill (Abbr.)", value=m)
-								message_success = True
-							except Exception as e:
-								embed = None
-								if type(e) == IndexError:
-									error_message = f"Please specify a skill tier! Acceptable values: [1,2,3,4]"
-								else:
-									logging.info(f"Skill listing argument <{arg[4]}> is invalid.")
-									error_message = f"Value {arg[4]} is not understood"
-						else:
-							# not a known argument
-							logging.info(f"{arg[3]} is not a known argument for command {arg[2]}.")
-							embed = None
-							error_message = f"Argument **{arg[3]}** is not a valid argument."
-							return
+							embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
+
 
 				elif arg[2] == 'upgrades':
 					# list all upgrades
 					if len(arg) == 3:
-						embed = self.help_message(command_header + token + "help" + token + arg[1] + token + "upgrades")
+						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "upgrades")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list upgrades
@@ -2189,7 +2200,7 @@ class Client(discord.Client):
 				elif arg[2] == 'maps':
 					# list all maps
 					if len(arg) == 3:
-						embed = self.help_message(command_header + token + "help" + token + arg[1] + token + "maps")
+						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "maps")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list upgrades
@@ -2224,7 +2235,7 @@ class Client(discord.Client):
 						server_emojis = []
 					message_success = False
 					if len(arg) == 3:
-						embed = self.help_message(command_header + token + "help" + token + arg[1] + token + "ships")
+						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "ships")
 						send_help_message = True
 					elif len(arg) > 3:
 						# parsing search parameters
@@ -2306,7 +2317,7 @@ class Client(discord.Client):
 					message_success = False
 					if len(arg) == 3:
 						embed = self.help_message(
-							command_header + token + "help" + token + arg[1] + token + "commanders")
+							command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "commanders")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list commanders by page
@@ -2380,7 +2391,7 @@ class Client(discord.Client):
 			else:
 				# no arugments listed, show help message
 				send_help_message = True
-				embed = self.help_message(command_header + token + "help" + token + arg[1])
+				embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 		if embed is not None:
 			# if not send_help_message:
 			# m.sort()
@@ -2401,7 +2412,7 @@ class Client(discord.Client):
 		upgrade = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2523,7 +2534,7 @@ class Client(discord.Client):
 		# message parse
 		cmdr = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2599,7 +2610,7 @@ class Client(discord.Client):
 		# message parse
 		map = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2633,7 +2644,7 @@ class Client(discord.Client):
 		flag = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2670,7 +2681,7 @@ class Client(discord.Client):
 		upgrade_found = False
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2714,7 +2725,7 @@ class Client(discord.Client):
 		channel = message.channel
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + token + "help" + token + arg[1])
+			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2724,20 +2735,20 @@ class Client(discord.Client):
 
 	async def on_message(self, message):
 		channel = message.channel
-		arg = message.content.split(token)
+		arg = message.content.split(cmd_sep)
 		if message.author != self.user:
 			if message.content.startswith("<@!" + str(self.user.id) + ">"):
 				if len(arg) == 1:
 					# no additional arguments, send help
 					logging.info(f"User {message.author} requested my help.")
-					embed = self.help_message(command_header + token + "help" + token + "help")
+					embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + "help")
 					if not embed is None:
 						logging.info(f"sending help message")
 						await channel.send("はい、サラはここに。", embed=embed)
 				else:
 					# with arguments, change arg[0] and perform its normal task
 					arg[0] = command_header
-			if arg[0].lower() + token == command_header + token:  # message starts with mackbot
+			if arg[0].lower() + cmd_sep == command_header + cmd_sep:  # message starts with mackbot
 				if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
 					# maintanance message
 					await channel.send(
@@ -2764,4 +2775,4 @@ if __name__ == "__main__":
 	client = Client()
 
 	check_build()
-	client.run(bot_token)
+	client.run(bot_cmd_sep)
