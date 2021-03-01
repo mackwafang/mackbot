@@ -1444,7 +1444,7 @@ class Client(discord.Client):
 		# send help message
 		channel = message.channel
 		embed = self.help_message(message.content)
-		if not embed is None:
+		if embed is not None:
 			logging.info(f"sending help message for command <help>")
 			await channel.send(embed=embed)
 
@@ -1652,7 +1652,6 @@ class Client(discord.Client):
 	async def ship(self, message, arg):
 		channel = message.channel
 		# message parse
-		ship_found = False
 		if len(arg) <= 2:
 			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
 			if not embed is None:
@@ -2115,6 +2114,7 @@ class Client(discord.Client):
 						m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
 						for i in m:
 							embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
+						embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_header} skill [ship_class] [skill_name]]")
 
 
 				elif arg[2] == 'upgrades':
@@ -2180,8 +2180,7 @@ class Client(discord.Client):
 								m = m[page]  # select page
 								m = [m[i:i + items_per_page // 2] for i in
 									 range(0, len(m), items_per_page // 2)]  # spliting into columns
-								embed.set_footer(
-									text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_header} upgrade [name/abbreviation]]")
+								embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_header} upgrade [name/abbreviation]]")
 								for i in m:
 									embed.add_field(name="Upgrade (abbr.)", value=''.join([v + '\n' for v in i]))
 							else:
@@ -2529,8 +2528,6 @@ class Client(discord.Client):
 	async def commander(self, message, arg):
 		channel = message.channel
 		# get information on requested commander
-		message_string = message.content
-		cmdr_found = False
 		# message parse
 		cmdr = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
@@ -2605,8 +2602,6 @@ class Client(discord.Client):
 	async def map(self, message, arg):
 		channel = message.channel
 		# get information on requested map
-		message_string = message.content
-		map_found = False
 		# message parse
 		map = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
@@ -2638,8 +2633,6 @@ class Client(discord.Client):
 	async def flag(self, message, arg):
 		channel = message.channel
 		# get information on requested flag
-		message_string = message.content
-		upgrade_found = False
 		# message parse
 		flag = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
@@ -2677,8 +2670,6 @@ class Client(discord.Client):
 	async def doubloons(self, message, arg):
 		channel = message.channel
 		# get information on requested flag
-		message_string = message.content
-		upgrade_found = False
 		if len(arg) <= 2:
 			# argument is empty, send help message
 			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
@@ -2730,7 +2721,7 @@ class Client(discord.Client):
 				await channel.send(embed=embed)
 		else:
 			code = arg[2]
-			s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + code
+			s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + code.upper()
 			await channel.send(s)
 
 	async def on_message(self, message):
