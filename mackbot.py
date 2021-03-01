@@ -103,18 +103,18 @@ roman_numeral = {
 logging.info("Fetching WoWS Encyclopedia")
 # load important stuff
 if "sheets_credential" in os.environ:
-	wg_cmd_sep = os.environ['wg_cmd_sep']
-	bot_cmd_sep = os.environ['bot_cmd_sep']
+	wg_token = os.environ['wg_token']
+	bot_token = os.environ['bot_token']
 	sheet_id = os.environ['sheet_id']
 else:
 	with open(cwd + "/.env") as f:
 		s = f.read().split('\n')[:-1]
-		wg_cmd_sep = s[0][s[0].find('=') + 1:]
-		bot_cmd_sep = s[1][s[1].find('=') + 1:]
+		wg_token = s[0][s[0].find('=') + 1:]
+		bot_token = s[1][s[1].find('=') + 1:]
 		sheet_id = s[2][s[2].find('=') + 1:]
 
 # get weegee's wows encyclopedia
-wows_encyclopedia = wargaming.WoWS(wg_cmd_sep, region='na', language='en').encyclopedia
+wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 
 # loading skills list
@@ -2766,4 +2766,4 @@ if __name__ == "__main__":
 	client = Client()
 
 	check_build()
-	client.run(bot_cmd_sep)
+	client.run(bot_token)
