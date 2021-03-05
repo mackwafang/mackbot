@@ -477,9 +477,9 @@ for s in ship_list:
 				if type(ship_upgrade_info[_info]) == dict:  # if there are data
 					try:
 						module_id = find_module_by_tag(_info)  # what is this module?
-					except:
+					except IndexError as e:
 						logging.critical(f"Module with tag {_info} is not found")
-						break
+						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
 						# initialize AA dictionary
@@ -542,16 +542,16 @@ for s in ship_list:
 						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
 						# calculate aa rating
-						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.5
+						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.8
 						mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
-						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
+						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2.25
 						combined_aa_damage = near_damage + mid_damage + far_damage
 						aa_rating = 0
 						if combined_aa_damage > 0:
 							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
 							if aa_range_scaling > 1:
 								aa_range_scaling = aa_range_scaling ** 2
-							aa_rating = (combined_aa_damage / (int(ship['tier']) * 10)) * aa_range_scaling
+							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
 						if ship_info[s]['anti_aircraft'] is None:
 							ship_info[s]['anti_aircraft'] = {}
@@ -572,15 +572,11 @@ for s in ship_list:
 								module_list[module_id]['profile']['artillery']['numBarrels'] = int(
 									turret_data['numBarrels'])
 								if ammo['ammoType'] == 'HE':
-									module_list[module_id]['profile']['artillery']['burn_probability'] = int(
-										ammo['burnProb'] * 100)
-									module_list[module_id]['profile']['artillery']['pen_HE'] = int(
-										ammo['alphaPiercingHE'])
+									module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb'] * 100)
+									module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
 								if ammo['ammoType'] == 'CS':
-									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(
-										ammo['alphaDamage'])
-									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(
-										ammo['alphaPiercingCS'])
+									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
+									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
 
 							# check for belfast and belfast '43
 							if 'Belfast' in ship['name']:
@@ -634,6 +630,24 @@ for s in ship_list:
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+						# get turret parameter
+						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['payload'] = plane['attackCount']
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+
+					# skip bomber
+					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
 						# get turret parameter
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
 						planes = module_data[planes].values()
@@ -1732,7 +1746,6 @@ class Client(discord.Client):
 							return 1 if len([i[x - 1] for i in s if len(i[x - 1]) > 0]) > 0 else 0
 
 						# enables proper filter
-						slot = ''.join([i[1] for i in s])
 						ship_filter |= is_filter_requested(2) << hull_filter
 						ship_filter |= is_filter_requested(3) << guns_filter
 						ship_filter |= is_filter_requested(4) << atbas_filter
@@ -1746,8 +1759,6 @@ class Client(discord.Client):
 						ship_filter |= is_filter_requested(12) << consumable_filter
 
 					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium " + ship_type if is_prem else ship_type}**\n'
-
-					footer_message = ""
 
 					def is_filtered(x):
 						return (ship_filter >> x) & 1 == 1
@@ -1823,7 +1834,7 @@ class Client(discord.Client):
 					if len(modules['hull']) > 0 and is_filtered(aa_filter):
 						m = ""
 
-						if ship_filter == 2 ** (aa_filter):
+						if ship_filter == 2 ** aa_filter:
 							for hull in modules['hull']:
 								aa = module_list[str(hull)]['profile']['anti_air']
 								m += f"**{name} ({aa['hull']})**\n"
@@ -1832,10 +1843,10 @@ class Client(discord.Client):
 								rating_descriptor = ""
 								for d in AA_RATING_DESCRIPTOR:
 									low, high = AA_RATING_DESCRIPTOR[d]
-									if low <= aa['rating'] and aa['rating'] <= high:
+									if low <= aa['rating'] <= high:
 										rating_descriptor = d
 										break
-								m += f"**AA Rating:** {int(aa['rating'])} ({rating_descriptor})\n"
+								m += f"**AA Rating (vs. T{tier}):** {int(aa['rating'])} ({rating_descriptor})\n"
 								# provide more AA detail
 								flak = aa['flak']
 								near = aa['near']
@@ -1859,7 +1870,7 @@ class Client(discord.Client):
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
 								low, high = AA_RATING_DESCRIPTOR[d]
-								if low <= average_rating and average_rating <= high:
+								if low <= average_rating <= high:
 									rating_descriptor = d
 									break
 							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
@@ -1878,7 +1889,7 @@ class Client(discord.Client):
 						m += f"**Damage:** {torps['max_damage']}\n"
 						m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
 						m += '\n'
-					embed.add_field(name="__**Torpedoes**__", value=m)
+						embed.add_field(name="__**Torpedoes**__", value=m)
 
 					# attackers
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
@@ -1998,11 +2009,11 @@ class Client(discord.Client):
 											m += consumable_detail
 											m += '\n'
 								m += '\n'
-					embed.add_field(name="__**Consumables**__", value=m, inline=False)
+						embed.add_field(name="__**Consumables**__", value=m, inline=False)
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n" +
 										  f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n" +
-										  f"Parameters values include, but not limited to: guns, secondaries, attackers, torps, bombers, engine, concealment")
-					await channel.send(embed=embed)
+										  f"Parameters values include, but not limited to: guns, secondaries, torps, bombers, concealment")
+				await channel.send(embed=embed)
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
 				# error, ship name not understood
