@@ -441,14 +441,25 @@ if command_list['build']:
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
 logging.info("Checking cached ship_param file...")
+fetch_ship_params_from_wg = False
 if os.path.isfile('./' + ship_param_file_name):
+	# check ship_params exists
 	logging.info("File found. Loading file")
 	with open('./' + ship_param_file_name, 'rb') as f:
 		ship_info = pickle.load(f)
+		
+	if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
+		logging.info("Ship params outdated, fetching new list")
+		fetch_ship_params_from_wg = True
+		ship_info = {}
 else:
-	logging.info("File not found, fetching from weegee")
+	fetch_ship_params_from_wg = True
+
+if fetch_ship_params_from_wg:
+	logging.info("Fetching new ship params from weegee")
 	i = 0
 	ship_info = {}
+	ship_info['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
 	for s in ship_list:
 		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
 		ship_info[s] = ship[s]
