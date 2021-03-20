@@ -107,11 +107,11 @@ if "sheets_credential" in os.environ:
 	bot_token = os.environ['bot_token']
 	sheet_id = os.environ['sheet_id']
 else:
-	with open(cwd + "/.env") as f:
-		s = f.read().split('\n')[:-1]
-		wg_token = s[0][s[0].find('=') + 1:]
-		bot_token = s[1][s[1].find('=') + 1:]
-		sheet_id = s[2][s[2].find('=') + 1:]
+	with open(cwd + "/config.json") as f:
+		data = json.load(f)
+		wg_token = data['wg_token']
+		bot_token = data['bot_token']
+		sheet_id = data['sheet_id']
 
 # get weegee's wows encyclopedia
 wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
