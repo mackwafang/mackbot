@@ -996,10 +996,10 @@ def get_ship_data(ship):
 			ship_name_in_dict = ship_list[i]['name']
 			# print(ship.lower(),ship_name_in_dict.lower())
 			if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
-				ship_found = True
-				break
-		if ship_found:
-			return ship_info[i]
+				if i in ship_info:
+					return ship_info[i]
+				else:
+					raise IndexError("Ship not found in ship_params")
 	except Exception as e:
 		raise e
 
@@ -2028,13 +2028,16 @@ class Client(discord.Client):
 			except Exception as e:
 				logging.info(f"Exception {type(e)}", e)
 				# error, ship name not understood
-				ship_name_list = [ship_list[i]['name'] for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
-				closest_match_string = ""
-				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				if e == IndexError:
+					await channel.send(f"Ship **{ship}** is not known")
+				else:
+					ship_name_list = [ship_list[i]['name'] for i in ship_list]
+					closest_match = difflib.get_close_matches(ship, ship_name_list)
+					closest_match_string = ""
+					if len(closest_match) > 0:
+						closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
-				await channel.send(f"Ship **{ship}** is not understood" + closest_match_string)
+					await channel.send(f"Ship **{ship}** is not understood" + closest_match_string)
 
 	async def skill(self, message, arg):
 		channel = message.channel
