@@ -5,7 +5,8 @@ import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, tr
 import pandas as pd
 import numpy as np
 import cv2 as cv
-from PIL import ImageFont, ImageDraw, Image
+
+# from PIL import ImageFont, ImageDraw, Image
 from itertools import count
 from numpy.random import randint
 from pprint import pprint
@@ -924,7 +925,7 @@ map_list = wows_encyclopedia.battlearenas()
 # del game_data # free up memory
 logging.info("Preprocessing Done")
 
-command_header = 'mackbot'
+command_prefix = 'mackbot'
 cmd_sep = ' '
 
 good_bot_messages = (
@@ -933,7 +934,6 @@ good_bot_messages = (
 	':3',
 	':heart:',
 )
-
 
 def check_build():
 	"""
@@ -1407,7 +1407,7 @@ class Client(discord.Client):
 	"""
 
 	async def on_ready(self):
-		await self.change_presence(activity=discord.Game(command_header + cmd_sep + 'help'))
+		await self.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
 		logging.info("Logged on")
 
 	def help_message(self, message):
@@ -1424,7 +1424,7 @@ class Client(discord.Client):
 				embed.add_field(name='Command', value="help")
 		if command in command_list:
 			if command == 'help':
-				embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[command]',
+				embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[command]',
 								inline=False)
 				embed.add_field(name='Description',
 								value='List proper usage for [command]. Omit -[command] to list all possible commands',
@@ -1436,28 +1436,28 @@ class Client(discord.Client):
 		else:
 			embed.add_field(name='Error', value="Invalid command.", inline=False)
 		if command == 'goodbot':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Praise the bot for being a good bot', inline=False)
 		if command == 'build':
 			embed.add_field(name='Usage',
-							value=command_header + cmd_sep + command + cmd_sep + '[type]' + cmd_sep + 'build' + cmd_sep + '[image]',
+							value=command_prefix + cmd_sep + command + cmd_sep + '[type]' + cmd_sep + 'build' + cmd_sep + '[image]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List name, nationality, type, tier, recommended build of the requested warships\n' +
 								  '**ship**: Required. Desired ship to request a build.\n\n' +
-								  f'**[type]**: Optional. Indicates should {command_header} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n\n' +
+								  f'**[type]**: Optional. Indicates should {command_prefix} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n\n' +
 								  '**[image]**: Optional. If the word **image** is present, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',
 							inline=False)
 		if command == 'ship':
 			embed.add_field(name='Usage',
-							value=command_header + cmd_sep + command + cmd_sep + '[ship]' + cmd_sep + '(parameters)',
+							value=command_prefix + cmd_sep + command + cmd_sep + '[ship]' + cmd_sep + '(parameters)',
 							inline=False)
 			embed.add_field(name='Description', value='List the combat parameters of the requested warships\n\n' +
 													  '**ship**: Required. Desired ship to get combat information.\n\n' +
 													  '**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',
 							inline=False)
 		if command == 'skill':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + "[ship_class]" + cmd_sep + '[skill/abbr]',
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + "[ship_class]" + cmd_sep + '[skill/abbr]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List name, type, tier and effect of the requested commander skill\n\n'
@@ -1465,20 +1465,20 @@ class Client(discord.Client):
 									'**skill**: Skill name or abbreviation to get detail of.',
 							inline=False)
 		if command == 'map':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[map_name]',
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[map_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List name and display the map of the requested map',
 							inline=False)
 		if command == 'whoami':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Who\'s this bot?', inline=False)
 		if command == 'list':
 			if len(arg) == 3:
 				embed.add_field(name='Usage',
-								value=command_header + cmd_sep + command + cmd_sep + "[skills/upgrades/commanders/flags]",
+								value=command_prefix + cmd_sep + command + cmd_sep + "[skills/upgrades/commanders/flags]",
 								inline=False)
 				embed.add_field(name='Description',
-								value=f'Select a category to list all items of the requested category. type **{command_header + cmd_sep + command + cmd_sep} [skills/upgrades/commanders]** for help on the category.{chr(10)}' +
+								value=f'Select a category to list all items of the requested category. type **{command_prefix + cmd_sep + command + cmd_sep} [skills/upgrades/commanders]** for help on the category.{chr(10)}' +
 									  '**skills**: List all skills.\n' +
 									  '**upgrades**: List all upgrades.\n' +
 									  '**commanders**: List all commanders.\n' +
@@ -1486,7 +1486,7 @@ class Client(discord.Client):
 			else:
 				if arg[3] == 'skills':
 					embed.add_field(name='Usage',
-									value=command_header + cmd_sep + command + cmd_sep + "skills" + cmd_sep + "[query]",
+									value=command_prefix + cmd_sep + command + cmd_sep + "skills" + cmd_sep + "[query]",
 									inline=False)
 					embed.add_field(name='Description',
 									value='List name and the abbreviation of all commander skills.\n' +
@@ -1499,26 +1499,26 @@ class Client(discord.Client):
 									inline=False)
 				elif arg[3] == 'upgrades':
 					embed.add_field(name='Usage',
-									value=command_header + cmd_sep + command + cmd_sep + "upgrades" + cmd_sep + "[queries]",
+									value=command_prefix + cmd_sep + command + cmd_sep + "upgrades" + cmd_sep + "[queries]",
 									inline=False)
 					embed.add_field(name='Description', value='List name and the abbreviation of all upgrades.\n' +
 															  f'**[queries]**: Search queries for upgrades (Examples: secondary, torpedoes, slot 4',
 									inline=False)
 				elif arg[3] == 'commanders':
 					embed.add_field(name='Usage',
-									value=command_header + cmd_sep + command + cmd_sep + "commanders" + cmd_sep + "[page_number/nation]",
+									value=command_prefix + cmd_sep + command + cmd_sep + "commanders" + cmd_sep + "[page_number/nation]",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all unique commanders.\n' +
 															  f'**[page_number]** Required. Select a page number to list commanders.\n' +
 															  f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([nation_dictionary[i] + ", " for i in nation_dictionary][:-3])}]**',
 									inline=False)
 				elif arg[3] == 'flags':
-					embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + "flags",
+					embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + "flags",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all signal flags.\n', inline=False)
 				elif arg[3] == 'maps':
 					embed.add_field(name='Usage',
-									value=command_header + cmd_sep + command + cmd_sep + "maps" + cmd_sep + "[page_num]",
+									value=command_prefix + cmd_sep + command + cmd_sep + "maps" + cmd_sep + "[page_num]",
 									inline=False)
 					embed.add_field(name='Description', value='List names of all maps.\n' +
 															  f'**[page_number]** Required. Select a page number to list maps.\n',
@@ -1535,7 +1535,7 @@ class Client(discord.Client):
 						add_help_string += "Requested tags:\n" + ''.join([i + '\n' for i in help_desc])[:-1]
 
 					embed.add_field(name='Usage',
-									value=command_header + cmd_sep + command + cmd_sep + "ships" + cmd_sep + "[search tags]\n",
+									value=command_prefix + cmd_sep + command + cmd_sep + "ships" + cmd_sep + "[search tags]\n",
 									inline=False)
 					embed.add_field(name='Description',
 									value='List all available ships with the tags provided.\n' + add_help_string,
@@ -1545,7 +1545,7 @@ class Client(discord.Client):
 
 		if command == 'upgrade':
 			embed.add_field(name='Usage',
-							value=command_header + cmd_sep + command + cmd_sep + '[upgrade/abbr/ship_name]',
+							value=command_prefix + cmd_sep + command + cmd_sep + '[upgrade/abbr/ship_name]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='List the name and description of the requested warship upgrade' +
@@ -1553,21 +1553,21 @@ class Client(discord.Client):
 								  '*ship_name*. Provide the ship name to return the legendary upgrade for that ship.',
 							inline=False)
 		if command == 'commander':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[cmdr_name]',
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[cmdr_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the nationality of the requested commander',
 							inline=False)
 		if command == 'flag':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command + cmd_sep + '[flag_name]',
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[flag_name]',
 							inline=False)
 			embed.add_field(name='Description', value='List the name and description of the requested signal flag',
 							inline=False)
 		if command == 'feedback':
-			embed.add_field(name='Usage', value=command_header + cmd_sep + command, inline=False)
+			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
 			embed.add_field(name='Description', value='Send a feedback form link for mackbot.', inline=False)
 		if command == 'doubloons':
 			embed.add_field(name='Usage',
-							value=command_header + cmd_sep + command + cmd_sep + '[doubloons]' + cmd_sep + '[dollar/$]',
+							value=command_prefix + cmd_sep + command + cmd_sep + '[doubloons]' + cmd_sep + '[dollar/$]',
 							inline=False)
 			embed.add_field(name='Description',
 							value='Returns the price in dollars of now much of the requested number of doubloons\n' +
@@ -1575,7 +1575,7 @@ class Client(discord.Client):
 							inline=False)
 		if command == 'code':
 			embed.add_field(name='Usage',
-							value=command_header + cmd_sep + command + cmd_sep + "code",
+							value=command_prefix + cmd_sep + command + cmd_sep + "code",
 							inline=False)
 			embed.add_field(name='Description',
 							value='Returns the URL to WG\'s coupon redeem page with the appropriate code',
@@ -1615,7 +1615,7 @@ class Client(discord.Client):
 		# message parse
 		ship_found = False
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -1795,7 +1795,7 @@ class Client(discord.Client):
 		channel = message.channel
 		# message parse
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if not embed is None:
 				await channel.send(embed=embed)
 		else:
@@ -2182,7 +2182,7 @@ class Client(discord.Client):
 		# skill_found = False
 		# message parse
 		if len(arg) <= 3:
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2223,7 +2223,7 @@ class Client(discord.Client):
 				if arg[2] == 'skills':
 					# list all skills
 					if len(arg) < 3:
-						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "skills")
+						embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "skills")
 					else:
 						# did not provide a filter, send all skills
 
@@ -2275,13 +2275,13 @@ class Client(discord.Client):
 						m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
 						for i in m:
 							embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
-						embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_header} skill [ship_class] [skill_name]]")
+						embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
 
 
 				elif arg[2] == 'upgrades':
 					# list all upgrades
 					if len(arg) == 3:
-						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "upgrades")
+						embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "upgrades")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list upgrades
@@ -2341,7 +2341,7 @@ class Client(discord.Client):
 								m = m[page]  # select page
 								m = [m[i:i + items_per_page // 2] for i in
 									 range(0, len(m), items_per_page // 2)]  # spliting into columns
-								embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_header} upgrade [name/abbreviation]]")
+								embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
 								for i in m:
 									embed.add_field(name="Upgrade (abbr.)", value=''.join([v + '\n' for v in i]))
 							else:
@@ -2360,7 +2360,7 @@ class Client(discord.Client):
 				elif arg[2] == 'maps':
 					# list all maps
 					if len(arg) == 3:
-						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "maps")
+						embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "maps")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list upgrades
@@ -2395,7 +2395,7 @@ class Client(discord.Client):
 						server_emojis = []
 					message_success = False
 					if len(arg) == 3:
-						embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "ships")
+						embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "ships")
 						send_help_message = True
 					elif len(arg) > 3:
 						# parsing search parameters
@@ -2465,7 +2465,7 @@ class Client(discord.Client):
 							m = [m[i:i + items_per_page // 2] for i in
 								 range(0, len(m), items_per_page // 2)]  # spliting into columns
 							embed.set_footer(
-								text=f"{num_items} ships found\nTo get ship build, use [{command_header} build [ship_name]]")
+								text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
 							for i in m:
 								embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 						else:
@@ -2477,7 +2477,7 @@ class Client(discord.Client):
 					message_success = False
 					if len(arg) == 3:
 						embed = self.help_message(
-							command_header + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "commanders")
+							command_prefix + cmd_sep + "help" + cmd_sep + arg[1] + cmd_sep + "commanders")
 						send_help_message = True
 					elif len(arg) > 3:
 						# list commanders by page
@@ -2551,7 +2551,7 @@ class Client(discord.Client):
 			else:
 				# no arugments listed, show help message
 				send_help_message = True
-				embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+				embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 		if embed is not None:
 			# if not send_help_message:
 			# m.sort()
@@ -2572,7 +2572,7 @@ class Client(discord.Client):
 		upgrade = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2692,7 +2692,7 @@ class Client(discord.Client):
 		# message parse
 		cmdr = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2766,7 +2766,7 @@ class Client(discord.Client):
 		# message parse
 		map = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2798,7 +2798,7 @@ class Client(discord.Client):
 		flag = ''.join([i + ' ' for i in arg[2:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2833,7 +2833,7 @@ class Client(discord.Client):
 		# get information on requested flag
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2877,7 +2877,7 @@ class Client(discord.Client):
 		channel = message.channel
 		if len(arg) <= 2:
 			# argument is empty, send help message
-			embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + arg[1])
+			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
 			if embed is not None:
 				await channel.send(embed=embed)
 		else:
@@ -2893,14 +2893,14 @@ class Client(discord.Client):
 				if len(arg) == 1:
 					# no additional arguments, send help
 					logging.info(f"User {message.author} requested my help.")
-					embed = self.help_message(command_header + cmd_sep + "help" + cmd_sep + "help")
+					embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + "help")
 					if not embed is None:
 						logging.info(f"sending help message")
 						await channel.send("はい、サラはここに。", embed=embed)
 				else:
 					# with arguments, change arg[0] and perform its normal task
-					arg[0] = command_header
-			if arg[0].lower() + cmd_sep == command_header + cmd_sep:  # message starts with mackbot
+					arg[0] = command_prefix
+			if arg[0].lower() + cmd_sep == command_prefix + cmd_sep:  # message starts with mackbot
 				if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
 					# maintanance message
 					await channel.send(
