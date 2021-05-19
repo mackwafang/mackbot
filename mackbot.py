@@ -2015,7 +2015,7 @@ class Client(discord.Client):
 							torps = module_list[str(h)]['profile']['torpedoes']
 							
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {int(torps['numBarrels'])} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
-							reload_minute = torps['shotDelay'] // 60
+							reload_minute = int(torps['shotDelay'] // 60)
 							reload_second = torps['shotDelay'] % 60
 							m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
 							m += f"**Damage:** {torps['max_damage']}\n"
