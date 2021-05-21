@@ -618,6 +618,22 @@ for s in ship_list:
 							ship_info[s]['anti_aircraft'] = {}
 						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 					
+					if 'airSupport' in ship_upgrade_info[_info]['components']:
+						airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
+						plane = game_data[airsup_info['planeName']]
+						projectile = game_data[plane['bombName']]
+						module_list[module_id]['profile']['airSupport'] = {
+							'chargesNum': airsup_info['chargesNum'],
+							'reloadTime': airsup_info['reloadTime'],
+							'maxDist': airsup_info['maxDist'],
+							'max_damage': int(projectile['alphaDamage']),
+							'burn_probability': int(projectile['burnProb'] * 100),
+							'bomb_pen': int(projectile['alphaPiercingHE']),
+							'squad_size': plane['numPlanesInSquadron'],
+							'payload': plane['attackCount'],
+						}
+					continue
+					
 
 				if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
 					# get turret parameter
@@ -662,6 +678,7 @@ for s in ship_list:
 							module_list[module_id]['profile']['artillery']['burn_probability'] = int(
 								ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
 							module_list[module_id]['profile']['artillery']['pen_HE'] = 0
+					continue
 
 				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
 					# get torps parameter
@@ -679,6 +696,7 @@ for s in ship_list:
 							'is_deep_water': projectile['isDeepWater'],
 							'distance': projectile['maxDist'] * 30 / 1000,
 						}
+					continue
 
 				if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # useless spotter
 					# get fighter parameter
@@ -704,6 +722,7 @@ for s in ship_list:
 								'cruise_speed' : plane['speedMoveWithBomb'],
 							}
 						}
+					continue
 
 				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
 					# get torp bomber parameter
@@ -730,6 +749,7 @@ for s in ship_list:
 								'distance': projectile['maxDist'] * 30 / 1000,
 							}
 						}
+					continue
 
 				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
 					# get turret parameter
@@ -755,6 +775,7 @@ for s in ship_list:
 								'max_health': plane['maxHealth'],
 							}
 						}
+					continue
 					
 				# skip bomber
 				if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
@@ -791,6 +812,7 @@ for s in ship_list:
 							}
 						}
 						ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
+					continue
 	except Exception as e:
 		if not type(e) == KeyError:
 			logging.error("at ship id" + s)
@@ -1914,9 +1936,32 @@ class Client(discord.Client):
 							# m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
 							# if ship_param['armour']['flood_prob'] > 0:
 							# m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
-
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=False)
+						
+						
+						if 'airSupport' in module_list[str(h)]['profile']:
+						# air support info
+							m = ''
+							for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+								hull = module_list[str(h)]['profile']['hull']
+								m += f"**{module_list[str(h)]['name']}**\n"
+								airsup_info = module_list[str(h)]['profile']['airSupport']
+								
+								airsup_reload_m = int(airsup_info['reloadTime'] // 60)
+								airsup_reload_s = int(airsup_info['reloadTime'] % 60)
+								
+								m += f"{airsup_info['chargesNum']} charge(s)\n"
+								m += f"Reload: {str(airsup_reload_m)+'m' if airsup_reload_m > 0 else ''} {str(airsup_reload_s)+'s' if airsup_reload_s > 0 else ''}\n"
+								
+								if ship_filter == 2 ** hull_filter:
+									# detailed air support filter
+									m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
+									m += f"**Squadron**: {airsup_info['squad_size']} aircrafts\n"
+									m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {int(airsup_info['bomb_pen'])}mm)\n"
+								
+								m += '\n'
+							embed.add_field(name="__**Air Support**__", value=m, inline=False)
 
 					# guns info
 					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
@@ -1967,6 +2012,7 @@ class Client(discord.Client):
 						m = ""
 
 						if ship_filter == 2 ** aa_filter:
+							# detailed aa
 							for hull in modules['hull']:
 								aa = module_list[str(hull)]['profile']['anti_air']
 								m += f"**{name} ({aa['hull']})**\n"
@@ -1994,6 +2040,7 @@ class Client(discord.Client):
 									m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance'] * 100)}%)\n"
 								m += '\n'
 						else:
+							# compact detail
 							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
 							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in
 												  modules['hull']]) / len(modules['hull'])
