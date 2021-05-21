@@ -268,7 +268,7 @@ if os.path.isfile(ship_list_file_dir):
 	if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
 		logging.info("Ship list outdated, fetching new list")
 		fetch_ship_list_from_wg = True
-		del ship_list
+		ship_list = {}
 else:
 	logging.info("No ship list file, fetching new")
 	fetch_ship_list_from_wg = True
@@ -2431,9 +2431,9 @@ class Client(discord.Client):
 						logging.info("compiling message")
 						m = []
 						if len(result) > 0:
+							# return some infomration about the ships of the requested tags
 							for ship in result:
-								name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = get_ship_data(
-									ship_list[ship]['name'])
+								name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = get_ship_data(ship_list[ship]['name'])
 								tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 								type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
 								if is_prem:
@@ -2449,23 +2449,21 @@ class Client(discord.Client):
 												break
 									else:
 										type_icon = ""
+								# no emoji, returns ship hull classification value
 								if len(type_icon) == 0:
 									type_icon = "[" + hull_classification_converter[ship_type] + "]"
-								m += [f"**{tier_string:<4} {type_icon}** {name}"]
+								m += [f"**{tier_string:<6} {type_icon}** {name}"]
 
 							num_items = len(m)
 							m.sort()
 							items_per_page = 30
 							num_pages = (len(m) // items_per_page)
-							m = [m[i:i + items_per_page] for i in
-								 range(0, len(result), items_per_page)]  # splitting into pages
+							m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
 							embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
 							m = m[page]  # select page
-							m = [m[i:i + items_per_page // 2] for i in
-								 range(0, len(m), items_per_page // 2)]  # spliting into columns
-							embed.set_footer(
-								text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
+							m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+							embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
 							for i in m:
 								embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 						else:
