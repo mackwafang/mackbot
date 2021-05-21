@@ -2933,7 +2933,7 @@ class Client(discord.Client):
 
 	async def on_message(self, message):
 		channel = message.channel
-		arg = message.content.split(cmd_sep)
+		arg = [i for i in message.content.split(cmd_sep) if len(i) > 0]
 		if message.author != self.user:
 			if message.content.startswith("<@!" + str(self.user.id) + ">"):
 				if len(arg) == 1:
@@ -2946,6 +2946,7 @@ class Client(discord.Client):
 				else:
 					# with arguments, change arg[0] and perform its normal task
 					arg[0] = command_prefix
+					
 			if arg[0].lower() + cmd_sep == command_prefix + cmd_sep:  # message starts with mackbot
 				if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
 					# maintanance message
