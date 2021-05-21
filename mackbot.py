@@ -15,7 +15,8 @@ with open("./command_list.json") as f:
 	command_list = json.load(f)
 
 print("commands usable:")
-pprint(command_list)
+for c in command_list:
+	print(f"{c:<10}: {'Yes' if command_list[c] else 'No':<3}")
 
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
@@ -519,9 +520,9 @@ if fetch_ship_params_from_wg:
 logging.info("Filling missing informations of modules")
 for s in ship_list:
 	ship = ship_list[s]
-	module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 	
 	try:
+		module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 		module_data = game_data[module_full_id_str]
 
 		# grab consumables
