@@ -561,7 +561,7 @@ for s in ship_list:
 						aa_defense = module_data[aa_defense]
 
 						# finding details of passive AA
-						for a in [a for a in aa_defense if 'medium' in a.lower() or 'near' in a.lower()]:
+						for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
 							aa_data = aa_defense[a]
 							if aa_data['type'] == 'near':
 								module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
@@ -608,12 +608,14 @@ for s in ship_list:
 						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2.25
 						combined_aa_damage = near_damage + mid_damage + far_damage
 						aa_rating = 0
+						
 						if combined_aa_damage > 0:
 							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
 							if aa_range_scaling > 1:
 								aa_range_scaling = aa_range_scaling ** 2
 							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
+						
 						if ship_info[s]['anti_aircraft'] is None:
 							ship_info[s]['anti_aircraft'] = {}
 						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
