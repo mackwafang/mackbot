@@ -2483,7 +2483,10 @@ class Client(discord.Client):
 						if len(result) > 0:
 							# return some infomration about the ships of the requested tags
 							for ship in result:
-								name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = get_ship_data(ship_list[ship]['name'])
+								output = get_ship_data(ship_list[ship]['name'])
+								if output is None:
+									continue
+								name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = output
 								tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 								type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
 								if is_prem:
