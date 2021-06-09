@@ -2505,10 +2505,13 @@ class Client(discord.Client):
 								# no emoji, returns ship hull classification value
 								if len(type_icon) == 0:
 									type_icon = "[" + hull_classification_converter[ship_type] + "]"
-								m += [f"**{tier_string:<6} {type_icon}** {name}"]
+								# m += [f"**{tier_string:<6} {type_icon}** {name}"]
+								m += [[tier, tier_string, type_icon, name]]
 
 							num_items = len(m)
-							m.sort()
+							m.sort(key=lambda x: (x[0], x[2], x[-1]))
+							m = [f"**{tier_string:<6} {type_icon}** {name}" for _, tier_string, type_icon, name in m]
+							
 							items_per_page = 30
 							num_pages = (len(m) // items_per_page)
 							m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
