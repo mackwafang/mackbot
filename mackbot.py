@@ -2066,7 +2066,7 @@ class Client(discord.Client):
 							
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {int(torps['numBarrels'])} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
 							reload_minute = int(torps['shotDelay'] // 60)
-							reload_second = torps['shotDelay'] % 60
+							reload_second = int(torps['shotDelay'] % 60)
 							m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
 							m += f"**Damage:** {torps['max_damage']}\n"
 							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
@@ -2158,10 +2158,9 @@ class Client(discord.Client):
 						m = ""
 						for consumable_slot in consumables:
 							if len(consumables[consumable_slot]['abils']) > 0:
-								m += f"**Slot {consumables[consumable_slot]['slot'] + 1}:**"
-								if len(consumables[consumable_slot]['abils']) > 1:
-									m += " (Choose one)"
-								m += '\n'
+								m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
+								if ship_filter == (1 << consumable_filter):
+									m += '\n'
 								for c in consumables[consumable_slot]['abils']:
 									consumable_id, consumable_type = c
 									consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
@@ -2173,8 +2172,8 @@ class Client(discord.Client):
 									action_time = consumable['workTime']
 									cd_time = consumable['reloadTime']
 
-									m += f"**{consumable_name}**\n"
-									if ship_filter == 2 ** consumable_filter:  # shows detail of consumable
+									m += f"**{consumable_name}** "
+									if ship_filter == (1 << consumable_filter): # shows detail of consumable
 										consumable_detail = ""
 										if consumable_type == 'airDefenseDisp':
 											consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
@@ -2198,13 +2197,17 @@ class Client(discord.Client):
 											consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
 										if consumable_type == 'torpedoReloader':
 											consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
-
+											
+										m += '\n'
 										m += f"{charges} charge{'s' if charges != 1 else ''}, "
 										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
 										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
 										if len(consumable_detail) > 0:
 											m += consumable_detail
 											m += '\n'
+									else:
+										if len(consumables[consumable_slot]['abils']) > 1:
+											m += 'or '
 								m += '\n'
 						embed.add_field(name="__**Consumables**__", value=m, inline=False)
 					embed.set_footer(text="Parameters does not take into account upgrades and commander skills\n" +
