@@ -2086,7 +2086,7 @@ class Client(discord.Client):
 								m += f"**Aircraft:** {fighter['cruise_speed']}-{fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts, {fighter['max_health']} HP, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
-								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['rocket_burn_probability'] > 0 else ''}\n"
+								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
 								m += '\n'
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
