@@ -621,19 +621,20 @@ for s in ship_list:
 						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 					
 					if 'airSupport' in ship_upgrade_info[_info]['components']:
-						airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
-						plane = game_data[airsup_info['planeName']]
-						projectile = game_data[plane['bombName']]
-						module_list[module_id]['profile']['airSupport'] = {
-							'chargesNum': airsup_info['chargesNum'],
-							'reloadTime': airsup_info['reloadTime'],
-							'maxDist': airsup_info['maxDist'],
-							'max_damage': int(projectile['alphaDamage']),
-							'burn_probability': int(projectile['burnProb'] * 100),
-							'bomb_pen': int(projectile['alphaPiercingHE']),
-							'squad_size': plane['numPlanesInSquadron'],
-							'payload': plane['attackCount'],
-						}
+						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
+							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
+							plane = game_data[airsup_info['planeName']]
+							projectile = game_data[plane['bombName']]
+							module_list[module_id]['profile']['airSupport'] = {
+								'chargesNum': airsup_info['chargesNum'],
+								'reloadTime': airsup_info['reloadTime'],
+								'maxDist': airsup_info['maxDist'],
+								'max_damage': int(projectile['alphaDamage']),
+								'burn_probability': int(projectile['burnProb'] * 100),
+								'bomb_pen': int(projectile['alphaPiercingHE']),
+								'squad_size': plane['numPlanesInSquadron'],
+								'payload': plane['attackCount'],
+							}
 					continue
 					
 
