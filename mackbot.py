@@ -50,7 +50,8 @@ nation_dictionary = {
 	'germany': 'German',
 	'italy': 'Italian',
 	'commonwealth': 'Commonwealth',
-	'pan_america': 'Pan-American'
+	'pan_america': 'Pan-American',
+	'neatherlands': "Dutch",
 }
 # convert weegee ship type to usn hull classifications
 hull_classification_converter = {
