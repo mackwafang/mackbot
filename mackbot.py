@@ -819,6 +819,7 @@ for s in ship_list:
 		if not type(e) == KeyError:
 			logging.error("at ship id" + s)
 			traceback.print_exc(type(e), e, None)
+			logging.info("Ship", s, "is not known to GameParams.data")
 		else:
 			traceback.print_exc(type(e), e, None)
 
