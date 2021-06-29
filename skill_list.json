@@ -234,7 +234,7 @@
     "tree": "AirCarrier",
     "name": "Enhanced Reaction",
     "description": "Time for Patrol Fighters and Interceptors to start engaging enemy aircraft reduced.",
-    "effect": "Time before attacking: -80%\nTime to Arrive: +50%\nAction time of consumable: -25%",
+    "effect": "Time before attacking: -80%\nTime to Arrive: +50%\nAction time of consumable: +25%",
     "x": 5,
     "y": 3,
     "category": "Support"
@@ -364,7 +364,7 @@
     "tree": "Battleship",
     "name": "Super-Heavy AP Shells",
     "description": "Increase AP shell damage in exchance for longer fire and flooding durations.",
-    "effect": "AP shell damage: +5%\nFire and flood duration: +30%",
+    "effect": "AP shell damage: +7.5%\nFire and flood duration: +25%",
     "x": 0,
     "y": 2,
     "category": "Attack"
@@ -422,9 +422,9 @@
   {
     "id": 42,
     "tree": "Battleship",
-    "name": "Dead Eye",
-    "description": "Lower dispersion of main battery shells if there are no enemies within the normal detectability range.",
-    "effect": "Dispersion of main battery shells: -10%",
+    "name": "Swift in Silence",
+    "description": "Speed bonus while ship is undetected.",
+    "effect": "Ship speed while undetected: +10%",
     "x": 0,
     "y": 3,
     "category": "Attack"
@@ -654,7 +654,7 @@
     "tree": "Cruiser",
     "name": "Survivabillity Expert",
     "description": "Increase ship's hit points.",
-    "effect": "Ship's max HP: +350 HP per ship tier",
+    "effect": "Ship's max HP: +450 HP per ship tier",
     "x": 5,
     "y": 2,
     "category": "Defense"
