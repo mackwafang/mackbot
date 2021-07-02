@@ -7,7 +7,6 @@
 	"list" : true,
 	"upgrade" : true,
 	"commander" : true,
-	"flag" : true,
 	"feedback" : true,
 	"map" : true,
 	"ship" : true,
