@@ -117,6 +117,10 @@ else:
 		bot_token = data['bot_token']
 		sheet_id = data['sheet_id']
 
+cmd_sep = ' '
+command_prefix = 'mackbot '
+mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))		
+
 # get weegee's wows encyclopedia
 wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
@@ -952,10 +956,6 @@ map_list = wows_encyclopedia.battlearenas()
 # del game_data # free up memory
 logging.info("Preprocessing Done")
 
-command_prefix = 'mackbot'
-cmd_sep = ' '
-mackbot = commands.Bot(command_prefix=command_prefix + cmd_sep)
-
 good_bot_messages = (
 	'Thank you!',
 	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
@@ -1056,7 +1056,6 @@ def check_build():
 				logging.info("Skill check: No skills found in build")
 			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
 
-
 def get_ship_data(ship, battle_type='casual'):
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
@@ -1116,7 +1115,6 @@ def get_ship_data(ship, battle_type='casual'):
 	except Exception as e:
 		raise e
 
-
 def get_ship_param(ship):
 	"""
 		returns combat parameters of requested warship name
@@ -1147,7 +1145,6 @@ def get_ship_param(ship):
 					raise IndexError("Ship not found in ship_params")
 	except Exception as e:
 		raise e
-
 
 def get_legendary_upgrade_by_ship_name(ship):
 	"""
@@ -1192,7 +1189,6 @@ def get_legendary_upgrade_by_ship_name(ship):
 			profile, name, price_gold, image, _, price_credit, _, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction, tags = upgrade.values()
 			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction
 	return None
-
 
 def get_skill_data(tree, skill):
 	"""
@@ -1257,7 +1253,6 @@ def get_skill_data(tree, skill):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-
 def get_upgrade_data(upgrade):
 	"""
 		returns informations of a requested warship upgrade
@@ -1312,7 +1307,6 @@ def get_upgrade_data(upgrade):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-
 def get_commander_data(cmdr):
 	"""
 		returns informations of a requested warship upgrade
@@ -1352,7 +1346,6 @@ def get_commander_data(cmdr):
 	except Exception as e:
 		logging.error(f"Exception {type(e)}", e)
 		raise e
-
 
 def get_flag_data(flag):
 	"""
@@ -1397,7 +1390,6 @@ def get_flag_data(flag):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-
 def get_map_data(map):
 	"""
 		returns informations of a requested warship upgrade
@@ -1428,189 +1420,12 @@ def get_map_data(map):
 		logging.info("Exception {type(e): ", e)
 		raise e
 
+
+	
 @mackbot.event
 async def on_ready():
-	await self.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
+	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
 	logging.info("Logged on")
-
-def help_message(message):
-	# help message
-	arg = message.split(cmd_sep)
-	embed = discord.Embed(title=f"Command Help")
-	try:
-		command = arg[2]
-		embed.add_field(name='Command', value=f"{''.join([i + ' ' for i in arg[2:]])}")
-	except Exception as e:
-		if arg[1].lower() == "help" and type(e) == IndexError:
-			# invoking help message
-			command = "help"
-			embed.add_field(name='Command', value="help")
-	if command in command_list:
-		if command == 'help':
-			embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[command]',
-							inline=False)
-			embed.add_field(name='Description',
-							value='List proper usage for [command]. Omit -[command] to list all possible commands',
-							inline=False)
-			m = [i + '\n' for i in command_list]
-			m.sort()
-			m = ''.join(m)
-			embed.add_field(name='All Commands', value=m)
-	else:
-		embed.add_field(name='Error', value="Invalid command.", inline=False)
-	if command == 'goodbot':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
-		embed.add_field(name='Description', value='Praise the bot for being a good bot', inline=False)
-	if command == 'build':
-		embed.add_field(name='Usage',
-						value=command_prefix + cmd_sep + command + cmd_sep + '[type]' + cmd_sep + 'build' + cmd_sep + '[image]',
-						inline=False)
-		embed.add_field(name='Description',
-						value='List name, nationality, type, tier, recommended build of the requested warships\n' +
-							  '**ship**: Required. Desired ship to request a build.\n\n' +
-							  f'**[type]**: Optional. Indicates should {command_prefix} returns a competitive or a casual build. Acceptable values: **[competitive, casual]**. Default value is **casual**\n\n' +
-							  '**[image]**: Optional. If the word **image** is present, then return an image format instead of an embedded message format. If a build does not exists, it return an embedded message instead.',
-						inline=False)
-	if command == 'ship':
-		embed.add_field(name='Usage',
-						value=command_prefix + cmd_sep + command + cmd_sep + '[ship]' + cmd_sep + '(parameters)',
-						inline=False)
-		embed.add_field(name='Description', value='List the combat parameters of the requested warships\n\n' +
-												  '**ship**: Required. Desired ship to get combat information.\n\n' +
-												  '**(parameters)**: Optional. Surround keywords with parenthesis to filter ship parameters.\n',
-						inline=False)
-	if command == 'skill':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + "[ship_class]" + cmd_sep + '[skill/abbr]',
-						inline=False)
-		embed.add_field(name='Description',
-						value='List name, type, tier and effect of the requested commander skill\n\n'
-								'**ship_class**: Select skill tree to filter. Acceptable value [carrier, battleship, cruiser, destroyer, dd, bb, c, cv]\n' +
-								'**skill**: Skill name or abbreviation to get detail of.',
-						inline=False)
-	if command == 'map':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[map_name]',
-						inline=False)
-		embed.add_field(name='Description', value='List name and display the map of the requested map',
-						inline=False)
-	if command == 'whoami':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
-		embed.add_field(name='Description', value='Who\'s this bot?', inline=False)
-	if command == 'list':
-		if len(arg) == 3:
-			embed.add_field(name='Usage',
-							value=command_prefix + cmd_sep + command + cmd_sep + "[skills/upgrades/commanders/flags]",
-							inline=False)
-			embed.add_field(name='Description',
-							value=f'Select a category to list all items of the requested category. type **{command_prefix + cmd_sep + command + cmd_sep} [skills/upgrades/commanders]** for help on the category.{chr(10)}' +
-								  '**skills**: List all skills.\n' +
-								  '**upgrades**: List all upgrades.\n' +
-								  '**commanders**: List all commanders.\n' +
-								  '**flags**: List all non-special flags.\n', inline=False)
-		else:
-			if arg[3] == 'skills':
-				embed.add_field(name='Usage',
-								value=command_prefix + cmd_sep + command + cmd_sep + "skills" + cmd_sep + "[query]",
-								inline=False)
-				embed.add_field(name='Description',
-								value='List name and the abbreviation of all commander skills.\n' +
-									'**query**:\n' +
-									'Acceptable terms: **ship_class**, **tier [x]**, **page [x]**\n' +
-									'\n' +
-									'**ship_class**: Acceptable terms: [carrier, battleship, cruiser, destroyer, dd, bb, c, cv]\n' +
-									'**tier [x]**: Replace [x] with a value 1-4 to filter cost.\n' +
-									'**page [x]**: Replace [x] with a value to change page.\n',
-								inline=False)
-			elif arg[3] == 'upgrades':
-				embed.add_field(name='Usage',
-								value=command_prefix + cmd_sep + command + cmd_sep + "upgrades" + cmd_sep + "[queries]",
-								inline=False)
-				embed.add_field(name='Description', value='List name and the abbreviation of all upgrades.\n' +
-														  f'**[queries]**: Search queries for upgrades (Examples: secondary, torpedoes, slot 4',
-								inline=False)
-			elif arg[3] == 'commanders':
-				embed.add_field(name='Usage',
-								value=command_prefix + cmd_sep + command + cmd_sep + "commanders" + cmd_sep + "[page_number/nation]",
-								inline=False)
-				embed.add_field(name='Description', value='List names of all unique commanders.\n' +
-														  f'**[page_number]** Required. Select a page number to list commanders.\n' +
-														  f'**[nation]** Required. Select a nation to filter. Acceptable values: **[{"".join([nation_dictionary[i] + ", " for i in nation_dictionary][:-3])}]**',
-								inline=False)
-			elif arg[3] == 'flags':
-				embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + "flags",
-								inline=False)
-				embed.add_field(name='Description', value='List names of all signal flags.\n', inline=False)
-			elif arg[3] == 'maps':
-				embed.add_field(name='Usage',
-								value=command_prefix + cmd_sep + command + cmd_sep + "maps" + cmd_sep + "[page_num]",
-								inline=False)
-				embed.add_field(name='Description', value='List names of all maps.\n' +
-														  f'**[page_number]** Required. Select a page number to list maps.\n',
-								inline=False)
-			elif arg[3] == 'ships':
-				tag_helps = set(arg[4:]) & set(SHIP_TAG_LIST)
-				add_help_string = ""
-				if len(tag_helps) == 0:
-					help_desc = [i for i in SHIP_TAG_LIST]
-					help_desc += ['tier', 'battleships', 'cruisers', 'destroyers', 'aircraft carriers']
-					add_help_string += "Tags available: " + ''.join([i + ', ' for i in help_desc])[:-2]
-				else:
-					help_desc = [f"**{i}**: {ship_tags[i]['description']}" for i in tag_helps]
-					add_help_string += "Requested tags:\n" + ''.join([i + '\n' for i in help_desc])[:-1]
-
-				embed.add_field(name='Usage',
-								value=command_prefix + cmd_sep + command + cmd_sep + "ships" + cmd_sep + "[search tags]\n",
-								inline=False)
-				embed.add_field(name='Description',
-								value='List all available ships with the tags provided.\n' + add_help_string,
-								inline=False)
-			else:
-				embed.add_field(name='Error', value="Invalid command.", inline=False)
-
-	if command == 'upgrade':
-		embed.add_field(name='Usage',
-						value=command_prefix + cmd_sep + command + cmd_sep + '[upgrade/abbr/ship_name]',
-						inline=False)
-		embed.add_field(name='Description',
-						value='List the name and description of the requested warship upgrade' +
-							  '**[upgrade/abbr/ship_name]**: Required.\n*upgrade/abbr*: Provide the name or the abbreviation name of the upgrade to get information on it.\n'
-							  '*ship_name*. Provide the ship name to return the legendary upgrade for that ship.',
-						inline=False)
-	if command == 'commander':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[cmdr_name]',
-						inline=False)
-		embed.add_field(name='Description', value='List the nationality of the requested commander',
-						inline=False)
-	if command == 'flag':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command + cmd_sep + '[flag_name]',
-						inline=False)
-		embed.add_field(name='Description', value='List the name and description of the requested signal flag',
-						inline=False)
-	if command == 'feedback':
-		embed.add_field(name='Usage', value=command_prefix + cmd_sep + command, inline=False)
-		embed.add_field(name='Description', value='Send a feedback form link for mackbot.', inline=False)
-	if command == 'doubloons':
-		embed.add_field(name='Usage',
-						value=command_prefix + cmd_sep + command + cmd_sep + '[doubloons]' + cmd_sep + '[dollar/$]',
-						inline=False)
-		embed.add_field(name='Description',
-						value='Returns the price in dollars of now much of the requested number of doubloons\n' +
-							  "**[dollars/$]**: Optional. Reverse the conversion to dollars to doublons.",
-						inline=False)
-	if command == 'code':
-		embed.add_field(name='Usage',
-						value=command_prefix + cmd_sep + command + cmd_sep + "code",
-						inline=False)
-		embed.add_field(name='Description',
-						value='Returns the URL to WG\'s coupon redeem page with the appropriate code',
-						inline=False)
-	return embed
-
-async def help(context, arg):
-	# send help message
-	embed = self.help_message(message.content)
-	if embed is not None:
-		logging.info(f"sending help message for command <help>")
-		await context.send(embed=embed)
 
 @mackbot.command()
 async def whoami(context):
@@ -1813,7 +1628,7 @@ async def build(context, arg):
 
 				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
 
-@mackbot.command()
+@mackbot.command(help="")
 async def ship(context, *arg):
 	print(arg)
 	# message parse
@@ -2261,280 +2076,268 @@ async def skill(context, *arg):
 
 			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
 
-@mackbot.command()
-async def list(context, *arg):
+@mackbot.group(pass_context=True, invoke_without_command=True)
+async def list(context, *args):
 	# list command
-	m = []
-	embed = discord.Embed()
-	error_message = ""
-	async with context.typing():
-		if len(arg) > 0:
-			if arg[0] == 'skills':
-				# list all skills
-				embed = discord.Embed(name="Commander Skill")
+	if context.invoked_subcommand is None:
+		await context.invoke(mackbot.get_command('help'), 'list')
 
-				search_param = arg[1:]
-				search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
+@list.command()
+async def skills(context, *args):
+	# list all skills
+	embed = discord.Embed(name="Commander Skill")
 
-				filtered_skill_list = skill_list.copy()
+	search_param = arg[1:]
+	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
-				# filter by ship class
-				ship_class = [i[0] for i in search_param if len(i[0]) > 0]
-				# convert hull classification to ship type full name
-				ship_class = ship_class[0] if len(ship_class) >= 1 else ''
-				if len(ship_class) > 0:
-					if len(ship_class) <= 2:
-						for h in hull_classification_converter:
-							if ship_class == hull_classification_converter[h].lower():
-								ship_class = h.lower()
-								break
-					if ship_class.lower() in ['cv', 'carrier']:
-						ship_class = 'aircarrier'
-					filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['tree'].lower() == ship_class])
-				# filter by skill tier
-				tier = [i[2] for i in search_param if len(i[2]) > 0]
-				tier = int(tier[0]) if len(tier) >= 1 else 0
-				if tier != 0:
-					filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['y'] + 1 == tier])
+	filtered_skill_list = skill_list.copy()
 
-				# select page
-				page = [i[1] for i in search_param if len(i[1]) > 0]
-				page = int(page[0]) if len(page) > 1 else 0
+	# filter by ship class
+	ship_class = [i[0] for i in search_param if len(i[0]) > 0]
+	# convert hull classification to ship type full name
+	ship_class = ship_class[0] if len(ship_class) >= 1 else ''
+	if len(ship_class) > 0:
+		if len(ship_class) <= 2:
+			for h in hull_classification_converter:
+				if ship_class == hull_classification_converter[h].lower():
+					ship_class = h.lower()
+					break
+		if ship_class.lower() in ['cv', 'carrier']:
+			ship_class = 'aircarrier'
+		filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['tree'].lower() == ship_class])
+	# filter by skill tier
+	tier = [i[2] for i in search_param if len(i[2]) > 0]
+	tier = int(tier[0]) if len(tier) >= 1 else 0
+	if tier != 0:
+		filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['y'] + 1 == tier])
 
-				# generate list of skills
-				m = [
-					f"**({hull_classification_converter[filtered_skill_list[s]['tree']]} T{filtered_skill_list[s]['y']+1})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list
-				]
+	# select page
+	page = [i[1] for i in search_param if len(i[1]) > 0]
+	page = int(page[0]) if len(page) > 1 else 0
 
-				# splitting list into pages
-				num_items = len(m)
-				m.sort()
-				items_per_page = 24
-				num_pages = (len(m) // items_per_page)
-				m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
+	# generate list of skills
+	m = [
+		f"**({hull_classification_converter[filtered_skill_list[s]['tree']]} T{filtered_skill_list[s]['y']+1})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list
+	]
 
-				embed = discord.Embed(title="Commander Skill (%i/%i)" % (page + 1, num_pages))
-				m = m[page]  # select page
-				# spliting selected page into columns
-				m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
-				for i in m:
-					embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
-				embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
+	# splitting list into pages
+	num_items = len(m)
+	m.sort()
+	items_per_page = 24
+	num_pages = (len(m) // items_per_page)
+	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-			elif arg[0] == 'upgrades':
-				# list upgrades
-				try:
-					# parsing search parameters
-					logging.info("starting parameters parsing")
-					search_param = arg[1:]
-					s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
+	embed = discord.Embed(title="Commander Skill (%i/%i)" % (page + 1, num_pages))
+	m = m[page]  # select page
+	# spliting selected page into columns
+	m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
+	for i in m:
+		embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
+	embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
+	
+	await context.send(embed=embed)
 
-					slot = ''.join([i[1] for i in s])
-					key = [i[7] for i in s if len(i[7]) > 1]
-					page = [i[6] for i in s if len(i[6]) > 1]
-					tier = [i[3] for i in s if len(i[3]) > 1]
-					embed_title = "Search result for: "
+@list.command()
+async def upgrades(context, *args):
+	# list upgrades
+	try:
+		# parsing search parameters
+		logging.info("starting parameters parsing")
+		search_param = arg[1:]
+		s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 
-					try:
-						page = int(page[0]) - 1
-					except:
-						page = 0
+		slot = ''.join([i[1] for i in s])
+		key = [i[7] for i in s if len(i[7]) > 1]
+		page = [i[6] for i in s if len(i[6]) > 1]
+		tier = [i[3] for i in s if len(i[3]) > 1]
+		embed_title = "Search result for: "
 
-					if len(tier) > 0:
-						for t in tier:
-							if t in roman_numeral:
-								t = roman_numeral[t]
-							tier = f't{t}'
-							key += [t]
-					if len(slot) > 0:
-						key += [slot]
-					key = [i.lower() for i in key if not 'page' in i]
-					embed_title += f"{''.join([i.title() + ' ' for i in key])}"
-					# look up
-					result = []
-					for u in upgrade_list:
-						tags = [str(i).lower() for i in upgrade_list[u]['tags']]
-						if np.all([k in tags for k in key]):
-							result += [u]
-					logging.info("parsing complete")
-					logging.info("compiling message")
-					if len(result) > 0:
-						m = []
-						for u in result:
-							upgrade = upgrade_list[u]
-							name = get_upgrade_data(upgrade['name'])[1]
-							for u_b in upgrade_abbr_list:
-								if upgrade_abbr_list[u_b] == name.lower():
-									m += [f"**{name}** ({u_b.upper()})"]
-									break
+		try:
+			page = int(page[0]) - 1
+		except:
+			page = 0
 
-						num_items = len(m)
-						m.sort()
-						items_per_page = 30
-						num_pages = (len(m) // items_per_page)
-						m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
+		if len(tier) > 0:
+			for t in tier:
+				if t in roman_numeral:
+					t = roman_numeral[t]
+				tier = f't{t}'
+				key += [t]
+		if len(slot) > 0:
+			key += [slot]
+		key = [i.lower() for i in key if not 'page' in i]
+		embed_title += f"{''.join([i.title() + ' ' for i in key])}"
+		# look up
+		result = []
+		for u in upgrade_list:
+			tags = [str(i).lower() for i in upgrade_list[u]['tags']]
+			if np.all([k in tags for k in key]):
+				result += [u]
+		logging.info("parsing complete")
+		logging.info("compiling message")
+		if len(result) > 0:
+			m = []
+			for u in result:
+				upgrade = upgrade_list[u]
+				name = get_upgrade_data(upgrade['name'])[1]
+				for u_b in upgrade_abbr_list:
+					if upgrade_abbr_list[u_b] == name.lower():
+						m += [f"**{name}** ({u_b.upper()})"]
+						break
 
-						embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
-						m = m[page]  # select page
-						m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-						embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
-						for i in m:
-							embed.add_field(name="Upgrade (abbr.)", value=''.join([v + '\n' for v in i]))
-					else:
-						embed = discord.Embed(title=embed_title, description="")
-						embed.description = "No upgrades found"
-				except Exception as e:
-					if type(e) == IndexError:
-						embed = None
-						error_message = f"Page {page + 1} does not exists"
-					elif type(e) == ValueError:
-						logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
-						error_message = f"Value {arg[3]} is not understood"
-					else:
-						logging.info(f"Exception {type(e)}", e)
+			num_items = len(m)
+			m.sort()
+			items_per_page = 30
+			num_pages = (len(m) // items_per_page)
+			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			elif arg[0] == 'maps':
-				# list all maps
-				try:
-					logging.info("sending list of maps")
-					try:
-						page = int(arg[3]) - 1
-					except:
-						page = 0
-					m = [f"{map_list[i]['name']}" for i in map_list]
-					m.sort()
-					items_per_page = 20
-					num_pages = (len(map_list) // items_per_page)
-
-					m = [m[i:i + items_per_page] for i in range(0, len(map_list), items_per_page)]  # splitting into pages
-					embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages + 1})")
-					m = m[page]  # select page
-					m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-					for i in m:
-						embed.add_field(name="Map", value=''.join([v + '\n' for v in i]))
-				except Exception as e:
-					if type(e) == IndexError:
-						embed = None
-						error_message = f"Page {page + 1} does not exists"
-					elif type(e) == ValueError:
-						logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
-						error_message = f"Value {arg[3]} is not understood"
-					else:
-						logging.info(f"Exception {type(e)}", e)
-
-			elif arg[0] == 'ships':
-				if context.guild is not None:
-					server_emojis = context.guild.emojis
-				else:
-					server_emojis = []
-				message_success = False
-				
-				# parsing search parameters
-				logging.info("starting parameters parsing")
-				search_param = arg[1:]
-				s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
-
-				tier = ''.join([i[2] for i in s])
-				key = [i[7] for i in s if len(i[7]) > 1]
-				page = [i[6] for i in s if len(i[6]) > 0]
-				embed_title = "Search result for: "
-
-				try:
-					page = int(page[0]) - 1
-				except:
-					page = 0
-
-				if len(tier) > 0:
-					if tier in roman_numeral:
-						tier = roman_numeral[tier]
-					tier = f't{tier}'
-					key += [tier]
-				key = [i for i in key if not 'page' in i]
-				embed_title += f"{''.join([i.title() + ' ' for i in key])}"
-				# look up
-				result = []
-				for s in ship_list:
-					try:
-						tags = [i.lower() for i in ship_list[s]['tags']]
-						if np.all([k.lower() in tags for k in key]):
-							result += [s]
-					except:
-						pass
-				logging.info("parsing complete")
-				logging.info("compiling message")
-				m = []
-				if len(result) > 0:
-					# return some infomration about the ships of the requested tags
-					for ship in result:
-						output = get_ship_data(ship_list[ship]['name'])
-						if output is None:
-							continue
-						name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = output
-						tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
-						type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
-						if is_prem:
-							type_icon = type_icon[:-1] + '_premium:'
-						# find the server emoji id for this emoji id
-						if len(server_emojis) == 0:
-							type_icon = ""
-						else:
-							if type_icon[1:-1] in [i.name for i in server_emojis]:
-								for i in server_emojis:
-									if type_icon[1:-1] == i.name:
-										type_icon = str(i)
-										break
-							else:
-								type_icon = ""
-						# no emoji, returns ship hull classification value
-						if len(type_icon) == 0:
-							type_icon = "[" + hull_classification_converter[ship_type] + "]"
-						# m += [f"**{tier_string:<6} {type_icon}** {name}"]
-						m += [[tier, tier_string, type_icon, name]]
-
-					num_items = len(m)
-					m.sort(key=lambda x: (x[0], x[2], x[-1]))
-					m_mod = []
-					for i, v in enumerate(m):
-						if v[0] != m[i - 1][0]:
-							m_mod += [[-1, '', '', '']]
-						m_mod += [v]
-					m = m_mod
-						
-					m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
-					
-					items_per_page = 30
-					num_pages = (len(m) // items_per_page)
-					m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
-
-					embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
-					m = m[page]  # select page
-					m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-					embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
-					for i in m:
-						embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
-				else:
-					embed = discord.Embed(title=embed_title, description="")
-					embed.description = "**No ships found**"
-
-			else:
-				# something else detected
-				logging.info(f"{arg[2]} is not a known argument for command {arg[1]}.")
-				embed = None
-				error_message = f"Argument **{arg[2]}** is not a valid argument."
+			embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
+			m = m[page]  # select page
+			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+			embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
+			for i in m:
+				embed.add_field(name="Upgrade (abbr.)", value=''.join([v + '\n' for v in i]))
 		else:
-			# no arugments listed, show help message
-			send_help_message = True
-			embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-	if embed is not None:
-		# if not send_help_message:
-		# m.sort()
-		# m = ''.join(m)
-		# embed.add_field(name='_',value=m,inline=True)
-		await context.send(embed=embed)
+			embed = discord.Embed(title=embed_title, description="")
+			embed.description = "No upgrades found"
+	except Exception as e:
+		if type(e) == IndexError:
+			embed = None
+			error_message = f"Page {page + 1} does not exists"
+		elif type(e) == ValueError:
+			logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
+			error_message = f"Value {arg[3]} is not understood"
+		else:
+			logging.info(f"Exception {type(e)}", e)
+	await context.send(embed=embed)
+
+@list.command()
+async def maps(context, *args):
+	# list all maps
+	try:
+		logging.info("sending list of maps")
+		try:
+			page = int(arg[3]) - 1
+		except:
+			page = 0
+		m = [f"{map_list[i]['name']}" for i in map_list]
+		m.sort()
+		items_per_page = 20
+		num_pages = (len(map_list) // items_per_page)
+
+		m = [m[i:i + items_per_page] for i in range(0, len(map_list), items_per_page)]  # splitting into pages
+		embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages + 1})")
+		m = m[page]  # select page
+		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+		for i in m:
+			embed.add_field(name="Map", value=''.join([v + '\n' for v in i]))
+	except Exception as e:
+		if type(e) == IndexError:
+			embed = None
+			error_message = f"Page {page + 1} does not exists"
+		elif type(e) == ValueError:
+			logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
+			error_message = f"Value {arg[3]} is not understood"
+		else:
+			logging.info(f"Exception {type(e)}", e)
+	await context.send(embed=embed)
+
+@list.command()
+async def ships(context, *args):
+	if context.guild is not None:
+		server_emojis = context.guild.emojis
 	else:
-		if error_message == "":
-			error_message = f"Embed message for command {arg[1]} is empty! arg list: {arg}"
-		await context.send(error_message)
+		server_emojis = []
+	message_success = False
+	
+	# parsing search parameters
+	logging.info("starting parameters parsing")
+	search_param = args[1:]
+	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
+
+	tier = ''.join([i[2] for i in s])
+	key = [i[7] for i in s if len(i[7]) > 1]
+	page = [i[6] for i in s if len(i[6]) > 0]
+	embed_title = "Search result for: "
+
+	try:
+		page = int(page[0]) - 1
+	except:
+		page = 0
+
+	if len(tier) > 0:
+		if tier in roman_numeral:
+			tier = roman_numeral[tier]
+		tier = f't{tier}'
+		key += [tier]
+	key = [i for i in key if not 'page' in i]
+	embed_title += f"{''.join([i.title() + ' ' for i in key])}"
+	# look up
+	result = []
+	for s in ship_list:
+		try:
+			tags = [i.lower() for i in ship_list[s]['tags']]
+			if np.all([k.lower() in tags for k in key]):
+				result += [s]
+		except:
+			pass
+	logging.info("parsing complete")
+	logging.info("compiling message")
+	m = []
+	if len(result) > 0:
+		# return some infomration about the ships of the requested tags
+		for ship in result:
+			output = get_ship_data(ship_list[ship]['name'])
+			if output is None:
+				continue
+			name, _, _, ship_type, tier, _, _, _, is_prem, _, _, _, _, _ = output
+			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+			type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
+			if is_prem:
+				type_icon = type_icon[:-1] + '_premium:'
+			# find the server emoji id for this emoji id
+			if len(server_emojis) == 0:
+				type_icon = ""
+			else:
+				if type_icon[1:-1] in [i.name for i in server_emojis]:
+					for i in server_emojis:
+						if type_icon[1:-1] == i.name:
+							type_icon = str(i)
+							break
+				else:
+					type_icon = ""
+			# no emoji, returns ship hull classification value
+			if len(type_icon) == 0:
+				type_icon = "[" + hull_classification_converter[ship_type] + "]"
+			# m += [f"**{tier_string:<6} {type_icon}** {name}"]
+			m += [[tier, tier_string, type_icon, name]]
+
+		num_items = len(m)
+		m.sort(key=lambda x: (x[0], x[2], x[-1]))
+		m_mod = []
+		for i, v in enumerate(m):
+			if v[0] != m[i - 1][0]:
+				m_mod += [[-1, '', '', '']]
+			m_mod += [v]
+		m = m_mod
+			
+		m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
+		
+		items_per_page = 30
+		num_pages = (len(m) // items_per_page)
+		m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
+
+		embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
+		m = m[page]  # select page
+		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+		embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
+		for i in m:
+			embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
+	else:
+		embed = discord.Embed(title=embed_title, description="")
+		embed.description = "**No ships found**"
+	await context.send(embed=embed)
+
 
 @mackbot.command()
 async def upgrade(context, *arg):
@@ -2859,13 +2662,19 @@ async def code(context, arg):
 					
 
 if __name__ == '__main__':
-	# add commands to bot
-	for command in command_list:
-		# if command usable
-		if command_list[command]:
-			try:
-				mackbot.add_command(locals()[command])
-			except:
-				pass
-				
+	# post processing for bot commands
+	logging.info("Post-processing bot commands")
+	with open("help_command_strings.json") as f:
+		help_command_strings = json.load(f)
+	for c in help_command_strings:
+		try:
+			command = mackbot.get_command(c)
+			command.help = help_command_strings[c]['help']
+			command.brief = help_command_strings[c]['brief']
+			command.usage = help_command_strings[c]['usage']
+			command.description = ''.join([i + '\n' for i in help_command_strings[c]['description']])
+			
+		except:
+			pass
+	del help_command_strings
 	mackbot.run(bot_token)
