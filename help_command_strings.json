@@ -1,0 +1,132 @@
+{
+	"build": {
+		"help": "",
+		"brief": "Get a recommended build",
+		"usage": "",
+		"description": []
+	},
+	"ship": {
+		"help": "",
+		"brief": "Get detailed information about a ship",
+		"usage": "ship_name ([parameters])",
+		"description": [
+			"Display characteristics of a requested warship.",
+			"",
+			"Mackbot AA rating:",
+			"\tMackbot AA rating (mAAr) is a value calculating the continuos damage of all AAs equiped on a warship.",
+			"",
+			"For more detailed information of a specific paramater, enclose the parameter names in a pair of paranthesis after the ship name.",
+			"Example:",
+			"\tmackbot ship midway (Return information about US CV Midway)",
+			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)"
+		]
+	},
+	"skill": {
+		"help": "",
+		"brief": "Get information about a commander skill",
+		"usage": "ship_type skill_name",
+		"description": [
+			"Display information about a commander skill.",
+			"",
+			"ship_type: Can take full ship type name or abbreviation (e.g. \"bb\" or \"battleship\")"
+		]
+	},
+	"list": {
+		"help": "",
+		"brief": "List all items of a specifed category",
+		"usage": "[category] [arguments]",
+		"description": [
+			"List all items of a specifed category.",
+			"Listings may returns in multiple pages. Add \"page x\" to access other pages."
+		]
+	},
+	"list skills": {
+		"help": "",
+		"brief": "List all commander skills",
+		"usage": "[filters]",
+		"description": [
+			"List all commander skills.",
+			"Filter may include tier or ship types.",
+			"",
+			"Example:",
+			"\tmackbot list skills tier 1 (Lists all commander skills that cost 1 point)",
+			"\tmackbot list skills bb (Lists all battleship commander skills)"
+		]
+	},
+	"list upgrades": {
+		"help": "",
+		"brief": "List all ship upgrades",
+		"usage": "[filter]",
+		"description": [
+			"List all ship upgrades.",
+			"Filter may include tier that upgrades appear in or ship types.",
+			"",
+			"Example:",
+			"\tmackbot list upgrades tier 4 (List all upgrades that is available at tier 4"
+		]
+	},
+	"list maps": {
+		"help": "",
+		"brief": "List all maps",
+		"usage": "[page]",
+		"description": ["List all maps"]
+	},
+	"list ships": {
+		"help": "",
+		"brief": "List all ships",
+		"usage": "[filters]",
+		"description": [
+			"List all available warships.",
+			"Filter may include ship type, tier, and/or nation"
+		]
+	},
+	"upgrade": {
+		"help": "",
+		"brief": "Get detail of a ship's upgrade",
+		"usage": "upgrade name/upgrade abbreviation/ship name",
+		"description": [
+			"Get detail of a warship's upgrade.",
+			"This command can take either the full name of an upgrade, or a ship's name if it have a legendary upgrade.",
+			"",
+			"Example:",
+			"\tmackbot upgrade csm1 (Get detailed information about Concealment System Modification 1)",
+			"\tmackbot upgrade midway (Get detailed information about Midway's legendary upgrade, Modified External Hardpoints)"
+		]
+	},
+	"commander": {
+		"help": "",
+		"brief": "Get detail of a unique commander",
+		"usage": "commander_name",
+		"description": [
+			"Get details about a commander and some of their special abilities."
+		]
+	},
+	"map": {
+		"help": "",
+		"brief": "Show image of a map",
+		"usage": "map_name",
+		"description": [
+			"Show image of a specifed map"
+		]
+	},
+	"doubloons": {
+		"help": "",
+		"brief": "Display the doubloons to dollar conversion",
+		"usage": "doubloons or mackbot doubloons [dollar] [$/dollars]",
+		"description": [
+			"Get the money conversion value of doubloons to USD or vice versa.",
+			"",
+			"Example:",
+			"\tmackbot doubloons 1000 (Get the amount of USD for 1000 doubloons)",
+			"\tmackbot doubloons 10 $ (Get the amount of doubloons for 10 USD)"
+		]
+	},
+	"code": {
+		"help": "",
+		"brief": "Generate a WoWS bonus code link",
+		"usage": "wows_code",
+		"description": [
+			"Generate a WoWS bonus code link."
+		]
+	}
+}
