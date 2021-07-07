@@ -2087,7 +2087,7 @@ async def skills(context, *args):
 	# list all skills
 	embed = discord.Embed(name="Commander Skill")
 
-	search_param = arg[1:]
+	search_param = args
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
 	filtered_skill_list = skill_list.copy()
@@ -2140,10 +2140,11 @@ async def skills(context, *args):
 @list.command()
 async def upgrades(context, *args):
 	# list upgrades
+	embed = None
 	try:
 		# parsing search parameters
 		logging.info("starting parameters parsing")
-		search_param = arg[1:]
+		search_param = args
 		s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 
 		slot = ''.join([i[1] for i in s])
@@ -2202,7 +2203,6 @@ async def upgrades(context, *args):
 			embed.description = "No upgrades found"
 	except Exception as e:
 		if type(e) == IndexError:
-			embed = None
 			error_message = f"Page {page + 1} does not exists"
 		elif type(e) == ValueError:
 			logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
@@ -2252,9 +2252,9 @@ async def ships(context, *args):
 	
 	# parsing search parameters
 	logging.info("starting parameters parsing")
-	search_param = args[1:]
+	search_param = args
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
-
+	
 	tier = ''.join([i[2] for i in s])
 	key = [i[7] for i in s if len(i[7]) > 1]
 	page = [i[6] for i in s if len(i[6]) > 0]
