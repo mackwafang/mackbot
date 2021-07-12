@@ -618,11 +618,11 @@ for s in ship_list:
 						combined_aa_damage = near_damage + mid_damage + far_damage
 						aa_rating = 0
 						
-						if combined_aa_damage > 0:
-							aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
-							if aa_range_scaling > 1:
-								aa_range_scaling = aa_range_scaling ** 2
-							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
+						# if combined_aa_damage > 0:
+							# aa_range_scaling = module_list[module_id]['profile']['anti_air']['max_range'] / 5800
+							# if aa_range_scaling > 1:
+								# aa_range_scaling = aa_range_scaling ** 2
+							# aa_rating = (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
 						
 						if ship_info[s]['anti_aircraft'] is None:
