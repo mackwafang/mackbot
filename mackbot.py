@@ -828,11 +828,27 @@ for s in ship_list:
 					continue
 	except Exception as e:
 		if not type(e) == KeyError:
-			logging.error("at ship id" + s)
-			traceback.print_exc(type(e), e, None)
+			logging.error("at ship id " + s)
 			logging.info("Ship", s, "is not known to GameParams.data")
+			# traceback.print_exc(type(e), e, None)
+			print(__name__)
+			if __name__ == '__main__':
+				@mackbot.event
+				async def on_ready():
+					user = await mackbot.fetch_user("164545158572933121")
+					await user.send("shit fucked up, fam")
+					await user.send("GameParams.json is outdated")
+					await user.send("Exception {} {}".format(type(e), e))
+					
+					await mackbot.close()
+					
+				mackbot.run(bot_token)
 		else:
 			traceback.print_exc(type(e), e, None)
+			
+		if mackbot.is_closed():
+			time.sleep(10)
+			exit(1)
 
 logging.info("Creating Modification Abbreviation")
 upgrade_abbr_list = {}
