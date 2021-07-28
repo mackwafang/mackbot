@@ -585,47 +585,54 @@ for s in ship_list:
 								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
 							min_aa_range = min(min_aa_range, aa_data['minDistance'])
 							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-						# getting flak guns info
-						try:
-							if len(ship_upgrade_info[_info]['components']['atba']) > 0:
-								# none found from primary guns get far AA armament from secondary
-								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['atba'][0]]
-							else:
-								# AA armament from primary guns
-								aa_defense_far = module_data[ship_upgrade_info[_info]['components']['artillery'][0]]
-						except:
-							aa_defense_far = []
-						for a in [a for a in aa_defense_far if 'Far' in a]:
-							aa_data = aa_defense_far[a]
-							if 'Bubbles' not in a:
-								# long range passive AA
-								module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
-							else:
-								# flaks
-								module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-								module_list[module_id]['profile']['anti_air']['flak']['damage'] = aa_data['bubbleDamage'] * (aa_data['innerBubbleCount'] + aa_data['outerBubbleCount'] + aa_data['explosionCount'])
-								module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
-								module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-
-							min_aa_range = min(min_aa_range, aa_data['minDistance'])
-							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+						# getting flak guns info						
+						aa_defense_far = []
+						for item in ['atba', 'artillery']:
+							try:
+								aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
+							except:
+								pass
+						
+						for aa_component in aa_defense_far:
+							for a in [a for a in aa_component if 'Far' in a]:
+								aa_data = aa_component[a]
+								if 'Bubbles' not in a:
+									# long range passive AA
+									module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
+								else:
+									# flaks
+									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))
+									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
+									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
+								
+								min_aa_range = min(min_aa_range, aa_data['minDistance'])
+								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 
 						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
 						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
 						# calculate aa rating
-						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 0.8
+						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 1.25
 						mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
-						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2.25
+						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance']
 						combined_aa_damage = near_damage + mid_damage + far_damage
 						aa_rating = 0
 						
+						# aa rating scaling with range
 						if combined_aa_damage > 0:
 							aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)
 							if aa_range_scaling > 1:
-								aa_range_scaling = aa_range_scaling ** 2
-							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
+								aa_range_scaling = aa_range_scaling ** 3
+							aa_rating += (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
+						
+						# aa rating scaling with flak
+						if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
+							flak_data = module_list[module_id]['profile']['anti_air']['flak']
+							aa_rating += flak_data['count'] * flak_data['hitChance'] * 1.5
+							
 						aa_rating = (combined_aa_damage / (int(ship['tier']) * 9))
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
 						
@@ -729,7 +736,6 @@ for s in ship_list:
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['attackCount']
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 						module_list[module_id]['profile'] = {
@@ -740,6 +746,7 @@ for s in ship_list:
 								'rocket_pen': int(projectile['alphaPiercingHE']),
 								'max_health': plane['maxHealth'],
 								'cruise_speed' : plane['speedMoveWithBomb'],
+								'payload' : plane['attackCount'],
 							}
 						}
 					continue
@@ -755,7 +762,6 @@ for s in ship_list:
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['projectilesPerAttack']
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 						
@@ -767,6 +773,7 @@ for s in ship_list:
 								'torpedo_speed': projectile['speed'],
 								'is_deep_water': projectile['isDeepWater'],
 								'distance': projectile['maxDist'] * 30 / 1000,
+								'payload' : plane['projectilesPerAttack'],
 							}
 						}
 					continue
@@ -782,7 +789,6 @@ for s in ship_list:
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['attackCount']
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 						module_list[module_id]['bomb_type'] = projectile['ammoType']
@@ -793,6 +799,7 @@ for s in ship_list:
 								'max_damage': projectile['alphaDamage'],
 								'burn_probability': projectile['burnProb'] * 100,
 								'max_health': plane['maxHealth'],
+								'payload' : plane['projectilesPerAttack'],
 							}
 						}
 					continue
@@ -812,7 +819,6 @@ for s in ship_list:
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['payload'] = plane['attackCount']
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 						module_list[module_id]['bomb_type'] = projectile['ammoType']
@@ -829,6 +835,7 @@ for s in ship_list:
 								'max_damage': projectile['alphaDamage'],
 								'burn_probability': projectile['burnProb'] * 100,
 								'max_health': plane['maxHealth'],
+								'payload' : plane['projectilesPerAttack'],
 							}
 						}
 						ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
@@ -1861,7 +1868,6 @@ async def ship(context, *arg):
 						for hull in modules['hull']:
 							aa = module_list[str(hull)]['profile']['anti_air']
 							m += f"**{name} ({aa['hull']})**\n"
-							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
 
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
@@ -1870,6 +1876,8 @@ async def ship(context, *arg):
 									rating_descriptor = d
 									break
 							m += f"**AA Rating (vs. T{tier}):** {int(aa['rating'])} ({rating_descriptor})\n"
+							
+							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
 							# provide more AA detail
 							flak = aa['flak']
 							near = aa['near']
@@ -1889,7 +1897,6 @@ async def ship(context, *arg):
 						aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
 						average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in
 											  modules['hull']]) / len(modules['hull'])
-						m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
 
 						rating_descriptor = ""
 						for d in AA_RATING_DESCRIPTOR:
@@ -1898,6 +1905,7 @@ async def ship(context, *arg):
 								rating_descriptor = d
 								break
 						m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
+						m += f"**Range:** {{aa['max_range'] / 1000:0.1f} km\n"
 
 					embed.add_field(name="__**Anti-Air**__", value=m)
 
@@ -1926,7 +1934,7 @@ async def ship(context, *arg):
 						n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** rockets_filter:
-							m += f"**Aircraft:** {fighter['cruise_speed']:0.0f} kts. (up to {fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts), {fighter['max_health']} HP, {fighter_module['payload']} rocket{'s' if fighter_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {fighter['cruise_speed']:0.0f} kts. (up to {fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 							m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
 							m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
@@ -1942,7 +1950,7 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** torpbomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber_module['payload']} torpedo{'es' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
 							m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
@@ -1958,7 +1966,7 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** bomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
 							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
@@ -1973,7 +1981,7 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** bomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber_module['payload']} bomb{'s' if bomber_module['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
 							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
