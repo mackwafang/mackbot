@@ -1905,7 +1905,7 @@ async def ship(context, *arg):
 								rating_descriptor = d
 								break
 						m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
-						m += f"**Range:** {{aa['max_range'] / 1000:0.1f} km\n"
+						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 
 					embed.add_field(name="__**Anti-Air**__", value=m)
 
