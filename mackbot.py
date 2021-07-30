@@ -574,7 +574,7 @@ for s in ship_list:
 							for t in atba_guns['turret']:
 								turret_data = atba_guns['turret'][t][0]
 								atba_guns[t] = {
-									'name': turret['name'],
+									'name': turret_data['name'],
 									'shotDelay': turret_data['shotDelay'],
 									'numBarrels': turret_data['numBarrels'],
 									'caliber': turret_data['barrelDiameter'],
@@ -1900,22 +1900,24 @@ async def ship(context, *arg):
 						m += f"**{hull_name}**\n"
 						m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
 						m += f'**DPM:** {gun_dps:,}\n'
-						m += '\n'
 						
 						if ship_filter == 2 ** atbas_filter:
+							m += '\n'
 							for t in atba:
 								turret = atba[t]
 								# detail secondary
-								m += f"**{turret['name']} ({int(turret['numBarrels'])} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+								m += f"**{t} ({int(turret['numBarrels'])} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
 								m += f"**{turret['count']}** turret{'s' if turret['count'] > 1 else ''}\n"
-								m += f"**{turret['ammoType']}**: {turret['max_damage']}"
+								m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
 								m += '('
 								if turret['burn_probability'] > 0:
 									m += f":fire:{turret['burn_probability'] * 100}%, "
 								m += f"Pen. {turret['pen']}mm"
 								m += ')\n'
 								m += f"**Reload**: {turret['shotDelay']}s\n"
-								m += '\n'
+						if len(modules['hull']) > 1:
+							m += '---------------------\n'
+						
 					embed.add_field(name="__**Secondary Battery**__", value=m)
 
 				# anti air
@@ -2071,7 +2073,7 @@ async def ship(context, *arg):
 							m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
 							if ship_filter == (1 << consumable_filter):
 								m += '\n'
-							for c in consumables[consumable_slot]['abils']:
+							for c_index, c in enumerate(consumables[consumable_slot]['abils']):
 								consumable_id, consumable_type = c
 								consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
 								consumable_name = consumable_descriptor[consumable['consumableType']]['name']
@@ -2116,11 +2118,10 @@ async def ship(context, *arg):
 										m += consumable_detail
 										m += '\n'
 								else:
-									if len(consumables[consumable_slot]['abils']) > 1:
+									if len(consumables[consumable_slot]['abils']) > 1 and c_index != len(consumables[consumable_slot]['abils']) - 1:
 										m += 'or '
 							m += '\n'
 					
-					m = m[:-3]
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 				footer_message = "Parameters does not take into account upgrades and commander skills\n"
 				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
