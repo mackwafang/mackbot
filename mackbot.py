@@ -1058,7 +1058,6 @@ hottake_strings = (
 	'WG should add gold ammo',
 	'Kam is the superior CV player',
 	'interceptors are more useful than patrol fighters',
-	
 )
 
 def check_build():
@@ -2749,7 +2748,7 @@ async def code(context, arg):
 
 @mackbot.command()
 async def hottake(context):
-	await context.send('I tell people that ' + message[randint(len(hottake_strings))])
+	await context.send('I tell people that ' + hottake_strings[randint(len(hottake_strings))])
 
 # async def on_message(self, message):
 	# 
