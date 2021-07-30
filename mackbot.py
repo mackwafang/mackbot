@@ -554,7 +554,48 @@ for s in ship_list:
 				except IndexError as e:
 					continue
 
-				if ship_upgrade_info[_info]['ucType'] == '_Hull':
+				if ship_upgrade_info[_info]['ucType'] == '_Hull':				
+					# get secondary information
+					if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+						module_list[module_id]['profile']['atba'] = {
+							'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
+						}
+						
+						atba = ship_upgrade_info[_info]['components']['atba'][0]
+						atba = module_data[atba]
+						atba_guns = {'turret': {}}
+						for t in [i for i in atba if 'HP' in i]:
+							turret = atba[t]
+							if turret['name'] in atba_guns['turret']:
+								atba_guns['turret'][turret['name']] += [turret]
+							else:
+								atba_guns['turret'][turret['name']] = [turret]
+						else:
+							for t in atba_guns['turret']:
+								turret_data = atba_guns['turret'][t][0]
+								atba_guns[t] = {
+									'name': turret['name'],
+									'shotDelay': turret_data['shotDelay'],
+									'numBarrels': turret_data['numBarrels'],
+									'caliber': turret_data['barrelDiameter'],
+									'count': len(atba_guns['turret'][t]),
+									'gun_dps': 0,
+									'max_damage_sap': 0,
+									'burn_probability': 0,
+								}
+								for a in turret_data['ammoList']:
+									ammo = game_data[a]
+									atba_guns[t]['gun_dps'] += ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay']
+									atba_guns[t]['ammoType'] = ammo['ammoType']
+									atba_guns[t]['max_damage'] = ammo['alphaDamage']
+									if ammo['ammoType'] == 'HE':
+										atba_guns[t]['burn_probability'] = ammo['burnProb']
+										atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
+									if ammo['ammoType'] == 'CS':
+										atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
+						del atba_guns['turret']
+						module_list[module_id]['profile']['atba'] = atba_guns
+						
 					# initialize AA dictionary
 					if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
 						module_list[module_id]['profile']['anti_air'] = {
@@ -665,7 +706,7 @@ for s in ship_list:
 					gun = [gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]]
 					
 					module_list[module_id]['profile']['artillery'] = {
-						'gun_rate': 0,
+						'shotDelay': 0,
 						'caliber': 0,
 						'numBarrels': 0,
 						'max_damage_sap': 0,
@@ -681,7 +722,7 @@ for s in ship_list:
 						turret_data = game_data[g]
 						
 						module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
-						module_list[module_id]['profile']['artillery']['gun_rate'] = turret_data['shotDelay']
+						module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
 						module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
 						
 						for a in turret_data['ammoList']:
@@ -1831,16 +1872,16 @@ async def ship(context, *arg):
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({int(guns['numBarrels'])} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
 						
 						if guns['max_damage_HE']:
-							m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dps']['HE']} DPM"
+							m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dps']['HE']:,} DPM"
 							if guns['pen_HE'] > 0:
-								m += f", Pen {guns['pen_HE']} mm\n"
+								m += f", Pen {guns['pen_HE']} mm)\n"
 							else:
 								m += f")\n"
 						if guns['max_damage_SAP'] > 0:
-							m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm, {guns['gun_dps']['CS']} DPM)\n"
+							m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm, {guns['gun_dps']['CS']:,} DPM)\n"
 						if guns['max_damage_AP'] > 0:
-							m += f"**AP:** {guns['max_damage_AP']}, ({guns['gun_dps']['AP']} DPM)\n"
-						m += f"**Reload:** {guns['gun_rate']:0.1f}s\n"
+							m += f"**AP:** {guns['max_damage_AP']} ({guns['gun_dps']['AP']:,} DPM)\n"
+						m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 						m += '\n'
 					embed.add_field(name="__**Main Battery**__", value=m)
@@ -1849,14 +1890,32 @@ async def ship(context, *arg):
 				if ship_param['atbas'] is not None and is_filtered(atbas_filter):
 					m = ""
 					m += f"**Range:** {ship_param['atbas']['distance']} km\n"
-					for slot in ship_param['atbas']['slots']:
-						guns = ship_param['atbas']['slots'][slot]
-						m += f"**{guns['name'].replace(chr(10), ' ')} :**\n"
-						if guns['damage'] > 0:
-							m += f"**HE:** {guns['damage']}\n"
-						m += f"**Reload:** {guns['shot_delay']}s\n"
-
+					for hull in modules['hull']:
+						atba = module_list[str(hull)]['profile']['atba']
+						hull_name = module_list[str(hull)]['name']
+						
+						gun_dps = int(sum([atba[t]['gun_dps'] for t in atba]))
+						gun_count = int(sum([atba[t]['count'] for t in atba]))
+						
+						m += f"**{hull_name}**\n"
+						m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
+						m += f'**DPM:** {gun_dps:,}\n'
 						m += '\n'
+						
+						if ship_filter == 2 ** atbas_filter:
+							for t in atba:
+								turret = atba[t]
+								# detail secondary
+								m += f"**{turret['name']} ({int(turret['numBarrels'])} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+								m += f"**{turret['count']}** turret{'s' if turret['count'] > 1 else ''}\n"
+								m += f"**{turret['ammoType']}**: {turret['max_damage']}"
+								m += '('
+								if turret['burn_probability'] > 0:
+									m += f":fire:{turret['burn_probability'] * 100}%, "
+								m += f"Pen. {turret['pen']}mm"
+								m += ')\n'
+								m += f"**Reload**: {turret['shotDelay']}s\n"
+								m += '\n'
 					embed.add_field(name="__**Secondary Battery**__", value=m)
 
 				# anti air
@@ -2060,6 +2119,8 @@ async def ship(context, *arg):
 									if len(consumables[consumable_slot]['abils']) > 1:
 										m += 'or '
 							m += '\n'
+					
+					m = m[:-3]
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 				footer_message = "Parameters does not take into account upgrades and commander skills\n"
 				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
@@ -2664,6 +2725,28 @@ async def code(context, arg):
 	else:
 		s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + arg.upper()
 		await context.send(s)
+
+@mackbot.command()
+async def hottake(context):
+	message = [
+		'Akizuki is better than Harekaze at a gun fight.',
+		'DDs are OP.',
+		'CVs need buff',
+		'SSs are major game changer',
+		'Radar needs to be removed',
+		'BBs should shoot HE',
+		'Cruisers need nerfs',
+		'Remove heals from all cruisers',
+		'Deadeye should come back with -50% despersion.',
+		'we need more hybrid ships.',
+		'More smoke/radar cruisers.',
+		'DD should have citadels',
+		'RTS CVs should return.',
+		'WG should add gold ammo',
+		''
+	]
+
+	await context.send('I tell people that ' + message[randint(len(message))])
 
 # async def on_message(self, message):
 	# 

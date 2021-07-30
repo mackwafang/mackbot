@@ -11,5 +11,6 @@
 	"map" : true,
 	"ship" : true,
 	"doubloons" : true,
-	"code" : true
+	"code" : true,
+	"hottake": true
 }
