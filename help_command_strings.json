@@ -128,5 +128,13 @@
 		"description": [
 			"Generate a WoWS bonus code link."
 		]
+	},
+	"hottake": {
+	"help": "",
+		"brief": "Give a WoWS hot take",
+		"usage": "",
+		"description": [
+			"Give a WoWS hot take"
+		]
 	}
 }

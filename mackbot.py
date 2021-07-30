@@ -1041,6 +1041,26 @@ good_bot_messages = (
 	':heart:',
 )
 
+hottake_strings = (
+	'Akizuki is better than Harekaze at a gun fight.',
+	'DDs are OP.',
+	'CVs need buff',
+	'submarines will be a major game changer',
+	'radar needs to be removed',
+	'BBs should shoot HE',
+	'cruisers need nerfs',
+	'cruisers doesn\'t need heals',
+	'Deadeye should come back with -50% despersion.',
+	'we need more hybrid ships.',
+	'the game needs more smoke/radar cruisers.',
+	'DD should have citadels',
+	'RTS CVs should return.',
+	'WG should add gold ammo',
+	'Kam is the superior CV player',
+	'interceptors are more useful than patrol fighters',
+	
+)
+
 def check_build():
 	"""
 		checks ship_build for in incorrectly inputted values and outputs to stdout, and write build images
@@ -1133,7 +1153,7 @@ def check_build():
 			else:
 				logging.info("Skill check: No skills found in build")
 			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
-
+2
 def get_ship_data(ship, battle_type='casual'):
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
@@ -2729,25 +2749,7 @@ async def code(context, arg):
 
 @mackbot.command()
 async def hottake(context):
-	message = [
-		'Akizuki is better than Harekaze at a gun fight.',
-		'DDs are OP.',
-		'CVs need buff',
-		'SSs are major game changer',
-		'Radar needs to be removed',
-		'BBs should shoot HE',
-		'Cruisers need nerfs',
-		'Remove heals from all cruisers',
-		'Deadeye should come back with -50% despersion.',
-		'we need more hybrid ships.',
-		'More smoke/radar cruisers.',
-		'DD should have citadels',
-		'RTS CVs should return.',
-		'WG should add gold ammo',
-		''
-	]
-
-	await context.send('I tell people that ' + message[randint(len(message))])
+	await context.send('I tell people that ' + message[randint(len(hottake_strings))])
 
 # async def on_message(self, message):
 	# 
