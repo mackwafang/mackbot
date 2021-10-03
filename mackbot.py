@@ -4,7 +4,6 @@ DEBUG_IS_MAINTANCE = False
 import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback
 import pandas as pd
 import numpy as np
-import cv2 as cv
 
 # from PIL import ImageFont, ImageDraw, Image
 from itertools import count
@@ -886,7 +885,8 @@ for s in ship_list:
 	except Exception as e:
 		if not type(e) == KeyError:
 			logging.error("at ship id " + s)
-			logging.info("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.data")
+			logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.data")
+			logging.error("Update your GameParams JSON file(s)")
 		traceback.print_exc(type(e), e, None)
 			
 		if mackbot.is_closed():
