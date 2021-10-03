@@ -579,13 +579,13 @@ for s in ship_list:
 									'numBarrels': turret_data['numBarrels'],
 									'caliber': turret_data['barrelDiameter'],
 									'count': len(atba_guns['turret'][t]),
-									'gun_dps': 0,
+									'gun_dpm': 0,
 									'max_damage_sap': 0,
 									'burn_probability': 0,
 								}
 								for a in turret_data['ammoList']:
 									ammo = game_data[a]
-									atba_guns[t]['gun_dps'] += ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay']
+									atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay']
 									atba_guns[t]['ammoType'] = ammo['ammoType']
 									atba_guns[t]['max_damage'] = ammo['alphaDamage']
 									if ammo['ammoType'] == 'HE':
@@ -681,6 +681,7 @@ for s in ship_list:
 							ship_info[s]['anti_aircraft'] = {}
 						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 					
+					# add airstrike information for ships with airstrikes
 					if 'airSupport' in ship_upgrade_info[_info]['components']:
 						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
 							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
@@ -716,34 +717,35 @@ for s in ship_list:
 						'max_damage_HE': 0,
 						'max_damage_AP': 0,
 						'max_damage_SAP': 0,
-						'gun_dps': {'HE': 0, 'AP': 0, 'CS': 0},
+						'gun_dpm': {'HE': 0, 'AP': 0, 'CS': 0},
 					}
 					for g in gun:  # for each turret
 						turret_data = game_data[g]
 						
+						# get caliber, reload, and number of guns per turret
 						module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
 						module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
 						module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
 						
+						# get some information about the shells fired by the turret
 						for a in turret_data['ammoList']:
 							ammo = game_data[a]
 							if ammo['ammoType'] == 'HE':
 								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb'] * 100)
 								module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
 								module_list[module_id]['profile']['artillery']['max_damage_HE'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dps']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								module_list[module_id]['profile']['artillery']['gun_dpm']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 							if ammo['ammoType'] == 'CS':
 								module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
 								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dps']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								module_list[module_id]['profile']['artillery']['gun_dpm']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 							if ammo['ammoType'] == 'AP':
 								module_list[module_id]['profile']['artillery']['max_damage_AP'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dps']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								module_list[module_id]['profile']['artillery']['gun_dpm']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 
 						# check for belfast and belfast '43
 						if 'Belfast' in ship['name']:
-							module_list[module_id]['profile']['artillery']['burn_probability'] = int(
-								ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
+							module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
 							module_list[module_id]['profile']['artillery']['pen_HE'] = 0
 						
 					continue
@@ -884,22 +886,8 @@ for s in ship_list:
 	except Exception as e:
 		if not type(e) == KeyError:
 			logging.error("at ship id " + s)
-			logging.info("Ship", s, "is not known to GameParams.data")
-			# traceback.print_exc(type(e), e, None)
-			print(__name__)
-			if __name__ == '__main__':
-				@mackbot.event
-				async def on_ready():
-					user = await mackbot.fetch_user("164545158572933121")
-					await user.send("shit fucked up, fam")
-					await user.send("GameParams.json is outdated")
-					await user.send("Exception {} {}".format(type(e), e))
-					
-					await mackbot.close()
-					
-				mackbot.run(bot_token)
-		else:
-			traceback.print_exc(type(e), e, None)
+			logging.info("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.data")
+		traceback.print_exc(type(e), e, None)
 			
 		if mackbot.is_closed():
 			time.sleep(10)
@@ -986,7 +974,7 @@ for s in ship_list:
 			# some ships have main battery guns
 			fireRate = ship_info[s]['artillery']['shot_delay']
 		except:
-			# some dont
+			# some dont *ahemCVsahem*
 			fireRate = np.inf
 		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
@@ -1152,7 +1140,7 @@ def check_build():
 			else:
 				logging.info("Skill check: No skills found in build")
 			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
-2
+
 def get_ship_data(ship, battle_type='casual'):
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
@@ -1170,7 +1158,8 @@ def get_ship_data(ship, battle_type='casual'):
 
 		Returns:
 		-------
-		DataFrame
+		DataFrame containing ship information
+		
 		raise InvalidShipName exception if name provided is incorrect
 		or
 		NoBuildFound exception if no build is found
@@ -1715,6 +1704,17 @@ async def build(context, arg):
 
 @mackbot.command(help="")
 async def ship(context, *arg):
+	"""
+		Outputs an embeded message to the channel (or DM) that contains information about a queried warship
+		
+		Discord usage:
+			mackbot ship [ship_name] (parameters)
+				ship_name 		- name of requested warship
+				(parameters)	- Optional. Must include pair of parenthesis when used.
+								  Filters only specific warship parameters
+								  Parameters may include, but not limited to: guns, secondary, torpedoes, hull
+	"""
+
 	# message parse
 	if len(arg) == 0:
 		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
@@ -1757,7 +1757,7 @@ async def ship(context, *arg):
 				if ship_type == 'Cruiser':
 					# reclassify cruisers to their correct classification based on the washington naval treaty
 
-					# check for the highest caliber
+					# check for the highest main battery caliber found on this warship
 					highest_caliber = sorted(modules['artillery'],
 											 key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'],
 											 reverse=True)
@@ -1780,8 +1780,7 @@ async def ship(context, *arg):
 					server_emojis = context.guild.emojis
 				else:
 					server_emojis = []
-
-				# emoji exists!
+					
 				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 
 				# defines ship params filtering
@@ -1855,7 +1854,7 @@ async def ship(context, *arg):
 					
 					
 					if 'airSupport' in module_list[str(h)]['profile']:
-					# air support info
+						# air support info
 						m = ''
 						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 							hull = module_list[str(h)]['profile']['hull']
@@ -1891,15 +1890,15 @@ async def ship(context, *arg):
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({int(guns['numBarrels'])} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
 						
 						if guns['max_damage_HE']:
-							m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dps']['HE']:,} DPM"
+							m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dpm']['HE']:,} DPM"
 							if guns['pen_HE'] > 0:
 								m += f", Pen {guns['pen_HE']} mm)\n"
 							else:
 								m += f")\n"
 						if guns['max_damage_SAP'] > 0:
-							m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm, {guns['gun_dps']['CS']:,} DPM)\n"
+							m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm, {guns['gun_dpm']['CS']:,} DPM)\n"
 						if guns['max_damage_AP'] > 0:
-							m += f"**AP:** {guns['max_damage_AP']} ({guns['gun_dps']['AP']:,} DPM)\n"
+							m += f"**AP:** {guns['max_damage_AP']} ({guns['gun_dpm']['AP']:,} DPM)\n"
 						m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 						m += '\n'
@@ -1913,12 +1912,12 @@ async def ship(context, *arg):
 						atba = module_list[str(hull)]['profile']['atba']
 						hull_name = module_list[str(hull)]['name']
 						
-						gun_dps = int(sum([atba[t]['gun_dps'] for t in atba]))
+						gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba]))
 						gun_count = int(sum([atba[t]['count'] for t in atba]))
 						
 						m += f"**{hull_name}**\n"
 						m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
-						m += f'**DPM:** {gun_dps:,}\n'
+						m += f'**DPM:** {gun_dpm:,}\n'
 						
 						if ship_filter == 2 ** atbas_filter:
 							m += '\n'
