@@ -1,14 +1,12 @@
 DEBUG_IS_MAINTANCE = False
 
 # loading cheats
-import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback
-import pandas as pd
-import numpy as np
+import wargaming, os, re, sys, pickle, discord, time, logging, json, difflib, traceback, math
 
 # from PIL import ImageFont, ImageDraw, Image
 from itertools import count
-from numpy.random import randint
 from pprint import pprint
+from random import randint
 from discord.ext import commands
 
 with open("./command_list.json") as f:
@@ -116,6 +114,7 @@ else:
 		bot_token = data['bot_token']
 		sheet_id = data['sheet_id']
 
+# define bot stuff
 cmd_sep = ' '
 command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))		
@@ -605,8 +604,8 @@ for s in ship_list:
 							'flak': {'damage': 0, },
 						}
 
-						min_aa_range = np.Inf
-						max_aa_range = -np.Inf
+						min_aa_range = math.inf
+						max_aa_range = -math.inf
 
 						# grab anti-air guns information
 						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
@@ -753,7 +752,6 @@ for s in ship_list:
 					# get torps parameter
 					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 					gun = module_data[gun]
-					# gun = np.unique([gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]])
 					for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each turret
 						turret_data = gun[g]
 						projectile = game_data[turret_data['ammoList'][0]]
@@ -975,7 +973,7 @@ for s in ship_list:
 			fireRate = ship_info[s]['artillery']['shot_delay']
 		except:
 			# some dont *ahemCVsahem*
-			fireRate = np.inf
+			fireRate = math.inf
 		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
 		# add tags based on aa
@@ -1006,16 +1004,11 @@ AA_RATING_DESCRIPTOR = {
 	"Moderate": [40, 50],
 	"High": [50, 70],
 	"Dangerous": [70, 90],
-	"Very Dangerous": [90, np.inf],
+	"Very Dangerous": [90, math.inf],
 }
 
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
-# filter data tyoe
-ship_list_frame = pd.DataFrame.from_dict(ship_list, orient='index')
-
-# ship_list_frame = ship_list_frame.filter(items=['name', 'nation', 'images', 'type', 'tier', 'consumables', 'modules', 'upgrades', 'is_premium', 'price_gold', 'price_credit', 'price_xp', 'tags'], axis=0)
-# ship_list = ship_list_frame.to_dict()
 
 logging.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
@@ -1047,99 +1040,6 @@ hottake_strings = (
 	'Kam is the superior CV player',
 	'interceptors are more useful than patrol fighters',
 )
-
-def check_build():
-	"""
-		checks ship_build for in incorrectly inputted values and outputs to stdout, and write build images
-	"""
-	if not command_list['build']:
-		logging.info("Build check passed due to build command is disabled.")
-		return
-	skill_use_image = cv.imread("./skill_images/icon_perk_use.png", cv.IMREAD_UNCHANGED)
-	skill_use_image_channel = [i for i in cv.split(skill_use_image)]
-	for t in build_battle_type:
-		for s in ship_build[build_battle_type[t]]:
-			image = np.zeros((520, 660, 4))
-			logging.info(f"Checking {build_battle_type[t]} build for {s}...")
-
-			name, nation, _, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = get_ship_data(
-				s, battle_type=build_battle_type[t])
-			font = ImageFont.truetype('arialbd.ttf', 20)
-			image_pil = Image.fromarray(image, mode='RGBA')
-			draw = ImageDraw.Draw(image_pil)
-			draw.text((0, 0), f"{build_battle_type[t].title()} {name.title()}", font=font, fill=(255, 255, 255, 255))
-			category_title = ['Endurance', 'Attack', 'Support', 'Versatility']
-			for s in range(len(category_title)):
-				draw.text((s * 180, 30), category_title[s], font=font, fill=(255, 255, 255, 255))
-			draw.text((0, 330), "Upgrades", font=font, fill=(255, 255, 255, 255))
-			# suggested commander
-			if cmdr != "":
-				# print("\tChecking commander...", end='')
-				if cmdr == "*":
-					pass
-				else:
-					try:
-						get_commander_data(cmdr)
-					except Exception as e:
-						logging.info(f"Cmdr check: Exception {type(e)}", e, "in check_build, listing commander")
-			else:
-				logging.info("Cmdr check: No Commander found")
-			draw.text((0, 440), "Commander", font=font, fill=(255, 255, 255, 255))
-			draw.text((0, 460), "Any" if cmdr == "*" else cmdr, font=font, fill=(255, 255, 255, 255))
-
-			image = np.array(image_pil)
-			for skill in skill_list:
-				x = skill_list[skill]['type_id']
-				y = skill_list[skill]['tier']
-				img = cv.imread(skill_list[skill]['local_icon'], cv.IMREAD_UNCHANGED)
-				h, w, _ = img.shape
-				image[y * h: (y + 1) * h, (x + (x // 2)) * w: (x + (x // 2) + 1) * h] = img
-			# suggested upgrades
-			if len(upgrades) > 0:
-				upgrade_index = 0
-				for upgrade in upgrades:
-					if upgrade == '*':
-						# any thing
-						img = cv.imread('./modernization_icons/icon_modernization_any.png', cv.IMREAD_UNCHANGED)
-					else:
-						try:
-							local_image = get_upgrade_data(upgrade)[6]
-							img = cv.imread(local_image, cv.IMREAD_UNCHANGED)
-							if img is None:
-								img = cv.imread('./modernization_icons/icon_modernization_missing.png',
-												cv.IMREAD_UNCHANGED)
-						except Exception as e:
-							logging.info(f"Upgrade check: Exception {type(e)}", e, f"in check_build, listing upgrade {upgrade}")
-					img = np.array(img)
-					y = 6
-					x = upgrade_index
-					h, w, _ = img.shape
-					img = [i for i in cv.split(img)]
-					for i in range(3):
-						image[y * h: (y + 1) * h, x * w: (x + 1) * w, i] = img[i]
-					image[y * h: (y + 1) * h, x * w: (x + 1) * w, 3] += img[3]
-					upgrade_index += 1
-			else:
-				logging.info("Upgrade check: No upgrades found")
-			# suggested skills
-			if len(skills) > 0:
-				for skill in skills:
-					try:
-						_, id, _, _, tier, _ = get_skill_data(skill)
-						x = id
-						y = tier
-						h, w, _ = skill_use_image.shape
-						for i in range(3):
-							image[y * h: (y + 1) * h, (x + (x // 2)) * w: (x + (x // 2) + 1) * h, i] = \
-								skill_use_image_channel[i]
-						image[y * h: (y + 1) * h, (x + (x // 2)) * w: (x + (x // 2) + 1) * h, 3] += \
-							skill_use_image_channel[3]
-
-					except Exception as e:
-						logging.info(f"Skill check: Exception {type(e)}", e, f"in check_build, listing skill {skill}")
-			else:
-				logging.info("Skill check: No skills found in build")
-			cv.imwrite(f"{name.lower()}_{build_battle_type[t]}_build.png", image)
 
 def get_ship_data(ship, battle_type='casual'):
 	"""
@@ -1717,9 +1617,7 @@ async def ship(context, *arg):
 
 	# message parse
 	if len(arg) == 0:
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if not embed is None:
-			await context.send(embed=embed)
+		await context.send_help("ship")
 	else:
 		arg = ''.join([i + ' ' for i in arg])  # fuse back together to check filter
 		has_filter = '(' in arg and ')' in arg  # find a better check
@@ -2159,20 +2057,17 @@ async def ship(context, *arg):
 					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
 				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
-
 @mackbot.command()
 async def skill(context, *arg):
 	# get information on requested skill
 	# message parse
 	if len(arg) == 0:
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("skill")
 	else:
 		try:
 			ship_class = arg[0].lower()
 			skill = ''.join([i + ' ' for i in arg[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
-
+			
 			logging.info(f'sending message for skill <{skill}>')
 			async with context.typing():
 				name, tree, description, effect, column, tier, category = get_skill_data(ship_class, skill)
@@ -2184,6 +2079,7 @@ async def skill(context, *arg):
 				embed.add_field(name='Description', value=description, inline=False)
 				embed.add_field(name='Effect', value=effect, inline=False)
 			await context.send(embed=embed)
+			
 		except Exception as e:
 			logging.info("Exception", type(e), ":", e)
 			# error, skill name not understood
@@ -2291,7 +2187,7 @@ async def upgrades(context, *args):
 		result = []
 		for u in upgrade_list:
 			tags = [str(i).lower() for i in upgrade_list[u]['tags']]
-			if np.all([k in tags for k in key]):
+			if all([k in tags for k in key]):
 				result += [u]
 		logging.info("parsing complete")
 		logging.info("compiling message")
@@ -2396,7 +2292,7 @@ async def ships(context, *args):
 	for s in ship_list:
 		try:
 			tags = [i.lower() for i in ship_list[s]['tags']]
-			if np.all([k.lower() in tags for k in key]):
+			if all([k.lower() in tags for k in key]):
 				result += [s]
 		except:
 			pass
@@ -2470,9 +2366,7 @@ async def upgrade(context, *arg):
 	upgrade = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if len(arg) == 0:
 		# argument is empty, send help message
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("upgrade")
 	else:
 		# user provided an argument
 
@@ -2590,9 +2484,7 @@ async def commander(context, *arg):
 	# message parse
 	cmdr = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if len(arg) == 0:
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("commander")
 	else:
 		try:
 			async with context.typing():
@@ -2664,9 +2556,7 @@ async def map(context, *arg):
 	# message parse
 	map = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if len(arg) == 0:
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("map")
 	else:
 		try:
 			async with context.typing():
@@ -2693,10 +2583,7 @@ async def map(context, *arg):
 async def doubloons(context, *arg):
 	# get information on requested flag
 	if len(arg) == 0:
-		# argument is empty, send help message
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("doubloons")
 	else:
 		# user provided an argument
 		try:
@@ -2732,15 +2619,15 @@ async def doubloons(context, *arg):
 			await context.send(embed=embed)
 		except Exception as e:
 			logging.info(f"Exception {type(e)}", e)
-			await context.send(f"Value **{doub}** is not a number (or an internal error has occured).")
+			if type(e) == TypeError:
+				await context.send(f"Value **{doub}** is not a number.")
+			else:
+				await context.send(f"An internal error has occured.")
 
 @mackbot.command()
 async def code(context, arg):
 	if len(arg) == 0:
-		# argument is empty, send help message
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg)
-		if embed is not None:
-			await context.send(embed=embed)
+		await context.send_help("code")
 	else:
 		s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + arg.upper()
 		await context.send(s)
@@ -2796,6 +2683,7 @@ if __name__ == '__main__':
 	for c in help_command_strings:
 		try:
 			command = mackbot.get_command(c)
+			
 			command.help = help_command_strings[c]['help']
 			command.brief = help_command_strings[c]['brief']
 			command.usage = help_command_strings[c]['usage']
