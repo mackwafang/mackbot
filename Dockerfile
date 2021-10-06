@@ -4,7 +4,7 @@ FROM python:3.8-slim
 WORKDIR /mackbot
 
 COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY GameParamsPruned_0.json GameParamsPruned_0.json
 COPY GameParamsPruned_1.json GameParamsPruned_1.json

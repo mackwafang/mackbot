@@ -164,6 +164,7 @@ module_list = {}
 for page in count(1):
 	try:
 		m = wows_encyclopedia.modules(language='en', page_no=page)
+		logging.info("	Reading page", page)
 		for i in m:
 			module_list[i] = m[i]
 	except Exception as e:
@@ -282,6 +283,7 @@ if fetch_ship_list_from_wg:
 	for page in count(1):
 		try:
 			l = wows_encyclopedia.ships(language='en', page_no=page)
+			logging.info("	Reading page", page)
 			for i in l:
 				ship_list[i] = l[i]
 				# add skip bomber field to list's modules listing
@@ -306,6 +308,7 @@ for page_num in count(1):
 	# continuously count, because weegee don't list how many pages there are
 	try:
 		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+		logging.info("	Reading page", page)
 		# consumables of some page page_num
 		for consumable in consumable_list:
 			c_type = consumable_list[consumable]['type']
@@ -382,7 +385,7 @@ logging.info('Removing obsolete upgrades')
 for i in obsolete_upgrade:
 	del upgrade_list[i]
 
-logging.info('Fetching build file...')
+logging.info('Fetching ship build file...')
 BUILD_EXTRACT_FROM_CACHE = False
 extract_from_web_failed = False
 BUILD_BATTLE_TYPE_CLAN = 0
@@ -486,16 +489,16 @@ if command_list['build']:
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
-logging.info("Checking cached ship_param file...")
+logging.info("	Checking cached ship_param file...")
 fetch_ship_params_from_wg = False
 if os.path.isfile('./' + ship_param_file_name):
 	# check ship_params exists
-	logging.info("File found. Loading file")
+	logging.info("	File found. Loading file")
 	with open('./' + ship_param_file_name, 'rb') as f:
 		ship_info = pickle.load(f)
 		
 	if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
-		logging.info("Ship params outdated, fetching new list")
+		logging.info("	Ship params outdated, fetching new list")
 		fetch_ship_params_from_wg = True
 		ship_info = {}
 else:
@@ -511,15 +514,15 @@ if fetch_ship_params_from_wg:
 		ship_info[s] = ship[s]
 		ship_info[s]['skip_bomber'] = None
 		i += 1
-		print(f"Fetching ship parameters. {i}/{len(ship_list)} ships found", end='\r')
-	print()
-	logging.info("Fetch complete")
-	logging.info("Creating cache")
+		if (i % 50 == 0 and i > 0) or (i == len(ship_list)):
+			logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found", end='\r')
+			
+	logging.info("Creating ship_params cache")
 	with open('./' + ship_param_file_name, 'wb') as f:
 		pickle.dump(ship_info, f)
-	logging.info("Cache creation complete")
+	logging.info("ship_params cache created")
 
-logging.info("Filling missing informations of modules")
+logging.info("Generating information about modules")
 for s in ship_list:
 	ship = ship_list[s]
 	
@@ -891,7 +894,7 @@ for s in ship_list:
 			time.sleep(10)
 			exit(1)
 
-logging.info("Creating Modification Abbreviation")
+logging.info("Creating abbreviation for upgrades")
 upgrade_abbr_list = {}
 for u in upgrade_list:
 	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
