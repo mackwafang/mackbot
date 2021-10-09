@@ -12,13 +12,13 @@
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
-			"Mackbot AA rating:",
-			"\tMackbot AA rating (mAAr) is a value calculating the continuos damage of all AAs equiped on a warship.",
-			"",
 			"For more detailed information of a specific paramater, enclose the parameter names in a pair of paranthesis after the ship name.",
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
-			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)"
+			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
+			"",
+			"About Mackbot's AA rating:",
+			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		]
 	},
 	"skill": {

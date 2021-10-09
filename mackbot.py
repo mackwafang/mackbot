@@ -164,7 +164,7 @@ module_list = {}
 for page in count(1):
 	try:
 		m = wows_encyclopedia.modules(language='en', page_no=page)
-		logging.info("	Reading page", page)
+		logging.info("	Reading page {}".format(page))
 		for i in m:
 			module_list[i] = m[i]
 	except Exception as e:
@@ -283,7 +283,7 @@ if fetch_ship_list_from_wg:
 	for page in count(1):
 		try:
 			l = wows_encyclopedia.ships(language='en', page_no=page)
-			logging.info("	Reading page", page)
+			logging.info("	Reading page {}".format(page))
 			for i in l:
 				ship_list[i] = l[i]
 				# add skip bomber field to list's modules listing
@@ -308,7 +308,7 @@ for page_num in count(1):
 	# continuously count, because weegee don't list how many pages there are
 	try:
 		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
-		logging.info("	Reading page", page)
+		logging.info("	Reading page {}".format(page_num))
 		# consumables of some page page_num
 		for consumable in consumable_list:
 			c_type = consumable_list[consumable]['type']
@@ -515,8 +515,8 @@ if fetch_ship_params_from_wg:
 		ship_info[s]['skip_bomber'] = None
 		i += 1
 		if (i % 50 == 0 and i > 0) or (i == len(ship_list)):
-			logging.info(f"Fetching ship parameters. {i}/{len(ship_list)} ships found", end='\r')
-			
+			logging.info(f"{i}/{len(ship_list)} ships found")
+	logging.info("Done")
 	logging.info("Creating ship_params cache")
 	with open('./' + ship_param_file_name, 'wb') as f:
 		pickle.dump(ship_info, f)
@@ -698,6 +698,26 @@ for s in ship_list:
 								'squad_size': plane['numPlanesInSquadron'],
 								'payload': plane['attackCount'],
 							}
+
+					# anti submarines warfare armaments
+					if 'depthCharges' in ship_upgrade_info[_info]['components']:
+						if ship_upgrade_info[_info]['components']['depthCharges']:
+							asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
+							asw_data = {
+								'chargesNum': asw_info['maxPacks'],
+								'payload': 0,
+								'max_damage': 0,
+								'reloadTime': asw_info['reloadTime'],
+							}
+							# for each available launchers
+							for asw_launcher in [i for i in asw_info.keys() if 'HP' in i]:
+								asw_launcher_data = asw_info[asw_launcher]
+								asw_data['payload'] += asw_launcher_data['numBombs']
+								# look at depth charge data
+								for depth_charge in asw_launcher_data['ammoList']:
+									depth_charge_data = game_data[depth_charge]
+									asw_data['max_damage'] = depth_charge_data['alphaDamage']
+								module_list[module_id]['profile']['asw'] = asw_data.copy()
 					continue
 					
 
@@ -1009,6 +1029,8 @@ AA_RATING_DESCRIPTOR = {
 	"Dangerous": [70, 90],
 	"Very Dangerous": [90, math.inf],
 }
+
+EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
@@ -1765,17 +1787,42 @@ async def ship(context, *arg):
 							airsup_reload_m = int(airsup_info['reloadTime'] // 60)
 							airsup_reload_s = int(airsup_info['reloadTime'] % 60)
 							
-							m += f"{airsup_info['chargesNum']} charge(s)\n"
-							m += f"Reload: {str(airsup_reload_m)+'m' if airsup_reload_m > 0 else ''} {str(airsup_reload_s)+'s' if airsup_reload_s > 0 else ''}\n"
+							m += f"**Has {airsup_info['chargesNum']} charge(s)**\n"
+							m += f"**Reload**: {str(airsup_reload_m)+'m' if airsup_reload_m > 0 else ''} {str(airsup_reload_s)+'s' if airsup_reload_s > 0 else ''}\n"
 							
 							if ship_filter == 2 ** hull_filter:
 								# detailed air support filter
 								m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
-								m += f"**Squadron**: {airsup_info['squad_size']} aircrafts\n"
-								m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {int(airsup_info['bomb_pen'])}mm)\n"
+								if nation == 'netherlands':
+									m += f"**Squadron**: {airsup_info['squad_size']} aircrafts\n"
+									m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {int(airsup_info['bomb_pen'])}mm)\n"
+								else:
+									m += f"**Squadron**: 2 aircrafts\n"
+									m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
+							m += '\n'
+							
+						embed.add_field(name="__**Air Support**__", value=m, inline=False)
+					if 'asw' in module_list[str(h)]['profile']:
+						# depth charges info
+						m = ''
+						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+							hull = module_list[str(h)]['profile']['hull']
+							m += f"**{module_list[str(h)]['name']}**\n"
+							asw_info = module_list[str(h)]['profile']['asw']
+							
+							asw_reload_m = int(asw_info['reloadTime'] // 60)
+							asw_reload_s = int(asw_info['reloadTime'] % 60)
+							
+							m += f"**Has {asw_info['chargesNum']} charge(s)**\n"
+							m += f"**Reload**: {str(asw_reload_m)+'m' if asw_reload_m > 0 else ''} {str(asw_reload_s)+'s' if asw_reload_s > 0 else ''}\n"
+							
+							if ship_filter == 2 ** hull_filter:
+								# detailed air support filter
+								m += f"**Depth charges per salvo**: {asw_info['payload']} bombs\n"
+								m += f"**Depth charge**: :boom: {int(asw_info['max_damage'])}\n"
 							
 							m += '\n'
-						embed.add_field(name="__**Air Support**__", value=m, inline=False)
+						embed.add_field(name="__**ASW**__", value=m, inline=False)
 
 				# guns info
 				if len(modules['artillery']) > 0 and is_filtered(guns_filter):
@@ -2599,7 +2646,7 @@ async def doubloons(context, *arg):
 					dollar = float(doub)
 
 					def dollar_formula(x):
-						return x * 250
+						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
 					embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
 					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
@@ -2611,13 +2658,15 @@ async def doubloons(context, *arg):
 				value_exceed = not (500 <= doub <= 100000)
 
 				def doub_formula(x):
-					return x / 250
+					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
 
 				embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
 				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
 				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
+				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
 				if value_exceed:
-					embed.set_footer(text=":warning: You are unable to buy the requested doubloons")
+					footer_message += "\n:warning: You are unable to buy the requested doubloons"
+				embed.set_footer(text=footer_message)
 
 			await context.send(embed=embed)
 		except Exception as e:

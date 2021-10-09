@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.8-slim
+FROM python:3.8
 WORKDIR /mackbot
 
+RUN apt-get update && apt-get install -y
 COPY requirements.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout 60 -r requirements.txt
 
 COPY GameParamsPruned_0.json GameParamsPruned_0.json
 COPY GameParamsPruned_1.json GameParamsPruned_1.json
