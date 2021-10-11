@@ -523,9 +523,11 @@ if fetch_ship_params_from_wg:
 	logging.info("ship_params cache created")
 
 logging.info("Generating information about modules")
-for s in ship_list:
+for ship_count, s in enumerate(ship_list):
 	ship = ship_list[s]
 	
+	if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)-1):
+		logging.info(f"{ship_count}/{len(ship_list)} ships")
 	try:
 		module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 		module_data = game_data[module_full_id_str]
@@ -539,10 +541,10 @@ for s in ship_list:
 		ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
 		ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
 		
-		# set ship purchase type
+		# is this a test bote?
 		ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
 		
-		for _info in ship_upgrade_info:  # for each upgradable modules
+		for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
 			if type(ship_upgrade_info[_info]) == dict:  # if there are data
 				
 				try:
@@ -553,9 +555,10 @@ for s in ship_list:
 						module_id = str(game_data[module]['id'])
 						del module
 				except IndexError as e:
+					# we did an oopsie
 					continue
 
-				if ship_upgrade_info[_info]['ucType'] == '_Hull':				
+				if ship_upgrade_info[_info]['ucType'] == '_Hull':
 					# get secondary information
 					if len(ship_upgrade_info[_info]['components']['atba']) > 0:
 						module_list[module_id]['profile']['atba'] = {
@@ -597,7 +600,7 @@ for s in ship_list:
 						del atba_guns['turret']
 						module_list[module_id]['profile']['atba'] = atba_guns
 						
-					# initialize AA dictionary
+					# getting aa information and calculate mbAA
 					if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
 						module_list[module_id]['profile']['anti_air'] = {
 							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
@@ -645,7 +648,7 @@ for s in ship_list:
 								else:
 									# flaks
 									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))
+									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1)) # but why though
 									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
 									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
 									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
@@ -656,7 +659,7 @@ for s in ship_list:
 						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
 						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
-						# calculate aa rating
+						# calculate mbAA rating
 						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 1.25
 						mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
 						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance']
@@ -674,7 +677,8 @@ for s in ship_list:
 						if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
 							flak_data = module_list[module_id]['profile']['anti_air']['flak']
 							aa_rating += flak_data['count'] * flak_data['hitChance'] * 1.5
-							
+						
+						# aa rating scaling with tier
 						aa_rating = (combined_aa_damage / (int(ship['tier']) * 9))
 						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
 						
@@ -682,7 +686,7 @@ for s in ship_list:
 							ship_info[s]['anti_aircraft'] = {}
 						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 					
-					# add airstrike information for ships with airstrikes
+					# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
 					if 'airSupport' in ship_upgrade_info[_info]['components']:
 						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
 							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
@@ -699,7 +703,7 @@ for s in ship_list:
 								'payload': plane['attackCount'],
 							}
 
-					# anti submarines warfare armaments
+					# depth charges armaments
 					if 'depthCharges' in ship_upgrade_info[_info]['components']:
 						if ship_upgrade_info[_info]['components']['depthCharges']:
 							asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
@@ -756,7 +760,7 @@ for s in ship_list:
 								module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
 								module_list[module_id]['profile']['artillery']['max_damage_HE'] = int(ammo['alphaDamage'])
 								module_list[module_id]['profile']['artillery']['gun_dpm']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-							if ammo['ammoType'] == 'CS':
+							if ammo['ammoType'] == 'CS': # SAP rounds
 								module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
 								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
 								module_list[module_id]['profile']['artillery']['gun_dpm']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
@@ -764,7 +768,7 @@ for s in ship_list:
 								module_list[module_id]['profile']['artillery']['max_damage_AP'] = int(ammo['alphaDamage'])
 								module_list[module_id]['profile']['artillery']['gun_dpm']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 
-						# check for belfast and belfast '43
+						# check for belfast and belfast '43, for some reason
 						if 'Belfast' in ship['name']:
 							module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
 							module_list[module_id]['profile']['artillery']['pen_HE'] = 0
@@ -775,7 +779,7 @@ for s in ship_list:
 					# get torps parameter
 					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 					gun = module_data[gun]
-					for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each turret
+					for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
 						turret_data = gun[g]
 						projectile = game_data[turret_data['ammoList'][0]]
 						module_list[module_id]['profile']['torpedoes'] = {
@@ -788,14 +792,13 @@ for s in ship_list:
 						}
 					continue
 
-				if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # useless spotter
+				if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
 					# get fighter parameter
 					planes = ship_upgrade_info[_info]['components']['fighter'][0]
 					planes = module_data[planes].values()
 					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]  # get rocket params
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+						plane = game_data[p] # get rocket params
+						projectile = game_data[plane['bombName']]
 						module_list[module_id]['attack_size'] = plane['attackerSize']
 						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -963,13 +966,10 @@ ship_tags = {
 	SHIP_TAG_LIST[SHIP_TAG_AA]: {
 		'min_aa_range': 5.8,
 		'damage_threshold_multiplier': 75,
-		'description': "Any ships in this category have an **anti-air gun range** larger than **5.8 km** or the ship's **AA rating (according to mackbot) is at least 50**",
+		'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
 	},
 }
-ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
-skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|(?:page (\d{1,2}))|(?:tier (\d{1,2}))')
-equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
-ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
+	
 for s in ship_list:
 	try:
 		nat = nation_dictionary[ship_list[s]['nation']]
@@ -1031,6 +1031,11 @@ AA_RATING_DESCRIPTOR = {
 }
 
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
+
+ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
+skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|(?:page (\d{1,2}))|(?:tier (\d{1,2}))')
+equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
+ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
 
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
@@ -1743,7 +1748,7 @@ async def ship(context, *arg):
 					ship_filter |= is_filter_requested(11) << conceal_filter
 					ship_filter |= is_filter_requested(12) << consumable_filter
 
-				embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium " + ship_type if is_prem else ship_type}**\n'
+				embed.description += f'**Tier {tier_string} {"Premium " + ship_type if is_prem else ship_type} {nation_dictionary[nation]}**\n'
 
 				def is_filtered(x):
 					return (ship_filter >> x) & 1 == 1
@@ -2107,6 +2112,7 @@ async def ship(context, *arg):
 					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
 				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+
 @mackbot.command()
 async def skill(context, *arg):
 	# get information on requested skill
@@ -2156,7 +2162,7 @@ async def skills(context, *args):
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
 	filtered_skill_list = skill_list.copy()
-
+	
 	# filter by ship class
 	ship_class = [i[0] for i in search_param if len(i[0]) > 0]
 	# convert hull classification to ship type full name
@@ -2178,7 +2184,7 @@ async def skills(context, *args):
 
 	# select page
 	page = [i[1] for i in search_param if len(i[1]) > 0]
-	page = int(page[0]) if len(page) > 1 else 0
+	page = int(page[0]) if len(page) > 0 else 0
 
 	# generate list of skills
 	m = [
@@ -2192,12 +2198,12 @@ async def skills(context, *args):
 	num_pages = (len(m) // items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	embed = discord.Embed(title="Commander Skill (%i/%i)" % (page + 1, num_pages))
+	embed = discord.Embed(title="Commander Skill (%i/%i)" % (page, num_pages))
 	m = m[page]  # select page
 	# spliting selected page into columns
 	m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
 	for i in m:
-		embed.add_field(name="Upgrade", value=''.join([v + '\n' for v in i]))
+		embed.add_field(name="(Type, tier) Skill", value=''.join([v + '\n' for v in i]))
 	embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
 	
 	await context.send(embed=embed)
@@ -2647,7 +2653,8 @@ async def doubloons(context, *arg):
 
 					def dollar_formula(x):
 						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
-
+						
+					logging.info(f"converting {dollar} dollars -> doubloons")
 					embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
 					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
 					embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
@@ -2659,7 +2666,8 @@ async def doubloons(context, *arg):
 
 				def doub_formula(x):
 					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
-
+				
+				logging.info(f"converting {doub} doubloons -> dollars")
 				embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
 				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
 				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
@@ -2682,10 +2690,12 @@ async def code(context, arg):
 		await context.send_help("code")
 	else:
 		s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + arg.upper()
+		logging.info(f"returned a wargaming bonus code link with code {arg}")
 		await context.send(s)
 
 @mackbot.command()
 async def hottake(context):
+	logging.info("send a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(len(hottake_strings))])
 
 # async def on_message(self, message):
