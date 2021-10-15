@@ -9,6 +9,9 @@ from pprint import pprint
 from random import randint
 from discord.ext import commands
 
+class NoShipFound(Exception):
+	pass
+
 with open("./command_list.json") as f:
 	command_list = json.load(f)
 
@@ -164,7 +167,6 @@ module_list = {}
 for page in count(1):
 	try:
 		m = wows_encyclopedia.modules(language='en', page_no=page)
-		logging.info("	Reading page {}".format(page))
 		for i in m:
 			module_list[i] = m[i]
 	except Exception as e:
@@ -283,7 +285,6 @@ if fetch_ship_list_from_wg:
 	for page in count(1):
 		try:
 			l = wows_encyclopedia.ships(language='en', page_no=page)
-			logging.info("	Reading page {}".format(page))
 			for i in l:
 				ship_list[i] = l[i]
 				# add skip bomber field to list's modules listing
@@ -308,7 +309,6 @@ for page_num in count(1):
 	# continuously count, because weegee don't list how many pages there are
 	try:
 		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
-		logging.info("	Reading page {}".format(page_num))
 		# consumables of some page page_num
 		for consumable in consumable_list:
 			c_type = consumable_list[consumable]['type']
@@ -523,11 +523,12 @@ if fetch_ship_params_from_wg:
 	logging.info("ship_params cache created")
 
 logging.info("Generating information about modules")
-for ship_count, s in enumerate(ship_list):
+ship_count = 0
+for s in ship_list:
 	ship = ship_list[s]
-	
-	if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)-1):
-		logging.info(f"{ship_count}/{len(ship_list)} ships")
+	ship_count += 1
+	if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)):
+		logging.info(f"	{ship_count}/{len(ship_list)} ships")
 	try:
 		module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 		module_data = game_data[module_full_id_str]
@@ -589,7 +590,7 @@ for ship_count, s in enumerate(ship_list):
 								}
 								for a in turret_data['ammoList']:
 									ammo = game_data[a]
-									atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay']
+									atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * len(atba_guns['turret'][t]) * turret_data['numBarrels'] * (60 / turret_data['shotDelay'])
 									atba_guns[t]['ammoType'] = ammo['ammoType']
 									atba_guns[t]['max_damage'] = ammo['alphaDamage']
 									if ammo['ammoType'] == 'HE':
@@ -909,13 +910,14 @@ for ship_count, s in enumerate(ship_list):
 	except Exception as e:
 		if not type(e) == KeyError:
 			logging.error("at ship id " + s)
-			logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.data")
+			logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.json")
 			logging.error("Update your GameParams JSON file(s)")
 		traceback.print_exc(type(e), e, None)
 			
 		if mackbot.is_closed():
 			time.sleep(10)
 			exit(1)
+del ship_count
 
 logging.info("Creating abbreviation for upgrades")
 upgrade_abbr_list = {}
@@ -1425,11 +1427,10 @@ async def on_ready():
 
 @mackbot.event
 async def on_command(context):
-	if context.author != mackbot.user:
+	if context.author != mackbot.user: # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
 		logging.info("User {} via {} queried {}".format(context.author, from_server, query))
-		
 
 @mackbot.command()
 async def whoami(context):
@@ -1665,7 +1666,7 @@ async def ship(context, *arg):
 				ship_param = get_ship_param(ship)
 				ship_data = get_ship_data(ship)
 				if ship_data is None:
-					raise NameError("NoShipFound")
+					raise NoShipFound
 				
 				name = ship_data['name']
 				nation = ship_data['nation']
@@ -1702,14 +1703,15 @@ async def ship(context, *arg):
 						ship_type = "Battlecruiser"
 				test_ship_status_string = '[TEST SHIP]' if is_test_ship else ''
 				embed = discord.Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
+				
+				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
 				embed.set_thumbnail(url=images['small'])
 				# get server emoji
 				if context.guild is not None:
 					server_emojis = context.guild.emojis
 				else:
 					server_emojis = []
-					
-				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 
 				# defines ship params filtering
 				hull_filter = 0
@@ -1747,8 +1749,6 @@ async def ship(context, *arg):
 					ship_filter |= is_filter_requested(10) << aa_filter
 					ship_filter |= is_filter_requested(11) << conceal_filter
 					ship_filter |= is_filter_requested(12) << consumable_filter
-
-				embed.description += f'**Tier {tier_string} {"Premium " + ship_type if is_prem else ship_type} {nation_dictionary[nation]}**\n'
 
 				def is_filtered(x):
 					return (ship_filter >> x) & 1 == 1
@@ -2102,9 +2102,8 @@ async def ship(context, *arg):
 		except Exception as e:
 			logging.info(f"Exception {type(e)}", e)
 			# error, ship name not understood
-			if e == IndexError:
-				await context.send(f"Ship **{ship}** is not known")
-			else:
+			if type(e) == NoShipFound:
+				# ship with specified name is not found, user might mistype ship name?
 				ship_name_list = [ship_list[i]['name'] for i in ship_list]
 				closest_match = difflib.get_close_matches(ship, ship_name_list)
 				closest_match_string = ""
@@ -2112,6 +2111,9 @@ async def ship(context, *arg):
 					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
 				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+			else:
+				# we dun goofed
+				await context.send(f"An internal error has occured.")
 
 @mackbot.command()
 async def skill(context, *arg):
@@ -2198,7 +2200,7 @@ async def skills(context, *args):
 	num_pages = (len(m) // items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	embed = discord.Embed(title="Commander Skill (%i/%i)" % (page, num_pages))
+	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1,page), min(1, num_pages)))
 	m = m[page]  # select page
 	# spliting selected page into columns
 	m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
@@ -2356,7 +2358,7 @@ async def ships(context, *args):
 	logging.info("compiling message")
 	m = []
 	if len(result) > 0:
-		# return some infomration about the ships of the requested tags
+		# return the list of ships with fitting criteria
 		for ship in result:
 			ship_data = get_ship_data(ship_list[ship]['name'])
 			if ship_data is None:
@@ -2402,13 +2404,14 @@ async def ships(context, *args):
 		num_pages = (len(m) // items_per_page)
 		m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-		embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
+		embed = discord.Embed(title=embed_title + f"({min(1, page)}/{min(1, num_pages)})")
 		m = m[page]  # select page
 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 		embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
 		for i in m:
 			embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 	else:
+		# no ships found
 		embed = discord.Embed(title=embed_title, description="")
 		embed.description = "**No ships found**"
 	await context.send(embed=embed)
@@ -2440,6 +2443,7 @@ async def upgrade(context, *arg):
 			logging.info("user requested an legendary upgrade")
 
 		try:
+			# assuming that user provided the correct upgrade
 			logging.info(f'sending message for upgrade <{upgrade}>')
 			profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction = search_func(
 				upgrade)
@@ -2637,7 +2641,7 @@ async def map(context, *arg):
 
 @mackbot.command()
 async def doubloons(context, *arg):
-	# get information on requested flag
+	# get conversion between doubloons and usd and vice versa
 	if len(arg) == 0:
 		await context.send_help("doubloons")
 	else:
@@ -2673,7 +2677,7 @@ async def doubloons(context, *arg):
 				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
 				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
 				if value_exceed:
-					footer_message += "\n:warning: You are unable to buy the requested doubloons"
+					footer_message += "\n:warning: You cannot buy the requested doubloons."
 				embed.set_footer(text=footer_message)
 
 			await context.send(embed=embed)

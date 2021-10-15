@@ -5,10 +5,12 @@ WORKDIR /mackbot
 
 RUN apt-get update && apt-get install -y
 COPY requirements.txt requirements.txt
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir --timeout 60 -r requirements.txt
 
 COPY GameParamsPruned_0.json GameParamsPruned_0.json
 COPY GameParamsPruned_1.json GameParamsPruned_1.json
+COPY GameParamsPruned_2.json GameParamsPruned_2.json
 COPY command_list.json command_list.json
 COPY config.json config.json
 COPY help_command_strings.json help_command_strings.json
