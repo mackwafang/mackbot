@@ -301,6 +301,7 @@ if fetch_ship_list_from_wg:
 	with open(ship_list_file_dir, 'wb') as f:
 		ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
 		pickle.dump(ship_list, f)
+	print("Cache complete")
 del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
 
 logging.info("Fetching Camo, Flags and Modification List")
@@ -358,7 +359,7 @@ for i in game_data:
 	if value['typeinfo']['type'] == 'Modernization':
 		upgrade = value
 		if upgrade['slot'] == -1:
-			# upgrade obsolete
+			# obsolete upgrade
 			obsolete_upgrade += [str(upgrade['id'])]
 			pass
 		else:
@@ -371,11 +372,12 @@ for i in game_data:
 				3: 'Unique'
 			}[upgrade['type']]
 			upgrade_list[uid]['slot'] = upgrade['slot'] + 1
-			upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in
-													 upgrade['ships'] if
-													 s in game_data and str(game_data[s]['id']) in ship_list]
-			upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in
-													 upgrade['shiptype']]
+			upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
+			if upgrade['type'] == 3:
+				# add ship specific restriction if upgrade is unique
+				ship_id = str(game_data[upgrade['ships'][0]]['id'])
+				upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
+			upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
 			upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
 			upgrade_list[uid]['tier_restriction'] = [t for t in upgrade['shiplevel']]
 
@@ -384,6 +386,16 @@ for i in game_data:
 logging.info('Removing obsolete upgrades')
 for i in obsolete_upgrade:
 	del upgrade_list[i]
+	
+# changes to ship_list's ship upgrade structure to index slots, 
+for sid in ship_list:
+	ship = ship_list[sid]
+	ship_upgrades = ship['upgrades'] # get a copy of ship's possible upgrades
+	ship['upgrades'] = dict((i, []) for i in range(6)) # restructure 
+	for s_upgrade in ship_upgrades:
+		# put ship upgrades in the appropiate slots
+		upgrade = upgrade_list[str(s_upgrade)]
+		ship['upgrades'][upgrade['slot'] - 1] += [str(s_upgrade)]
 
 logging.info('Fetching ship build file...')
 BUILD_EXTRACT_FROM_CACHE = False
@@ -652,7 +664,7 @@ for s in ship_list:
 									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1)) # but why though
 									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
 									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
+									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = int(aa_data['hitChance'])
 								
 								min_aa_range = min(min_aa_range, aa_data['minDistance'])
 								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
@@ -695,13 +707,13 @@ for s in ship_list:
 							projectile = game_data[plane['bombName']]
 							module_list[module_id]['profile']['airSupport'] = {
 								'chargesNum': airsup_info['chargesNum'],
-								'reloadTime': airsup_info['reloadTime'],
+								'reloadTime': int(airsup_info['reloadTime']),
 								'maxDist': airsup_info['maxDist'],
 								'max_damage': int(projectile['alphaDamage']),
 								'burn_probability': int(projectile['burnProb'] * 100),
 								'bomb_pen': int(projectile['alphaPiercingHE']),
-								'squad_size': plane['numPlanesInSquadron'],
-								'payload': plane['attackCount'],
+								'squad_size': int(plane['numPlanesInSquadron']),
+								'payload': int(plane['attackCount']),
 							}
 
 					# depth charges armaments
@@ -721,7 +733,7 @@ for s in ship_list:
 								# look at depth charge data
 								for depth_charge in asw_launcher_data['ammoList']:
 									depth_charge_data = game_data[depth_charge]
-									asw_data['max_damage'] = depth_charge_data['alphaDamage']
+									asw_data['max_damage'] = int(depth_charge_data['alphaDamage'])
 								module_list[module_id]['profile']['asw'] = asw_data.copy()
 					continue
 					
@@ -784,7 +796,7 @@ for s in ship_list:
 						turret_data = gun[g]
 						projectile = game_data[turret_data['ammoList'][0]]
 						module_list[module_id]['profile']['torpedoes'] = {
-							'numBarrels': turret_data['numBarrels'],
+							'numBarrels': int(turret_data['numBarrels']),
 							'shotDelay': turret_data['shotDelay'], 
 							'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
 							'torpedo_speed': projectile['speed'],
@@ -811,9 +823,9 @@ for s in ship_list:
 								'rocket_type':  projectile['ammoType'],
 								'burn_probability': int(projectile['burnProb'] * 100),
 								'rocket_pen': int(projectile['alphaPiercingHE']),
-								'max_health': plane['maxHealth'],
-								'cruise_speed' : plane['speedMoveWithBomb'],
-								'payload' : plane['attackCount'],
+								'max_health': int(plane['maxHealth']),
+								'cruise_speed' : int(plane['speedMoveWithBomb']),
+								'payload' : int(plane['attackCount']),
 							}
 						}
 					continue
@@ -834,13 +846,13 @@ for s in ship_list:
 						
 						module_list[module_id]['profile'] = {
 							"torpedo_bomber": {
-								'cruise_speed' : plane['speedMoveWithBomb'],
+								'cruise_speed' : int(plane['speedMoveWithBomb']),
 								'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
-								'max_health': plane['maxHealth'],
+								'max_health': int(plane['maxHealth']),
 								'torpedo_speed': projectile['speed'],
 								'is_deep_water': projectile['isDeepWater'],
 								'distance': projectile['maxDist'] * 30 / 1000,
-								'payload' : plane['projectilesPerAttack'],
+								'payload' : int(plane['projectilesPerAttack']),
 							}
 						}
 					continue
@@ -853,8 +865,8 @@ for s in ship_list:
 						plane = game_data[p]
 						projectile = game_data[plane['bombName']]
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['attack_size'] = int(plane['attackerSize'])
+						module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
@@ -862,11 +874,11 @@ for s in ship_list:
 						module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
 						module_list[module_id]['profile'] = {
 							"dive_bomber": {
-								'cruise_speed' : plane['speedMoveWithBomb'],
+								'cruise_speed' : int(plane['speedMoveWithBomb']),
 								'max_damage': projectile['alphaDamage'],
 								'burn_probability': projectile['burnProb'] * 100,
-								'max_health': plane['maxHealth'],
-								'payload' : plane['projectilesPerAttack'],
+								'max_health': int(plane['maxHealth']),
+								'payload' : int(plane['projectilesPerAttack']),
 							}
 						}
 					continue
@@ -883,8 +895,8 @@ for s in ship_list:
 						if plane['id'] not in module_list:
 							module_list[module_id] = {}
 						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+						module_list[module_id]['attack_size'] = int(plane['attackerSize'])
+						module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
 						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
 						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
@@ -898,11 +910,11 @@ for s in ship_list:
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['profile'] = {
 							"skip_bomber": {
-								'cruise_speed' : plane['speedMoveWithBomb'],
-								'max_damage': projectile['alphaDamage'],
+								'cruise_speed' : int(plane['speedMoveWithBomb']),
+								'max_damage': int(projectile['alphaDamage']),
 								'burn_probability': projectile['burnProb'] * 100,
-								'max_health': plane['maxHealth'],
-								'payload' : plane['projectilesPerAttack'],
+								'max_health': int(plane['maxHealth']),
+								'payload' : int(plane['projectilesPerAttack']),
 							}
 						}
 						ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
@@ -1037,7 +1049,7 @@ EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|(?:page (\d{1,2}))|(?:tier (\d{1,2}))')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
-ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?))*')
+ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?)|(upgrades?))*')
 
 logging.info("Filtering Ships and Categories")
 del ship_list['3749623248']
@@ -1675,6 +1687,7 @@ async def ship(context, *arg):
 				tier = ship_data['tier']
 				consumables = ship_data['consumables']
 				modules = ship_data['modules']
+				upgrades = ship_data['upgrades']
 				is_prem = ship_data['is_premium']
 				is_test_ship = ship_data['is_test_ship']
 				price_gold = ship_data['price_gold']
@@ -1725,11 +1738,12 @@ async def ship(context, *arg):
 				aa_filter = 8
 				conceal_filter = 9
 				consumable_filter = 10
+				upgrades_filter = 11
 
-				ship_filter = 0b11111111111  # assuming no filter is provided, display all
+				ship_filter = 0b111111111111  # assuming no filter is provided, display all
 				# grab filters
 				if len(param_filter) > 0:
-					ship_filter = 0b00000000000  # filter is requested, disable all
+					ship_filter = 0  # filter is requested, disable all
 					# s = ship_param_filter_regex.findall(''.join([i + ' ' for i in param_filter]))
 					s = ship_param_filter_regex.findall(param_filter)  # what am i looking for?
 
@@ -1749,6 +1763,7 @@ async def ship(context, *arg):
 					ship_filter |= is_filter_requested(10) << aa_filter
 					ship_filter |= is_filter_requested(11) << conceal_filter
 					ship_filter |= is_filter_requested(12) << consumable_filter
+					ship_filter |= is_filter_requested(13) << upgrades_filter
 
 				def is_filtered(x):
 					return (ship_filter >> x) & 1 == 1
@@ -1800,7 +1815,7 @@ async def ship(context, *arg):
 								m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
 								if nation == 'netherlands':
 									m += f"**Squadron**: {airsup_info['squad_size']} aircrafts\n"
-									m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {int(airsup_info['bomb_pen'])}mm)\n"
+									m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {airsup_info['bomb_pen']}mm)\n"
 								else:
 									m += f"**Squadron**: 2 aircrafts\n"
 									m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
@@ -1824,7 +1839,7 @@ async def ship(context, *arg):
 							if ship_filter == 2 ** hull_filter:
 								# detailed air support filter
 								m += f"**Depth charges per salvo**: {asw_info['payload']} bombs\n"
-								m += f"**Depth charge**: :boom: {int(asw_info['max_damage'])}\n"
+								m += f"**Depth charge**: :boom: {asw_info['max_damage']}\n"
 							
 							m += '\n'
 						embed.add_field(name="__**ASW**__", value=m, inline=False)
@@ -1840,7 +1855,7 @@ async def ship(context, *arg):
 					m += "km\n"
 					for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 						guns = module_list[str(h)]['profile']['artillery']
-						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({int(guns['numBarrels'])} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
+						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({guns['numBarrels']} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
 						
 						if guns['max_damage_HE']:
 							m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dpm']['HE']:,} DPM"
@@ -1877,7 +1892,7 @@ async def ship(context, *arg):
 							for t in atba:
 								turret = atba[t]
 								# detail secondary
-								m += f"**{t} ({int(turret['numBarrels'])} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+								m += f"**{t} ({turret['numBarrels']} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
 								m += f"**{turret['count']}** turret{'s' if turret['count'] > 1 else ''}\n"
 								m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
 								m += '('
@@ -1916,7 +1931,7 @@ async def ship(context, *arg):
 							medium = aa['medium']
 							far = aa['far']
 							if flak['damage'] > 0:
-								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {int(flak['count'])} burst{'s' if flak['count'] > 0 else ''}, {flak['damage']}:boom:\n"
+								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {flak['count']} burst{'s' if flak['count'] > 0 else ''}, {flak['damage']}:boom:\n"
 							if near['damage'] > 0:
 								m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 							if medium['damage'] > 0:
@@ -1947,7 +1962,7 @@ async def ship(context, *arg):
 					for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 						torps = module_list[str(h)]['profile']['torpedoes']
 						
-						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {int(torps['numBarrels'])} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
+						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''}):**\n"
 						reload_minute = int(torps['shotDelay'] // 60)
 						reload_second = int(torps['shotDelay'] % 60)
 						m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
@@ -1966,9 +1981,9 @@ async def ship(context, *arg):
 						n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** rockets_filter:
-							m += f"**Aircraft:** {fighter['cruise_speed']:0.0f} kts. (up to {fighter['cruise_speed'] * fighter_module['speed_max']:0.0f} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['cruise_speed'] * fighter_module['speed_max']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-							m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {int(fighter_module['hangarSettings']['timeToRestore'])}s)\n"
+							m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
 							m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
 							m += '\n'
 					embed.add_field(name="__**Attackers**__", value=m, inline=False)
@@ -1982,9 +1997,9 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** torpbomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 							m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
 							m += '\n'
 					embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
@@ -1998,9 +2013,9 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** bomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 							m += '\n'
 					embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
@@ -2013,9 +2028,9 @@ async def ship(context, *arg):
 						n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 						m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 						if ship_filter == 2 ** bomber_filter:
-							m += f"**Aircraft:** {bomber['cruise_speed']:0.0f} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']:0.0f} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 							m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {int(bomber_module['hangarSettings']['timeToRestore'])}s)\n"
+							m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 							m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 							m += '\n'
 					embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['dive_bomber']) > 0)
@@ -2035,7 +2050,19 @@ async def ship(context, *arg):
 					m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 					m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
 					embed.add_field(name="__**Concealment**__", value=m, inline=True)
-
+				
+				# upgrades
+				if ship_filter == (1 << upgrades_filter):
+					m = ""
+					for slot in upgrades:
+						m += f"**Slot {slot + 1}**\n"
+						if len(upgrades[slot]) > 0:
+							for u in upgrades[slot]:
+								m += f"{upgrade_list[u]['name']}\n"
+						m += "\n"
+					
+					embed.add_field(name="__**Upgrades**__", value=m, inline=True)
+				
 				# consumables
 				if len(consumables) > 0 and is_filtered(consumable_filter):
 					m = ""
