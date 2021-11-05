@@ -1,7 +1,7 @@
 {
 	"help" : true,
 	"goodbot" : true,
-	"build" : false,
+	"build" : true,
 	"skill" : true,
 	"whoami" : true,
 	"list" : true,

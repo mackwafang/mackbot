@@ -11,6 +11,10 @@ from discord.ext import commands
 
 class NoShipFound(Exception):
 	pass
+	
+class NoBuildFound(Exception):
+	pass
+
 
 with open("./command_list.json") as f:
 	command_list = json.load(f)
@@ -125,7 +129,6 @@ mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix)
 # get weegee's wows encyclopedia
 wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
-
 
 # creating GameParams json from GameParams.data
 logging.info(f"Loading GameParams")
@@ -398,7 +401,7 @@ for sid in ship_list:
 		ship['upgrades'][upgrade['slot'] - 1] += [str(s_upgrade)]
 
 logging.info('Fetching ship build file...')
-BUILD_EXTRACT_FROM_CACHE = False
+BUILD_EXTRACT_FROM_CACHE = os.path.isfile("./ship_builds.json")
 extract_from_web_failed = False
 BUILD_BATTLE_TYPE_CLAN = 0
 BUILD_BATTLE_TYPE_CASUAL = 1
@@ -436,20 +439,20 @@ if command_list['build']:
 		# created automatically when the authorization flow completes for the first
 		# time.
 		if os.path.exists('cmd_sep.pickle'):
-			with open('cmd_sep.pickle', 'rb') as cmd_sep:
-				creds = pickle.load(cmd_sep)
+			with open('cmd_sep.pickle', 'rb') as sep:
+				creds = pickle.load(sep)
 		# If there are no (valid) credentials available, let the user log in.
 		try:
 			if not creds or not creds.valid:
-				if creds and creds.expired and creds.refresh_cmd_sep:
+				if creds and creds.expired and creds.refresh_token:
 					creds.refresh(Request())
 				else:
 					flow = InstalledAppFlow.from_client_secrets_file(
 						'credentials.json', SCOPES)
 					creds = flow.run_local_server(port=0)
 				# Save the credentials for the next run
-				with open('cmd_sep.pickle', 'wb') as cmd_sep:
-					pickle.dump(creds, cmd_sep)
+				with open('cmd_sep.pickle', 'wb') as sep:
+					pickle.dump(creds, sep)
 
 			service = build('sheets', 'v4', credentials=creds)
 
@@ -457,13 +460,14 @@ if command_list['build']:
 			sheet = service.spreadsheets()
 			# fetch build
 			result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-										range='ship_builds!B2:W1000').execute()
+										range='ship_builds!B2:Z1000').execute()
 			values = result.get('values', [])
 
 			if not values:
-				print('No data found.')
+				logging.warning('No ship build data found.')
 				raise Error
 			else:
+				logging.info(f"Found {len(values)} ship builds")
 				for row in values:
 					build_type = row[1]
 					ship_name = row[0]
@@ -473,31 +477,22 @@ if command_list['build']:
 					skills = [i for i in row[8:-2] if len(i) > 0]
 					cmdr = row[-1]
 					ship_build[build_type][ship_name] = {"upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-			logging.info("Build data fetching done")
+			with open("ship_builds.json", 'w') as f:
+				logging.info("Creating ship build cache")
+				json.dump(ship_build, f)
+			logging.info("Ship build data fetching done")
 		except Exception as e:
 			extract_from_web_failed = True
 			logging.info(f"Exception raised while fetching builds: {e}")
+			traceback.print_exc()
 
 	if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
 		if extract_from_web_failed:
-			logging.info("Get builds from sheets failed")
+			logging.info("Get ship builds from sheets failed")
+		logging.info('Making ship build dictionary from cache')
 		with open("ship_builds.json") as f:
-			builds = json.load(f)
-		logging.info('Making build dictionary from cache')
-		for i in builds:
-			build = builds[i]
-
-			ship_name = build['ship']
-			if ship_name in ship_name_to_ascii:
-				ship_name = ship_name_to_ascii[ship_name]
-
-			build_type = build['type']
-
-			upgrades = [u for u in build['upgrades'] if len(u) > 0]
-			skills = [s for s in build['skills'] if len(s) > 0]
-			cmdr = build['cmdr']
-			ship_build[build_type][ship_name] = {"upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-		logging.info("build dictionary complete")
+			ship_build = json.load(f)
+		logging.info("Ship build complete")
 
 logging.info("Fetching Ship Parameters")
 ship_param_file_name = 'ship_param'
@@ -1085,24 +1080,20 @@ hottake_strings = (
 	'interceptors are more useful than patrol fighters',
 )
 
-def get_ship_data(ship, battle_type='casual'):
+def get_ship_data(ship: str) -> dict:
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
 
 		Arguments:
-		-------
-			- ship : (string)
-				Ship name of build to be returned
-
-			- battle_type : (string), optional
-				type of enviornemnt should this build be used in
+			ship : Ship name of build to be returned
+			battle_type : (string), optional.
+				type of environment should this build be used in
 				acceptable values:
 					casual
 					competitive
 
 		Returns:
-		-------
-		DataFrame containing ship information
+			object: dict containing ship information
 		
 		raise InvalidShipName exception if name provided is incorrect
 		or
@@ -1125,18 +1116,15 @@ def get_ship_data(ship, battle_type='casual'):
 	except Exception as e:
 		raise e
 
-def get_ship_param(ship):
+def get_ship_param(ship: str) -> dict:
 	"""
 		returns combat parameters of requested warship name
 
 		Arguments:
-		-------
-			- ship : (string)
-				Ship name of combat parameter to be returned
+			ship: ship name
 
 		Returns:
-		-------
-		dictionary containing ship data
+			object: dictionary containing ship's combat parameter
 
 		raise exceptions for dictionary
 	"""
@@ -1156,19 +1144,16 @@ def get_ship_param(ship):
 	except Exception as e:
 		raise e
 
-def get_legendary_upgrade_by_ship_name(ship):
+def get_legendary_upgrade_by_ship_name(ship: str) -> tuple:
 	"""
-		returns informations of a requested legendary warship upgrade
+		returns information of a requested legendary warship upgrade
 
 		Arguments:
-		-------
-			- ship : (string)
-				ship name
+			ship: Ship name
 
 		Returns:
-		-------
-		tuple:
-			profile					- (dict) upgrade's bonuses
+			object: tuple
+			profile: (dict) upgrade's bonuses
 			name					- (str) upgrade name
 			price_gold				- (int) upgrade price in doubloons
 			image					- (str) image url
@@ -1185,9 +1170,6 @@ def get_legendary_upgrade_by_ship_name(ship):
 										[Ship, Slot, Comments]
 			on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
 
-		otherwise:
-			None - if legendary upgrade does not exists
-
 		raise exceptions for dictionary
 	"""
 	# convert ship names with utf-8 chars to ascii
@@ -1200,25 +1182,20 @@ def get_legendary_upgrade_by_ship_name(ship):
 			return profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction, nation_restriction, tier_restriction, type_restriction, slot, special_restriction
 	return None
 
-def get_skill_data(tree, skill):
+def get_skill_data(tree: str, skill: str) -> tuple:
 	"""
-		returns informations of a requested commander skill
+		returns information of a requested commander skill
+
+		Examples:
+			get_skill_data("Battleship", "Fire Prevention Expert")
+				- get data on the battleship's skill fire prevention expert
 
 		Arguments:
-		-------
-			- skill : (string)
-				Skill's full name
+			tree: (string) Which tree to extract data from
+			skill: (string) Skill's full name
 
 		Returns:
-		-------
-		tuple:
-			name		- (str) name of skill
-			tree		- (str) skill belong to this ship type. found in hull_classification_converter
-			description	- (str) skill's desctiption
-			effect		- (str) skill's effect
-			x			- (int) skill's column
-			y			- (int) skill's tier (cost)
-			category	- (str) skill's category
+			object: tuple (name, tree, description, effect, x, y, category)
 
 		raise exceptions for dictionary
 	"""
@@ -1263,18 +1240,17 @@ def get_skill_data(tree, skill):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-def get_upgrade_data(upgrade):
+def get_upgrade_data(upgrade: str) -> tuple:
 	"""
-		returns informations of a requested warship upgrade
+		returns information of a requested warship upgrade
 
 		Arguments:
-		-------
-			- upgrade : (string)
-				Upgrade's full name or abbreviation
+			upgrade : Upgrade's full name or abbreviation
 
 		Returns:
-		-------
-		tuple:
+			object: tuple (profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction,
+			nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships)
+
 			profile					- (dict) upgrade's bonuses
 			name					- (str) upgrade name
 			price_gold				- (int) upgrade price in doubloons
@@ -1317,18 +1293,16 @@ def get_upgrade_data(upgrade):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-def get_commander_data(cmdr):
+def get_commander_data(cmdr: str) -> tuple:
 	"""
-		returns informations of a requested warship upgrade
+		returns information of a requested warship upgrade
 
 		Arguments:
-		-------
-			- cmdr : (string)
-				Commander's full name
+			cmdr : Commander's full name
 
 		Returns:
-		-------
-		tuple:
+			object: tuple
+
 			name	- (str) commander's name
 			icons	- (str) image url on WG's server
 			nation	- (str) Commander's nationality
@@ -1357,9 +1331,9 @@ def get_commander_data(cmdr):
 		logging.error(f"Exception {type(e)}", e)
 		raise e
 
-def get_flag_data(flag):
+def get_flag_data(flag: str) -> tuple:
 	"""
-		returns informations of a requested warship upgrade
+		returns information of a requested warship upgrade
 
 		Arguments:
 		-------
@@ -1400,7 +1374,7 @@ def get_flag_data(flag):
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-def get_map_data(map):
+def get_map_data(map: str) -> tuple:
 	"""
 		returns informations of a requested warship upgrade
 
@@ -1430,8 +1404,6 @@ def get_map_data(map):
 		logging.info("Exception {type(e): ", e)
 		raise e
 
-
-	
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -1464,186 +1436,141 @@ async def feedback(context):
 	await context.send(
 		f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
-async def build(context, arg):
+@mackbot.command()
+async def build(context, *arg):
 	# get voted ship build
 	# message parse
 	ship_found = False
-	if len(arg) <= 2:
-		embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + arg[1])
-		if embed is not None:
-			await context.send(embed=embed)
+	if len(arg) == 0:
+		await context.send_help("ship")
 	else:
-		requested_image = arg[-1].lower() == 'image'
-		if requested_image:
-			arg = arg[:-1]
-		battle_type = arg[2].lower()  # assuming build battle type is provided
+		
+		battle_type = arg[0].lower()  # assuming build battle type is provided
 		additional_comp_keywords = ['comp']
 		if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
 			# 2nd argument provided is a known argument
 			battle_type = 'competitive'
-			ship = ''.join([i + ' ' for i in arg[3:]])[:-1]  # grab ship name
+			ship = ''.join([i + ' ' for i in arg[1:]])[:-1]  # grab ship name
 		else:
 			battle_type = 'casual'
-			ship = ''.join([i + ' ' for i in arg[2:]])[:-1]  # grab ship name
-		if requested_image:
-			# try to get image format for this build
-			try:
-				async with context.typing():
-					output = get_ship_data(ship, battle_type=battle_type)
-					if output is None:
-						raise NameError("NoBuildFound")
-					name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = output
-					logging.info(f"returning build information for <{name}> in image format")
-					filename = f'./{name.lower()}_{battle_type}_build.png'
-					if os.path.isfile(filename):
-						# get server emoji
-						if message.guild is not None:
-							server_emojis = message.guild.emojis
-						else:
-							server_emojis = []
+			ship = ''.join([i + ' ' for i in arg])[:-1]  # grab ship name
+		# get text-based format build
+		try:
+			async with context.typing():
+				output = get_ship_data(ship)
+				if output is None:
+					raise NameError("NoBuildFound")
+				name = output['name']
+				nation = output['nation']
+				images = output['images']
+				ship_type = output['type'].lower()
+				if ship_type == "aircraft carrier":
+					ship_type = "aircarrier"
+				tier = output['tier']
+				is_prem = output['is_premium']
+				
+				# find ship build
+				s_build = ship_build[battle_type][name.lower()]
+				upgrades = s_build['upgrades']
+				skills = s_build['skills']
+				cmdr = s_build['cmdr']
+				
+				logging.info(f"returning build information for <{name}> in embeded format")
 
-						# image exists!
-						tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
-						type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
-						if is_prem:
-							type_icon = type_icon[:-1] + '_premium:'
-						# find the server emoji id for this emoji id
-						if len(server_emojis) == 0:
-							type_icon = ""
-						else:
-							if type_icon[1:-1] in [i.name for i in server_emojis]:
-								for i in server_emojis:
-									if type_icon[1:-1] == i.name:
-										type_icon = str(i)
-										break
-							else:
-								type_icon = ""
-						m = f'**{tier_string:<4}** {type_icon} {name} {battle_type.title()} Build'
-						await context.send(m, file=discord.File(filename))
-					else:
-						# does not exists
-						await context.send(f"An Image build for {name} does not exists. Sending normal message.")
-						await self.build(message, arg)
-
-			except Exception as e:
-				logging.info(f"Exception {type(e)}", e)
-				if type(e) == discord.errors.Forbidden:
-					await context.send(f"I need the **Attach Files Permission** to use this feature!")
-					await self.build(message, arg)
+				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+				embed.set_thumbnail(url=images['small'])
+				# get server emoji
+				if context.guild is not None:
+					server_emojis = context.guild.emojis
 				else:
-					ship_name_list = [ship_list[i]['name'] for i in ship_list]
-					closest_match = difflib.get_close_matches(ship, ship_name_list)
-					closest_match_string = ""
-					if len(closest_match) > 0:
-						closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+					server_emojis = []
 
-					await context.send(f"Ship **{ship}** is not understood.{closest_match_string}")
-		else:
-			# get text-based format build
-			try:
-				async with context.typing():
-					output = get_ship_data(ship, battle_type=battle_type)
-					if output is None:
-						raise NameError("NoBuildFound")
-					name, nation, images, ship_type, tier, _, _, _, is_prem, price_gold, upgrades, skills, cmdr, battle_type = output
-					logging.info(f"returning build information for <{name}> in embeded format")
-					ship_type = ship_types[ship_type]  # convert weegee ship type to hull classifications
-					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
-					embed.set_thumbnail(url=images['small'])
-					# get server emoji
-					if message.guild is not None:
-						server_emojis = message.guild.emojis
-					else:
-						server_emojis = []
+				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+				
+				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
 
-					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
-
-					embed.description += f'**Tier {tier_string} {nation_dictionary[nation]} {"Premium " + ship_type if is_prem else ship_type}**'
-
-					footer_message = ""
-					error_value_found = False
-					if len(upgrades) > 0 and len(skills) > 0 and len(cmdr) > 0:
-						# suggested upgrades
-						if len(upgrades) > 0:
-							m = ""
-							i = 1
-							for upgrade in upgrades:
-								upgrade_name = "[Missing]"
-								if upgrade == '*':
-									# any thing
-									upgrade_name = "Any"
-								else:
-									try:  # ew, nested try/catch
-										upgrade_name = get_upgrade_data(upgrade)[1]
-									except Exception as e:
-										logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
-										error_value_found = True
-										upgrade_name = upgrade + ":warning:"
-								m += f'(Slot {i}) **' + upgrade_name + '**\n'
-								i += 1
-							embed.add_field(name='Suggested Upgrades', value=m, inline=False)
-						else:
-							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
-						# suggested skills
-						if len(skills) > 0:
-							m = ""
-							i = 1
-							for skill in skills:
-								skill_name = "[Missing]"
-								try:  # ew, nested try/catch
-									skill_name, id, skill_type, perk, tier, icon = get_skill_data(skill)
-								except Exception as e:
-									logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
-									error_value_found = True
-									skill_name = skill + ":warning:"
-								m += f'(Tier {tier}) **' + skill_name + '**\n'
-								i += 1
-							embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
-						else:
-							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
-						# suggested commander
-						if cmdr != "":
-							m = ""
-							if cmdr == "*":
-								m = "Any"
+				footer_message = ""
+				error_value_found = False
+				if len(upgrades) > 0 or len(skills) > 0 or len(cmdr) > 0:
+					# suggested upgrades
+					if len(upgrades) > 0:
+						m = ""
+						i = 1
+						for upgrade in upgrades:
+							upgrade_name = "[Missing]"
+							if upgrade == '*':
+								# any thing
+								upgrade_name = "Any"
 							else:
-								try:
-									m = get_commander_data(cmdr)[0]
+								try:  # ew, nested try/catch
+									upgrade_name = get_upgrade_data(upgrade)[1]
 								except Exception as e:
-									logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
+									logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 									error_value_found = True
-									m = f"{cmdr}:warning:"
-							# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
-							embed.add_field(name='Suggested Cmdr.', value=m)
-						else:
-							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-						footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
-						footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
+									upgrade_name = upgrade + ":warning:"
+							m += f'(Slot {i}) **' + upgrade_name + '**\n'
+							i += 1
+						embed.add_field(name='Suggested Upgrades', value=m, inline=False)
 					else:
-						m = "mackbot does not know any build for this ship :("
-						u, c, s = get_ship_data(ship,
-												 battle_type='casual' if battle_type == 'competitive' else 'competitive')[
-								  -4:-1]
-						if len(u) > 0 and len(c) > 0 and len(s) > 0:
-							m += '\n\n'
-							m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
-							m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
-						embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
-				error_footer_message = ""
-				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-				embed.set_footer(text=error_footer_message + footer_message)
-				await context.send(embed=embed)
-			except Exception as e:
-				logging.info(f"Exception {type(e)}", e)
-				# error, ship name not understood
-				ship_name_list = [ship_list[i]['name'] for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
-				closest_match_string = ""
-				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+						embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
+					# suggested skills
+					if len(skills) > 0:
+						m = ""
+						i = 1
+						for skill in skills:
+							skill_name = "[Missing]"
+							try:  # ew, nested try/catch
+								skill_name, _, _, _, _, tier, _ = get_skill_data(ship_type, skill)
+							except Exception as e:
+								logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+								error_value_found = True
+								skill_name = skill + ":warning:"
+							m += f'(Tier {tier}) **' + skill_name + '**\n'
+							i += 1
+						embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
+					else:
+						embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
+					# suggested commander
+					if cmdr != "":
+						m = ""
+						if cmdr == "*":
+							m = "Any"
+						else:
+							try:
+								m = get_commander_data(cmdr)[0]
+							except Exception as e:
+								logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
+								error_value_found = True
+								m = f"{cmdr}:warning:"
+						# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
+						embed.add_field(name='Suggested Cmdr.', value=m)
+					else:
+						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
+					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
+					footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
+				else:
+					m = "mackbot does not know any build for this ship :("
+					
+					if len(u) > 0 and len(c) > 0 and len(s) > 0:
+						m += '\n\n'
+						m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
+						m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
+					embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
+			error_footer_message = ""
+			if error_value_found:
+				error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+			embed.set_footer(text=error_footer_message + footer_message)
+			await context.send(embed=embed)
+		except Exception as e:
+			logging.info(f"Exception {type(e)}", e)
+			# error, ship name not understood
+			ship_name_list = [ship_list[i]['name'] for i in ship_list]
+			closest_match = difflib.get_close_matches(ship, ship_name_list)
+			closest_match_string = ""
+			if len(closest_match) > 0:
+				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
-				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+			await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
 
 @mackbot.command(help="")
 async def ship(context, *arg):
@@ -2305,8 +2232,8 @@ async def upgrades(context, *args):
 		if type(e) == IndexError:
 			error_message = f"Page {page + 1} does not exists"
 		elif type(e) == ValueError:
-			logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
-			error_message = f"Value {arg[3]} is not understood"
+			logging.info(f"Upgrade listing argument <{args[3]}> is invalid.")
+			error_message = f"Value {args[3]} is not understood"
 		else:
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
@@ -2317,7 +2244,7 @@ async def maps(context, *args):
 	try:
 		logging.info("sending list of maps")
 		try:
-			page = int(arg[3]) - 1
+			page = int(args[3]) - 1
 		except:
 			page = 0
 		m = [f"{map_list[i]['name']}" for i in map_list]
@@ -2336,8 +2263,8 @@ async def maps(context, *args):
 			embed = None
 			error_message = f"Page {page + 1} does not exists"
 		elif type(e) == ValueError:
-			logging.info(f"Upgrade listing argument <{arg[3]}> is invalid.")
-			error_message = f"Value {arg[3]} is not understood"
+			logging.info(f"Upgrade listing argument <{args[3]}> is invalid.")
+			error_message = f"Value {args[3]} is not understood"
 		else:
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
