@@ -2675,11 +2675,10 @@ async def code(context, arg):
 		logging.info(f"returned a wargaming bonus code link with code {arg}")
 		await context.send(s)
 
-
 @mackbot.command()
 async def hottake(context):
 	logging.info("send a hottake")
-	await context.send('I tell people that ' + hottake_strings[randint(len(hottake_strings))])
+	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings))])
 
 @mackbot.command()
 async def purpose(context):
