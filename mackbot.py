@@ -508,8 +508,7 @@ else:
 if fetch_ship_params_from_wg:
 	logging.info("Fetching new ship params from weegee")
 	i = 0
-	ship_info = {}
-	ship_info['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
+	ship_info = {'ships_updated_at': wows_encyclopedia.info()['ships_updated_at']}
 	for s in ship_list:
 		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
 		ship_info[s] = ship[s]
@@ -923,9 +922,10 @@ upgrade_abbr_list = {}
 for u in upgrade_list:
 	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
 	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
+	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
 	key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
 	if key in upgrade_abbr_list:  # if the abbreviation of this upgrade is in the list already
-		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation
+		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
 	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()  # add this abbreviation
 legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
 
@@ -2678,7 +2678,9 @@ async def code(context, arg):
 @mackbot.command()
 async def hottake(context):
 	logging.info("send a hottake")
-	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings))])
+	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
+	if randint(0, 1) == 0:
+		await purpose(context)
 
 @mackbot.command()
 async def purpose(context):
@@ -2689,44 +2691,6 @@ async def purpose(context):
 
 	message = await mackbot.wait_for('message', timeout=30, check=check)
 	await context.send("Oh my god...")
-# async def on_message(self, message):
-#
-# arg = [i for i in message.content.split(cmd_sep) if len(i) > 0]
-# if message.author != self.user:
-# if message.content.startswith("<@!" + str(self.user.id) + ">"):
-# if len(arg) == 1:
-# # no additional arguments, send help
-# logging.info(f"User {message.author} requested my help.")
-# embed = self.help_message(command_prefix + cmd_sep + "help" + cmd_sep + "help")
-# if not embed is None:
-# logging.info(f"sending help message")
-# await context.send("はい、サラはここに。", embed=embed)
-# else:
-# # with arguments, change arg[0] and perform its normal task
-# arg[0] = command_prefix
-
-# if arg[0].lower() + cmd_sep == command_prefix + cmd_sep:  # message starts with mackbot
-# if DEBUG_IS_MAINTANCE and message.author != self.user and not message.author.name == 'mackwafang':
-# # maintanance message
-# await context.send(
-# self.user.display_name + " is under maintanance. Please wait until maintanance is over. Or contact Mack if he ~~fucks up~~ did an oopsie.")
-# return
-# request_type = arg[1:]
-# logging.info(
-# f'User <{message.author}> in <{message.guild}, {message.context}> requested command "<{request_type}>"')
-
-# if hasattr(self, arg[1]):
-# if command_list[arg[1]]:
-# await getattr(self, arg[1])(message, arg)
-# else:
-# await context.send("Command is temporary disabled.")
-# else:
-# # hidden command
-# if arg[1] == 'waifu':
-# await context.send("Mack's waifu: Saratoga\nhttps://kancolle.fandom.com/wiki/Saratoga")
-# if arg[1] == 'raifu':
-# await context.send("Mack's raifu: M1918 BAR https://en.gfwiki.com/wiki/M1918")
-
 
 if __name__ == '__main__':
 	# post processing for bot commands
