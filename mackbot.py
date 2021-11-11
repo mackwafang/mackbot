@@ -8,10 +8,14 @@ from discord.ext import commands
 class NoShipFound(Exception):
 	pass
 
-
 class NoBuildFound(Exception):
 	pass
 
+class NoUpgradeFound(Exception):
+	pass
+
+class NoSkillFound(Exception):
+	pass
 
 with open("command_list.json") as f:
 	command_list = json.load(f)
@@ -127,71 +131,85 @@ mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix)
 wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 
-# creating GameParams json from GameParams.data
-logging.info(f"Loading GameParams")
 game_data = {}
-for file_count in count(0):
-	try:
-		with open(f'GameParamsPruned_{file_count}.json') as f:
-			data = json.load(f)
-
-		game_data.update(data)
-		del data
-	except FileNotFoundError:
-		break
-
-# loading skills list
-logging.info("Fetching Skill List")
+ship_list = {}
+ship_info = {}
 skill_list = {}
-try:
-	with open("skill_list.json") as f:
-		skill_list = json.load(f)
-except FileNotFoundError:
-	logging.error("skill_list.json is not found")
-	exit(2)
-
-# dictionary that stores skill abbreviation
-skill_name_abbr = {}
-for skill in skill_list:
-	# generate abbreviation
-	abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
-	skill_list[skill]['abbr'] = abbr_name
-
-logging.info("Fetching Module List")
 module_list = {}
-for page in count(1):
-	try:
-		m = wows_encyclopedia.modules(language='en', page_no=page)
-		for i in m:
-			module_list[i] = m[i]
-	except Exception as e:
-		if type(e) == wargaming.exceptions.RequestError:
-			if e.args[0] == "PAGE_NO_NOT_FOUND":
-				break
-			else:
-				logging.info(type(e), e)
-		else:
-			logging.info(type(e), e)
-		break
+upgrade_list = {}
+camo_list = {}
+cmdr_list = {}
+flag_list = {}
+legendary_upgrades = {}
+upgrade_abbr_list = {}
+ship_build = {}
+ship_build_competitive = None
+ship_build_casual = None
 
-# find game data items by tags
-find_game_data_item = lambda x: [i for i in game_data if x in i]
+BUILD_BATTLE_TYPE_CLAN = 0
+BUILD_BATTLE_TYPE_CASUAL = 1
 
+SHIP_TAG_SLOW_SPD = 0
+SHIP_TAG_FAST_SPD = 1
+SHIP_TAG_FAST_GUN = 2
+SHIP_TAG_STEALTH = 3
+SHIP_TAG_AA = 4
 
-def find_module_by_tag(x):
-	l = []
-	for i in module_list:
-		if 'tag' in module_list[i]:
-			if x == module_list[i]['tag']:
-				l += [i]
-	if len(l) > 0:
-		return l[0]
-	else:
-		return []
+build_battle_type = {
+	BUILD_BATTLE_TYPE_CLAN: "competitive",
+	BUILD_BATTLE_TYPE_CASUAL: "casual",
+}
+build_battle_type_value = {
+	"competitive": BUILD_BATTLE_TYPE_CLAN,
+	"casual": BUILD_BATTLE_TYPE_CASUAL,
+}
 
 
-logging.info("Fetching Commander List")
-cmdr_list = wows_encyclopedia.crews()
+logging.info("Fetching Maps")
+map_list = wows_encyclopedia.battlearenas()
+
+AA_RATING_DESCRIPTOR = {
+	"Non-Existence": [0, 1],
+	"Very Weak": [1, 20],
+	"Weak": [20, 40],
+	"Moderate": [40, 50],
+	"High": [50, 70],
+	"Dangerous": [70, 90],
+	"Very Dangerous": [90, math.inf],
+}
+
+EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
+
+ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
+skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
+equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
+ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
+
+good_bot_messages = (
+	'Thank you!',
+	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
+	':3',
+	':heart:',
+)
+
+hottake_strings = (
+	'Akizuki is better than Harekaze at a gun fight.',
+	'DDs are OP.',
+	'CVs need buff',
+	'submarines will be a major game changer',
+	'radar needs to be removed',
+	'BBs should shoot HE',
+	'cruisers need nerfs',
+	'cruisers doesn\'t need heals',
+	'Deadeye should come back with -50% despersion.',
+	'we need more hybrid ships.',
+	'the game needs more smoke/radar cruisers.',
+	'DD should have citadels',
+	'RTS CVs should return.',
+	'WG should add gold ammo',
+	'Kam is the superior CV player',
+	'interceptors are more useful than patrol fighters',
+)
 
 consumable_descriptor = {
 	'airDefenseDisp': {
@@ -258,34 +276,47 @@ consumable_descriptor = {
 	},
 }
 
-logging.info("Fetching Ship List")
-ship_list = {}
-ship_list_file_name = 'ship_list'
-ship_list_file_dir = os.path.join(".", ship_list_file_name)
+def load_game_params():
+	global game_data
+	# creating GameParams json from GameParams.data
+	logging.info(f"Loading GameParams")
+	for file_count in count(0):
+		try:
+			with open(f'GameParamsPruned_{file_count}.json') as f:
+				data = json.load(f)
 
-fetch_ship_list_from_wg = False
-# fetching from local
-if os.path.isfile(ship_list_file_dir):
-	with open(ship_list_file_dir, 'rb') as f:
-		ship_list = pickle.load(f)
+			game_data.update(data)
+			del data
+		except FileNotFoundError:
+			break
 
-	# check to see if it is out of date
-	if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
-		logging.info("Ship list outdated, fetching new list")
-		fetch_ship_list_from_wg = True
-		ship_list = {}
-else:
-	logging.info("No ship list file, fetching new")
-	fetch_ship_list_from_wg = True
+def load_skill_list():
+	global skill_list
+	# loading skills list
+	logging.info("Fetching Skill List")
+	try:
+		with open("skill_list.json") as f:
+			skill_list = json.load(f)
 
-if fetch_ship_list_from_wg:
+		# dictionary that stores skill abbreviation
+		skill_name_abbr = {}
+		for skill in skill_list:
+			# generate abbreviation
+			abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
+			skill_list[skill]['abbr'] = abbr_name
+			skill_list[skill]['id'] = skill
+	except FileNotFoundError:
+		logging.error("skill_list.json is not found")
+
+
+def load_module_list():
+	global module_list
+	logging.info("Fetching Module List")
 	for page in count(1):
 		try:
-			l = wows_encyclopedia.ships(language='en', page_no=page)
-			for i in l:
-				ship_list[i] = l[i]
-				# add skip bomber field to list's modules listing
-				ship_list[i]['modules']['skip_bomber'] = []
+			m = wows_encyclopedia.modules(language='en', page_no=page)
+			for i in m:
+				module_list[i] = m[i]
 		except Exception as e:
 			if type(e) == wargaming.exceptions.RequestError:
 				if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -295,782 +326,826 @@ if fetch_ship_list_from_wg:
 			else:
 				logging.info(type(e), e)
 			break
-	with open(ship_list_file_dir, 'wb') as f:
-		ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
-		pickle.dump(ship_list, f)
-	print("Cache complete")
-del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
 
-logging.info("Fetching Camo, Flags and Modification List")
-camo_list, flag_list, upgrade_list = {}, {}, {}
-for page_num in count(1):
-	# continuously count, because weegee don't list how many pages there are
-	try:
-		consumable_list = wows_encyclopedia.consumables(page_no=page_num)
-		# consumables of some page page_num
-		for consumable in consumable_list:
-			c_type = consumable_list[consumable]['type']
-			if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
-				# grab camouflages and stores
-				camo_list[consumable] = consumable_list[consumable]
-			if c_type == 'Modernization':
-				# grab upgrades and store
-				upgrade_list[consumable] = consumable_list[consumable]
+# find game data items by tags
+def find_game_data_item(item):
+	return [i for i in game_data if item in i]
 
-				url = upgrade_list[consumable]['image']
-				url = url[:url.rfind('_')]
-				url = url[url.rfind('/') + 1:]
+def find_module_by_tag(x):
+	l = []
+	for i in module_list:
+		if 'tag' in module_list[i]:
+			if x == module_list[i]['tag']:
+				l += [i]
+	if len(l) > 0:
+		return l[0]
+	else:
+		return []
 
-				# initializing stuff for excluding obsolete upgrades
-				upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
-				upgrade_list[consumable]['is_special'] = ''
-				upgrade_list[consumable]['ship_restriction'] = []
-				upgrade_list[consumable]['nation_restriction'] = []
-				upgrade_list[consumable]['tier_restriction'] = []
-				upgrade_list[consumable]['type_restriction'] = []
-				upgrade_list[consumable]['slot'] = ''
-				upgrade_list[consumable]['additional_restriction'] = ''
-				upgrade_list[consumable]['tags'] = []
+def load_cmdr_list():
+	global cmdr_list
+	logging.info("Fetching Commander List")
+	cmdr_list = wows_encyclopedia.crews()
 
-			if c_type == 'Flags':
-				# grab flags
-				flag_list[consumable] = consumable_list[consumable]
-	except Exception as e:
-		if type(e) == wargaming.exceptions.RequestError:
-			if e.args[0] == "PAGE_NO_NOT_FOUND":
-				# counter went outside of max number of pages.
-				# expected behavior, done
-				break
-			else:
-				# something else came up that is not a "exceed max number of pages"
-				logging.info(type(e), e)
-		else:
-			# we done goof now
-			logging.info(type(e), e)
-		break
+def load_ship_list():
+	logging.info("Fetching Ship List")
+	global ship_list
+	ship_list_file_name = 'ship_list'
+	ship_list_file_dir = os.path.join(".", ship_list_file_name)
 
-logging.info('Adding upgrade information')
-obsolete_upgrade = []
-for i in game_data:
-	value = game_data[i]
-	if value['typeinfo']['type'] == 'Modernization':
-		upgrade = value
-		if upgrade['slot'] == -1:
-			# obsolete upgrade
-			obsolete_upgrade += [str(upgrade['id'])]
-			pass
-		else:
-			# upgrade usable
-			uid = str(upgrade['id'])
+	fetch_ship_list_from_wg = False
+	# fetching from local
+	if os.path.isfile(ship_list_file_dir):
+		with open(ship_list_file_dir, 'rb') as f:
+			ship_list = pickle.load(f)
 
-			upgrade_list[uid]['is_special'] = {
-				0: '',
-				1: 'Coal',
-				3: 'Unique'
-			}[upgrade['type']]
-			upgrade_list[uid]['slot'] = upgrade['slot'] + 1
-			upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
-			if upgrade['type'] == 3:
-				# add ship specific restriction if upgrade is unique
-				ship_id = str(game_data[upgrade['ships'][0]]['id'])
-				upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
-			upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
-			upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
-			upgrade_list[uid]['tier_restriction'] = [t for t in upgrade['shiplevel']]
+		# check to see if it is out of date
+		if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
+			logging.info("Ship list outdated, fetching new list")
+			fetch_ship_list_from_wg = True
+			ship_list = {}
+	else:
+		logging.info("No ship list file, fetching new")
+		fetch_ship_list_from_wg = True
 
-			upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
-			upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']
-logging.info('Removing obsolete upgrades')
-for i in obsolete_upgrade:
-	del upgrade_list[i]
-
-# changes to ship_list's ship upgrade structure to index slots, 
-for sid in ship_list:
-	ship = ship_list[sid]
-	ship_upgrades = ship['upgrades']  # get a copy of ship's possible upgrades
-	ship['upgrades'] = dict((i, []) for i in range(6))  # restructure
-	for s_upgrade in ship_upgrades:
-		# put ship upgrades in the appropiate slots
-		upgrade = upgrade_list[str(s_upgrade)]
-		ship['upgrades'][upgrade['slot'] - 1] += [str(s_upgrade)]
-
-logging.info('Fetching ship build file...')
-BUILD_EXTRACT_FROM_CACHE = os.path.isfile("./ship_builds.json")
-extract_from_web_failed = False
-BUILD_BATTLE_TYPE_CLAN = 0
-BUILD_BATTLE_TYPE_CASUAL = 1
-BUILD_CREATE_BUILD_IMAGES = True
-# dunno why this exists, keep it
-build_battle_type = {
-	BUILD_BATTLE_TYPE_CLAN: "competitive",
-	BUILD_BATTLE_TYPE_CASUAL: "casual",
-}
-build_battle_type_value = {
-	"competitive": BUILD_BATTLE_TYPE_CLAN,
-	"casual": BUILD_BATTLE_TYPE_CASUAL,
-}
-ship_build = {build_battle_type[BUILD_BATTLE_TYPE_CLAN]: {}, build_battle_type[BUILD_BATTLE_TYPE_CASUAL]: {}}
-# fetch ship builds and additional upgrade information
-if command_list['build']:
-	if not BUILD_EXTRACT_FROM_CACHE:
-		# extracting build and upgrade exclusion data from google sheets
-		from googleapiclient.errors import Error
-		from googleapiclient.discovery import build
-		from google_auth_oauthlib.flow import InstalledAppFlow
-		from google.auth.transport.requests import Request
-
-		# silence file_cache_warning
-		logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
-
-		logging.info("Attempting to fetch from sheets")
-		SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-		# The ID and range of a sample spreadsheet.
-		SAMPLE_SPREADSHEET_ID = sheet_id
-
-		creds = None
-		# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
-		# created automatically when the authorization flow completes for the first
-		# time.
-		if os.path.exists('cmd_sep.pickle'):
-			with open('cmd_sep.pickle', 'rb') as sep:
-				creds = pickle.load(sep)
-		# If there are no (valid) credentials available, let the user log in.
-		try:
-			if not creds or not creds.valid:
-				if creds and creds.expired and creds.refresh_token:
-					creds.refresh(Request())
-				else:
-					flow = InstalledAppFlow.from_client_secrets_file(
-						'credentials.json', SCOPES)
-					creds = flow.run_local_server(port=0)
-				# Save the credentials for the next run
-				with open('cmd_sep.pickle', 'wb') as sep:
-					pickle.dump(creds, sep)
-
-			service = build('sheets', 'v4', credentials=creds)
-
-			# Call the Sheets API
-			sheet = service.spreadsheets()
-			# fetch build
-			result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-			                            range='ship_builds!B2:Z1000').execute()
-			values = result.get('values', [])
-
-			if not values:
-				logging.warning('No ship build data found.')
-				raise Error
-			else:
-				logging.info(f"Found {len(values)} ship builds")
-				for row in values:
-					build_type = row[1]
-					ship_name = row[0]
-					if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside prinable ?
-						ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropiate name
-					upgrades = [i for i in row[2:8] if len(i) > 0]
-					skills = [i for i in row[8:-2] if len(i) > 0]
-					cmdr = row[-1]
-					ship_build[build_type][ship_name] = {"upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-			with open("ship_builds.json", 'w') as f:
-				logging.info("Creating ship build cache")
-				json.dump(ship_build, f)
-			logging.info("Ship build data fetching done")
-		except Exception as e:
-			extract_from_web_failed = True
-			logging.info(f"Exception raised while fetching builds: {e}")
-			traceback.print_exc()
-
-	if BUILD_EXTRACT_FROM_CACHE or extract_from_web_failed:
-		if extract_from_web_failed:
-			logging.info("Get ship builds from sheets failed")
-		logging.info('Making ship build dictionary from cache')
-		with open("ship_builds.json") as f:
-			ship_build = json.load(f)
-		logging.info("Ship build complete")
-
-logging.info("Fetching Ship Parameters")
-ship_param_file_name = 'ship_param'
-logging.info("	Checking cached ship_param file...")
-fetch_ship_params_from_wg = False
-if os.path.isfile(ship_param_file_name):
-	# check ship_params exists
-	logging.info("	File found. Loading file")
-	with open(ship_param_file_name, 'rb') as f:
-		ship_info = pickle.load(f)
-
-	if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
-		logging.info("	Ship params outdated, fetching new list")
-		fetch_ship_params_from_wg = True
-		ship_info = {}
-else:
-	fetch_ship_params_from_wg = True
-
-if fetch_ship_params_from_wg:
-	logging.info("Fetching new ship params from weegee")
-	i = 0
-	ship_info = {'ships_updated_at': wows_encyclopedia.info()['ships_updated_at']}
-	for s in ship_list:
-		ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
-		ship_info[s] = ship[s]
-		ship_info[s]['skip_bomber'] = None
-		i += 1
-		if (i % 50 == 0 and i > 0) or (i == len(ship_list)):
-			logging.info(f"{i}/{len(ship_list)} ships found")
-	logging.info("Done")
-	logging.info("Creating ship_params cache")
-	with open(ship_param_file_name, 'wb') as f:
-		pickle.dump(ship_info, f)
-	logging.info("ship_params cache created")
-
-logging.info("Generating information about modules")
-ship_count = 0
-for s in ship_list:
-	ship = ship_list[s]
-	ship_count += 1
-	if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)):
-		logging.info(f"	{ship_count}/{len(ship_list)} ships")
-	try:
-		module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
-		module_data = game_data[module_full_id_str]
-
-		# grab consumables
-		ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
-
-		ship_upgrade_info = module_data['ShipUpgradeInfo']  # get upgradable modules
-
-		# get credit and xp cost for ship research
-		ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
-		ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
-
-		# is this a test bote?
-		ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
-
-		for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
-			if type(ship_upgrade_info[_info]) == dict:  # if there are data
-
-				try:
-					if ship_upgrade_info[_info]['ucType'] != "_SkipBomber":
-						module_id = find_module_by_tag(_info)
+	if fetch_ship_list_from_wg:
+		for page in count(1):
+			try:
+				l = wows_encyclopedia.ships(language='en', page_no=page)
+				for i in l:
+					ship_list[i] = l[i]
+					# add skip bomber field to list's modules listing
+					ship_list[i]['modules']['skip_bomber'] = []
+			except Exception as e:
+				if type(e) == wargaming.exceptions.RequestError:
+					if e.args[0] == "PAGE_NO_NOT_FOUND":
+						break
 					else:
-						module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planeType']
-						module_id = str(game_data[module]['id'])
-						del module
-				except IndexError as e:
-					# we did an oopsie
-					continue
+						logging.info(type(e), e)
+				else:
+					logging.info(type(e), e)
+				break
+		with open(ship_list_file_dir, 'wb') as f:
+			ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
+			pickle.dump(ship_list, f)
+		print("Cache complete")
+	del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
 
-				if ship_upgrade_info[_info]['ucType'] == '_Hull':
-					# get secondary information
-					if len(ship_upgrade_info[_info]['components']['atba']) > 0:
-						module_list[module_id]['profile']['atba'] = {
-							'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
-						}
+def load_upgrade_list():
+	logging.info("Fetching Camo, Flags and Modification List")
+	global camo_list, flag_list, upgrade_list
+	for page_num in count(1):
+		# continuously count, because weegee don't list how many pages there are
+		try:
+			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+			# consumables of some page page_num
+			for consumable in consumable_list:
+				c_type = consumable_list[consumable]['type']
+				if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
+					# grab camouflages and stores
+					camo_list[consumable] = consumable_list[consumable]
+				if c_type == 'Modernization':
+					# grab upgrades and store
+					upgrade_list[consumable] = consumable_list[consumable]
 
-						atba = ship_upgrade_info[_info]['components']['atba'][0]
-						atba = module_data[atba]
-						atba_guns = {'turret': {}}
-						for t in [i for i in atba if 'HP' in i]:
-							turret = atba[t]
-							if turret['name'] in atba_guns['turret']:
-								atba_guns['turret'][turret['name']] += [turret]
-							else:
-								atba_guns['turret'][turret['name']] = [turret]
+					url = upgrade_list[consumable]['image']
+					url = url[:url.rfind('_')]
+					url = url[url.rfind('/') + 1:]
+
+					# initializing stuff for excluding obsolete upgrades
+					upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
+					upgrade_list[consumable]['is_special'] = ''
+					upgrade_list[consumable]['ship_restriction'] = []
+					upgrade_list[consumable]['nation_restriction'] = []
+					upgrade_list[consumable]['tier_restriction'] = []
+					upgrade_list[consumable]['type_restriction'] = []
+					upgrade_list[consumable]['slot'] = ''
+					upgrade_list[consumable]['additional_restriction'] = ''
+					upgrade_list[consumable]['tags'] = []
+
+				if c_type == 'Flags':
+					# grab flags
+					flag_list[consumable] = consumable_list[consumable]
+		except Exception as e:
+			if type(e) == wargaming.exceptions.RequestError:
+				if e.args[0] == "PAGE_NO_NOT_FOUND":
+					# counter went outside of max number of pages.
+					# expected behavior, done
+					break
+				else:
+					# something else came up that is not a "exceed max number of pages"
+					logging.info(type(e), e)
+			else:
+				# we done goof now
+				logging.info(type(e), e)
+			break
+
+	logging.info('Adding upgrade information')
+	obsolete_upgrade = []
+	for i in game_data:
+		value = game_data[i]
+		if value['typeinfo']['type'] == 'Modernization':
+			upgrade = value
+			if upgrade['slot'] == -1:
+				# obsolete upgrade
+				obsolete_upgrade += [str(upgrade['id'])]
+				pass
+			else:
+				# upgrade usable
+				uid = str(upgrade['id'])
+
+				upgrade_list[uid]['is_special'] = {
+					0: '',
+					1: 'Coal',
+					3: 'Unique'
+				}[upgrade['type']]
+				upgrade_list[uid]['slot'] = int(upgrade['slot']) + 1
+				upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
+				if upgrade['type'] == 3:
+					# add ship specific restriction if upgrade is unique
+					ship_id = str(game_data[upgrade['ships'][0]]['id'])
+					upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
+				upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
+				upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
+				upgrade_list[uid]['tier_restriction'] = [t for t in upgrade['shiplevel']]
+
+				upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
+				upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']
+
+	legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
+
+	logging.info('Removing obsolete upgrades')
+	for i in obsolete_upgrade:
+		del upgrade_list[i]
+
+	# changes to ship_list's ship upgrade structure to index slots,
+	for sid in ship_list:
+		ship = ship_list[sid]
+		ship_upgrades = ship['upgrades']  # get a copy of ship's possible upgrades
+		ship['upgrades'] = dict((i, []) for i in range(6))  # restructure
+		for s_upgrade in ship_upgrades:
+			# put ship upgrades in the appropiate slots
+			upgrade = upgrade_list[str(s_upgrade)]
+			ship['upgrades'][upgrade['slot'] - 1] += [str(s_upgrade)]
+
+def load_ship_params():
+	global ship_info
+	logging.info("Fetching Ship Parameters")
+	ship_param_file_name = 'ship_param'
+	logging.info("	Checking cached ship_param file...")
+	fetch_ship_params_from_wg = False
+	if os.path.isfile(ship_param_file_name):
+		# check ship_params exists
+		logging.info("	File found. Loading file")
+		with open(ship_param_file_name, 'rb') as f:
+			ship_info = pickle.load(f)
+
+		if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
+			logging.info("	Ship params outdated, fetching new list")
+			fetch_ship_params_from_wg = True
+			ship_info = {}
+	else:
+		fetch_ship_params_from_wg = True
+
+	if fetch_ship_params_from_wg:
+		logging.info("Fetching new ship params from weegee")
+		i = 0
+		ship_info = {'ships_updated_at': wows_encyclopedia.info()['ships_updated_at']}
+		for s in ship_list:
+			ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
+			ship_info[s] = ship[s]
+			ship_info[s]['skip_bomber'] = None
+			i += 1
+			if (i % 50 == 0 and i > 0) or (i == len(ship_list)):
+				logging.info(f"{i}/{len(ship_list)} ships found")
+		logging.info("Done")
+		logging.info("Creating ship_params cache")
+		with open(ship_param_file_name, 'wb') as f:
+			pickle.dump(ship_info, f)
+		logging.info("ship_params cache created")
+
+def update_ship_modules():
+	logging.info("Generating information about modules")
+	ship_count = 0
+	for s in ship_list:
+		ship = ship_list[s]
+		ship_count += 1
+		if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)):
+			logging.info(f"	{ship_count}/{len(ship_list)} ships")
+		try:
+			module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
+			module_data = game_data[module_full_id_str]
+
+			# grab consumables
+			ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
+
+			ship_upgrade_info = module_data['ShipUpgradeInfo']  # get upgradable modules
+
+			# get credit and xp cost for ship research
+			ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
+			ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
+
+			# is this a test bote?
+			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
+
+			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
+				if type(ship_upgrade_info[_info]) == dict:  # if there are data
+
+					try:
+						if ship_upgrade_info[_info]['ucType'] != "_SkipBomber":
+							module_id = find_module_by_tag(_info)
 						else:
-							for t in atba_guns['turret']:
-								turret_data = atba_guns['turret'][t][0]
-								atba_guns[t] = {
-									'name': turret_data['name'],
-									'shotDelay': turret_data['shotDelay'],
-									'numBarrels': turret_data['numBarrels'],
-									'caliber': turret_data['barrelDiameter'],
-									'count': len(atba_guns['turret'][t]),
-									'gun_dpm': 0,
-									'max_damage_sap': 0,
-									'burn_probability': 0,
-								}
-								for a in turret_data['ammoList']:
-									ammo = game_data[a]
-									atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * len(atba_guns['turret'][t]) * turret_data['numBarrels'] * (60 / turret_data['shotDelay'])
-									atba_guns[t]['ammoType'] = ammo['ammoType']
-									atba_guns[t]['max_damage'] = ammo['alphaDamage']
-									if ammo['ammoType'] == 'HE':
-										atba_guns[t]['burn_probability'] = ammo['burnProb']
-										atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
-									if ammo['ammoType'] == 'CS':
-										atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
-						del atba_guns['turret']
-						module_list[module_id]['profile']['atba'] = atba_guns
+							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planeType']
+							module_id = str(game_data[module]['id'])
+							del module
+					except IndexError as e:
+						# we did an oopsie
+						continue
 
-					# getting aa information and calculate mbAA
-					if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
-						module_list[module_id]['profile']['anti_air'] = {
-							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
-							'near': {'damage': 0, 'hitChance': 0},
-							'medium': {'damage': 0, 'hitChance': 0},
-							'far': {'damage': 0, 'hitChance': 0},
-							'flak': {'damage': 0, },
-						}
+					if ship_upgrade_info[_info]['ucType'] == '_Hull':
+						# get secondary information
+						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+							module_list[module_id]['profile']['atba'] = {
+								'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
+							}
 
-						min_aa_range = math.inf
-						max_aa_range = -math.inf
-
-						# grab anti-air guns information
-						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
-						aa_defense = module_data[aa_defense]
-
-						# finding details of passive AA
-						for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
-							aa_data = aa_defense[a]
-							if aa_data['type'] == 'near':
-								module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
-								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
-							if aa_data['type'] == 'medium':
-								module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
-								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
-							min_aa_range = min(min_aa_range, aa_data['minDistance'])
-							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-						# getting flak guns info
-						aa_defense_far = []
-						for item in ['atba', 'artillery']:
-							try:
-								aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
-							except:
-								pass
-
-						for aa_component in aa_defense_far:
-							for a in [a for a in aa_component if 'Far' in a]:
-								aa_data = aa_component[a]
-								if 'Bubbles' not in a:
-									# long range passive AA
-									module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-									module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
+							atba = ship_upgrade_info[_info]['components']['atba'][0]
+							atba = module_data[atba]
+							atba_guns = {'turret': {}}
+							for t in [i for i in atba if 'HP' in i]:
+								turret = atba[t]
+								if turret['name'] in atba_guns['turret']:
+									atba_guns['turret'][turret['name']] += [turret]
 								else:
-									# flaks
-									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
-									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
-									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = int(aa_data['hitChance'])
+									atba_guns['turret'][turret['name']] = [turret]
+							else:
+								for t in atba_guns['turret']:
+									turret_data = atba_guns['turret'][t][0]
+									atba_guns[t] = {
+										'name': turret_data['name'],
+										'shotDelay': turret_data['shotDelay'],
+										'numBarrels': turret_data['numBarrels'],
+										'caliber': turret_data['barrelDiameter'],
+										'count': len(atba_guns['turret'][t]),
+										'gun_dpm': 0,
+										'max_damage_sap': 0,
+										'burn_probability': 0,
+									}
+									for a in turret_data['ammoList']:
+										ammo = game_data[a]
+										atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * len(atba_guns['turret'][t]) * turret_data['numBarrels'] * (60 / turret_data['shotDelay'])
+										atba_guns[t]['ammoType'] = ammo['ammoType']
+										atba_guns[t]['max_damage'] = ammo['alphaDamage']
+										if ammo['ammoType'] == 'HE':
+											atba_guns[t]['burn_probability'] = ammo['burnProb']
+											atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
+										if ammo['ammoType'] == 'CS':
+											atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
+							del atba_guns['turret']
+							module_list[module_id]['profile']['atba'] = atba_guns
 
+						# getting aa information and calculate mbAA
+						if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
+							module_list[module_id]['profile']['anti_air'] = {
+								'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
+								'near': {'damage': 0, 'hitChance': 0},
+								'medium': {'damage': 0, 'hitChance': 0},
+								'far': {'damage': 0, 'hitChance': 0},
+								'flak': {'damage': 0, },
+							}
+
+							min_aa_range = math.inf
+							max_aa_range = -math.inf
+
+							# grab anti-air guns information
+							aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
+							aa_defense = module_data[aa_defense]
+
+							# finding details of passive AA
+							for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
+								aa_data = aa_defense[a]
+								if aa_data['type'] == 'near':
+									module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+								if aa_data['type'] == 'medium':
+									module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
 								min_aa_range = min(min_aa_range, aa_data['minDistance'])
 								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+							# getting flak guns info
+							aa_defense_far = []
+							for item in ['atba', 'artillery']:
+								try:
+									aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
+								except:
+									pass
 
-						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
-						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
+							for aa_component in aa_defense_far:
+								for a in [a for a in aa_component if 'Far' in a]:
+									aa_data = aa_component[a]
+									if 'Bubbles' not in a:
+										# long range passive AA
+										module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+										module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
+									else:
+										# flaks
+										module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+										module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
+										module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
+										module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = int(aa_data['hitChance'])
 
-						# calculate mbAA rating
-						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 1.25
-						mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
-						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance']
-						combined_aa_damage = near_damage + mid_damage + far_damage
-						aa_rating = 0
+									min_aa_range = min(min_aa_range, aa_data['minDistance'])
+									max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 
-						# aa rating scaling with range
-						if combined_aa_damage > 0:
-							aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)
-							if aa_range_scaling > 1:
-								aa_range_scaling = aa_range_scaling ** 3
-							aa_rating += (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
+							module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
+							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
-						# aa rating scaling with flak
-						if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
-							flak_data = module_list[module_id]['profile']['anti_air']['flak']
-							aa_rating += flak_data['count'] * flak_data['hitChance'] * 1.5
+							# calculate mbAA rating
+							near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 1.25
+							mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
+							far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance']
+							combined_aa_damage = near_damage + mid_damage + far_damage
+							aa_rating = 0
 
-						# aa rating scaling with tier
-						aa_rating = (combined_aa_damage / (int(ship['tier']) * 9))
-						module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
+							# aa rating scaling with range
+							if combined_aa_damage > 0:
+								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)
+								if aa_range_scaling > 1:
+									aa_range_scaling = aa_range_scaling ** 3
+								aa_rating += (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
 
-						if ship_info[s]['anti_aircraft'] is None:
-							ship_info[s]['anti_aircraft'] = {}
-						ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
+							# aa rating scaling with flak
+							if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
+								flak_data = module_list[module_id]['profile']['anti_air']['flak']
+								aa_rating += flak_data['count'] * flak_data['hitChance'] * 1.5
 
-					# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
-					if 'airSupport' in ship_upgrade_info[_info]['components']:
-						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
-							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
-							plane = game_data[airsup_info['planeName']]
-							projectile = game_data[plane['bombName']]
-							module_list[module_id]['profile']['airSupport'] = {
-								'chargesNum': airsup_info['chargesNum'],
-								'reloadTime': int(airsup_info['reloadTime']),
-								'maxDist': airsup_info['maxDist'],
-								'max_damage': int(projectile['alphaDamage']),
-								'burn_probability': int(projectile['burnProb'] * 100),
-								'bomb_pen': int(projectile['alphaPiercingHE']),
-								'squad_size': int(plane['numPlanesInSquadron']),
-								'payload': int(plane['attackCount']),
-							}
+							# aa rating scaling with tier
+							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9))
+							module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
 
-					# depth charges armaments
-					if 'depthCharges' in ship_upgrade_info[_info]['components']:
-						if ship_upgrade_info[_info]['components']['depthCharges']:
-							asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
-							asw_data = {
-								'chargesNum': asw_info['maxPacks'],
-								'payload': 0,
-								'max_damage': 0,
-								'reloadTime': asw_info['reloadTime'],
-							}
-							# for each available launchers
-							for asw_launcher in [i for i in asw_info.keys() if 'HP' in i]:
-								asw_launcher_data = asw_info[asw_launcher]
-								asw_data['payload'] += asw_launcher_data['numBombs']
-								# look at depth charge data
-								for depth_charge in asw_launcher_data['ammoList']:
-									depth_charge_data = game_data[depth_charge]
-									asw_data['max_damage'] = int(depth_charge_data['alphaDamage'])
-								module_list[module_id]['profile']['asw'] = asw_data.copy()
-					continue
+							if ship_info[s]['anti_aircraft'] is None:
+								ship_info[s]['anti_aircraft'] = {}
+							ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 
-				if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
-					# get turret parameter
-					gun = ship_upgrade_info[_info]['components']['artillery'][0]
-					gun = module_data[gun]
-					gun = [gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]]
+						# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
+						if 'airSupport' in ship_upgrade_info[_info]['components']:
+							if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
+								airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
+								plane = game_data[airsup_info['planeName']]
+								projectile = game_data[plane['bombName']]
+								module_list[module_id]['profile']['airSupport'] = {
+									'chargesNum': airsup_info['chargesNum'],
+									'reloadTime': int(airsup_info['reloadTime']),
+									'maxDist': airsup_info['maxDist'],
+									'max_damage': int(projectile['alphaDamage']),
+									'burn_probability': int(projectile['burnProb'] * 100),
+									'bomb_pen': int(projectile['alphaPiercingHE']),
+									'squad_size': int(plane['numPlanesInSquadron']),
+									'payload': int(plane['attackCount']),
+								}
 
-					module_list[module_id]['profile']['artillery'] = {
-						'shotDelay': 0,
-						'caliber': 0,
-						'numBarrels': 0,
-						'max_damage_sap': 0,
-						'burn_probability': 0,
-						'pen_HE': 0,
-						'pen_SAP': 0,
-						'max_damage_HE': 0,
-						'max_damage_AP': 0,
-						'max_damage_SAP': 0,
-						'gun_dpm': {'HE': 0, 'AP': 0, 'CS': 0},
-					}
-					for g in gun:  # for each turret
-						turret_data = game_data[g]
+						# depth charges armaments
+						if 'depthCharges' in ship_upgrade_info[_info]['components']:
+							if ship_upgrade_info[_info]['components']['depthCharges']:
+								asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
+								asw_data = {
+									'chargesNum': asw_info['maxPacks'],
+									'payload': 0,
+									'max_damage': 0,
+									'reloadTime': asw_info['reloadTime'],
+								}
+								# for each available launchers
+								for asw_launcher in [i for i in asw_info.keys() if 'HP' in i]:
+									asw_launcher_data = asw_info[asw_launcher]
+									asw_data['payload'] += asw_launcher_data['numBombs']
+									# look at depth charge data
+									for depth_charge in asw_launcher_data['ammoList']:
+										depth_charge_data = game_data[depth_charge]
+										asw_data['max_damage'] = int(depth_charge_data['alphaDamage'])
+									module_list[module_id]['profile']['asw'] = asw_data.copy()
+						continue
 
-						# get caliber, reload, and number of guns per turret
-						module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
-						module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
-						module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
+					if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
+						# get turret parameter
+						gun = ship_upgrade_info[_info]['components']['artillery'][0]
+						gun = module_data[gun]
+						gun = [gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]]
 
-						# get some information about the shells fired by the turret
-						for a in turret_data['ammoList']:
-							ammo = game_data[a]
-							if ammo['ammoType'] == 'HE':
-								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb'] * 100)
-								module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
-								module_list[module_id]['profile']['artillery']['max_damage_HE'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dpm']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-							if ammo['ammoType'] == 'CS':  # SAP rounds
-								module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
-								module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dpm']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-							if ammo['ammoType'] == 'AP':
-								module_list[module_id]['profile']['artillery']['max_damage_AP'] = int(ammo['alphaDamage'])
-								module_list[module_id]['profile']['artillery']['gun_dpm']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-
-						# check for belfast and belfast '43, for some reason
-						if 'Belfast' in ship['name']:
-							module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
-							module_list[module_id]['profile']['artillery']['pen_HE'] = 0
-
-					continue
-
-				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
-					# get torps parameter
-					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
-					gun = module_data[gun]
-					for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
-						turret_data = gun[g]
-						projectile = game_data[turret_data['ammoList'][0]]
-						module_list[module_id]['profile']['torpedoes'] = {
-							'numBarrels': int(turret_data['numBarrels']),
-							'shotDelay': turret_data['shotDelay'],
-							'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
-							'torpedo_speed': projectile['speed'],
-							'is_deep_water': projectile['isDeepWater'],
-							'distance': projectile['maxDist'] * 30 / 1000,
+						module_list[module_id]['profile']['artillery'] = {
+							'shotDelay': 0,
+							'caliber': 0,
+							'numBarrels': 0,
+							'max_damage_sap': 0,
+							'burn_probability': 0,
+							'pen_HE': 0,
+							'pen_SAP': 0,
+							'max_damage_HE': 0,
+							'max_damage_AP': 0,
+							'max_damage_SAP': 0,
+							'gun_dpm': {'HE': 0, 'AP': 0, 'CS': 0},
 						}
-					continue
+						for g in gun:  # for each turret
+							turret_data = game_data[g]
 
-				if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
-					# get fighter parameter
-					planes = ship_upgrade_info[_info]['components']['fighter'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]  # get rocket params
-						projectile = game_data[plane['bombName']]
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						module_list[module_id]['profile'] = {
-							"fighter": {
-								'max_damage': int(projectile['alphaDamage']),
-								'rocket_type': projectile['ammoType'],
-								'burn_probability': int(projectile['burnProb'] * 100),
-								'rocket_pen': int(projectile['alphaPiercingHE']),
-								'max_health': int(plane['maxHealth']),
-								'cruise_speed': int(plane['speedMoveWithBomb']),
-								'payload': int(plane['attackCount']),
-							}
-						}
-					continue
+							# get caliber, reload, and number of guns per turret
+							module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
+							module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
+							module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
 
-				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
-					# get torp bomber parameter
-					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = plane['attackerSize']
-						module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							# get some information about the shells fired by the turret
+							for a in turret_data['ammoList']:
+								ammo = game_data[a]
+								if ammo['ammoType'] == 'HE':
+									module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb'] * 100)
+									module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
+									module_list[module_id]['profile']['artillery']['max_damage_HE'] = int(ammo['alphaDamage'])
+									module_list[module_id]['profile']['artillery']['gun_dpm']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								if ammo['ammoType'] == 'CS':  # SAP rounds
+									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
+									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
+									module_list[module_id]['profile']['artillery']['gun_dpm']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								if ammo['ammoType'] == 'AP':
+									module_list[module_id]['profile']['artillery']['max_damage_AP'] = int(ammo['alphaDamage'])
+									module_list[module_id]['profile']['artillery']['gun_dpm']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 
-						module_list[module_id]['profile'] = {
-							"torpedo_bomber": {
-								'cruise_speed': int(plane['speedMoveWithBomb']),
+							# check for belfast and belfast '43, for some reason
+							if 'Belfast' in ship['name']:
+								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
+								module_list[module_id]['profile']['artillery']['pen_HE'] = 0
+
+						continue
+
+					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
+						# get torps parameter
+						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
+						gun = module_data[gun]
+						for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
+							turret_data = gun[g]
+							projectile = game_data[turret_data['ammoList'][0]]
+							module_list[module_id]['profile']['torpedoes'] = {
+								'numBarrels': int(turret_data['numBarrels']),
+								'shotDelay': turret_data['shotDelay'],
 								'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
-								'max_health': int(plane['maxHealth']),
 								'torpedo_speed': projectile['speed'],
 								'is_deep_water': projectile['isDeepWater'],
 								'distance': projectile['maxDist'] * 30 / 1000,
-								'payload': int(plane['projectilesPerAttack']),
 							}
-						}
-					continue
+						continue
 
-				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
-					# get turret parameter
-					planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = int(plane['attackerSize'])
-						module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						module_list[module_id]['bomb_type'] = projectile['ammoType']
-						module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-						module_list[module_id]['profile'] = {
-							"dive_bomber": {
-								'cruise_speed': int(plane['speedMoveWithBomb']),
-								'max_damage': projectile['alphaDamage'],
-								'burn_probability': projectile['burnProb'] * 100,
-								'max_health': int(plane['maxHealth']),
-								'payload': int(plane['projectilesPerAttack']),
+					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
+						# get fighter parameter
+						planes = ship_upgrade_info[_info]['components']['fighter'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]  # get rocket params
+							projectile = game_data[plane['bombName']]
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['profile'] = {
+								"fighter": {
+									'max_damage': int(projectile['alphaDamage']),
+									'rocket_type': projectile['ammoType'],
+									'burn_probability': int(projectile['burnProb'] * 100),
+									'rocket_pen': int(projectile['alphaPiercingHE']),
+									'max_health': int(plane['maxHealth']),
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'payload': int(plane['attackCount']),
+								}
 							}
-						}
-					continue
+						continue
 
-				# skip bomber
-				if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
-					# get turret parameter
-					planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
-					planes = module_data[planes].values()
-					for p in planes:
-						plane = game_data[p]
-						projectile = game_data[plane['bombName']]
-						ship_list[s]['modules']['skip_bomber'] += [plane['id']]
-						if plane['id'] not in module_list:
-							module_list[module_id] = {}
-						# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-						module_list[module_id]['attack_size'] = int(plane['attackerSize'])
-						module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-						module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
-						module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-						module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-						module_list[module_id]['bomb_type'] = projectile['ammoType']
-						module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
+						# get torp bomber parameter
+						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = plane['attackerSize']
+							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 
-						# fill missing skip bomber info
-						module_list[module_id]['name'] = plane['name']
-						module_list[module_id]['module_id'] = module_id
-						module_list[module_id]['module_id_str'] = plane['index']
-						module_list[module_id]['profile'] = {
-							"skip_bomber": {
-								'cruise_speed': int(plane['speedMoveWithBomb']),
-								'max_damage': int(projectile['alphaDamage']),
-								'burn_probability': projectile['burnProb'] * 100,
-								'max_health': int(plane['maxHealth']),
-								'payload': int(plane['projectilesPerAttack']),
+							module_list[module_id]['profile'] = {
+								"torpedo_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
+									'max_health': int(plane['maxHealth']),
+									'torpedo_speed': projectile['speed'],
+									'is_deep_water': projectile['isDeepWater'],
+									'distance': projectile['maxDist'] * 30 / 1000,
+									'payload': int(plane['projectilesPerAttack']),
+								}
 							}
-						}
-						ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
-					continue
-	except Exception as e:
-		if not type(e) == KeyError:
-			logging.error("at ship id " + s)
-			logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.json")
-			logging.error("Update your GameParams JSON file(s)")
-		traceback.print_exc(type(e), e, None)
+						continue
 
-		if mackbot.is_closed():
-			time.sleep(10)
-			exit(1)
-del ship_count
+					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+						# get turret parameter
+						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+							module_list[module_id]['profile'] = {
+								"dive_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_damage': projectile['alphaDamage'],
+									'burn_probability': projectile['burnProb'] * 100,
+									'max_health': int(plane['maxHealth']),
+									'payload': int(plane['projectilesPerAttack']),
+								}
+							}
+						continue
 
-logging.info("Creating abbreviation for upgrades")
-upgrade_abbr_list = {}
-for u in upgrade_list:
-	# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
-	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
-	upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
-	key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
-	if key in upgrade_abbr_list:  # if the abbreviation of this upgrade is in the list already
-		key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
-	upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()  # add this abbreviation
-legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
+					# skip bomber
+					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
+						# get turret parameter
+						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
+						planes = module_data[planes].values()
+						for p in planes:
+							plane = game_data[p]
+							projectile = game_data[plane['bombName']]
+							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
+							if plane['id'] not in module_list:
+								module_list[module_id] = {}
+							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
+							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
 
-logging.info("Generating ship search tags")
-SHIP_TAG_SLOW_SPD = 0
-SHIP_TAG_FAST_SPD = 1
-SHIP_TAG_FAST_GUN = 2
-SHIP_TAG_STEALTH = 3
-SHIP_TAG_AA = 4
+							# fill missing skip bomber info
+							module_list[module_id]['name'] = plane['name']
+							module_list[module_id]['module_id'] = module_id
+							module_list[module_id]['module_id_str'] = plane['index']
+							module_list[module_id]['profile'] = {
+								"skip_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_damage': int(projectile['alphaDamage']),
+									'burn_probability': projectile['burnProb'] * 100,
+									'max_health': int(plane['maxHealth']),
+									'payload': int(plane['projectilesPerAttack']),
+								}
+							}
+							ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
+						continue
+		except Exception as e:
+			if not type(e) == KeyError:
+				logging.error("at ship id " + s)
+				logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.json")
+				logging.error("Update your GameParams JSON file(s)")
+			traceback.print_exc(type(e), e, None)
 
-SHIP_TAG_LIST = (
-	'slow',
-	'fast',
-	'fast-firing',
-	'stealth',
-	'anti-air',
-)
-ship_tags = {
-	SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
-		'min_threshold': 0,
-		'max_threshold': 30,
-		'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
-	},
-	SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
-		'min_threshold': 30,
-		'max_threshold': 99,
-		'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
-	},
-	SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
-		'min_threshold': 0,
-		'max_threshold': 6,
-		'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
-	},
-	SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
-		'min_air_spot_range': 4,
-		'min_sea_spot_range': 6,
-		'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
-	},
-	SHIP_TAG_LIST[SHIP_TAG_AA]: {
-		'min_aa_range': 5.8,
-		'damage_threshold_multiplier': 75,
-		'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
-	},
-}
+			if mackbot.is_closed():
+				time.sleep(10)
+				exit(1)
+	del ship_count
 
-for s in ship_list:
-	try:
-		nat = nation_dictionary[ship_list[s]['nation']]
-		tags = []
-		t = ship_list[s]['type']
-		hull_class = hull_classification_converter[t]
-		if t == 'AirCarrier':
-			t = 'Aircraft Carrier'
-		tier = ship_list[s]['tier']  # add tier to search
-		prem = ship_list[s]['is_premium']  # is bote premium
-		ship_speed = ship_info[s]['mobility']['max_speed']
-		# add tags based on speed
-		if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
-			tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
-		if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
-			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
-		concealment = ship_info[s]['concealment']
-		# add tags based on detection range
-		if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
-			tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
-		# add tags based on gun firerate
+def create_upgrade_abbr():
+	logging.info("Creating abbreviation for upgrades")
+	global upgrade_abbr_list
+	for u in upgrade_list:
+		# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
+		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
+		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
+		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
+		if key in upgrade_abbr_list:  # if the abbreviation of this upgrade is in the list already
+			key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
+		upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()  # add this abbreviation
+
+def load_ship_builds():
+	logging.info('Fetching ship build file...')
+	global ship_build, ship_build_competitive, ship_build_casual
+	extract_from_web_failed = False
+	build_extract_from_cache = os.path.isfile("./ship_builds.json")
+
+	ship_build = {}
+	ship_build_competitive = []
+	ship_build_casual = []
+	# fetch ship builds and additional upgrade information
+	if command_list['build']:
+		if not build_extract_from_cache:
+			# extracting build and upgrade exclusion data from google sheets
+			from googleapiclient.errors import Error
+			from googleapiclient.discovery import build
+			from google_auth_oauthlib.flow import InstalledAppFlow
+			from google.auth.transport.requests import Request
+
+			# silence file_cache_warning
+			logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+
+			logging.info("Attempting to fetch from sheets")
+			SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+			# The ID and range of a sample spreadsheet.
+			SAMPLE_SPREADSHEET_ID = sheet_id
+
+			creds = None
+			# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
+			# created automatically when the authorization flow completes for the first
+			# time.
+			if os.path.exists('cmd_sep.pickle'):
+				with open('cmd_sep.pickle', 'rb') as sep:
+					creds = pickle.load(sep)
+
+			# If there are no (valid) credentials available, let the user log in.
+			try:
+				if not creds or not creds.valid:
+					if creds and creds.expired and creds.refresh_token:
+						creds.refresh(Request())
+					else:
+						flow = InstalledAppFlow.from_client_secrets_file(
+							'credentials.json', SCOPES)
+						creds = flow.run_local_server(port=0)
+					# Save the credentials for the next run
+					with open('cmd_sep.pickle', 'wb') as sep:
+						pickle.dump(creds, sep)
+
+				service = build('sheets', 'v4', credentials=creds)
+
+				# Call the Sheets API
+				sheet = service.spreadsheets()
+				# fetch build
+				result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
+				values = result.get('values', [])
+
+				hex_64bit = lambda val: hex((val + (1 << 64)) % (1 << 64))[2:]
+
+				if not values:
+					logging.warning('No ship build data found.')
+					raise Error
+				else:
+					logging.info(f"Found {len(values)} ship builds")
+					for row in values:
+						build_type = row[1]
+						ship_name = row[0]
+						if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
+							ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
+						raw_id = []
+						try:
+							ship = get_ship_data(ship_name)
+						except NoShipFound:
+							logging.warning(f'Ship {ship_name} is not found')
+							continue
+						raw_id.append(ship['ship_id'])
+						raw_upgrades = (i for i in row[2:8] if len(i) > 0)
+						upgrades = []
+						for u in raw_upgrades:
+							try:
+								upgrade_data = get_upgrade_data(u)
+								uid = upgrade_data['consumable_id']
+								raw_id.append(uid)
+								upgrades.append(uid)
+							except Exception as e:
+								if type(e) is NoUpgradeFound:
+									logging.error(f"Upgrade {u} in build for ship {ship['name']} is not found")
+								pass
+						upgrades = tuple(upgrades)
+
+						raw_skills = (i for i in row[8:-2] if len(i) > 0)
+						skills = []
+						for s in raw_skills:
+							try:
+								skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
+								sid = skill_data['id']
+								raw_id.append(sid)
+								skills.append(sid)
+							except Exception as e:
+								if type(e) is NoSkillFound:
+									logging.error(f"Skill {s} in build for ship {ship['name']} is not found")
+								pass
+						skills = tuple(skills)
+						cmdr = row[-1]
+
+						build_id = hex_64bit(hash(tuple(raw_id)))
+						ship_build[build_id] = {"ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
+
+				if len(ship_build) > 0:
+					with open("ship_builds.json", 'w') as f:
+						logging.info("Creating ship build cache")
+						json.dump(ship_build, f)
+				logging.info("Ship build data fetching done")
+			except Exception as e:
+				extract_from_web_failed = True
+				logging.info(f"Exception raised while fetching builds: {e}")
+				traceback.print_exc()
+
+		if build_extract_from_cache or extract_from_web_failed:
+			if extract_from_web_failed:
+				logging.info("Get ship builds from sheets failed")
+			logging.info('Making ship build dictionary from cache')
+			with open("ship_builds.json") as f:
+				ship_build = json.load(f)
+			logging.info("Ship build complete")
+
+def create_ship_tags():
+	logging.info("Generating ship search tags")
+	SHIP_TAG_LIST = (
+		'slow',
+		'fast',
+		'fast-firing',
+		'stealth',
+		'anti-air',
+	)
+	ship_tags = {
+		SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
+			'min_threshold': 0,
+			'max_threshold': 30,
+			'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
+			'min_threshold': 30,
+			'max_threshold': 99,
+			'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
+			'min_threshold': 0,
+			'max_threshold': 6,
+			'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
+			'min_air_spot_range': 4,
+			'min_sea_spot_range': 6,
+			'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG_AA]: {
+			'min_aa_range': 5.8,
+			'damage_threshold_multiplier': 75,
+			'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
+		},
+	}
+
+	for s in ship_list:
 		try:
-			# some ships have main battery guns
-			fireRate = ship_info[s]['artillery']['shot_delay']
-		except:
-			# some dont *ahemCVsahem*
-			fireRate = math.inf
-		if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-			tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
-		# add tags based on aa
-		if ship_info[s]['anti_aircraft'] is not None:
-			for hull in ship_info[s]['anti_aircraft']:
-				if hull not in ['defense', 'slots']:
-					aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
-					aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
-					if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]['min_aa_range']:
-						if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
-							tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
+			nat = nation_dictionary[ship_list[s]['nation']]
+			tags = []
+			t = ship_list[s]['type']
+			hull_class = hull_classification_converter[t]
+			if t == 'AirCarrier':
+				t = 'Aircraft Carrier'
+			tier = ship_list[s]['tier']  # add tier to search
+			prem = ship_list[s]['is_premium']  # is bote premium
+			ship_speed = ship_info[s]['mobility']['max_speed']
+			# add tags based on speed
+			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
+			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
+			concealment = ship_info[s]['concealment']
+			# add tags based on detection range
+			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
+			# add tags based on gun firerate
+			try:
+				# some ships have main battery guns
+				fireRate = ship_info[s]['artillery']['shot_delay']
+			except:
+				# some dont *ahemCVsahem*
+				fireRate = math.inf
+			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+				tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
+			# add tags based on aa
+			if ship_info[s]['anti_aircraft'] is not None:
+				for hull in ship_info[s]['anti_aircraft']:
+					if hull not in ['defense', 'slots']:
+						aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
+						aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
+						if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]['min_aa_range']:
+							if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
+								tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
 
-		tags += [nat, f't{tier}', t, t + 's', hull_class]
-		ship_list[s]['tags'] = tags
-		if prem:
-			ship_list[s]['tags'] += ['premium']
-	except Exception as e:
-		if type(e) == KeyError:
-			logging.warning(f"Ship Tags Generator: Ship {s} not found")
-		else:
-			logging.warning("%s %s at ship id %s" % (type(e), e, s))
-			traceback.print_exception(type(e), e, None)
+			tags += [nat, f't{tier}', t, t + 's', hull_class]
+			ship_list[s]['tags'] = tags
+			if prem:
+				ship_list[s]['tags'] += ['premium']
+		except Exception as e:
+			if type(e) == KeyError:
+				logging.warning(f"Ship Tags Generator: Ship {s} not found")
+			else:
+				logging.warning("%s %s at ship id %s" % (type(e), e, s))
+				traceback.print_exception(type(e), e, None)
 
-AA_RATING_DESCRIPTOR = {
-	"Non-Existence": [0, 1],
-	"Very Weak": [1, 20],
-	"Weak": [20, 40],
-	"Moderate": [40, 50],
-	"High": [50, 70],
-	"Dangerous": [70, 90],
-	"Very Dangerous": [90, math.inf],
-}
-
-EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
-
-ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
-skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|(?:page (\d{1,2}))|(?:tier (\d{1,2}))')
-equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
-ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|((?:torp(?:s|edo)?) bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|((?:rockets?)|(?:attackers?))|(speed)|((?:aa)|(?:anti-air))|((?:concealment)|(?:dectection))|(consumables?)|(upgrades?))*')
-
-logging.info("Filtering Ships and Categories")
-del ship_list['3749623248']
-
-logging.info("Fetching Maps")
-map_list = wows_encyclopedia.battlearenas()
 # del game_data # free up memory
 logging.info("Preprocessing Done")
-
-good_bot_messages = (
-	'Thank you!',
-	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
-	':3',
-	':heart:',
-)
-
-hottake_strings = (
-	'Akizuki is better than Harekaze at a gun fight.',
-	'DDs are OP.',
-	'CVs need buff',
-	'submarines will be a major game changer',
-	'radar needs to be removed',
-	'BBs should shoot HE',
-	'cruisers need nerfs',
-	'cruisers doesn\'t need heals',
-	'Deadeye should come back with -50% despersion.',
-	'we need more hybrid ships.',
-	'the game needs more smoke/radar cruisers.',
-	'DD should have citadels',
-	'RTS CVs should return.',
-	'WG should add gold ammo',
-	'Kam is the superior CV player',
-	'interceptors are more useful than patrol fighters',
-)
 
 
 def get_ship_data(ship: str) -> dict:
@@ -1079,11 +1154,6 @@ def get_ship_data(ship: str) -> dict:
 
 		Arguments:
 			ship : Ship name of build to be returned
-			battle_type : (string), optional.
-				type of environment should this build be used in
-				acceptable values:
-					casual
-					competitive
 
 		Returns:
 			object: dict containing ship information
@@ -1106,6 +1176,8 @@ def get_ship_data(ship: str) -> dict:
 				break
 		if ship_found:
 			return ship_list[i]
+		else:
+			raise NoShipFound
 	except Exception as e:
 		raise e
 
@@ -1177,7 +1249,7 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 	return None
 
 
-def get_skill_data(tree: str, skill: str) -> tuple:
+def get_skill_data(tree: str, skill: str) -> dict:
 	"""
 		returns information of a requested commander skill
 
@@ -1215,22 +1287,26 @@ def get_skill_data(tree: str, skill: str) -> tuple:
 			# looking for skill based on full name
 			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
 			for f_s in filtered_skill_list:
-				if filtered_skill_list[f_s]['name'].lower() == skill:
-					s = filtered_skill_list[f_s].copy()
-					if s['tree'] == 'AirCarrier':
-						s['tree'] = "Aircraft Carrier"
-					return s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
-			# looking for skill based on abbreviation
-			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
-			for f_s in filtered_skill_list:
-				if filtered_skill_list[f_s]['abbr'].lower() == skill:
-					s = filtered_skill_list[f_s].copy()
-					if s['tree'] == 'AirCarrier':
-						s['tree'] = "Aircraft Carrier"
-					return s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
-			return None
+				for lookup_type in ['name', 'abbr']:
+					if filtered_skill_list[f_s]['name'].lower() == skill:
+						s = filtered_skill_list[f_s].copy()
+						if s['tree'] == 'AirCarrier':
+							s['tree'] = "Aircraft Carrier"
+						return s #s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
+			raise NoSkillFound
 
 	except Exception as e:
+		if skill == "*":
+			return {
+				'category': 'Any',
+				'description': 'Any skill',
+				'effect': '',
+				'id': -1,
+				'name': 'Any',
+				'tree': 'Any',
+				'x': -1,
+				'y': -1,
+			}
 		# oops, probably not found
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
@@ -1283,6 +1359,20 @@ def get_upgrade_data(upgrade: str) -> dict:
 					break
 		return upgrade_list[i]
 	except Exception as e:
+		if upgrade == '*':
+			return {
+				'additional_restriction': '',
+				'consumable_id': -1,
+				'description': 'Any',
+				'image': '',
+				'is_special': '',
+				'local_image': '',
+				'name': 'Any',
+				'nation_restriction': [],
+				'price_credit': 0,
+				'price_gold': 0,
+				'profile': {}
+			}
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
@@ -1425,7 +1515,7 @@ async def whoami(context):
 @mackbot.command()
 async def goodbot(context):
 	# good bot
-	r = randint(len(good_bot_messages))
+	r = randint(0, len(good_bot_messages) - 1)
 	logging.info(f"send reply message for goodbot")
 	await context.send(good_bot_messages[r])  # block until message is sent
 
@@ -1468,10 +1558,12 @@ async def build(context, *arg):
 				is_prem = output['is_premium']
 
 				# find ship build
-				s_build = ship_build[battle_type][name.lower()]
+				s_build = ship_build[[b for b in ship_build if ship_build[b]['ship'] == name.lower()][0]]
 				upgrades = s_build['upgrades']
 				skills = s_build['skills']
 				cmdr = s_build['cmdr']
+
+				print(upgrades, skills, cmdr)
 
 				logging.info(f"returning build information for <{name}> in embeded format")
 
@@ -1496,12 +1588,12 @@ async def build(context, *arg):
 						i = 1
 						for upgrade in upgrades:
 							upgrade_name = "[Missing]"
-							if upgrade == '*':
+							if upgrade == -1:
 								# any thing
 								upgrade_name = "Any"
 							else:
 								try:  # ew, nested try/catch
-									upgrade_name = get_upgrade_data(upgrade)['name']
+									upgrade_name = upgrade_list[str(upgrade)]['name']
 								except Exception as e:
 									logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 									error_value_found = True
@@ -1515,10 +1607,13 @@ async def build(context, *arg):
 					if len(skills) > 0:
 						m = ""
 						i = 1
-						for skill in skills:
+						for s in skills:
 							skill_name = "[Missing]"
 							try:  # ew, nested try/catch
-								skill_name, _, _, _, row, tier, _ = get_skill_data("aircarrier" if ship_type.lower() == "aircraft carrier" else ship_type.lower(), skill)
+								skill = skill_list[s]
+								skill_name = skill['name']
+								row = skill['x'] + 1
+								tier = skill['y'] + 1
 							except Exception as e:
 								logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 								error_value_found = True
@@ -1549,10 +1644,10 @@ async def build(context, *arg):
 				else:
 					m = "mackbot does not know any build for this ship :("
 
-					if len(u) > 0 and len(c) > 0 and len(s) > 0:
-						m += '\n\n'
-						m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
-						m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
+					# if len(u) > 0 and len(c) > 0 and len(s) > 0:
+					# 	m += '\n\n'
+					# 	m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
+					# 	m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
 					embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
 			error_footer_message = ""
 			if error_value_found:
@@ -1711,7 +1806,7 @@ async def ship(context, *arg):
 							m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
 						if hull['atba_barrels'] > 0:
 							m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
-						if hull['planes_amount'] > 0 and ship_type == "Aircraft Carrier":
+						if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
 							m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
 						# if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
 						# m += '\n'
@@ -2077,13 +2172,21 @@ async def skill(context, *arg):
 	if len(arg) == 0:
 		await context.send_help("skill")
 	else:
+		skill = ''
 		try:
 			ship_class = arg[0].lower()
 			skill = ''.join([i + ' ' for i in arg[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 
 			logging.info(f'sending message for skill <{skill}>')
 			async with context.typing():
-				name, tree, description, effect, column, tier, category = get_skill_data(ship_class, skill)
+				skill_data = get_skill_data(ship_class, skill)
+				name = skill_data['name']
+				tree = skill_data['tree']
+				description = skill_data['description']
+				effect = skill_data['effect']
+				column = skill_data['column'] + 1
+				tier = skill_data['tier']
+				category = skill_data['category']
 				embed = discord.Embed(title=f"{name}", description="")
 				# embed.set_thumbnail(url=icon)
 				embed.description += f"**{tree} Skill**\n"
@@ -2497,7 +2600,7 @@ async def upgrade(context, *arg):
 				if len(m) > 0:
 					embed.add_field(name="Additonal Requirements", value=m)
 				else:
-					logging.log("Additional requirements field empty")
+					logging.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 			await context.send(embed=embed)
@@ -2623,6 +2726,7 @@ async def doubloons(context, *arg):
 		await context.send_help("doubloons")
 	else:
 		# user provided an argument
+		doub = 0
 		try:
 			# message parse
 			doub = arg[0]  # message_string[message_string.rfind('-')+1:]
@@ -2679,7 +2783,7 @@ async def code(context, arg):
 async def hottake(context):
 	logging.info("send a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
-	if randint(0, 1) == 0:
+	if randint(0, 9) == 0:
 		await purpose(context)
 
 @mackbot.command()
@@ -2693,6 +2797,19 @@ async def purpose(context):
 	await context.send("Oh my god...")
 
 if __name__ == '__main__':
+	# pre processing botes
+	load_game_params()
+	load_skill_list()
+	load_module_list()
+	load_cmdr_list()
+	load_ship_list()
+	load_upgrade_list()
+	load_ship_params()
+	update_ship_modules()
+	create_upgrade_abbr()
+	load_ship_builds()
+	create_ship_tags()
+
 	# post processing for bot commands
 	logging.info("Post-processing bot commands")
 	with open("help_command_strings.json") as f:
