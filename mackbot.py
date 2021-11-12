@@ -1639,7 +1639,8 @@ async def build(context, *arg):
 						embed.add_field(name='Suggested Cmdr.', value=m)
 					else:
 						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-					footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
+					footer_message += "mackbot ship build should be used as a base for your builds. Consult a friend to see if commander skills or upgrades selection is mackbot ship build is right for you."
+					# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 					# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 				else:
 					m = "mackbot does not know any build for this ship :("
@@ -2145,7 +2146,8 @@ async def ship(context, *arg):
 				footer_message = "Parameters does not take into account upgrades and commander skills\n"
 				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
 				footer_message += f"For {ship} builds, use [mackbot build {ship}]\n"
-				footer_message += f"*Test ship is subject to change before her release\n" if is_test_ship else ""
+				if is_test_ship:
+					footer_message += f"*Test ship is subject to change before her release\n"
 				embed.set_footer(text=footer_message)
 			await context.send(embed=embed)
 		except Exception as e:
