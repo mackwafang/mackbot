@@ -1181,6 +1181,23 @@ def get_ship_data(ship: str) -> dict:
 	except Exception as e:
 		raise e
 
+def get_ship_build_by_name(ship: str) -> dict:
+	"""
+	Returns a ship build given the ship name
+
+	Args:
+		ship: ship name
+
+	Returns:
+		object: dict
+
+	Raises:
+		NoBuildFound exception
+	"""
+	try:
+		return ship_build[[b for b in ship_build if ship_build[b]['ship'] == ship.lower()][0]]
+	except IndexError:
+		raise NoBuildFound
 
 def get_ship_param(ship: str) -> dict:
 	"""
@@ -1545,6 +1562,7 @@ async def build(context, *arg):
 			battle_type = 'casual'
 			ship = ''.join([i + ' ' for i in arg])[:-1]  # grab ship name
 		# get text-based format build
+		name, images = "", None
 		try:
 			async with context.typing():
 				output = get_ship_data(ship)
@@ -1558,17 +1576,15 @@ async def build(context, *arg):
 				is_prem = output['is_premium']
 
 				# find ship build
-				s_build = ship_build[[b for b in ship_build if ship_build[b]['ship'] == name.lower()][0]]
+				s_build = get_ship_build_by_name(name)
 				upgrades = s_build['upgrades']
 				skills = s_build['skills']
 				cmdr = s_build['cmdr']
 
-				print(upgrades, skills, cmdr)
-
-				logging.info(f"returning build information for <{name}> in embeded format")
-
 				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
+
+				logging.info(f"returning build information for <{name}> in embeded format")
 				# get server emoji
 				if context.guild is not None:
 					server_emojis = context.guild.emojis
@@ -1644,11 +1660,6 @@ async def build(context, *arg):
 					# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 				else:
 					m = "mackbot does not know any build for this ship :("
-
-					# if len(u) > 0 and len(c) > 0 and len(s) > 0:
-					# 	m += '\n\n'
-					# 	m += f"But, There is a {'casual' if battle_type == 'competitive' else 'competitive'} build for this ship!\n"
-					# 	m += f"Use [**mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}**]"
 					embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
 			error_footer_message = ""
 			if error_value_found:
@@ -1656,15 +1667,23 @@ async def build(context, *arg):
 			embed.set_footer(text=error_footer_message + footer_message)
 			await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}", e)
-			# error, ship name not understood
-			ship_name_list = [ship_list[i]['name'] for i in ship_list]
-			closest_match = difflib.get_close_matches(ship, ship_name_list)
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+			if type(e) == NoShipFound:
+				logging.info(f"Exception {type(e)}", e)
+				# error, ship name not understood
+				ship_name_list = [ship_list[i]['name'] for i in ship_list]
+				closest_match = difflib.get_close_matches(ship, ship_name_list)
+				closest_match_string = ""
+				if len(closest_match) > 0:
+					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
 
-			await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+			if type(e) == NoBuildFound:
+				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+				embed.set_thumbnail(url=images['small'])
+				m = "mackbot does not know any build for this ship :("
+				embed.add_field(name=f'No known build', value=m, inline=False)
+
+				await context.send(embed=embed)
 
 
 @mackbot.command(help="")
