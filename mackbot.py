@@ -128,7 +128,8 @@ command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
 
 # get weegee's wows encyclopedia
-wows_encyclopedia = wargaming.WoWS(wg_token, region='na', language='en').encyclopedia
+WG = wargaming.WoWS(wg_token, region='na', language='en')
+wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 
 game_data = {}
@@ -307,7 +308,6 @@ def load_skill_list():
 			skill_list[skill]['id'] = skill
 	except FileNotFoundError:
 		logging.error("skill_list.json is not found")
-
 
 def load_module_list():
 	global module_list
@@ -1144,10 +1144,6 @@ def create_ship_tags():
 				logging.warning("%s %s at ship id %s" % (type(e), e, s))
 				traceback.print_exception(type(e), e, None)
 
-# del game_data # free up memory
-logging.info("Preprocessing Done")
-
-
 def get_ship_data(ship: str) -> dict:
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
@@ -1181,7 +1177,7 @@ def get_ship_data(ship: str) -> dict:
 	except Exception as e:
 		raise e
 
-def get_ship_build_by_name(ship: str) -> dict:
+def get_ship_builds_by_name(ship: str) -> list:
 	"""
 	Returns a ship build given the ship name
 
@@ -1189,13 +1185,13 @@ def get_ship_build_by_name(ship: str) -> dict:
 		ship: ship name
 
 	Returns:
-		object: dict
+		object: list of build id for ship with name "ship"
 
 	Raises:
 		NoBuildFound exception
 	"""
 	try:
-		return ship_build[[b for b in ship_build if ship_build[b]['ship'] == ship.lower()][0]]
+		return [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
 	except IndexError:
 		raise NoBuildFound
 
@@ -1226,7 +1222,6 @@ def get_ship_param(ship: str) -> dict:
 					raise IndexError("Ship not found in ship_params")
 	except Exception as e:
 		raise e
-
 
 def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 	"""
@@ -1264,7 +1259,6 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 		if upgrade['ship_restriction']['name'].lower() == ship:
 			return upgrade
 	return None
-
 
 def get_skill_data(tree: str, skill: str) -> dict:
 	"""
@@ -1327,7 +1321,6 @@ def get_skill_data(tree: str, skill: str) -> dict:
 		# oops, probably not found
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
-
 
 def get_upgrade_data(upgrade: str) -> dict:
 	"""
@@ -1393,7 +1386,6 @@ def get_upgrade_data(upgrade: str) -> dict:
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-
 def get_commander_data(cmdr: str) -> tuple:
 	"""
 		returns information of a requested warship upgrade
@@ -1431,7 +1423,6 @@ def get_commander_data(cmdr: str) -> tuple:
 	except Exception as e:
 		logging.error(f"Exception {type(e)}", e)
 		raise e
-
 
 def get_flag_data(flag: str) -> tuple:
 	"""
@@ -1476,7 +1467,6 @@ def get_flag_data(flag: str) -> tuple:
 		logging.info(f"Exception {type(e)}: ", e)
 		raise e
 
-
 def get_map_data(map: str) -> tuple:
 	"""
 		returns informations of a requested warship upgrade
@@ -1507,12 +1497,21 @@ def get_map_data(map: str) -> tuple:
 		logging.info("Exception {type(e): ", e)
 		raise e
 
+async def correct_user_misspell(context, command, args):
+	author = context.author
+	def check(message):
+		return author == message.author and message.content.lower() in ['y', 'yes']
+
+	message = await mackbot.wait_for('message', timeout=10, check=check)
+	try:
+		await globals()['command'](context, args)
+	except IndexError:
+		pass
 
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
 	logging.info("Logged on")
-
 
 @mackbot.event
 async def on_command(context):
@@ -1521,13 +1520,11 @@ async def on_command(context):
 		from_server = context.guild if context.guild else "DM"
 		logging.info("User {} via {} queried {}".format(context.author, from_server, query))
 
-
 @mackbot.command()
 async def whoami(context):
 	async with context.typing():
 		m = "I'm a bot made by mackwafang#2071 to help players with clan build. I also includes the WoWS Encyclopedia!"
 	await context.send(m)
-
 
 @mackbot.command()
 async def goodbot(context):
@@ -1536,31 +1533,29 @@ async def goodbot(context):
 	logging.info(f"send reply message for goodbot")
 	await context.send(good_bot_messages[r])  # block until message is sent
 
-
 @mackbot.command()
 async def feedback(context):
 	logging.info("send feedback link")
 	await context.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
-
 @mackbot.command()
-async def build(context, *arg):
+async def build(context, *args):
 	# get voted ship build
 	# message parse
 	ship_found = False
-	if len(arg) == 0:
+	if len(args) == 0:
 		await context.send_help("ship")
 	else:
 
-		battle_type = arg[0].lower()  # assuming build battle type is provided
+		battle_type = args[0].lower()  # assuming build battle type is provided
 		additional_comp_keywords = ['comp']
 		if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
 			# 2nd argument provided is a known argument
 			battle_type = 'competitive'
-			ship = ''.join([i + ' ' for i in arg[1:]])[:-1]  # grab ship name
+			ship = ''.join([i + ' ' for i in args[1:]])[:-1]  # grab ship name
 		else:
 			battle_type = 'casual'
-			ship = ''.join([i + ' ' for i in arg])[:-1]  # grab ship name
+			ship = ''.join([i + ' ' for i in args])[:-1]  # grab ship name
 		# get text-based format build
 		name, images = "", None
 		try:
@@ -1576,10 +1571,11 @@ async def build(context, *arg):
 				is_prem = output['is_premium']
 
 				# find ship build
-				s_build = get_ship_build_by_name(name)
-				upgrades = s_build['upgrades']
-				skills = s_build['skills']
-				cmdr = s_build['cmdr']
+				build_ids = get_ship_builds_by_name(name)
+				build = ship_build[build_ids[0]]
+				upgrades = build['upgrades']
+				skills = build['skills']
+				cmdr = build['cmdr']
 
 				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
@@ -1655,7 +1651,7 @@ async def build(context, *arg):
 						embed.add_field(name='Suggested Cmdr.', value=m)
 					else:
 						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-					footer_message += "mackbot ship build should be used as a base for your builds. Consult a friend to see if commander skills or upgrades selection is mackbot ship build is right for you."
+					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if commander skills or upgrades selection if mackbot ship build is right for you."
 					# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 					# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 				else:
@@ -1685,9 +1681,8 @@ async def build(context, *arg):
 
 				await context.send(embed=embed)
 
-
 @mackbot.command(help="")
-async def ship(context, *arg):
+async def ship(context, *args):
 	"""
 		Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 		
@@ -1700,10 +1695,10 @@ async def ship(context, *arg):
 	"""
 
 	# message parse
-	if len(arg) == 0:
+	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		arg = ''.join([i + ' ' for i in arg])  # fuse back together to check filter
+		arg = ''.join([i + ' ' for i in args])  # fuse back together to check filter
 		has_filter = '(' in arg and ')' in arg  # find a better check
 		param_filter = ''
 		if has_filter:
@@ -2179,24 +2174,24 @@ async def ship(context, *arg):
 				closest_match_string = ""
 				if len(closest_match) > 0:
 					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+					await correct_user_misspell(context, 'ship', closest_match)
 
 				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
 			else:
 				# we dun goofed
 				await context.send(f"An internal error has occured.")
 
-
 @mackbot.command()
-async def skill(context, *arg):
+async def skill(context, *args):
 	# get information on requested skill
 	# message parse
-	if len(arg) == 0:
+	if len(args) == 0:
 		await context.send_help("skill")
 	else:
 		skill = ''
 		try:
-			ship_class = arg[0].lower()
-			skill = ''.join([i + ' ' for i in arg[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
+			ship_class = args[0].lower()
+			skill = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 
 			logging.info(f'sending message for skill <{skill}>')
 			async with context.typing():
@@ -2228,13 +2223,11 @@ async def skill(context, *arg):
 
 			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
 
-
 @mackbot.group(pass_context=True, invoke_without_command=True)
 async def list(context, *args):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'list')
-
 
 @list.command()
 async def skills(context, *args):
@@ -2290,7 +2283,6 @@ async def skills(context, *args):
 	embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
 
 	await context.send(embed=embed)
-
 
 @list.command()
 async def upgrades(context, *args):
@@ -2366,7 +2358,6 @@ async def upgrades(context, *args):
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
 
-
 @list.command()
 async def maps(context, *args):
 	# list all maps
@@ -2397,7 +2388,6 @@ async def maps(context, *args):
 		else:
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
-
 
 @list.command()
 async def ships(context, *args):
@@ -2501,14 +2491,13 @@ async def ships(context, *args):
 		embed.description = "**No ships found**"
 	await context.send(embed=embed)
 
-
 @mackbot.command()
-async def upgrade(context, *arg):
+async def upgrade(context, *args):
 	# get information on requested upgrade
 	upgrade_found = False
 	# message parse
-	upgrade = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(arg) == 0:
+	upgrade = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	if len(args) == 0:
 		# argument is empty, send help message
 		await context.send_help("upgrade")
 	else:
@@ -2636,13 +2625,24 @@ async def upgrade(context, *arg):
 
 			await context.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
 
+@mackbot.command()
+async def player(context, *args):
+	user_input = args[0]
+	player_id_results = WG.account.list(search=user_input, type='exact', language='en')
+	player_id = player_id_results[0]['account_id'] if len(player_id_results) > 0 else ""
+
+	embed = discord.Embed(title=f"Search result for player {user_input}")
+	if player_id:
+		player_name = player_id_results[0]['nickname']
+	else:
+		await context.send(embed=embed)
 
 @mackbot.command()
-async def commander(context, *arg):
+async def commander(context, *args):
 	# get information on requested commander
 	# message parse
-	cmdr = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(arg) == 0:
+	cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	if len(args) == 0:
 		await context.send_help("commander")
 	else:
 		try:
@@ -2709,13 +2709,12 @@ async def commander(context, *arg):
 
 			await context.send(f"Commander **{cmdr}** is not understood.")
 
-
 @mackbot.command()
-async def map(context, *arg):
+async def map(context, *args):
 	# get information on requested map
 	# message parse
-	map = ''.join([i + ' ' for i in arg])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(arg) == 0:
+	map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	if len(args) == 0:
 		await context.send_help("map")
 	else:
 		try:
@@ -2739,22 +2738,21 @@ async def map(context, *arg):
 
 			await context.send(f"Map **{map}** is not understood.")
 
-
 @mackbot.command()
-async def doubloons(context, *arg):
+async def doubloons(context, *args):
 	# get conversion between doubloons and usd and vice versa
-	if len(arg) == 0:
+	if len(args) == 0:
 		await context.send_help("doubloons")
 	else:
 		# user provided an argument
 		doub = 0
 		try:
 			# message parse
-			doub = arg[0]  # message_string[message_string.rfind('-')+1:]
-			if len(arg) == 2:
+			doub = args[0]  # message_string[message_string.rfind('-')+1:]
+			if len(args) == 2:
 				# check reverse conversion
 				# dollars to doubloons
-				if arg[1].lower() in ['dollars', '$']:
+				if args[1].lower() in ['dollars', '$']:
 					dollar = float(doub)
 
 					def dollar_formula(x):
@@ -2789,7 +2787,6 @@ async def doubloons(context, *arg):
 				await context.send(f"Value **{doub}** is not a number.")
 			else:
 				await context.send(f"An internal error has occured.")
-
 
 @mackbot.command()
 async def code(context, arg):

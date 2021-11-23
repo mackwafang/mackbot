@@ -130,11 +130,18 @@
 		]
 	},
 	"hottake": {
-	"help": "",
+		"help": "",
 		"brief": "Give a WoWS hot take",
 		"usage": "",
 		"description": [
 			"Give a WoWS hot take"
+		]
+	},
+	"player": {
+		"help": "",
+		"brief": "",
+		"usage": "",
+		"description": [
 		]
 	}
 }
