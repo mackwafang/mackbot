@@ -3,6 +3,8 @@ import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, tr
 from itertools import count
 from random import randint
 from discord.ext import commands
+from datetime import date
+from string import ascii_letters
 
 
 class NoShipFound(Exception):
@@ -2629,12 +2631,92 @@ async def upgrade(context, *args):
 async def player(context, *args):
 	user_input = args[0]
 	player_id_results = WG.account.list(search=user_input, type='exact', language='en')
-	player_id = player_id_results[0]['account_id'] if len(player_id_results) > 0 else ""
+	player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
+	battle_type = 'pvp'
+	battle_type_string = 'Random'
+	try:
+		# convert user specified specific stat to wg values
+		battle_type = {
+			"solo": "pvp_solo",
+			"div2": "div2",
+			"div3": "div3",
+		}[args[1]]
 
-	embed = discord.Embed(title=f"Search result for player {user_input}")
-	if player_id:
-		player_name = player_id_results[0]['nickname']
-	else:
+		battle_type_string = {
+			"pvp_solo": "Solo Random",
+			"div2": "2-man Division",
+			"div3": "3-man Division",
+		}[battle_type]
+	except IndexError:
+		pass
+	async with context.typing():
+		embed = discord.Embed(title=f"Search result for player {user_input}")
+		if player_id:
+			player_name = player_id_results[0]['nickname']
+			if battle_type == 'pvp':
+				player_general_stats = WG.account.info(account_id=player_id, language='en')[player_id]
+			else:
+				player_general_stats = WG.account.info(account_id=player_id, extra="statistics."+battle_type, language='en')[player_id]
+			player_account_hidden = player_general_stats['hidden_profile']
+
+			if player_account_hidden:
+				# account hidden, don't show any more status
+				embed.add_field(name='Information not available', value="Account hidden", inline=False)
+			else:
+				# account not hidden, show info
+				player_created_at_string = date.fromtimestamp(player_general_stats['created_at']).strftime("%b %d, %Y")
+				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
+				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
+				player_last_battle_months = int(player_last_battle_days // 30)
+
+				m = f"**Created at**: {player_created_at_string}\n"
+				m += f"**Last battle**: {player_last_battle_string} "
+				if player_last_battle_months > 0:
+					m += f"({player_last_battle_months} months {player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+				else:
+					m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+				embed.add_field(name='__**Account**__', value=m, inline=False)
+
+				player_battle_stat = player_general_stats['statistics'][battle_type]
+				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
+				player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
+				player_stat_max_kills = player_battle_stat['max_frags_battle']
+				try:
+					player_stat_max_kills_ship = ship_list[str(player_battle_stat['max_frags_ship_id'])]['name']
+				except KeyError:
+					# some ships are not available in wg api
+					data = game_data[[i for i in game_data if game_data[i]['id'] == player_battle_stat['max_frags_ship_id']][0]]
+					ship_name = data['name']
+					ship_name = ship_name.replace(str(data['index']), '')[1:]
+					player_stat_max_kills_ship = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
+					player_stat_max_kills_ship = player_stat_max_kills_ship.replace("_", " ")
+
+				player_stat_max_damage = player_battle_stat['max_damage_dealt']
+				try:
+					player_stat_max_damage_ship = ship_list[str(player_battle_stat['max_damage_dealt_ship_id'])]['name']
+				except KeyError:
+					# some ships are not available in wg api
+					data = game_data[[i for i in game_data if game_data[i]['id'] == player_battle_stat['max_damage_dealt_ship_id']][0]]
+					ship_name = data['name']
+					ship_name = ship_name.replace(str(data['index']), '')[1:]
+					player_stat_max_damage_ship = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
+					player_stat_max_damage_ship = player_stat_max_damage_ship.replace("_", " ")
+
+				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
+				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
+				player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
+
+				m = f"**{player_battle_stat['battles']:,} battles**\n"
+				m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
+				m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
+				m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
+				m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
+				m += f"**Average XP**: {player_stat_avg_xp:0.1f} XP\n"
+				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with **{player_stat_max_kills_ship}**\n"
+				m += f"**Highest Damage**: {player_stat_max_damage} with **{player_stat_max_damage_ship}**\n"
+				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=False)
+		else:
+			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {user_input}", inline=False)
 		await context.send(embed=embed)
 
 @mackbot.command()
