@@ -5,6 +5,7 @@ from random import randint
 from discord.ext import commands
 from datetime import date
 from string import ascii_letters
+from pprint import pprint
 
 
 class NoShipFound(Exception):
@@ -187,6 +188,7 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
+player_arg_filter_regex = re.compile('(solo|div2|div3)|(ship (.*))|(ships (.*))')
 
 good_bot_messages = (
 	'Thank you!',
@@ -1510,6 +1512,29 @@ async def correct_user_misspell(context, command, args):
 	except IndexError:
 		pass
 
+def get_ship_data_by_id(ship_id: int) -> dict:
+	ship_data = {
+		"name": "",
+		"tier": -1,
+		"nation": ""
+	}
+	try:
+		ship_data['name'] = ship_list[str(ship_id)]['name']
+		ship_data['tier'] = ship_list[str(ship_id)]['tier']
+		ship_data['nation'] = ship_list[str(ship_id)]['nation']
+	except KeyError:
+		# some ships are not available in wg api
+		data = game_data[[i for i in game_data if game_data[i]['id'] == ship_id][0]]
+		ship_name = data['name']
+		ship_name = ship_name.replace(str(data['index']), '')[1:]
+		ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
+		ship_name = ship_name.replace("_", " ")
+
+		ship_data['name'] = ship_name + " (old)"
+		ship_data['tier'] = data['level']
+		ship_data['nation'] = data['navalFlag']
+	return ship_data
+
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -2226,12 +2251,12 @@ async def skill(context, *args):
 			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
 
 @mackbot.group(pass_context=True, invoke_without_command=True)
-async def list(context, *args):
+async def show(context, *args):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'list')
 
-@list.command()
+@show.command()
 async def skills(context, *args):
 	# list all skills
 	embed = discord.Embed(name="Commander Skill")
@@ -2286,7 +2311,7 @@ async def skills(context, *args):
 
 	await context.send(embed=embed)
 
-@list.command()
+@show.command()
 async def upgrades(context, *args):
 	# list upgrades
 	embed = None
@@ -2360,7 +2385,7 @@ async def upgrades(context, *args):
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
 
-@list.command()
+@show.command()
 async def maps(context, *args):
 	# list all maps
 	try:
@@ -2391,7 +2416,7 @@ async def maps(context, *args):
 			logging.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
 
-@list.command()
+@show.command()
 async def ships(context, *args):
 	if context.guild is not None:
 		server_emojis = context.guild.emojis
@@ -2634,21 +2659,32 @@ async def player(context, *args):
 	player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 	battle_type = 'pvp'
 	battle_type_string = 'Random'
+
+	# grab optional args
+	optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
+	battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
+	ship_filter = [option[2] for option in optional_args if len(option[2])] # get filter type by ship name
+	ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
+	ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
+	ship_tier = ''.join([i[2] for i in ship_type_filter])
+	ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
 	try:
 		# convert user specified specific stat to wg values
 		battle_type = {
 			"solo": "pvp_solo",
-			"div2": "div2",
-			"div3": "div3",
-		}[args[1]]
+			"div2": "pvp_div2",
+			"div3": "pvp_div3",
+		}[battle_type[0]]
 
 		battle_type_string = {
 			"pvp_solo": "Solo Random",
-			"div2": "2-man Division",
-			"div3": "3-man Division",
+			"pvp_div2": "2-man Division",
+			"pvp_div3": "3-man Division",
 		}[battle_type]
 	except IndexError:
+		battle_type = 'pvp'
 		pass
+
 	async with context.typing():
 		embed = discord.Embed(title=f"Search result for player {user_input}")
 		if player_id:
@@ -2668,6 +2704,12 @@ async def player(context, *args):
 				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 				player_last_battle_months = int(player_last_battle_days // 30)
+				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]['clan_id']
+				player_clan = None
+				player_clan_str = ""
+				if player_clan_id is not None:
+					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
 
 				m = f"**Created at**: {player_created_at_string}\n"
 				m += f"**Last battle**: {player_last_battle_string} "
@@ -2675,32 +2717,16 @@ async def player(context, *args):
 					m += f"({player_last_battle_months} months {player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
 					m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+				m += f"**Clan**: {player_clan_str}"
 				embed.add_field(name='__**Account**__', value=m, inline=False)
 
 				player_battle_stat = player_general_stats['statistics'][battle_type]
 				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
 				player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
 				player_stat_max_kills = player_battle_stat['max_frags_battle']
-				try:
-					player_stat_max_kills_ship = ship_list[str(player_battle_stat['max_frags_ship_id'])]['name']
-				except KeyError:
-					# some ships are not available in wg api
-					data = game_data[[i for i in game_data if game_data[i]['id'] == player_battle_stat['max_frags_ship_id']][0]]
-					ship_name = data['name']
-					ship_name = ship_name.replace(str(data['index']), '')[1:]
-					player_stat_max_kills_ship = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
-					player_stat_max_kills_ship = player_stat_max_kills_ship.replace("_", " ")
-
+				player_stat_max_kills_ship = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])['name']
 				player_stat_max_damage = player_battle_stat['max_damage_dealt']
-				try:
-					player_stat_max_damage_ship = ship_list[str(player_battle_stat['max_damage_dealt_ship_id'])]['name']
-				except KeyError:
-					# some ships are not available in wg api
-					data = game_data[[i for i in game_data if game_data[i]['id'] == player_battle_stat['max_damage_dealt_ship_id']][0]]
-					ship_name = data['name']
-					ship_name = ship_name.replace(str(data['index']), '')[1:]
-					player_stat_max_damage_ship = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
-					player_stat_max_damage_ship = player_stat_max_damage_ship.replace("_", " ")
+				player_stat_max_damage_ship = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])['name']
 
 				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
@@ -2714,10 +2740,44 @@ async def player(context, *args):
 				m += f"**Average XP**: {player_stat_avg_xp:0.1f} XP\n"
 				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with **{player_stat_max_kills_ship}**\n"
 				m += f"**Highest Damage**: {player_stat_max_damage} with **{player_stat_max_damage_ship}**\n"
-				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=False)
+				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
+
+				# add listing for player owned ships and of requested battle type
+				player_ships = WG.ships.stats(account_id=player_id, language='en', extra=battle_type)[player_id]
+				player_ship_stats = {}
+
+				# calculate stats for each ships
+				for s in player_ships:
+					ship_id = s['ship_id']
+					ship_stat = s[battle_type]
+					ship_name, ship_tier, ship_nation = get_ship_data_by_id(ship_id).values()
+					stats = {
+						"name"      : ship_name,
+						"tier"      : ship_tier,
+						"nation"    : ship_nation,
+						"battles"   : ship_stat['battles'],
+						"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
+						"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
+						"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
+						"avg_kills" : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
+						"avg_xp"    : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
+						"max_kills" : ship_stat['max_frags_battle'],
+						"max_dmg"   : ship_stat['max_damage_dealt']
+					}
+					player_ship_stats[ship_id] = stats.copy()
+				# sort player owned ships by battle count
+				player_ship_stats = {k: v for k, v in sorted(player_ship_stats.items(), key=lambda x: x[1]['battles'], reverse=True)}
+				m = ""
+				for i in range(10):
+					s = player_ship_stats[list(player_ship_stats)[i]]
+					m += f"**{s['name']:}** ({s['battles']} battles)\n"
+
+				embed.add_field(name=f"__Top 10 {battle_type_string} Ship (by battles)__", value=m, inline=True)
+
+				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 		else:
 			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {user_input}", inline=False)
-		await context.send(embed=embed)
+	await context.send(embed=embed)
 
 @mackbot.command()
 async def commander(context, *args):

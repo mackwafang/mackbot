@@ -31,52 +31,52 @@
 			"ship_type: Can take full ship type name or abbreviation (e.g. \"bb\" or \"battleship\")"
 		]
 	},
-	"list": {
+	"show": {
 		"help": "",
-		"brief": "List all items of a specifed category",
+		"brief": "show all items of a specifed category",
 		"usage": "[category] [arguments]",
 		"description": [
-			"List all items of a specifed category.",
-			"Listings may returns in multiple pages. Add \"page x\" to access other pages."
+			"show all items of a specifed category.",
+			"showings may returns in multiple pages. Add \"page x\" to access other pages."
 		]
 	},
-	"list skills": {
+	"show skills": {
 		"help": "",
-		"brief": "List all commander skills",
+		"brief": "show all commander skills",
 		"usage": "[filters]",
 		"description": [
-			"List all commander skills.",
+			"show all commander skills.",
 			"Filter may include tier or ship types.",
 			"",
 			"Example:",
-			"\tmackbot list skills tier 1 (Lists all commander skills that cost 1 point)",
-			"\tmackbot list skills bb (Lists all battleship commander skills)"
+			"\tmackbot show skills tier 1 (shows all commander skills that cost 1 point)",
+			"\tmackbot show skills bb (shows all battleship commander skills)"
 		]
 	},
-	"list upgrades": {
+	"show upgrades": {
 		"help": "",
-		"brief": "List all ship upgrades",
+		"brief": "show all ship upgrades",
 		"usage": "[filter]",
 		"description": [
-			"List all ship upgrades.",
+			"show all ship upgrades.",
 			"Filter may include tier that upgrades appear in or ship types.",
 			"",
 			"Example:",
-			"\tmackbot list upgrades tier 4 (List all upgrades that is available at tier 4"
+			"\tmackbot show upgrades tier 4 (show all upgrades that is available at tier 4"
 		]
 	},
-	"list maps": {
+	"show maps": {
 		"help": "",
-		"brief": "List all maps",
+		"brief": "show all maps",
 		"usage": "[page]",
-		"description": ["List all maps"]
+		"description": ["show all maps"]
 	},
-	"list ships": {
+	"show ships": {
 		"help": "",
-		"brief": "List all ships",
+		"brief": "show all ships",
 		"usage": "[filters]",
 		"description": [
-			"List all available warships.",
+			"show all available warships.",
 			"Filter may include ship type, tier, and/or nation"
 		]
 	},
@@ -139,9 +139,15 @@
 	},
 	"player": {
 		"help": "",
-		"brief": "",
-		"usage": "",
+		"brief": "Provide general information about a player",
+		"usage": "player [battle_type]",
 		"description": [
+			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
+			"[battle_type] - Optional: Acceptable values: solo, div2, div3",
+			"",
+			"Usage example:",
+			"\tmackbot player your_username_here (Get information about your account)",
+			"\tmackbot player your_username_here div2 (Get information about your 2-man division)"
 		]
 	}
 }
