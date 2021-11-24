@@ -2716,10 +2716,13 @@ async def player(context, *args):
 
 				m = f"**Created at**: {player_created_at_string}\n"
 				m += f"**Last battle**: {player_last_battle_string} "
-				if player_last_battle_months > 0:
-					m += f"({player_last_battle_months} months {player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+				if player_last_battle_days > 0:
+					if player_last_battle_months > 0:
+						m += f"({player_last_battle_months} months {player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+					else:
+						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
-					m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+					m += " Today\n"
 				m += f"**Clan**: {player_clan_str}"
 				embed.add_field(name='__**Account**__', value=m, inline=False)
 
@@ -2772,10 +2775,13 @@ async def player(context, *args):
 				player_ship_stats = {k: v for k, v in sorted(player_ship_stats.items(), key=lambda x: x[1]['battles'], reverse=True)}
 				m = ""
 				for i in range(10):
-					s = player_ship_stats[list(player_ship_stats)[i]]
-					m += f"**{s['name']:}** ({s['battles']} battles)\n"
+					try:
+						s = player_ship_stats[list(player_ship_stats)[i]]
+						m += f"**{s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+					except IndexError:
+						pass
 
-				embed.add_field(name=f"__Top 10 {battle_type_string} Ship (by battles)__", value=m, inline=True)
+				embed.add_field(name=f"__Top 10 {battle_type_string} Ships (by battles)__", value=m, inline=True)
 
 				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 		else:
