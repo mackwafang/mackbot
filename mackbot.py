@@ -1,5 +1,6 @@
-import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, math
+import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback
 # from PIL import ImageFont, ImageDraw, Image
+from math import inf, ceil
 from itertools import count
 from random import randint
 from discord.ext import commands
@@ -99,16 +100,17 @@ cmdr_name_to_ascii = {
 }
 # here because of lazy
 roman_numeral = {
-	'i': 1,
-	'ii': 2,
-	'iii': 3,
-	'iv': 4,
-	'v': 5,
-	'vi': 6,
-	'vii': 7,
-	'viii': 8,
-	'ix': 9,
-	'x': 10,
+	'I': 1,
+	'II': 2,
+	'III': 3,
+	'IV': 4,
+	'V': 5,
+	'VI': 6,
+	'VII': 7,
+	'VIII': 8,
+	'IX': 9,
+	'X': 10,
+	':star:': 11,
 }
 
 # actual stuff
@@ -179,7 +181,7 @@ AA_RATING_DESCRIPTOR = {
 	"Moderate": [40, 50],
 	"High": [50, 70],
 	"Dangerous": [70, 90],
-	"Very Dangerous": [90, math.inf],
+	"Very Dangerous": [90, inf],
 }
 
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
@@ -618,8 +620,8 @@ def update_ship_modules():
 								'flak': {'damage': 0, },
 							}
 
-							min_aa_range = math.inf
-							max_aa_range = -math.inf
+							min_aa_range = inf
+							max_aa_range = -inf
 
 							# grab anti-air guns information
 							aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
@@ -1124,7 +1126,7 @@ def create_ship_tags():
 				fireRate = ship_info[s]['artillery']['shot_delay']
 			except:
 				# some dont *ahemCVsahem*
-				fireRate = math.inf
+				fireRate = inf
 			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 				tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
 			# add tags based on aa
@@ -2298,10 +2300,10 @@ async def skills(context, *args):
 	num_items = len(m)
 	m.sort()
 	items_per_page = 24
-	num_pages = (len(m) // items_per_page)
+	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page), min(1, num_pages)))
+	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), min(1, num_pages)))
 	m = m[page]  # select page
 	# spliting selected page into columns
 	m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
@@ -2363,10 +2365,10 @@ async def upgrades(context, *args):
 			num_items = len(m)
 			m.sort()
 			items_per_page = 30
-			num_pages = (len(m) // items_per_page)
+			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages + 1})")
+			embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages})")
 			m = m[page]  # select page
 			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 			embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
@@ -2397,10 +2399,10 @@ async def maps(context, *args):
 		m = [f"{map_list[i]['name']}" for i in map_list]
 		m.sort()
 		items_per_page = 20
-		num_pages = (len(map_list) // items_per_page)
+		num_pages = ceil(len(map_list) / items_per_page)
 
 		m = [m[i:i + items_per_page] for i in range(0, len(map_list), items_per_page)]  # splitting into pages
-		embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages + 1})")
+		embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages})")
 		m = m[page]  # select page
 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 		for i in m:
@@ -2470,7 +2472,7 @@ async def ships(context, *args):
 			tier = ship_data['tier']
 			is_prem = ship_data['is_premium']
 
-			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
 			type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
 			if is_prem:
 				type_icon = type_icon[:-1] + '_premium:'
@@ -2493,17 +2495,18 @@ async def ships(context, *args):
 
 		num_items = len(m)
 		m.sort(key=lambda x: (x[0], x[2], x[-1]))
-		m_mod = []
-		for i, v in enumerate(m):
-			if v[0] != m[i - 1][0]:
-				m_mod += [[-1, '', '', '']]
-			m_mod += [v]
-		m = m_mod
-
-		m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
+		# m_mod = []
+		# for i, v in enumerate(m):
+		# 	if v[0] != m[i - 1][0]:
+		# 		m_mod += [[-1, '', '', '']]
+		# 	m_mod += [v]
+		# m = m_mod
+		#
+		# m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
+		m = [f"**{tier_string:<6} {type_icon}** {name}" for tier, tier_string, type_icon, name in m]
 
 		items_per_page = 30
-		num_pages = (len(m) // items_per_page)
+		num_pages = ceil(len(m) / items_per_page)
 		m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
 		embed = discord.Embed(title=embed_title + f"({max(1, page + 1)}/{max(1, num_pages)})")
@@ -2743,7 +2746,7 @@ async def player(context, *args):
 				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 				# add listing for player owned ships and of requested battle type
-				player_ships = WG.ships.stats(account_id=player_id, language='en', extra=battle_type)[player_id]
+				player_ships = WG.ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
 				player_ship_stats = {}
 
 				# calculate stats for each ships
