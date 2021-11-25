@@ -1,4 +1,5 @@
 import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback
+import pandas as pd
 # from PIL import ImageFont, ImageDraw, Image
 from math import inf, ceil
 from itertools import count
@@ -7,7 +8,6 @@ from discord.ext import commands
 from datetime import date
 from string import ascii_letters
 from pprint import pprint
-
 
 class NoShipFound(Exception):
 	pass
@@ -20,6 +20,8 @@ class NoUpgradeFound(Exception):
 
 class NoSkillFound(Exception):
 	pass
+
+pd.set_option('display.max_columns', None)
 
 with open("command_list.json") as f:
 	command_list = json.load(f)
@@ -67,6 +69,7 @@ nation_dictionary = {
 hull_classification_converter = {
 	'Destroyer': 'DD',
 	'AirCarrier': 'CV',
+	'Aircraft Carrier': 'CV',
 	'Battleship': 'BB',
 	'Cruiser': 'C',
 	'Submarine': 'SS'
@@ -136,6 +139,7 @@ mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix)
 WG = wargaming.WoWS(wg_token, region='na', language='en')
 wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
+ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 
 game_data = {}
 ship_list = {}
@@ -1518,12 +1522,14 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 	ship_data = {
 		"name": "",
 		"tier": -1,
-		"nation": ""
+		"nation": "",
+		"type": "",
 	}
 	try:
 		ship_data['name'] = ship_list[str(ship_id)]['name']
 		ship_data['tier'] = ship_list[str(ship_id)]['tier']
 		ship_data['nation'] = ship_list[str(ship_id)]['nation']
+		ship_data['type'] = ship_list[str(ship_id)]['type']
 	except KeyError:
 		# some ships are not available in wg api
 		data = game_data[[i for i in game_data if game_data[i]['id'] == ship_id][0]]
@@ -1535,6 +1541,7 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		ship_data['name'] = ship_name + " (old)"
 		ship_data['tier'] = data['level']
 		ship_data['nation'] = data['navalFlag']
+		ship_data['type'] = data['typeinfo']['species']
 	return ship_data
 
 @mackbot.event
@@ -2658,37 +2665,38 @@ async def upgrade(context, *args):
 @mackbot.command()
 async def player(context, *args):
 	user_input = args[0]
-	player_id_results = WG.account.list(search=user_input, type='exact', language='en')
-	player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
-	battle_type = 'pvp'
-	battle_type_string = 'Random'
-
-	# grab optional args
-	optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
-	battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
-	ship_filter = [option[2] for option in optional_args if len(option[2])] # get filter type by ship name
-	ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
-	ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
-	ship_tier = ''.join([i[2] for i in ship_type_filter])
-	ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
-	try:
-		# convert user specified specific stat to wg values
-		battle_type = {
-			"solo": "pvp_solo",
-			"div2": "pvp_div2",
-			"div3": "pvp_div3",
-		}[battle_type[0]]
-
-		battle_type_string = {
-			"pvp_solo": "Solo Random",
-			"pvp_div2": "2-man Division",
-			"pvp_div3": "3-man Division",
-		}[battle_type]
-	except IndexError:
-		battle_type = 'pvp'
-		pass
 
 	async with context.typing():
+		player_id_results = WG.account.list(search=user_input, type='exact', language='en')
+		player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
+		battle_type = 'pvp'
+		battle_type_string = 'Random'
+
+		# grab optional args
+		optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
+		battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
+		ship_filter = [option[2] for option in optional_args if len(option[2])] # get filter type by ship name
+		ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
+		ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
+		ship_tier = ''.join([i[2] for i in ship_type_filter])
+		ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
+		try:
+			# convert user specified specific stat to wg values
+			battle_type = {
+				"solo": "pvp_solo",
+				"div2": "pvp_div2",
+				"div3": "pvp_div3",
+			}[battle_type[0]]
+
+			battle_type_string = {
+				"pvp_solo": "Solo Random",
+				"pvp_div2": "2-man Division",
+				"pvp_div3": "3-man Division",
+			}[battle_type]
+		except IndexError:
+			battle_type = 'pvp'
+			pass
+
 		embed = discord.Embed(title=f"Search result for player {user_input}")
 		if player_id:
 			player_name = player_id_results[0]['nickname']
@@ -2751,17 +2759,21 @@ async def player(context, *args):
 				# add listing for player owned ships and of requested battle type
 				player_ships = WG.ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
 				player_ship_stats = {}
-
 				# calculate stats for each ships
 				for s in player_ships:
 					ship_id = s['ship_id']
 					ship_stat = s[battle_type]
-					ship_name, ship_tier, ship_nation = get_ship_data_by_id(ship_id).values()
+					ship_name, ship_tier, ship_nation, ship_type = get_ship_data_by_id(ship_id).values()
 					stats = {
 						"name"      : ship_name,
 						"tier"      : ship_tier,
 						"nation"    : ship_nation,
+						"type"      : ship_type,
 						"battles"   : ship_stat['battles'],
+						'wins'      : ship_stat['wins'],
+						'losses'    : ship_stat['losses'],
+						'kills'    : ship_stat['frags'],
+						'damage'    : ship_stat['damage_dealt'],
 						"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
 						"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
 						"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
@@ -2780,12 +2792,41 @@ async def player(context, *args):
 						m += f"**{s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
-
 				embed.add_field(name=f"__Top 10 {battle_type_string} Ships (by battles)__", value=m, inline=True)
+
+				embed.add_field(name='\u200b', value='\u200b', inline=False)
+				# add battle distribution by ship types
+				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+				player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+				m = ""
+				for s_t in sorted(ship_types):
+					try:
+						type_stat = player_ship_stats_df.loc[s_t]
+					except KeyError:
+						continue
+					type_average_kills = type_stat['kills'] / type_stat['battles']
+					type_average_dmg = type_stat['damage'] / type_stat['battles']
+					type_average_wr = type_stat['wins'] / type_stat['battles']
+
+					m += f"**{ship_types[s_t]}s**\n {type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+				embed.add_field(name=f"__Average by Ship Types__", value=m)
+
+				# average stats by tier
+				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+				player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
+				m = ""
+				for tier in range(1, 11):
+					tier_stat = player_ship_stats_df.loc[tier]
+					tier_average_kills = tier_stat['kills'] / tier_stat['battles']
+					tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
+					tier_average_wr = tier_stat['wins'] / tier_stat['battles']
+
+					m += f"**{[i for i in roman_numeral if roman_numeral[i] == tier][0]}**: {tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+				embed.add_field(name=f"__Average by Tier__", value=m)
 
 				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 		else:
-			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {user_input}", inline=False)
+			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {user_input}", inline=True)
 	await context.send(embed=embed)
 
 @mackbot.command()
