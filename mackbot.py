@@ -2664,7 +2664,7 @@ async def upgrade(context, *args):
 
 @mackbot.command()
 async def player(context, *args):
-	user_input = args[0]
+	user_input = args[0][:24]
 
 	async with context.typing():
 		player_id_results = WG.account.list(search=user_input, type='exact', language='en')
