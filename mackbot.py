@@ -141,6 +141,19 @@ wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 
+ship_type_emoji = {
+	'cv': '<:carrier:715092748851609672>',
+	'bb': '<:battleship:715092749157662730>',
+	'c': '<:cruiser:715092749195673650>',
+	'dd': '<:destroyer:715092749623230537>',
+	'ss': '<:submarine:715092748755271761>',
+	'cv_prem': '<:carrier_premium:715093294425833545>',
+	'bb_prem': '<:battleship_premium:715093296904667168>',
+	'c_prem': '<:cruiser_premium:715093296837296189>',
+	'dd_prem': '<:destroyer_premium:715093297034428459>',
+	'ss_prem': '<:submarine_premium:715093297328291900>',
+}
+
 game_data = {}
 ship_list = {}
 ship_info = {}
@@ -2480,23 +2493,7 @@ async def ships(context, *args):
 			is_prem = ship_data['is_premium']
 
 			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
-			type_icon = f':{ship_type.lower()}:' if ship_type != "AirCarrier" else f':carrier:'
-			if is_prem:
-				type_icon = type_icon[:-1] + '_premium:'
-			# find the server emoji id for this emoji id
-			if len(server_emojis) == 0:
-				type_icon = ""
-			else:
-				if type_icon[1:-1] in [i.name for i in server_emojis]:
-					for i in server_emojis:
-						if type_icon[1:-1] == i.name:
-							type_icon = str(i)
-							break
-				else:
-					type_icon = ""
-			# no emoji, returns ship hull classification value
-			if len(type_icon) == 0:
-				type_icon = "[" + hull_classification_converter[ship_type] + "]"
+			type_icon = ship_type_emoji[hull_classification_converter[ship_type].lower() + ("_premium" if is_prem else "")]
 			# m += [f"**{tier_string:<6} {type_icon}** {name}"]
 			m += [[tier, tier_string, type_icon, name]]
 
@@ -2695,7 +2692,6 @@ async def player(context, *args):
 			}[battle_type]
 		except IndexError:
 			battle_type = 'pvp'
-			pass
 
 		embed = discord.Embed(title=f"Search result for player {user_input}")
 		if player_id:
@@ -2730,7 +2726,7 @@ async def player(context, *args):
 					else:
 						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
-					m += " Today\n"
+					m += " (Today)\n"
 				m += f"**Clan**: {player_clan_str}"
 				embed.add_field(name='__**Account**__', value=m, inline=False)
 
@@ -2789,7 +2785,7 @@ async def player(context, *args):
 				for i in range(10):
 					try:
 						s = player_ship_stats[list(player_ship_stats)[i]]
-						m += f"**{s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+						m += f"**{ship_type_emoji[hull_classification_converter[s['type']].lower()]} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
 				embed.add_field(name=f"__Top 10 {battle_type_string} Ships (by battles)__", value=m, inline=True)
