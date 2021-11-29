@@ -1537,12 +1537,15 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		"tier": -1,
 		"nation": "",
 		"type": "",
+		"is_prem": False,
+		"emoji": '',
 	}
 	try:
 		ship_data['name'] = ship_list[str(ship_id)]['name']
 		ship_data['tier'] = ship_list[str(ship_id)]['tier']
 		ship_data['nation'] = ship_list[str(ship_id)]['nation']
 		ship_data['type'] = ship_list[str(ship_id)]['type']
+		ship_data['is_prem'] = ship_list[str(ship_id)]['is_premium']
 	except KeyError:
 		# some ships are not available in wg api
 		data = game_data[[i for i in game_data if game_data[i]['id'] == ship_id][0]]
@@ -1556,6 +1559,7 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		ship_data['tier'] = data['level']
 		ship_data['nation'] = data['navalFlag']
 		ship_data['type'] = data['typeinfo']['species']
+	ship_data['emoji'] = ship_type_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
 	return ship_data
 
 @mackbot.event
@@ -2738,11 +2742,15 @@ async def player(context, *args):
 				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
 				player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
 				player_stat_max_kills = player_battle_stat['max_frags_battle']
-				player_stat_max_kills_ship = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])['name']
-				player_stat_max_kills_ship_type = ship_type_emoji[hull_classification_converter[get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])['type']].lower()]
+
+				ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
+				player_stat_max_kills_ship = ship_data['name']
+				player_stat_max_kills_ship_type = ship_data['emoji']
 				player_stat_max_damage = player_battle_stat['max_damage_dealt']
-				player_stat_max_damage_ship = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])['name']
-				player_stat_max_damage_ship_type = ship_type_emoji[hull_classification_converter[get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])['type']].lower()]
+
+				ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
+				player_stat_max_damage_ship = ship_data['name']
+				player_stat_max_damage_ship_type = ship_data['emoji']
 
 				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
@@ -2765,16 +2773,17 @@ async def player(context, *args):
 				for s in player_ships:
 					ship_id = s['ship_id']
 					ship_stat = s[battle_type]
-					ship_name, ship_tier, ship_nation, ship_type = get_ship_data_by_id(ship_id).values()
+					ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
 					stats = {
 						"name"      : ship_name,
 						"tier"      : ship_tier,
+						"emoji"     : emoji,
 						"nation"    : ship_nation,
 						"type"      : ship_type,
 						"battles"   : ship_stat['battles'],
 						'wins'      : ship_stat['wins'],
 						'losses'    : ship_stat['losses'],
-						'kills'    : ship_stat['frags'],
+						'kills'     : ship_stat['frags'],
 						'damage'    : ship_stat['damage_dealt'],
 						"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
 						"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
@@ -2791,7 +2800,7 @@ async def player(context, *args):
 				for i in range(10):
 					try:
 						s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-						m += f"**{ship_type_emoji[hull_classification_converter[s['type']].lower()]} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+						m += f"**{s['emoji']} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
 				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -2805,7 +2814,7 @@ async def player(context, *args):
 					top_n = 5
 					for s in player_ship_stats_df.index[:top_n]:
 						ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-						m += f"**{ship_type_emoji[hull_classification_converter[ship['type']].lower()]} {ship['name']}** ({ship['battles']} battles / {ship['wr']:0.2%} WR)\n"
+						m += f"**{ship['emoji']} {ship['name']}** ({ship['battles']} battles / {ship['wr']:0.2%} WR)\n"
 						m += f"SR: {ship['sr']:2.0%} | Max Kills: {ship['max_kills']} | Max Damage: {ship['max_dmg']}\n\n"
 					embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=False)
 				else:
