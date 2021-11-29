@@ -1548,7 +1548,8 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		data = game_data[[i for i in game_data if game_data[i]['id'] == ship_id][0]]
 		ship_name = data['name']
 		ship_name = ship_name.replace(str(data['index']), '')[1:]
-		ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_')
+		ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
+		ship_name = ''.join(ship_name)
 		ship_name = ship_name.replace("_", " ")
 
 		ship_data['name'] = ship_name + " (old)"
@@ -1700,7 +1701,7 @@ async def build(context, *args):
 						embed.add_field(name='Suggested Cmdr.', value=m)
 					else:
 						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if commander skills or upgrades selection if mackbot ship build is right for you."
+					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
 					# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 					# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 				else:
@@ -2208,7 +2209,7 @@ async def ship(context, *args):
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 				footer_message = "Parameters does not take into account upgrades and commander skills\n"
 				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
-				footer_message += f"For {ship} builds, use [mackbot build {ship}]\n"
+				footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
 				if is_test_ship:
 					footer_message += f"*Test ship is subject to change before her release\n"
 				embed.set_footer(text=footer_message)
@@ -2493,7 +2494,7 @@ async def ships(context, *args):
 			is_prem = ship_data['is_premium']
 
 			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
-			type_icon = ship_type_emoji[hull_classification_converter[ship_type].lower() + ("_premium" if is_prem else "")]
+			type_icon = ship_type_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 			# m += [f"**{tier_string:<6} {type_icon}** {name}"]
 			m += [[tier, tier_string, type_icon, name]]
 
@@ -2507,7 +2508,7 @@ async def ships(context, *args):
 		# m = m_mod
 		#
 		# m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
-		m = [f"**{tier_string:<6} {type_icon}** {name}" for tier, tier_string, type_icon, name in m]
+		m = [f"**{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name in m]
 
 		items_per_page = 30
 		num_pages = ceil(len(m) / items_per_page)
@@ -2675,7 +2676,10 @@ async def player(context, *args):
 		ship_filter = [option[2] for option in optional_args if len(option[2])] # get filter type by ship name
 		ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
 		ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
-		ship_tier = ''.join([i[2] for i in ship_type_filter])
+		try:
+			ship_tier_filter = int(''.join([i[2] for i in ship_type_filter]))
+		except ValueError:
+			ship_tier_filter = ''
 		ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
 		try:
 			# convert user specified specific stat to wg values
@@ -2735,8 +2739,10 @@ async def player(context, *args):
 				player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
 				player_stat_max_kills = player_battle_stat['max_frags_battle']
 				player_stat_max_kills_ship = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])['name']
+				player_stat_max_kills_ship_type = ship_type_emoji[hull_classification_converter[get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])['type']].lower()]
 				player_stat_max_damage = player_battle_stat['max_damage_dealt']
 				player_stat_max_damage_ship = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])['name']
+				player_stat_max_damage_ship_type = ship_type_emoji[hull_classification_converter[get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])['type']].lower()]
 
 				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
@@ -2747,9 +2753,9 @@ async def player(context, *args):
 				m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
 				m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
 				m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
-				m += f"**Average XP**: {player_stat_avg_xp:0.1f} XP\n"
-				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with **{player_stat_max_kills_ship}**\n"
-				m += f"**Highest Damage**: {player_stat_max_damage} with **{player_stat_max_damage_ship}**\n"
+				m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
+				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship}**\n"
+				m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship}**\n"
 				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 				# add listing for player owned ships and of requested battle type
@@ -2784,41 +2790,56 @@ async def player(context, *args):
 				m = ""
 				for i in range(10):
 					try:
-						s = player_ship_stats[list(player_ship_stats)[i]]
+						s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
 						m += f"**{ship_type_emoji[hull_classification_converter[s['type']].lower()]} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
-				embed.add_field(name=f"__Top 10 {battle_type_string} Ships (by battles)__", value=m, inline=True)
+				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 
 				embed.add_field(name='\u200b', value='\u200b', inline=False)
-				# add battle distribution by ship types
-				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-				player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
-				m = ""
-				for s_t in sorted(ship_types):
-					try:
-						type_stat = player_ship_stats_df.loc[s_t]
-					except KeyError:
-						continue
-					type_average_kills = type_stat['kills'] / type_stat['battles']
-					type_average_dmg = type_stat['damage'] / type_stat['battles']
-					type_average_wr = type_stat['wins'] / type_stat['battles']
+				if ship_tier_filter:
+					# list ships that the player has at this tier
+					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+					player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
+					m = ""
+					top_n = 5
+					for s in player_ship_stats_df.index[:top_n]:
+						ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
+						m += f"**{ship_type_emoji[hull_classification_converter[ship['type']].lower()]} {ship['name']}** ({ship['battles']} battles / {ship['wr']:0.2%} WR)\n"
+						m += f"SR: {ship['sr']:2.0%} | Max Kills: {ship['max_kills']} | Max Damage: {ship['max_dmg']}\n\n"
+					embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=False)
+				else:
+					# add battle distribution by ship types
+					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+					player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+					m = ""
+					for s_t in sorted(ship_types):
+						try:
+							type_stat = player_ship_stats_df.loc[s_t]
+						except KeyError:
+							continue
+						type_average_kills = type_stat['kills'] / type_stat['battles']
+						type_average_dmg = type_stat['damage'] / type_stat['battles']
+						type_average_wr = type_stat['wins'] / type_stat['battles']
 
-					m += f"**{ship_types[s_t]}s**\n {type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
-				embed.add_field(name=f"__Average by Ship Types__", value=m)
+						m += f"**{ship_types[s_t]}s**\n"
+						m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+						m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+					embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
 
-				# average stats by tier
-				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-				player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
-				m = ""
-				for tier in range(1, 11):
-					tier_stat = player_ship_stats_df.loc[tier]
-					tier_average_kills = tier_stat['kills'] / tier_stat['battles']
-					tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
-					tier_average_wr = tier_stat['wins'] / tier_stat['battles']
+					# average stats by tier
+					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+					player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
+					m = ""
+					for tier in range(1, 11):
+						tier_stat = player_ship_stats_df.loc[tier]
+						tier_average_kills = tier_stat['kills'] / tier_stat['battles']
+						tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
+						tier_average_wr = tier_stat['wins'] / tier_stat['battles']
 
-					m += f"**{[i for i in roman_numeral if roman_numeral[i] == tier][0]}**: {tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
-				embed.add_field(name=f"__Average by Tier__", value=m)
+						m += f"**{list(roman_numeral.keys())[tier - 1]}**: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+						m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+					embed.add_field(name=f"__**Average by Tier**__", value=m)
 
 				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 		else:
