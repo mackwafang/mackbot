@@ -1242,7 +1242,7 @@ def get_ship_param(ship: str) -> dict:
 				if i in ship_info:
 					return ship_info[i]
 				else:
-					raise IndexError("Ship not found in ship_params")
+					raise NoShipFound
 	except Exception as e:
 		raise e
 
@@ -1615,8 +1615,6 @@ async def build(context, *args):
 		try:
 			async with context.typing():
 				output = get_ship_data(ship)
-				if output is None:
-					raise NameError("NoBuildFound")
 				name = output['name']
 				nation = output['nation']
 				images = output['images']
@@ -1626,6 +1624,8 @@ async def build(context, *args):
 
 				# find ship build
 				build_ids = get_ship_builds_by_name(name)
+				if not build_ids:
+					raise NoBuildFound
 				build = ship_build[build_ids[0]]
 				upgrades = build['upgrades']
 				skills = build['skills']
@@ -1635,11 +1635,6 @@ async def build(context, *args):
 				embed.set_thumbnail(url=images['small'])
 
 				logging.info(f"returning build information for <{name}> in embeded format")
-				# get server emoji
-				if context.guild is not None:
-					server_emojis = context.guild.emojis
-				else:
-					server_emojis = []
 
 				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 
@@ -1711,11 +1706,11 @@ async def build(context, *args):
 				else:
 					m = "mackbot does not know any build for this ship :("
 					embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
-			error_footer_message = ""
-			if error_value_found:
-				error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-			embed.set_footer(text=error_footer_message + footer_message)
-			await context.send(embed=embed)
+				error_footer_message = ""
+				if error_value_found:
+					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+				embed.set_footer(text=error_footer_message + footer_message)
+				await context.send(embed=embed)
 		except Exception as e:
 			if type(e) == NoShipFound:
 				logging.info(f"Exception {type(e)}", e)
