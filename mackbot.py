@@ -1,4 +1,4 @@
-import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback
+import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
 import pandas as pd
 # from PIL import ImageFont, ImageDraw, Image
 from math import inf, ceil
@@ -1214,9 +1214,11 @@ def get_ship_builds_by_name(ship: str) -> list:
 		NoBuildFound exception
 	"""
 	try:
-		return [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
-	except IndexError:
-		raise NoBuildFound
+		result = [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
+		if not result:
+			raise NoBuildFound
+	except Exception as e:
+		raise e
 
 def get_ship_param(ship: str) -> dict:
 	"""
@@ -1520,15 +1522,15 @@ def get_map_data(map: str) -> tuple:
 		logging.info("Exception {type(e): ", e)
 		raise e
 
-async def correct_user_misspell(context, command, args):
+async def correct_user_misspell(context, command, *args):
 	author = context.author
 	def check(message):
 		return author == message.author and message.content.lower() in ['y', 'yes']
 
 	message = await mackbot.wait_for('message', timeout=10, check=check)
 	try:
-		await globals()['command'](context, args)
-	except IndexError:
+		await globals()[command](context, ' '.join(i for i in args))
+	except Exception as e:
 		pass
 
 def get_ship_data_by_id(ship_id: int) -> dict:
@@ -1713,15 +1715,17 @@ async def build(context, *args):
 				await context.send(embed=embed)
 		except Exception as e:
 			if type(e) == NoShipFound:
-				logging.info(f"Exception {type(e)}", e)
-				# error, ship name not understood
-				ship_name_list = [ship_list[i]['name'] for i in ship_list]
+				# ship with specified name is not found, user might mistype ship name?
+				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 				closest_match = difflib.get_close_matches(ship, ship_name_list)
-				closest_match_string = ""
+				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
-
-				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
+					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
+				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
+				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+				embed.set_footer(text="Response expire in 10 seconds")
+				await context.send(embed=embed)
+				await correct_user_misspell(context, 'build', closest_match[0])
 			if type(e) == NoBuildFound:
 				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
@@ -1747,16 +1751,16 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		arg = ''.join([i + ' ' for i in args])  # fuse back together to check filter
+		arg = ' '.join(i for i in args)  # fuse back together to check filter
 		has_filter = '(' in arg and ')' in arg  # find a better check
 		param_filter = ''
 		if has_filter:
 			param_filter = arg[arg.find('(') + 1: arg.rfind(')')]
 			arg = arg[:arg.find('(') - 1]
 		arg = arg.split(' ')
-		ship = ''.join([i + ' ' for i in arg])[:-1]  # grab ship name
-		if not param_filter:
-			ship = ship[:-1]
+		ship = ' '.join(i for i in arg)  # grab ship name
+		# if not param_filter:
+		# 	ship = ship[:-1]
 
 		try:
 			async with context.typing():
@@ -2218,14 +2222,17 @@ async def ship(context, *args):
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				ship_name_list = [ship_list[i]['name'] for i in ship_list]
+				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 				closest_match = difflib.get_close_matches(ship, ship_name_list)
-				closest_match_string = ""
+				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
-					await correct_user_misspell(context, 'ship', closest_match)
+					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
+				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
+				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+				embed.set_footer(text="Response expire in 10 seconds")
+				await context.send(embed=embed)
+				await correct_user_misspell(context, 'ship', closest_match[0])
 
-				await context.send(f"Ship **{ship}** is not understood" + closest_match_string)
 			else:
 				# we dun goofed
 				await context.send(f"An internal error has occured.")
