@@ -1569,6 +1569,12 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 	ship_data['emoji'] = ship_type_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
 	return ship_data
 
+def escape_discord_format(s):
+	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
+
+# *** END OF NON-COMMAND METHODS ***
+# *** START OF BOT COMMANDS METHODS ***
+
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -2708,7 +2714,7 @@ async def player(context, *args):
 		except IndexError:
 			battle_type = 'pvp'
 
-		embed = discord.Embed(title=f"Search result for player {user_input}")
+		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}")
 		if player_id:
 			player_name = player_id_results[0]['nickname']
 			if battle_type == 'pvp':
@@ -2867,7 +2873,7 @@ async def player(context, *args):
 
 				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 		else:
-			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {user_input}", inline=True)
+			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(user_input)}", inline=True)
 	await context.send(embed=embed)
 
 @mackbot.command()
