@@ -2843,13 +2843,16 @@ async def player(context, *args):
 					player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
 					m = ""
 					for tier in range(1, 11):
-						tier_stat = player_ship_stats_df.loc[tier]
-						tier_average_kills = tier_stat['kills'] / tier_stat['battles']
-						tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
-						tier_average_wr = tier_stat['wins'] / tier_stat['battles']
+						try:
+							tier_stat = player_ship_stats_df.loc[tier]
+							tier_average_kills = tier_stat['kills'] / tier_stat['battles']
+							tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
+							tier_average_wr = tier_stat['wins'] / tier_stat['battles']
 
-						m += f"**{list(roman_numeral.keys())[tier - 1]}**: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-						m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+							m += f"**{list(roman_numeral.keys())[tier - 1]}**: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+							m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+						except KeyError:
+							m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
 					embed.add_field(name=f"__**Average by Tier**__", value=m)
 
 				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
