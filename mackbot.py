@@ -1,6 +1,7 @@
 import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
 import pandas as pd
 # from PIL import ImageFont, ImageDraw, Image
+from enum import IntEnum, auto
 from math import inf, ceil
 from itertools import count
 from random import randint
@@ -20,6 +21,18 @@ class NoUpgradeFound(Exception):
 
 class NoSkillFound(Exception):
 	pass
+
+class BUILD_BATTLE_TYPE(IntEnum):
+	CLAN = auto()
+	CASUAL = auto()
+
+class SHIP_TAG(IntEnum):
+	SLOW_SPD = auto()
+	FAST_SPD = auto()
+	FAST_GUN = auto()
+	STEALTH = auto()
+	AA = auto()
+
 
 pd.set_option('display.max_columns', None)
 
@@ -169,22 +182,13 @@ ship_build = {}
 ship_build_competitive = None
 ship_build_casual = None
 
-BUILD_BATTLE_TYPE_CLAN = 0
-BUILD_BATTLE_TYPE_CASUAL = 1
-
-SHIP_TAG_SLOW_SPD = 0
-SHIP_TAG_FAST_SPD = 1
-SHIP_TAG_FAST_GUN = 2
-SHIP_TAG_STEALTH = 3
-SHIP_TAG_AA = 4
-
 build_battle_type = {
-	BUILD_BATTLE_TYPE_CLAN: "competitive",
-	BUILD_BATTLE_TYPE_CASUAL: "casual",
+	BUILD_BATTLE_TYPE.CLAN: "competitive",
+	BUILD_BATTLE_TYPE.CASUAL: "casual",
 }
 build_battle_type_value = {
-	"competitive": BUILD_BATTLE_TYPE_CLAN,
-	"casual": BUILD_BATTLE_TYPE_CASUAL,
+	"competitive": BUILD_BATTLE_TYPE.CLAN,
+	"casual": BUILD_BATTLE_TYPE.CASUAL,
 }
 
 
@@ -1083,6 +1087,7 @@ def load_ship_builds():
 def create_ship_tags():
 	logging.info("Generating ship search tags")
 	SHIP_TAG_LIST = (
+		'',
 		'slow',
 		'fast',
 		'fast-firing',
@@ -1090,27 +1095,27 @@ def create_ship_tags():
 		'anti-air',
 	)
 	ship_tags = {
-		SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]: {
+		SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]: {
 			'min_threshold': 0,
 			'max_threshold': 30,
 			'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
 		},
-		SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]: {
+		SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]: {
 			'min_threshold': 30,
 			'max_threshold': 99,
 			'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
 		},
-		SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]: {
+		SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]: {
 			'min_threshold': 0,
 			'max_threshold': 6,
 			'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
 		},
-		SHIP_TAG_LIST[SHIP_TAG_STEALTH]: {
+		SHIP_TAG_LIST[SHIP_TAG.STEALTH]: {
 			'min_air_spot_range': 4,
 			'min_sea_spot_range': 6,
 			'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
 		},
-		SHIP_TAG_LIST[SHIP_TAG_AA]: {
+		SHIP_TAG_LIST[SHIP_TAG.AA]: {
 			'min_aa_range': 5.8,
 			'damage_threshold_multiplier': 75,
 			'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
@@ -1129,32 +1134,32 @@ def create_ship_tags():
 			prem = ship_list[s]['is_premium']  # is bote premium
 			ship_speed = ship_info[s]['mobility']['max_speed']
 			# add tags based on speed
-			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]['max_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG_SLOW_SPD]]
-			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]['min_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_SPD]]
+			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]['max_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]
+			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]['min_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]
 			concealment = ship_info[s]['concealment']
 			# add tags based on detection range
-			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG_STEALTH]]['min_sea_spot_range']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG_STEALTH]]
+			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_sea_spot_range']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.STEALTH]]
 			# add tags based on gun firerate
 			try:
 				# some ships have main battery guns
 				fireRate = ship_info[s]['artillery']['shot_delay']
-			except:
+			except TypeError:
 				# some dont *ahemCVsahem*
 				fireRate = inf
-			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG_FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-				tags += [SHIP_TAG_LIST[SHIP_TAG_FAST_GUN], 'dakka']
+			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_GUN], 'dakka']
 			# add tags based on aa
 			if ship_info[s]['anti_aircraft'] is not None:
 				for hull in ship_info[s]['anti_aircraft']:
 					if hull not in ['defense', 'slots']:
 						aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
 						aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
-						if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG_AA]]['min_aa_range']:
-							if SHIP_TAG_LIST[SHIP_TAG_AA] not in tags:
-								tags += [SHIP_TAG_LIST[SHIP_TAG_AA]]
+						if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
+							if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
+								tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
 
 			tags += [nat, f't{tier}', t, t + 's', hull_class]
 			ship_list[s]['tags'] = tags
@@ -1165,7 +1170,7 @@ def create_ship_tags():
 				logging.warning(f"Ship Tags Generator: Ship {s} not found")
 			else:
 				logging.warning("%s %s at ship id %s" % (type(e), e, s))
-				traceback.print_exception(type(e), e, None)
+				traceback.print_exc(type(e), e, None)
 
 def get_ship_data(ship: str) -> dict:
 	"""
@@ -2727,6 +2732,8 @@ async def player(context, *args):
 				if player_clan_id is not None:
 					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
 					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
+				else:
+					player_clan_str = "No clan"
 
 				m = f"**Created at**: {player_created_at_string}\n"
 				m += f"**Last battle**: {player_last_battle_string} "
@@ -2748,11 +2755,13 @@ async def player(context, *args):
 				ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
 				player_stat_max_kills_ship = ship_data['name']
 				player_stat_max_kills_ship_type = ship_data['emoji']
+				player_stat_max_kills_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
 				player_stat_max_damage = player_battle_stat['max_damage_dealt']
 
 				ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
 				player_stat_max_damage_ship = ship_data['name']
 				player_stat_max_damage_ship_type = ship_data['emoji']
+				player_stat_max_damage_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
 
 				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
@@ -2764,8 +2773,8 @@ async def player(context, *args):
 				m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
 				m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
 				m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
-				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship}**\n"
-				m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship}**\n"
+				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
+				m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
 				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 				# add listing for player owned ships and of requested battle type
@@ -2802,7 +2811,7 @@ async def player(context, *args):
 				for i in range(10):
 					try:
 						s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-						m += f"**{s['emoji']} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+						m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
 				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -2824,18 +2833,19 @@ async def player(context, *args):
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 					player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
 					m = ""
-					for s_t in sorted(ship_types):
+					for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
 						try:
 							type_stat = player_ship_stats_df.loc[s_t]
-						except KeyError:
-							continue
-						type_average_kills = type_stat['kills'] / type_stat['battles']
-						type_average_dmg = type_stat['damage'] / type_stat['battles']
-						type_average_wr = type_stat['wins'] / type_stat['battles']
+							if type_stat['battles'] > 0:
+								m += f"**{ship_types[s_t]}s**\n"
 
-						m += f"**{ship_types[s_t]}s**\n"
-						m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-						m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+								type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
+								type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
+								type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
+								m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+								m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+						except KeyError:
+							pass
 					embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
 
 					# average stats by tier
@@ -2845,9 +2855,9 @@ async def player(context, *args):
 					for tier in range(1, 11):
 						try:
 							tier_stat = player_ship_stats_df.loc[tier]
-							tier_average_kills = tier_stat['kills'] / tier_stat['battles']
-							tier_average_dmg = tier_stat['damage'] / tier_stat['battles']
-							tier_average_wr = tier_stat['wins'] / tier_stat['battles']
+							tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])
+							tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
+							tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
 							m += f"**{list(roman_numeral.keys())[tier - 1]}**: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
 							m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
