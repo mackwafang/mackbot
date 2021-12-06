@@ -2813,6 +2813,7 @@ async def player(context, *args):
 					player_ship_stats[ship_id] = stats.copy()
 				# sort player owned ships by battle count
 				player_ship_stats = {k: v for k, v in sorted(player_ship_stats.items(), key=lambda x: x[1]['battles'], reverse=True)}
+
 				m = ""
 				for i in range(10):
 					try:
@@ -2827,13 +2828,18 @@ async def player(context, *args):
 					# list ships that the player has at this tier
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 					player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
-					m = ""
-					top_n = 5
-					for s in player_ship_stats_df.index[:top_n]:
-						ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-						m += f"**{ship['emoji']} {ship['name']}** ({ship['battles']} battles / {ship['wr']:0.2%} WR)\n"
-						m += f"SR: {ship['sr']:2.0%} | Max Kills: {ship['max_kills']} | Max Damage: {ship['max_dmg']}\n\n"
-					embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=False)
+					top_n = 10
+					items_per_col = 5
+					r = 1
+					for i in range(top_n // items_per_col):
+						m = ""
+						for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
+							ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
+							m += f"{r}) **{ship['emoji']} {ship['name']}**\n"
+							m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
+							m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
+							r += 1
+						embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 				else:
 					# add battle distribution by ship types
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
