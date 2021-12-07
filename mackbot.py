@@ -1778,9 +1778,9 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		send_compact = args[-1] in ['compact', '-c']
+		send_compact = args[0] in ['compact', '-c']
 		if send_compact:
-			args = args[:-1]
+			args = args[1:]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
 		has_filter = '(' in args and ')' in args  # find a better check
 		param_filter = ''
