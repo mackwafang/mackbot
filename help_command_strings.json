@@ -8,7 +8,7 @@
 	"ship": {
 		"help": "",
 		"brief": "Get detailed information about a ship",
-		"usage": "ship_name ([parameters])",
+		"usage": "ship_name ([parameters]) [compact]",
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
@@ -16,6 +16,7 @@
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
 			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
+			"\tmackbot ship midway compact (Return information about Midway in compact format)",
 			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
