@@ -1237,6 +1237,7 @@ def get_ship_builds_by_name(ship: str) -> list:
 		result = [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
 		if not result:
 			raise NoBuildFound
+		return result
 	except Exception as e:
 		raise e
 
@@ -1670,7 +1671,7 @@ async def build(context, *args):
 
 				footer_message = ""
 				error_value_found = False
-				if len(upgrades) > 0 or len(skills) > 0 or len(cmdr) > 0:
+				if len(upgrades) and len(skills) and len(cmdr):
 					# suggested upgrades
 					if len(upgrades) > 0:
 						m = ""
@@ -1738,7 +1739,7 @@ async def build(context, *args):
 				if error_value_found:
 					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
 				embed.set_footer(text=error_footer_message + footer_message)
-				await context.send(embed=embed)
+			await context.send(embed=embed)
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -1777,7 +1778,7 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		send_compact = args[-1] == 'compact'
+		send_compact = args[-1] in ['compact', '-c']
 		if send_compact:
 			args = args[:-1]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
@@ -2366,7 +2367,7 @@ async def ship_compact(context, ship_data, ship_param):
 
 			m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
 			m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+			m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
 			m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
@@ -2380,7 +2381,7 @@ async def ship_compact(context, ship_data, ship_param):
 
 			m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
 			m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+			m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_torp']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
 			m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
@@ -2394,7 +2395,7 @@ async def ship_compact(context, ship_data, ship_param):
 
 			m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
 			m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+			m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
 			m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
@@ -2432,8 +2433,8 @@ async def skill(context, *args):
 				tree = skill_data['tree']
 				description = skill_data['description']
 				effect = skill_data['effect']
-				column = skill_data['column'] + 1
-				tier = skill_data['tier']
+				column = skill_data['x'] + 1
+				tier = skill_data['y']
 				category = skill_data['category']
 				embed = discord.Embed(title=f"{name}", description="")
 				# embed.set_thumbnail(url=icon)
@@ -2460,6 +2461,7 @@ async def show(context, *args):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'list')
+	# TODO: send help command if subcommand is wrong
 
 @show.command()
 async def skills(context, *args):

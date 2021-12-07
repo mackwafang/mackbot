@@ -561,7 +561,7 @@
   },
   "56": {
     "tree": "Cruiser",
-    "name": "Consumable Enhancements",
+    "name": "Consumables Enhancements",
     "description": "Longer lasting consumables.",
     "effect": "Smoke Generator: +10% action time\nHydroacoustic Search: +10% action time\nEngine Boost: +10% action time\nSurveillance Radar: +10% action time",
     "x": 2,

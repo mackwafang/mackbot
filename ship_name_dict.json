@@ -5,7 +5,7 @@
 	"smaland":"småland",
 	"arp kongo":"arp kongō",
 	"arp kongou":"arp kongō",
-	"[grober kurfurst]":"[großer kurfürst]",
+	"[grober kurfurst]":"[grosser kurfürst]",
 	"leffronte":"l'effronte",
 	"blyskawica":"błyskawica",
 	"yudachi":"yūdachi",
@@ -20,9 +20,9 @@
 	"kagero":"kagerō",
 	"kagerou":"kagerō",
 	"konig albert":"könig albert",
-	"grosser kurfurst":"großer kurfürst",
-	"grober kurfurst":"großer kurfürst",
-	"kurfurst":"großer kurfürst",
+	"grosser kurfurst":"grosser kurfürst",
+	"grober kurfurst":"grosser kurfürst",
+	"kurfurst":"grosser kurfürst",
 	"republique":"république",
 	"konig":"könig",
 	"ryuujou":"ryūjō",
@@ -93,5 +93,8 @@
 	"vampire ii": "Vampire II",
 	"de zeven provincien": "de zeven provinciën",
 	"nakhimov": "admiral nakhimov",
-	"golden lewd": "gouden leeuw"
+	"golden lewd": "gouden leeuw",
+	"agir": "Ägir",
+	"abruzzi": "duca degli abruzzi",
+	"kutuzov": "mikhail kutuzov"
 }
