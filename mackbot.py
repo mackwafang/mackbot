@@ -435,7 +435,7 @@ def load_ship_list():
 
 def load_upgrade_list():
 	logging.info("Fetching Camo, Flags and Modification List")
-	global camo_list, flag_list, upgrade_list
+	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		# continuously count, because weegee don't list how many pages there are
 		try:
