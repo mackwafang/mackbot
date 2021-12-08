@@ -1065,16 +1065,20 @@ def load_ship_builds():
 
 						raw_skills = (i for i in row[8:-2] if len(i) > 0)
 						skills = []
+						skill_pts = 0
 						for s in raw_skills:
 							try:
 								skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
 								sid = skill_data['id']
+								skill_pts += skill_data['tier']
 								raw_id.append(sid)
 								skills.append(sid)
 							except Exception as e:
 								if type(e) is NoSkillFound:
 									logging.error(f"Skill {s} in build for ship {ship['name']} is not found")
 								pass
+						if skill_pts > 21:
+							logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
 						skills = tuple(skills)
 						cmdr = row[-1]
 
