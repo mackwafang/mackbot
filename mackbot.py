@@ -235,24 +235,8 @@ good_bot_messages = (
 	':heart:',
 )
 
-hottake_strings = (
-	'Akizuki is better than Harekaze at a gun fight.',
-	'DDs are OP.',
-	'CVs need buff',
-	'submarines will be a major game changer',
-	'radar needs to be removed',
-	'BBs should shoot HE',
-	'cruisers need nerfs',
-	'cruisers doesn\'t need heals',
-	'Deadeye should come back with -50% despersion.',
-	'we need more hybrid ships.',
-	'the game needs more smoke/radar cruisers.',
-	'DD should have citadels',
-	'RTS CVs should return.',
-	'WG should add gold ammo',
-	'Kam is the superior CV player',
-	'interceptors are more useful than patrol fighters',
-)
+with open("hottakes.txt") as f:
+	hottake_strings = f.read().split('\n')
 
 consumable_descriptor = {
 	'airDefenseDisp': {
@@ -435,6 +419,9 @@ def load_ship_list():
 
 def load_upgrade_list():
 	logging.info("Fetching Camo, Flags and Modification List")
+	if len(ship_list) != 0:
+		logging.info("Ship list is empty.")
+		load_ship_list()
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		# continuously count, because weegee don't list how many pages there are
@@ -533,6 +520,10 @@ def load_upgrade_list():
 def load_ship_params():
 	global ship_info
 	logging.info("Fetching Ship Parameters")
+	if len(ship_list) != 0:
+		logging.info("Ship list is empty.")
+		load_ship_list()
+
 	ship_param_file_name = 'ship_param'
 	logging.info("	Checking cached ship_param file...")
 	fetch_ship_params_from_wg = False
@@ -568,6 +559,14 @@ def load_ship_params():
 
 def update_ship_modules():
 	logging.info("Generating information about modules")
+
+	if len(ship_list) != 0:
+		logging.info("Ship list is empty.")
+		load_ship_list()
+	if len(module_list) != 0:
+		logging.info("Module list is empty.")
+		load_module_list()
+
 	ship_count = 0
 	for s in ship_list:
 		ship = ship_list[s]
@@ -965,6 +964,11 @@ def update_ship_modules():
 def create_upgrade_abbr():
 	logging.info("Creating abbreviation for upgrades")
 	global upgrade_abbr_list
+
+	if len(upgrade_list) != 0:
+		logging.info("Upgrade list is empty.")
+		load_upgrade_list()
+
 	for u in upgrade_list:
 		# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
@@ -979,6 +983,19 @@ def load_ship_builds():
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
 	build_extract_from_cache = os.path.isfile("./ship_builds.json")
+
+	if len(ship_list) != 0:
+		logging.info("Ship list is empty.")
+		load_ship_list()
+
+	if len(upgrade_list) != 0:
+		logging.info("Upgrade list is empty.")
+		load_upgrade_list()
+
+	if len(skill_list) != 0:
+		logging.info("Skill list is empty.")
+		load_skill_list()
+
 
 	ship_build = {}
 	ship_build_competitive = []
@@ -1105,6 +1122,10 @@ def load_ship_builds():
 
 def create_ship_tags():
 	logging.info("Generating ship search tags")
+	if len(ship_list) != 0:
+		logging.info("Ship list is empty.")
+		load_ship_list()
+
 	SHIP_TAG_LIST = (
 		'',
 		'slow',
@@ -2464,7 +2485,7 @@ async def skill(context, *args):
 async def show(context, *args):
 	# list command
 	if context.invoked_subcommand is None:
-		await context.invoke(mackbot.get_command('help'), 'list')
+		await context.invoke(mackbot.get_command('help'), 'show')
 	# TODO: send help command if subcommand is wrong
 
 @show.command()
@@ -3001,16 +3022,20 @@ async def player(context, *args):
 					player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
 					top_n = 10
 					items_per_col = 5
-					r = 1
-					for i in range(top_n // items_per_col):
-						m = ""
-						for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
-							ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-							m += f"{r}) **{ship['emoji']} {ship['name']}**\n"
-							m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
-							m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
-							r += 1
-						embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
+					if len(player_ship_stats_df) > 0:
+						r = 1
+						for i in range(top_n // items_per_col):
+							m = ""
+							if i <= len(player_ship_stats_df) // items_per_col:
+								for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
+									ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
+									m += f"{r}) **{ship['emoji']} {ship['name']}**\n"
+									m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
+									m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
+									r += 1
+								embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
+					else:
+						embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value="Player have no ships of this tier", inline=True)
 				else:
 					# add battle distribution by ship types
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
@@ -3218,6 +3243,7 @@ async def hottake(context):
 	logging.info("send a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
 	if randint(0, 9) == 0:
+		await asyncio.sleep(2)
 		await purpose(context)
 
 @mackbot.command()
