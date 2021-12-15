@@ -419,7 +419,7 @@ def load_ship_list():
 
 def load_upgrade_list():
 	logging.info("Fetching Camo, Flags and Modification List")
-	if len(ship_list) != 0:
+	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
@@ -520,7 +520,7 @@ def load_upgrade_list():
 def load_ship_params():
 	global ship_info
 	logging.info("Fetching Ship Parameters")
-	if len(ship_list) != 0:
+	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
 
@@ -560,10 +560,10 @@ def load_ship_params():
 def update_ship_modules():
 	logging.info("Generating information about modules")
 
-	if len(ship_list) != 0:
+	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
-	if len(module_list) != 0:
+	if len(module_list) == 0:
 		logging.info("Module list is empty.")
 		load_module_list()
 
@@ -965,7 +965,7 @@ def create_upgrade_abbr():
 	logging.info("Creating abbreviation for upgrades")
 	global upgrade_abbr_list
 
-	if len(upgrade_list) != 0:
+	if len(upgrade_list) == 0:
 		logging.info("Upgrade list is empty.")
 		load_upgrade_list()
 
@@ -984,15 +984,15 @@ def load_ship_builds():
 	extract_from_web_failed = False
 	build_extract_from_cache = os.path.isfile("./ship_builds.json")
 
-	if len(ship_list) != 0:
+	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
 
-	if len(upgrade_list) != 0:
+	if len(upgrade_list) == 0:
 		logging.info("Upgrade list is empty.")
 		load_upgrade_list()
 
-	if len(skill_list) != 0:
+	if len(skill_list) == 0:
 		logging.info("Skill list is empty.")
 		load_skill_list()
 
@@ -1122,7 +1122,7 @@ def load_ship_builds():
 
 def create_ship_tags():
 	logging.info("Generating ship search tags")
-	if len(ship_list) != 0:
+	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
 
