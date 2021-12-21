@@ -1,0 +1,18 @@
+{
+	"help" : true,
+	"goodbot" : true,
+	"build" : true,
+	"skill" : true,
+	"whoami" : true,
+	"list" : true,
+	"upgrade" : true,
+	"commander" : true,
+	"feedback" : true,
+	"map" : true,
+	"ship" : true,
+	"doubloons" : true,
+	"code" : true,
+	"hottake": true,
+	"purpose": true,
+	"player": true
+}
