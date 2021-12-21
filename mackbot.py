@@ -89,7 +89,7 @@ hull_classification_converter = {
 }
 # dictionary to convert user inputted ship name to non-ascii ship name
 # TODO: find an automatic method, maybe
-with open("ship_name_dict.json", 'r', encoding='utf-8') as f:
+with open("data/ship_name_dict.json", 'r', encoding='utf-8') as f:
 	ship_name_to_ascii = json.load(f)
 
 # see the ship name conversion dictionary comment
@@ -235,7 +235,7 @@ good_bot_messages = (
 	':heart:',
 )
 
-with open("hottakes.txt") as f:
+with open(os.path.join(".", "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
 
 consumable_descriptor = {
@@ -309,7 +309,7 @@ def load_game_params():
 	logging.info(f"Loading GameParams")
 	for file_count in count(0):
 		try:
-			with open(f'GameParamsPruned_{file_count}.json') as f:
+			with open(os.path.join(".", "data", f'GameParamsPruned_{file_count}.json')) as f:
 				data = json.load(f)
 
 			game_data.update(data)
@@ -322,7 +322,7 @@ def load_skill_list():
 	# loading skills list
 	logging.info("Fetching Skill List")
 	try:
-		with open("skill_list.json") as f:
+		with open(os.path.join("data", "skill_list.json")) as f:
 			skill_list = json.load(f)
 
 		# dictionary that stores skill abbreviation
@@ -377,7 +377,7 @@ def load_ship_list():
 	logging.info("Fetching Ship List")
 	global ship_list
 	ship_list_file_name = 'ship_list'
-	ship_list_file_dir = os.path.join(".", ship_list_file_name)
+	ship_list_file_dir = os.path.join(".", "data", ship_list_file_name)
 
 	fetch_ship_list_from_wg = False
 	# fetching from local
@@ -525,12 +525,13 @@ def load_ship_params():
 		load_ship_list()
 
 	ship_param_file_name = 'ship_param'
+	ship_param_file_dir = os.path.join(".", "data", ship_param_file_name)
 	logging.info("	Checking cached ship_param file...")
 	fetch_ship_params_from_wg = False
-	if os.path.isfile(ship_param_file_name):
+	if os.path.isfile(ship_param_file_dir):
 		# check ship_params exists
 		logging.info("	File found. Loading file")
-		with open(ship_param_file_name, 'rb') as f:
+		with open(ship_param_file_dir, 'rb') as f:
 			ship_info = pickle.load(f)
 
 		if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
@@ -553,7 +554,7 @@ def load_ship_params():
 				logging.info(f"{i}/{len(ship_list)} ships found")
 		logging.info("Done")
 		logging.info("Creating ship_params cache")
-		with open(ship_param_file_name, 'wb') as f:
+		with open(ship_param_file_dir, 'wb') as f:
 			pickle.dump(ship_info, f)
 		logging.info("ship_params cache created")
 
@@ -845,7 +846,7 @@ def update_ship_modules():
 							projectile = game_data[plane['bombName']]
 							module_list[module_id]['attack_size'] = plane['attackerSize']
 							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
 							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 							module_list[module_id]['profile'] = {
@@ -856,6 +857,7 @@ def update_ship_modules():
 									'rocket_pen': int(projectile['alphaPiercingHE']),
 									'max_health': int(plane['maxHealth']),
 									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'payload': int(plane['attackCount']),
 								}
 							}
@@ -871,13 +873,14 @@ def update_ship_modules():
 							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id]['attack_size'] = plane['attackerSize']
 							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
 							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 
 							module_list[module_id]['profile'] = {
 								"torpedo_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'max_damage': int(projectile['alphaDamage'] / 3) + projectile['damage'],
 									'max_health': int(plane['maxHealth']),
 									'torpedo_speed': projectile['speed'],
@@ -898,7 +901,7 @@ def update_ship_modules():
 							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
 							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
 							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 							module_list[module_id]['bomb_type'] = projectile['ammoType']
@@ -906,6 +909,7 @@ def update_ship_modules():
 							module_list[module_id]['profile'] = {
 								"dive_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'max_damage': projectile['alphaDamage'],
 									'burn_probability': projectile['burnProb'] * 100,
 									'max_health': int(plane['maxHealth']),
@@ -928,7 +932,7 @@ def update_ship_modules():
 							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
 							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]['speed_max'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
 							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
 							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
 							module_list[module_id]['bomb_type'] = projectile['ammoType']
@@ -941,6 +945,7 @@ def update_ship_modules():
 							module_list[module_id]['profile'] = {
 								"skip_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'max_damage': int(projectile['alphaDamage']),
 									'burn_probability': projectile['burnProb'] * 100,
 									'max_health': int(plane['maxHealth']),
@@ -982,7 +987,8 @@ def load_ship_builds():
 	logging.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
-	build_extract_from_cache = os.path.isfile("./ship_builds.json")
+	ship_build_file_dir = os.path.join("data", "ship_builds.json")
+	build_extract_from_cache = os.path.isfile(ship_build_file_dir)
 
 	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
@@ -1103,7 +1109,7 @@ def load_ship_builds():
 						ship_build[build_id] = {"ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
 
 				if len(ship_build) > 0:
-					with open("ship_builds.json", 'w') as f:
+					with open(ship_build_file_dir, 'w') as f:
 						logging.info("Creating ship build cache")
 						json.dump(ship_build, f)
 				logging.info("Ship build data fetching done")
@@ -1116,7 +1122,7 @@ def load_ship_builds():
 			if extract_from_web_failed:
 				logging.info("Get ship builds from sheets failed")
 			logging.info('Making ship build dictionary from cache')
-			with open("ship_builds.json") as f:
+			with open(ship_build_file_dir) as f:
 				ship_build = json.load(f)
 			logging.info("Ship build complete")
 
@@ -2130,7 +2136,7 @@ async def ship(context, *args):
 							n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** rockets_filter:
-								m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['cruise_speed'] * fighter_module['speed_max']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
 								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
@@ -2146,7 +2152,7 @@ async def ship(context, *args):
 							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** torpbomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 								m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
@@ -2162,7 +2168,7 @@ async def ship(context, *args):
 							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** bomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
@@ -2177,7 +2183,7 @@ async def ship(context, *args):
 							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** bomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['cruise_speed'] * bomber_module['speed_max']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
@@ -3272,7 +3278,7 @@ if __name__ == '__main__':
 
 	# post processing for bot commands
 	logging.info("Post-processing bot commands")
-	with open("help_command_strings.json") as f:
+	with open(os.path.join(".", "help_command_strings.json")) as f:
 		help_command_strings = json.load(f)
 	for c in help_command_strings:
 		try:
