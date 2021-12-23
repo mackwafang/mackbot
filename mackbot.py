@@ -1727,13 +1727,13 @@ async def build(context, *args):
 							try:  # ew, nested try/catch
 								skill = skill_list[s]
 								skill_name = skill['name']
-								row = skill['x'] + 1
+								col = skill['x'] + 1
 								tier = skill['y'] + 1
 							except Exception as e:
 								logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 								error_value_found = True
 								skill_name = skill + ":warning:"
-							m += f'(Row {row}, Col. {tier}) **' + skill_name + '**\n'
+							m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
 							i += 1
 						embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
 					else:
