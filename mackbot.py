@@ -1153,7 +1153,7 @@ def create_ship_build_images():
 	logging.info("Creating images for ship builds")
 	# create dictionary for upgrade gamedata index to image name
 	image_file_dict = {}
-	image_folder_dir = os.path.join("modernization_icons")
+	image_folder_dir = os.path.join("data", "modernization_icons")
 	for file in os.listdir(image_folder_dir):
 		image_file = os.path.join(image_folder_dir, file)
 		upgrade_index = file.split("_")[2] # get index
@@ -1183,7 +1183,7 @@ def create_ship_build_images():
 			ship_type_image_filename += "_premium"
 		ship_type_image_filename += '.png'
 
-		ship_type_image_dir = os.path.join("icons", ship_type_image_filename)
+		ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
 		ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
 
 		image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
@@ -1200,7 +1200,7 @@ def create_ship_build_images():
 		# draw skills
 		for skill_id in skill_list_filtererd_by_ship_type:
 			skill = skill_list_filtererd_by_ship_type[skill_id]
-			skill_image_filename = os.path.join(".", "cmdr_skills_images", skill['image'] + ".png")
+			skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
 			if os.path.isfile(skill_image_filename):
 				with Image.open(skill_image_filename).convert("RGBA") as skill_image:
 					coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
