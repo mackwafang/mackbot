@@ -1120,6 +1120,36 @@ def load_ship_builds():
 				ship_build = json.load(f)
 			logging.info("Ship build complete")
 
+def create_ship_build_images():
+	if len(ship_build):
+		logging.info("No ship builds")
+		load_ship_builds()
+
+	from PIL import Image, ImageDraw
+
+	# create dictionary for upgrade gamedata index to image name
+	image_file_dict = {}
+	image_folder_dir = os.path.join("modernization_icons")
+	for file in os.listdir(image_folder_dir):
+		image_file = os.path.join(image_folder_dir, file)
+		upgrade_index = file.split("_")[2] # get index
+		image_file_dict[upgrade_index] = image_file
+
+	# create build images
+	for s_build in ship_build:
+		image_size = (320, 320, 3)
+		build = ship_build[s_build]
+		build_ship_name = build['name']
+		build_upgrades = build['upgrades']
+		build_skills = build['skills']
+		build_cmdr = build['cmdr']
+
+		image = Image.new("RGBA", image_size, (0, 0, 0, 0)) # initialize new image
+
+
+	# remove, no longer needed
+	del Image
+
 def create_ship_tags():
 	logging.info("Generating ship search tags")
 	if len(ship_list) == 0:
