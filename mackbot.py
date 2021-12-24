@@ -1178,7 +1178,7 @@ def create_ship_build_images():
 		if ship['type'] == 'AirCarrier':
 			ship_type_image_filename = 'carrier'
 		else:
-			ship_type_image_filename = ship['type']
+			ship_type_image_filename = ship['type'].lower()
 		if ship['is_premium']:
 			ship_type_image_filename += "_premium"
 		ship_type_image_filename += '.png'
