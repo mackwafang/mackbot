@@ -1,2 +1,16 @@
 *.png
 .env
+icons/aa.png
+icons/ap.png
+icons/concealment.png
+icons/gun.png
+icons/penetration.png
+icons/he.png
+icons/plane.png
+icons/plane_bomb.png
+icons/plane_projectile.png
+icons/plane_torpedo.png
+icons/range.png
+icons/reload.png
+icons/sap.png
+icons/torp.png
