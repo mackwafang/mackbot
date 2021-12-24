@@ -7,7 +7,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_forsage_renewal"
   },
   "1": {
     "tree": "AirCarrier",
@@ -17,7 +17,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_forsage_duration"
   },
   "2": {
     "tree": "AirCarrier",
@@ -27,7 +27,7 @@
     "x": 2,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_consumables_speedbooster_reload"
   },
   "3": {
     "tree": "AirCarrier",
@@ -37,7 +37,7 @@
     "x": 3,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "planes_reload"
   },
   "4": {
     "tree": "AirCarrier",
@@ -47,7 +47,7 @@
     "x": 4,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_fighter_additional"
   },
   "5": {
     "tree": "AirCarrier",
@@ -57,7 +57,7 @@
     "x": 5,
     "y": 0,
     "category": "Support",
-    "also_found_in": ""
+    "image": "planes_consumables_callfighters_range"
   },
   "6": {
     "tree": "AirCarrier",
@@ -67,7 +67,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_torpedo_armingrange"
   },
   "7": {
     "tree": "AirCarrier",
@@ -77,7 +77,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_torpedo_speed"
   },
   "8": {
     "tree": "AirCarrier",
@@ -87,7 +87,7 @@
     "x": 2,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_speed"
   },
   "9": {
     "tree": "AirCarrier",
@@ -97,7 +97,7 @@
     "x": 3,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "planes_consumables_regeneratehealth_upgrade"
   },
   "10": {
     "tree": "AirCarrier",
@@ -107,7 +107,7 @@
     "x": 4,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "aa_damage_constant_bubbles_cv"
   },
   "11": {
     "tree": "AirCarrier",
@@ -117,7 +117,7 @@
     "x": 5,
     "y": 1,
     "category": "Support",
-    "also_found_in": ""
+    "image": "planes_consumables_callfighters_additional"
   },
   "12": {
     "tree": "AirCarrier",
@@ -127,7 +127,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_aiming_boost"
   },
   "13": {
     "tree": "AirCarrier",
@@ -137,7 +137,7 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_ap_damage"
   },
   "14": {
     "tree": "AirCarrier",
@@ -147,7 +147,7 @@
     "x": 2,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_fire_probability"
   },
   "15": {
     "tree": "AirCarrier",
@@ -157,7 +157,7 @@
     "x": 3,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "planes_defense_damage_constant"
   },
   "16": {
     "tree": "AirCarrier",
@@ -167,7 +167,7 @@
     "x": 4,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "planes_hp"
   },
   "17": {
     "tree": "AirCarrier",
@@ -177,7 +177,7 @@
     "x": 5,
     "y": 2,
     "category": "Support",
-    "also_found_in": ""
+    "image": "planes_consumables_callfighters_upgrade"
   },
   "18": {
     "tree": "AirCarrier",
@@ -187,7 +187,7 @@
     "x": 0,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_divebomber_speed"
   },
   "19": {
     "tree": "AirCarrier",
@@ -197,7 +197,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "planes_torpedo_uw_reduced"
   },
   "20": {
     "tree": "AirCarrier",
@@ -207,7 +207,7 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "atba_upgrade"
   },
   "21": {
     "tree": "AirCarrier",
@@ -217,7 +217,7 @@
     "x": 3,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "planes_defense_damage_bubbles"
   },
   "22": {
     "tree": "AirCarrier",
@@ -227,7 +227,7 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_visibility_crashcrew"
   },
   "23": {
     "tree": "AirCarrier",
@@ -237,7 +237,7 @@
     "x": 5,
     "y": 3,
     "category": "Support",
-    "also_found_in": ""
+    "image": "planes_consumables_callfighters_preparationtime"
   },
   "24": {
     "tree": "Battleship",
@@ -247,7 +247,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_shell_reload"
   },
   "25": {
     "tree": "Battleship",
@@ -257,7 +257,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_fire_probability"
   },
   "26": {
     "tree": "Battleship",
@@ -267,7 +267,7 @@
     "x": 2,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_reload"
   },
   "27": {
     "tree": "Battleship",
@@ -277,7 +277,7 @@
     "x": 3,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_crashcrew_regencrew_reload"
   },
   "28": {
     "tree": "Battleship",
@@ -287,7 +287,7 @@
     "x": 4,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_alert"
   },
   "29": {
     "tree": "Battleship",
@@ -297,7 +297,7 @@
     "x": 5,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defense_crit_probability"
   },
   "30": {
     "tree": "Battleship",
@@ -307,7 +307,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_turn"
   },
   "31": {
     "tree": "Battleship",
@@ -317,7 +317,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_penetration"
   },
   "32": {
     "tree": "Battleship",
@@ -327,7 +327,7 @@
     "x": 2,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_speed_bb"
   },
   "33": {
     "tree": "Battleship",
@@ -337,7 +337,7 @@
     "x": 3,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_torpedo_range"
   },
   "34": {
     "tree": "Battleship",
@@ -347,7 +347,7 @@
     "x": 4,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_aiming"
   },
   "35": {
     "tree": "Battleship",
@@ -357,7 +357,7 @@
     "x": 5,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "aa_damage_constant_bubbles"
   },
   "36": {
     "tree": "Battleship",
@@ -367,7 +367,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "ap_damage_bb"
   },
   "37": {
     "tree": "Battleship",
@@ -377,7 +377,7 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "atba_range"
   },
   "38": {
     "tree": "Battleship",
@@ -387,7 +387,7 @@
     "x": 2,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "armament_reload_aa_damage"
   },
   "39": {
     "tree": "Battleship",
@@ -397,7 +397,7 @@
     "x": 3,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defence_crit_fire_flooding"
   },
   "40": {
     "tree": "Battleship",
@@ -407,7 +407,7 @@
     "x": 4,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defence_uw"
   },
   "41": {
     "tree": "Battleship",
@@ -417,7 +417,7 @@
     "x": 5,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "aa_prioritysector_damage_constant"
   },
   "42": {
     "tree": "Battleship",
@@ -427,7 +427,7 @@
     "x": 0,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_burn_gm_reload"
   },
   "43": {
     "tree": "Battleship",
@@ -437,7 +437,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "atba_accuracy"
   },
   "44": {
     "tree": "Battleship",
@@ -447,7 +447,7 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_gm_atba_reload_bb"
   },
   "45": {
     "tree": "Battleship",
@@ -457,7 +457,7 @@
     "x": 3,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_crashcrew_regencrew_upgrade"
   },
   "46": {
     "tree": "Battleship",
@@ -467,7 +467,7 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_visibility_range"
   },
   "47": {
     "tree": "Battleship",
@@ -477,7 +477,7 @@
     "x": 5,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defence_fire_probability"
   },
   "48": {
     "tree": "Cruiser",
@@ -487,7 +487,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_turn"
   },
   "49": {
     "tree": "Cruiser",
@@ -497,7 +497,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_speed"
   },
   "50": {
     "tree": "Cruiser",
@@ -507,7 +507,7 @@
     "x": 2,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_reload"
   },
   "51": {
     "tree": "Cruiser",
@@ -517,7 +517,7 @@
     "x": 3,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_shell_reload"
   },
   "52": {
     "tree": "Cruiser",
@@ -527,7 +527,7 @@
     "x": 4,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_alert"
   },
   "53": {
     "tree": "Cruiser",
@@ -537,7 +537,7 @@
     "x": 5,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "maneuverability"
   },
   "54": {
     "tree": "Cruiser",
@@ -547,7 +547,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_fire_probability"
   },
   "55": {
     "tree": "Cruiser",
@@ -557,7 +557,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_reload"
   },
   "56": {
     "tree": "Cruiser",
@@ -567,7 +567,7 @@
     "x": 2,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_duration"
   },
   "57": {
     "tree": "Cruiser",
@@ -577,7 +577,7 @@
     "x": 3,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_spotter_upgrade"
   },
   "58": {
     "tree": "Cruiser",
@@ -587,7 +587,7 @@
     "x": 4,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_aiming"
   },
   "59": {
     "tree": "Cruiser",
@@ -597,7 +597,7 @@
     "x": 5,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "aa_prioritysector_damage_constant"
   },
   "60": {
     "tree": "Cruiser",
@@ -607,7 +607,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_sap_damage"
   },
   "61": {
     "tree": "Cruiser",
@@ -617,7 +617,7 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_damage"
   },
   "62": {
     "tree": "Cruiser",
@@ -627,7 +627,7 @@
     "x": 2,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "armament_reload_aa_damage"
   },
   "63": {
     "tree": "Cruiser",
@@ -637,7 +637,7 @@
     "x": 3,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "ap_damage_ca"
   },
   "64": {
     "tree": "Cruiser",
@@ -647,7 +647,7 @@
     "x": 4,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_additional"
   },
   "65": {
     "tree": "Cruiser",
@@ -657,7 +657,7 @@
     "x": 5,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defense_hp"
   },
   "66": {
     "tree": "Cruiser",
@@ -667,7 +667,7 @@
     "x": 0,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_gm_atba_reload_ca"
   },
   "67": {
     "tree": "Cruiser",
@@ -677,7 +677,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_speed_accuracy"
   },
   "68": {
     "tree": "Cruiser",
@@ -687,7 +687,7 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "detection_direction"
   },
   "69": {
     "tree": "Cruiser",
@@ -697,7 +697,7 @@
     "x": 3,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_penetration"
   },
   "70": {
     "tree": "Cruiser",
@@ -707,7 +707,7 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_visibility_range"
   },
   "71": {
     "tree": "Cruiser",
@@ -717,7 +717,7 @@
     "x": 5,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "aa_damage_constant_bubbles"
   },
   "72": {
     "tree": "Destroyer",
@@ -727,7 +727,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_turn"
   },
   "73": {
     "tree": "Destroyer",
@@ -737,7 +737,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_flooding_probability"
   },
   "74": {
     "tree": "Destroyer",
@@ -747,7 +747,7 @@
     "x": 2,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_reload"
   },
   "75": {
     "tree": "Destroyer",
@@ -757,7 +757,7 @@
     "x": 3,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_shell_reload"
   },
   "76": {
     "tree": "Destroyer",
@@ -767,7 +767,7 @@
     "x": 4,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_alert"
   },
   "77": {
     "tree": "Destroyer",
@@ -777,7 +777,7 @@
     "x": 5,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defense_crit_probability"
   },
   "78": {
     "tree": "Destroyer",
@@ -787,7 +787,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_fire_probability"
   },
   "79": {
     "tree": "Destroyer",
@@ -797,7 +797,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_speed"
   },
   "80": {
     "tree": "Destroyer",
@@ -807,7 +807,7 @@
     "x": 2,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_duration"
   },
   "81": {
     "tree": "Destroyer",
@@ -817,7 +817,7 @@
     "x": 3,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "ap_damage_dd"
   },
   "82": {
     "tree": "Destroyer",
@@ -827,7 +827,7 @@
     "x": 4,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_aiming"
   },
   "83": {
     "tree": "Destroyer",
@@ -837,7 +837,7 @@
     "x": 5,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "maneuverability"
   },
   "84": {
     "tree": "Destroyer",
@@ -847,7 +847,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_reload_aa_damage_constant"
   },
   "85": {
     "tree": "Destroyer",
@@ -857,7 +857,7 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "torpedo_reload"
   },
   "86": {
     "tree": "Destroyer",
@@ -867,7 +867,7 @@
     "x": 2,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "armament_reload_aa_damage"
   },
   "87": {
     "tree": "Destroyer",
@@ -877,7 +877,7 @@
     "x": 3,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "he_penetration"
   },
   "88": {
     "tree": "Destroyer",
@@ -887,7 +887,7 @@
     "x": 4,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_additional"
   },
   "89": {
     "tree": "Destroyer",
@@ -897,7 +897,7 @@
     "x": 5,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defense_hp"
   },
   "90": {
     "tree": "Destroyer",
@@ -907,7 +907,7 @@
     "x": 0,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "gm_range_aa_damage_bubbles"
   },
   "91": {
     "tree": "Destroyer",
@@ -917,7 +917,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_speed"
   },
   "92": {
     "tree": "Destroyer",
@@ -927,7 +927,7 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "detection_direction"
   },
   "93": {
     "tree": "Destroyer",
@@ -937,7 +937,7 @@
     "x": 3,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "trigger_gm_reload"
   },
   "94": {
     "tree": "Destroyer",
@@ -947,7 +947,7 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_visibility_range"
   },
   "95": {
     "tree": "Destroyer",
@@ -957,7 +957,7 @@
     "x": 5,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "trigger_spreading"
   },
   "96": {
     "tree": "Submarine",
@@ -967,7 +967,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "97": {
     "tree": "Submarine",
@@ -977,7 +977,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "98": {
     "tree": "Submarine",
@@ -987,7 +987,7 @@
     "x": 2,
     "y": 0,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_reload"
   },
   "99": {
     "tree": "Submarine",
@@ -997,7 +997,7 @@
     "x": 3,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_aiming"
   },
   "100": {
     "tree": "Submarine",
@@ -1007,7 +1007,7 @@
     "x": 4,
     "y": 0,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "detection_alert"
   },
   "101": {
     "tree": "Submarine",
@@ -1017,7 +1017,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "102": {
     "tree": "Submarine",
@@ -1027,7 +1027,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "103": {
     "tree": "Submarine",
@@ -1037,7 +1037,7 @@
     "x": 2,
     "y": 1,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "104": {
     "tree": "Submarine",
@@ -1047,7 +1047,7 @@
     "x": 3,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "defense_crit_probability"
   },
   "105": {
     "tree": "Submarine",
@@ -1057,7 +1057,7 @@
     "x": 4,
     "y": 1,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "maneuverability"
   },
   "106": {
     "tree": "Submarine",
@@ -1067,7 +1067,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "107": {
     "tree": "Submarine",
@@ -1077,17 +1077,17 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "108": {
     "tree": "Submarine",
-    "name": "Consumable Enhancements",
+    "name": "Consumables Enhancements",
     "description": "Increase ship's consumable action time.",
     "effect": "Ship's consumable action time: +7.5%",
     "x": 2,
     "y": 2,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "consumables_duration"
   },
   "109": {
     "tree": "Submarine",
@@ -1097,7 +1097,7 @@
     "x": 3,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": ""
   },
   "110": {
     "tree": "Submarine",
@@ -1107,7 +1107,7 @@
     "x": 4,
     "y": 2,
     "category": "Defense",
-    "also_found_in": ""
+    "image": "consumables_additional"
   },
   "111": {
     "tree": "Submarine",
@@ -1117,7 +1117,7 @@
     "x": 0,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": "armament_reload_aa_damage"
   },
   "112": {
     "tree": "Submarine",
@@ -1127,7 +1127,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "113": {
     "tree": "Submarine",
@@ -1137,7 +1137,7 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "also_found_in": ""
+    "image": ""
   },
   "114": {
     "tree": "Submarine",
@@ -1147,7 +1147,7 @@
     "x": 3,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": ""
   },
   "115": {
     "tree": "Submarine",
@@ -1157,6 +1157,6 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "also_found_in": ""
+    "image": ""
   }
 }

@@ -1,6 +1,6 @@
 import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
 import pandas as pd
-# from PIL import ImageFont, ImageDraw, Image
+
 from enum import IntEnum, auto
 from math import inf, ceil
 from itertools import count
@@ -8,6 +8,7 @@ from random import randint
 from discord.ext import commands
 from datetime import date
 from string import ascii_letters
+from PIL import Image
 from pprint import pprint
 
 class NoShipFound(Exception):
@@ -422,6 +423,11 @@ def load_upgrade_list():
 	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
+
+	if len(game_data) == 0:
+		logging.info("No game data")
+		load_game_params()
+
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		# continuously count, because weegee don't list how many pages there are
@@ -516,6 +522,8 @@ def load_upgrade_list():
 			# put ship upgrades in the appropiate slots
 			upgrade = upgrade_list[str(s_upgrade)]
 			ship['upgrades'][upgrade['slot'] - 1] += [str(s_upgrade)]
+
+	create_upgrade_abbr()
 
 def load_ship_params():
 	global ship_info
@@ -1077,6 +1085,8 @@ def load_ship_builds():
 							except Exception as e:
 								if type(e) is NoUpgradeFound:
 									logging.error(f"Upgrade {u} in build for ship {ship['name']} is not found")
+								else:
+									logging.error("Other Exception found")
 								pass
 						upgrades = tuple(upgrades)
 
@@ -1087,12 +1097,14 @@ def load_ship_builds():
 							try:
 								skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
 								sid = skill_data['id']
-								skill_pts += skill_data['tier']
+								skill_pts += skill_data['x']
 								raw_id.append(sid)
 								skills.append(sid)
 							except Exception as e:
 								if type(e) is NoSkillFound:
 									logging.error(f"Skill {s} in build for ship {ship['name']} is not found")
+								else:
+									logging.error("Other Exception found")
 								pass
 						if skill_pts > 21:
 							logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
@@ -1121,12 +1133,18 @@ def load_ship_builds():
 			logging.info("Ship build complete")
 
 def create_ship_build_images():
-	if len(ship_build):
+	if len(ship_build) == 0:
 		logging.info("No ship builds")
 		load_ship_builds()
 
-	from PIL import Image, ImageDraw
+	if len(game_data) == 0:
+		logging.info("No game data")
+		load_game_params()
 
+	from PIL import ImageDraw, ImageFont
+	from matplotlib import pyplot as plt
+
+	logging.info("Creating images for ship builds")
 	# create dictionary for upgrade gamedata index to image name
 	image_file_dict = {}
 	image_folder_dir = os.path.join("modernization_icons")
@@ -1135,20 +1153,74 @@ def create_ship_build_images():
 		upgrade_index = file.split("_")[2] # get index
 		image_file_dict[upgrade_index] = image_file
 
+	font = ImageFont.truetype("./arialbd.ttf", encoding='unic', size=20)
+
 	# create build images
 	for s_build in ship_build:
-		image_size = (320, 320, 3)
+		image_size = (400, 400)
+
 		build = ship_build[s_build]
-		build_ship_name = build['name']
+		build_ship_name = build['ship']
 		build_upgrades = build['upgrades']
 		build_skills = build['skills']
 		build_cmdr = build['cmdr']
 
-		image = Image.new("RGBA", image_size, (0, 0, 0, 0)) # initialize new image
+		ship = get_ship_data(build_ship_name)
 
+		# get ship type image
+		ship_type_image_filename = ""
+		if ship['type'] == 'AirCarrier':
+			ship_type_image_filename = 'carrier'
+		else:
+			ship_type_image_filename = ship['type']
+		if ship['is_premium']:
+			ship_type_image_filename += "_premium"
+		ship_type_image_filename += '.png'
 
+		ship_type_image_dir = os.path.join("icons", ship_type_image_filename)
+		ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
+
+		image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
+		draw = ImageDraw.Draw(image) # get drawing context
+
+		# draw ship name and ship type
+		with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
+			ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
+			image.paste(ship_type_image, (0, 0), ship_type_image)
+		draw.text((56, 16), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font) # add ship name
+
+		# get skills from this ship's tree
+		skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+		# draw skills
+		for skill_id in skill_list_filtererd_by_ship_type:
+			skill = skill_list_filtererd_by_ship_type[skill_id]
+			skill_image_filename = os.path.join(".", "cmdr_skills_images", skill['image'] + ".png")
+			if os.path.isfile(skill_image_filename):
+				with Image.open(skill_image_filename).convert("RGBA") as skill_image:
+					coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
+					green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
+
+					if skill_id in build_skills:
+						skill_image = Image.composite(green, skill_image, skill_image)
+					image.paste(skill_image, coord, skill_image)
+
+		# draw upgrdes
+		for slot, u in enumerate(build_upgrades):
+			if u != -1:
+				# specific upgrade
+				upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
+				upgrade_image_dir = image_file_dict[upgrade_index]
+			else:
+				# any upgrade
+				upgrade_image_dir = image_file_dict['any.png']
+
+			with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
+				coord = (4 + (slot * 64), image.height - 60)
+				image.paste(upgrade_image, coord, upgrade_image)
+
+		ship_build[s_build]['image'] = image
 	# remove, no longer needed
-	del Image
+	del ImageDraw, ImageFont
 
 def create_ship_tags():
 	logging.info("Generating ship search tags")
@@ -1687,6 +1759,11 @@ async def build(context, *args):
 
 		battle_type = args[0].lower()  # assuming build battle type is provided
 		additional_comp_keywords = ['comp']
+
+		send_image_build = args[0] in ["--image", "-i"]
+		if send_image_build:
+			args = args[1:]
+
 		if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
 			# 2nd argument provided is a known argument
 			battle_type = 'competitive'
@@ -1694,7 +1771,8 @@ async def build(context, *args):
 		else:
 			battle_type = 'casual'
 			ship = ''.join([i + ' ' for i in args])[:-1]  # grab ship name
-		# get text-based format build
+
+
 		name, images = "", None
 		try:
 			async with context.typing():
@@ -1706,95 +1784,108 @@ async def build(context, *args):
 				tier = output['tier']
 				is_prem = output['is_premium']
 
-				# find ship build
-				build_ids = get_ship_builds_by_name(name)
-				if not build_ids:
-					raise NoBuildFound
-				build = ship_build[build_ids[0]]
-				upgrades = build['upgrades']
-				skills = build['skills']
-				cmdr = build['cmdr']
+				if not send_image_build:
 
-				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
-				embed.set_thumbnail(url=images['small'])
+					# find ship build
+					build_ids = get_ship_builds_by_name(name)
+					if not build_ids:
+						raise NoBuildFound
+					build = ship_build[build_ids[0]]
+					upgrades = build['upgrades']
+					skills = build['skills']
+					cmdr = build['cmdr']
 
-				logging.info(f"returning build information for <{name}> in embeded format")
+					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+					embed.set_thumbnail(url=images['small'])
 
-				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+					logging.info(f"returning build information for <{name}> in embeded format")
 
-				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 
-				footer_message = ""
-				error_value_found = False
-				if len(upgrades) and len(skills) and len(cmdr):
-					# suggested upgrades
-					if len(upgrades) > 0:
-						m = ""
-						i = 1
-						for upgrade in upgrades:
-							upgrade_name = "[Missing]"
-							if upgrade == -1:
-								# any thing
-								upgrade_name = "Any"
-							else:
-								try:  # ew, nested try/catch
-									upgrade_name = upgrade_list[str(upgrade)]['name']
-								except Exception as e:
-									logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
-									error_value_found = True
-									upgrade_name = upgrade + ":warning:"
-							m += f'(Slot {i}) **' + upgrade_name + '**\n'
-							i += 1
-						embed.add_field(name='Suggested Upgrades', value=m, inline=False)
-					else:
-						embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
-					# suggested skills
-					if len(skills) > 0:
-						m = ""
-						i = 1
-						for s in skills:
-							skill_name = "[Missing]"
-							try:  # ew, nested try/catch
-								skill = skill_list[s]
-								skill_name = skill['name']
-								col = skill['x'] + 1
-								tier = skill['y'] + 1
-							except Exception as e:
-								logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
-								error_value_found = True
-								skill_name = skill + ":warning:"
-							m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
-							i += 1
-						embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
-					else:
-						embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
-					# suggested commander
-					if cmdr != "":
-						m = ""
-						if cmdr == "*":
-							m = "Any"
+					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+
+					footer_message = ""
+					error_value_found = False
+					if len(upgrades) and len(skills) and len(cmdr):
+						# suggested upgrades
+						if len(upgrades) > 0:
+							m = ""
+							i = 1
+							for upgrade in upgrades:
+								upgrade_name = "[Missing]"
+								if upgrade == -1:
+									# any thing
+									upgrade_name = "Any"
+								else:
+									try:  # ew, nested try/catch
+										upgrade_name = upgrade_list[str(upgrade)]['name']
+									except Exception as e:
+										logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+										error_value_found = True
+										upgrade_name = upgrade + ":warning:"
+								m += f'(Slot {i}) **' + upgrade_name + '**\n'
+								i += 1
+							embed.add_field(name='Suggested Upgrades', value=m, inline=False)
 						else:
-							try:
-								m = get_commander_data(cmdr)[0]
-							except Exception as e:
-								logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
-								error_value_found = True
-								m = f"{cmdr}:warning:"
-						# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
-						embed.add_field(name='Suggested Cmdr.', value=m)
+							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
+						# suggested skills
+						if len(skills) > 0:
+							m = ""
+							i = 1
+							for s in skills:
+								skill_name = "[Missing]"
+								try:  # ew, nested try/catch
+									skill = skill_list[s]
+									skill_name = skill['name']
+									col = skill['x'] + 1
+									tier = skill['y'] + 1
+								except Exception as e:
+									logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+									error_value_found = True
+									skill_name = skill + ":warning:"
+								m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
+								i += 1
+							embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
+						else:
+							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
+						# suggested commander
+						if cmdr != "":
+							m = ""
+							if cmdr == "*":
+								m = "Any"
+							else:
+								try:
+									m = get_commander_data(cmdr)[0]
+								except Exception as e:
+									logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
+									error_value_found = True
+									m = f"{cmdr}:warning:"
+							# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
+							embed.add_field(name='Suggested Cmdr.', value=m)
+						else:
+							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
+						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
+						# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
+						# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
 					else:
-						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
-					# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
-					# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
+						m = "mackbot does not know any build for this ship :("
+						embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
+					error_footer_message = ""
+					if error_value_found:
+						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					embed.set_footer(text=error_footer_message + footer_message)
+
+				if not send_image_build:
+					await context.send(embed=embed)
 				else:
-					m = "mackbot does not know any build for this ship :("
-					embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
-				error_footer_message = ""
-				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-				embed.set_footer(text=error_footer_message + footer_message)
-			await context.send(embed=embed)
+					# send image
+					build_ids = get_ship_builds_by_name(name)
+					if not build_ids:
+						raise NoBuildFound
+					build_image = ship_build[build_ids[0]]['image']
+					build_image.save("temp.png")
+					await context.send(file=discord.File('temp.png'))
+
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -3298,6 +3389,7 @@ if __name__ == '__main__':
 	update_ship_modules()
 	create_upgrade_abbr()
 	load_ship_builds()
+	create_ship_build_images()
 	create_ship_tags()
 
 	# post processing for bot commands
