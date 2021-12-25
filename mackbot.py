@@ -1203,11 +1203,16 @@ def create_ship_build_images():
 			skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
 			if os.path.isfile(skill_image_filename):
 				with Image.open(skill_image_filename).convert("RGBA") as skill_image:
+
 					coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
 					green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
 
 					if skill_id in build_skills:
+						# indicate user should take this skill
 						skill_image = Image.composite(green, skill_image, skill_image)
+					else:
+						# fade out unneeded skills
+						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
 					image.paste(skill_image, coord, skill_image)
 
 		# draw upgrdes
@@ -1881,16 +1886,17 @@ async def build(context, *args):
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
 					embed.set_footer(text=error_footer_message + footer_message)
 
-				if not send_image_build:
-					await context.send(embed=embed)
-				else:
-					# send image
-					build_ids = get_ship_builds_by_name(name)
-					if not build_ids:
-						raise NoBuildFound
-					build_image = ship_build[build_ids[0]]['image']
-					build_image.save("temp.png")
-					await context.send(file=discord.File('temp.png'))
+			if not send_image_build:
+				await context.send(embed=embed)
+			else:
+				# send image
+				build_ids = get_ship_builds_by_name(name)
+				if not build_ids:
+					raise NoBuildFound
+				build_image = ship_build[build_ids[0]]['image']
+				build_image.save("temp.png")
+				await context.send(file=discord.File('temp.png'))
+				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
 
 		except Exception as e:
 			if type(e) == NoShipFound:
