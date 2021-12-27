@@ -1210,10 +1210,14 @@ def create_ship_build_images():
 					if skill_id in build_skills:
 						# indicate user should take this skill
 						skill_image = Image.composite(green, skill_image, skill_image)
+						# add number to indicate order should user take this skill
+						skill_acquired_order = build_skills.index(skill_id) + 1
+						image.paste(skill_image, coord, skill_image)
+						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0, 255))
 					else:
 						# fade out unneeded skills
 						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
-					image.paste(skill_image, coord, skill_image)
+						image.paste(skill_image, coord, skill_image)
 
 		# draw upgrdes
 		for slot, u in enumerate(build_upgrades):
@@ -1795,12 +1799,12 @@ async def build(context, *args):
 				tier = output['tier']
 				is_prem = output['is_premium']
 
-				if not send_image_build:
+				# find ship build
+				build_ids = get_ship_builds_by_name(name)
+				if not build_ids:
+					raise NoBuildFound
 
-					# find ship build
-					build_ids = get_ship_builds_by_name(name)
-					if not build_ids:
-						raise NoBuildFound
+				if not send_image_build:
 					build = ship_build[build_ids[0]]
 					upgrades = build['upgrades']
 					skills = build['skills']
@@ -1890,9 +1894,6 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_ids = get_ship_builds_by_name(name)
-				if not build_ids:
-					raise NoBuildFound
 				build_image = ship_build[build_ids[0]]['image']
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
