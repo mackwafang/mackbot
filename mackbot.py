@@ -1069,7 +1069,8 @@ def load_ship_builds():
 				else:
 					logging.info(f"Found {len(values)} ship builds")
 					for row in values:
-						build_type = row[1]
+						build_name = row[1]
+						raw_id += [build_name]
 						ship_name = row[0]
 						if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
 							ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
@@ -1118,7 +1119,7 @@ def load_ship_builds():
 						cmdr = row[-1]
 
 						build_id = hex_64bit(hash(tuple(raw_id)))
-						ship_build[build_id] = {"ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
+						ship_build[build_id] = {"title": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
 
 				if len(ship_build) > 0:
 					with open(ship_build_file_dir, 'w') as f:
@@ -1213,7 +1214,7 @@ def create_ship_build_images():
 						# add number to indicate order should user take this skill
 						skill_acquired_order = build_skills.index(skill_id) + 1
 						image.paste(skill_image, coord, skill_image)
-						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0, 255))
+						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 					else:
 						# fade out unneeded skills
 						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
