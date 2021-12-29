@@ -1881,7 +1881,7 @@ async def build(context, *args):
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
 						# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
-						# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {battle_type} {ship}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
 						embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
