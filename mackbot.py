@@ -304,6 +304,9 @@ consumable_descriptor = {
 	},
 }
 
+def hex_64bit(val):
+	return hex((val + (1 << 64)) % (1 << 64))[2:]
+
 def load_game_params():
 	global game_data
 	# creating GameParams json from GameParams.data
@@ -995,6 +998,7 @@ def load_ship_builds():
 	logging.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
+	extract_from_web_recently = False
 	ship_build_file_dir = os.path.join("data", "ship_builds.json")
 	build_extract_from_cache = os.path.isfile(ship_build_file_dir)
 
@@ -1012,132 +1016,147 @@ def load_ship_builds():
 
 
 	ship_build = {}
-	ship_build_competitive = []
-	ship_build_casual = []
 	# fetch ship builds and additional upgrade information
 	if command_list['build']:
 		if not build_extract_from_cache:
-			# extracting build and upgrade exclusion data from google sheets
-			from googleapiclient.errors import Error
-			from googleapiclient.discovery import build
-			from google_auth_oauthlib.flow import InstalledAppFlow
-			from google.auth.transport.requests import Request
-
-			# silence file_cache_warning
-			logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
-
-			logging.info("Attempting to fetch from sheets")
-			SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-			# The ID and range of a sample spreadsheet.
-			SAMPLE_SPREADSHEET_ID = sheet_id
-
-			creds = None
-			# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
-			# created automatically when the authorization flow completes for the first
-			# time.
-			if os.path.exists('cmd_sep.pickle'):
-				with open('cmd_sep.pickle', 'rb') as sep:
-					creds = pickle.load(sep)
-
-			# If there are no (valid) credentials available, let the user log in.
+			# no build file found, retrieve from google sheets
 			try:
-				if not creds or not creds.valid:
-					if creds and creds.expired and creds.refresh_token:
-						creds.refresh(Request())
-					else:
-						flow = InstalledAppFlow.from_client_secrets_file(
-							'credentials.json', SCOPES)
-						creds = flow.run_local_server(port=0)
-					# Save the credentials for the next run
-					with open('cmd_sep.pickle', 'wb') as sep:
-						pickle.dump(creds, sep)
-
-				service = build('sheets', 'v4', credentials=creds)
-
-				# Call the Sheets API
-				sheet = service.spreadsheets()
-				# fetch build
-				result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
-				values = result.get('values', [])
-
-				hex_64bit = lambda val: hex((val + (1 << 64)) % (1 << 64))[2:]
-
-				if not values:
-					logging.warning('No ship build data found.')
-					raise Error
-				else:
-					logging.info(f"Found {len(values)} ship builds")
-					for row in values:
-						build_name = row[1]
-						raw_id += [build_name]
-						ship_name = row[0]
-						if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
-							ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
-						raw_id = []
-						try:
-							ship = get_ship_data(ship_name)
-						except NoShipFound:
-							logging.warning(f'Ship {ship_name} is not found')
-							continue
-						raw_id.append(ship['ship_id'])
-						raw_upgrades = (i for i in row[2:8] if len(i) > 0)
-						upgrades = []
-						for u in raw_upgrades:
-							try:
-								upgrade_data = get_upgrade_data(u)
-								uid = upgrade_data['consumable_id']
-								raw_id.append(uid)
-								upgrades.append(uid)
-							except Exception as e:
-								if type(e) is NoUpgradeFound:
-									logging.error(f"Upgrade {u} in build for ship {ship['name']} is not found")
-								else:
-									logging.error("Other Exception found")
-								pass
-						upgrades = tuple(upgrades)
-
-						raw_skills = (i for i in row[8:-2] if len(i) > 0)
-						skills = []
-						skill_pts = 0
-						for s in raw_skills:
-							try:
-								skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
-								sid = skill_data['id']
-								skill_pts += skill_data['x']
-								raw_id.append(sid)
-								skills.append(sid)
-							except Exception as e:
-								if type(e) is NoSkillFound:
-									logging.error(f"Skill {s} in build for ship {ship['name']} is not found")
-								else:
-									logging.error("Other Exception found")
-								pass
-						if skill_pts > 21:
-							logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
-						skills = tuple(skills)
-						cmdr = row[-1]
-
-						build_id = hex_64bit(hash(tuple(raw_id)))
-						ship_build[build_id] = {"title": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-
-				if len(ship_build) > 0:
-					with open(ship_build_file_dir, 'w') as f:
-						logging.info("Creating ship build cache")
-						json.dump(ship_build, f)
-				logging.info("Ship build data fetching done")
+				extract_build_from_google_sheets(ship_build_file_dir)
+				extract_from_web_recently = True
 			except Exception as e:
 				extract_from_web_failed = True
-				logging.info(f"Exception raised while fetching builds: {e}")
-				traceback.print_exc()
 
 		if build_extract_from_cache or extract_from_web_failed:
 			if extract_from_web_failed:
+				# failed to get builds from google sheets, fetch local copy
 				logging.info("Get ship builds from sheets failed")
-			logging.info('Making ship build dictionary from cache')
-			with open(ship_build_file_dir) as f:
-				ship_build = json.load(f)
-			logging.info("Ship build complete")
+				logging.info('Making ship build dictionary from cache')
+				with open(ship_build_file_dir) as f:
+					ship_build = json.load(f)
+				logging.info("Ship build complete")
+			else:
+				if not extract_from_web_recently:
+					# update local copy
+					extract_build_from_google_sheets(ship_build_file_dir)
+
+
+def extract_build_from_google_sheets(dest_build_file_dir):
+	# extracting build from google sheets
+	from googleapiclient.errors import Error
+	from googleapiclient.discovery import build
+	from google_auth_oauthlib.flow import InstalledAppFlow
+	from google.auth.transport.requests import Request
+
+	# silence file_cache_warning
+	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+
+	logging.info("Attempting to fetch from sheets")
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+	# The ID and range of a sample spreadsheet.
+	SAMPLE_SPREADSHEET_ID = sheet_id
+
+	creds = None
+	# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('cmd_sep.pickle'):
+		with open('cmd_sep.pickle', 'rb') as sep:
+			creds = pickle.load(sep)
+
+	# If there are no (valid) credentials available, let the user log in.
+	try:
+		if not creds or not creds.valid:
+			if creds and creds.expired and creds.refresh_token:
+				creds.refresh(Request())
+			else:
+				flow = InstalledAppFlow.from_client_secrets_file(
+					'credentials.json', SCOPES)
+				creds = flow.run_local_server(port=0)
+			# Save the credentials for the next run
+			with open('cmd_sep.pickle', 'wb') as sep:
+				pickle.dump(creds, sep)
+
+		service = build('sheets', 'v4', credentials=creds)
+
+		# Call the Sheets API
+		sheet = service.spreadsheets()
+		# fetch build
+		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
+		values = result.get('values', [])
+
+		if not values:
+			logging.warning('No ship build data found.')
+			raise Error
+		else:
+			logging.info(f"Found {len(values)} ship builds")
+			for row in values:
+				build_name = row[1]
+				ship_name = row[0]
+				if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
+					ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
+
+				raw_id = [build_name]
+				try:
+					ship = get_ship_data(ship_name)
+				except NoShipFound:
+					logging.warning(f'Ship {ship_name} is not found')
+					continue
+				raw_id.append(ship['ship_id'])
+				raw_upgrades = (i for i in row[2:8] if len(i) > 0)
+				upgrades = []
+				for u in raw_upgrades:
+					try:
+						upgrade_data = get_upgrade_data(u)
+						uid = upgrade_data['consumable_id']
+						raw_id.append(uid)
+						upgrades.append(uid)
+					except Exception as e:
+						if type(e) is NoUpgradeFound:
+							logging.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
+						else:
+							logging.error("Other Exception found")
+						pass
+				upgrades = tuple(upgrades)
+
+				raw_skills = (i for i in row[8:-2] if len(i) > 0)
+				skills = []
+				skill_pts = 0
+				for s in raw_skills:
+					try:
+						skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
+						sid = skill_data['id']
+						skill_pts += skill_data['y']
+						raw_id.append(sid)
+						skills.append(sid)
+					except Exception as e:
+						if type(e) is NoSkillFound:
+							logging.warning(f"Skill {s} in build for ship {ship['name']} is not found")
+						else:
+							logging.error("Other Exception found")
+						pass
+				if skill_pts > 21:
+					logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
+				skills = tuple(skills)
+				cmdr = row[-1]
+
+				build_id = hex_64bit(hash(tuple(raw_id)))
+				if build_id not in ship_build:
+					ship_build[build_id] = {"title": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
+				else:
+					logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
+
+			if len(ship_build) > 0:
+				with open(dest_build_file_dir, 'w') as f:
+					# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
+					# ship_build['checksum'] = file_check_sum
+
+					logging.info("Creating ship build cache")
+					json.dump(ship_build, f)
+			logging.info("Ship build data fetching done")
+	except Exception as e:
+		logging.info(f"Exception raised while fetching builds: {e}")
+		traceback.print_exc()
 
 def create_ship_build_images():
 	if len(ship_build) == 0:
@@ -1802,11 +1821,30 @@ async def build(context, *args):
 
 				# find ship build
 				build_ids = get_ship_builds_by_name(name)
+				user_selected_build_id = 0
+
+				# get user selection for multiple ship builds
+				if len(build_ids) > 0:
+
+					await context.send(embed=embed)
+					async def get_user_selected_build_id(context):
+						author = context.author
+						def check(message):
+							return author == message.author
+
+						message = await mackbot.wait_for('message', timeout=10, check=check)
+						message = message.split(' ')[0]
+						try:
+							return int(message)
+						except ValueError as e:
+							return get_user_selected_build_id(context)
+					user_selected_build_id = get_user_selected_build_id(context)
+
 				if not build_ids:
 					raise NoBuildFound
 
 				if not send_image_build:
-					build = ship_build[build_ids[0]]
+					build = ship_build[build_ids[user_selected_build_id]]
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
@@ -1895,7 +1933,7 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_image = ship_build[build_ids[0]]['image']
+				build_image = ship_build[build_ids[user_selected_build_id]]['image']
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
 				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
