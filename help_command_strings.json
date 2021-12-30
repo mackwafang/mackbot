@@ -150,5 +150,11 @@
 			"\tmackbot player your_username_here (Get information about your account)",
 			"\tmackbot player your_username_here div2 (Get information about your 2-man division)"
 		]
+	},
+	"invite": {
+		"help": "",
+		"brief": "Invite mackbot to your server(s)",
+		"usage": "",
+		"description": ["Invite mackbot to your server(s)"]
 	}
 }

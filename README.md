@@ -13,14 +13,16 @@ pip3 install -r requirements.txt
 mackbot will require a file named `config.json` which will need to contain the following key/value pairs:
 ```
 {
-  wg_token: your_wg_token_here,
-  bot_token: your_discord_bot_token_here,
-  sheet_id: optional_token_for_google_sheets_fetching
+  "wg_token": wg_api_token_here,
+  "bot_token": discord_bot_token_here,
+  "sheet_id": optional_token_for_google_sheets_fetching,
+  "bot_invite_url": discord_bot_invite_url_here
 }
 ```
 - **wg_token**: Required for gathering some information (such as the **player** command) from WG.
 - **bot_token**: Required to run the bot
 - **sheet_id**: Optional for fetching from a Google Sheet where you can crowdsource your ship builds.
+- **bot_invite_url**: Optional for the **invite** command.
 
 ## Discord Commands
 All usable commands can be found by using the command `mackbot help` in Discord, or in the `./help_command_strings.json`. You can enable/disable commands in the `./help_command_strings.json` file.

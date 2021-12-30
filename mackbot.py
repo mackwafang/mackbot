@@ -143,6 +143,7 @@ else:
 		wg_token = data['wg_token']
 		bot_token = data['bot_token']
 		sheet_id = data['sheet_id']
+		bot_invite_url = data['bot_invite_url']
 
 # define bot stuff
 cmd_sep = ' '
@@ -3418,6 +3419,10 @@ async def purpose(context):
 
 	message = await mackbot.wait_for('message', timeout=30, check=check)
 	await context.send("Oh my god...")
+
+@mackbot.command()
+async def invite(context):
+	await context.send(bot_invite_url)
 
 if __name__ == '__main__':
 	# pre processing botes

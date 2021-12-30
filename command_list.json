@@ -14,5 +14,6 @@
 	"code" : true,
 	"hottake": true,
 	"purpose": true,
-	"player": true
+	"player": true,
+	"invite": true
 }
