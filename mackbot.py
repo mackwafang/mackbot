@@ -996,6 +996,8 @@ def create_upgrade_abbr():
 
 
 def extract_build_from_google_sheets(dest_build_file_dir):
+	global ship_build
+
 	# extracting build from google sheets
 	from googleapiclient.errors import Error
 	from googleapiclient.discovery import build
