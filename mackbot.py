@@ -1848,7 +1848,7 @@ async def build(context, *args):
 					skills = build['skills']
 					cmdr = build['cmdr']
 
-					embed = discord.Embed(title=f"{build_name} Build for {name}", description='')
+					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
 					logging.info(f"returning build information for <{name}> in embeded format")
