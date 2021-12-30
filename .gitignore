@@ -1,4 +1,6 @@
 .env
+data/ship_list
+data/ship_param
 icons/aa.png
 icons/ap.png
 icons/concealment.png

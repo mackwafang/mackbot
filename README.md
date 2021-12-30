@@ -1,13 +1,15 @@
-## mackbot
+# mackbot
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 The World of Warships (WoWS) Discord bot with ship build sharing and ship encyclopedia.
 
-# Installation
+## Installation
 Simply run:
 ```
 pip3 install -r requirements.txt
 ```
 
-# config.json
+## config.json
 mackbot will require a file named `config.json` which will need to contain the following key/value pairs:
 ```
 {
@@ -20,7 +22,7 @@ mackbot will require a file named `config.json` which will need to contain the f
 - **bot_token**: Required to run the bot
 - **sheet_id**: Optional for fetching from a Google Sheet where you can crowdsource your ship builds.
 
-# Discord Commands
+## Discord Commands
 All usable commands can be found by using the command `mackbot help` in Discord, or in the `./help_command_strings.json`. You can enable/disable commands in the `./help_command_strings.json` file.
 
 mackbot's commands include, but not limited to:
@@ -28,3 +30,8 @@ mackbot's commands include, but not limited to:
 - **ship** (Get warship information)
 - **show** (Display items in a category (e.g. ships, upgrades))
 - **player** (Get player information)
+
+
+### Legal
+
+© Wargaming.net. All rights reserved
