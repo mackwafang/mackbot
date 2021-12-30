@@ -1187,6 +1187,7 @@ def create_ship_build_images():
 
 		build = ship_build[s_build]
 		build_ship_name = build['ship']
+		build_name = build['name']
 		build_upgrades = build['upgrades']
 		build_skills = build['skills']
 		build_cmdr = build['cmdr']
@@ -1213,7 +1214,8 @@ def create_ship_build_images():
 		with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
 			ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
 			image.paste(ship_type_image, (0, 0), ship_type_image)
-		draw.text((56, 16), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font) # add ship name
+		draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
+		draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
 
 		# get skills from this ship's tree
 		skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
@@ -1791,16 +1793,14 @@ async def build(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		additional_comp_keywords = ['comp']
-
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
 			args = args[1:]
-
+		usr_ship_name = ''.join([i + ' ' for i in args])[:-1]
 		name, images = "", None
 		try:
 			async with context.typing():
-				output = get_ship_data(ship)
+				output = get_ship_data(usr_ship_name)
 				name = output['name']
 				nation = output['nation']
 				images = output['images']
@@ -1823,9 +1823,9 @@ async def build(context, *args):
 					for i, bid in enumerate(build_ids):
 						build_name = ship_build[bid]['name']
 						m += f"[{i + 1}] {build_name}\n"
-					embed.add_field(name="mackbot found multiple builds for this ship", value=m)
+					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 
-					embed.add_field(name="Please enter the number you would like the build for.", value="\u200b")
+					embed.set_footer(text="Please enter the number you would like the build for.")
 					await context.send(embed=embed)
 
 					def get_user_selected_build_id(message):
@@ -1941,7 +1941,7 @@ async def build(context, *args):
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
 				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
+				closest_match = difflib.get_close_matches(usr_ship_name, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
 					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
@@ -1950,13 +1950,16 @@ async def build(context, *args):
 				embed.set_footer(text="Response expire in 10 seconds")
 				await context.send(embed=embed)
 				await correct_user_misspell(context, 'build', closest_match[0])
-			if type(e) == NoBuildFound:
+			elif type(e) == NoBuildFound:
 				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
 				await context.send(embed=embed)
+			else:
+				logging.error(f"{type(e)}")
+				traceback.print_exc()
 
 @mackbot.command(help="")
 async def ship(context, *args):
