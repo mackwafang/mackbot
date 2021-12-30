@@ -1142,7 +1142,7 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 
 				build_id = hex_64bit(hash(tuple(raw_id)))
 				if build_id not in ship_build:
-					ship_build[build_id] = {"title": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
+					ship_build[build_id] = {"name": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
 				else:
 					logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
 
@@ -1791,22 +1791,11 @@ async def build(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-
-		battle_type = args[0].lower()  # assuming build battle type is provided
 		additional_comp_keywords = ['comp']
 
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
 			args = args[1:]
-
-		if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
-			# 2nd argument provided is a known argument
-			battle_type = 'competitive'
-			ship = ''.join([i + ' ' for i in args[1:]])[:-1]  # grab ship name
-		else:
-			battle_type = 'casual'
-			ship = ''.join([i + ' ' for i in args])[:-1]  # grab ship name
-
 
 		name, images = "", None
 		try:
@@ -1824,39 +1813,49 @@ async def build(context, *args):
 				user_selected_build_id = 0
 
 				# get user selection for multiple ship builds
-				if len(build_ids) > 0:
+				if len(build_ids) > 1:
+					embed = discord.Embed(title=f"Build for {name}", description='')
+					embed.set_thumbnail(url=images['small'])
 
+					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+
+					m = ""
+					for i, bid in enumerate(build_ids):
+						build_name = ship_build[bid]['name']
+						m += f"[{i + 1}] {build_name}\n"
+					embed.add_field(name="mackbot found multiple builds for this ship", value=m)
+
+					embed.add_field(name="Please enter the number you would like the build for.", value="\u200b")
 					await context.send(embed=embed)
-					async def get_user_selected_build_id(context):
-						author = context.author
-						def check(message):
-							return author == message.author
 
-						message = await mackbot.wait_for('message', timeout=10, check=check)
-						message = message.split(' ')[0]
-						try:
-							return int(message)
-						except ValueError as e:
-							return get_user_selected_build_id(context)
-					user_selected_build_id = get_user_selected_build_id(context)
+					def get_user_selected_build_id(message):
+						return context.author == message.author
+					user_selected_build_id = await mackbot.wait_for('message', timeout=10, check=get_user_selected_build_id)
+					user_selected_build_id = user_selected_build_id.content.split(' ')[0]
+					try:
+						user_selected_build_id = int(user_selected_build_id) - 1
+					except ValueError:
+						await context.send(f"Input {user_selected_build_id} is invalid")
+						raise ValueError
 
 				if not build_ids:
 					raise NoBuildFound
 
 				if not send_image_build:
 					build = ship_build[build_ids[user_selected_build_id]]
+					build_name = build['name']
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
 
-					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+					embed = discord.Embed(title=f"{build_name} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
 					logging.info(f"returning build information for <{name}> in embeded format")
 
-					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+					tier_string = list(roman_numeral.keys())[tier - 1]
 
-					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
 
 					footer_message = ""
 					error_value_found = False
@@ -1920,10 +1919,10 @@ async def build(context, *args):
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
 						# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
-						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {battle_type} {ship}]\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {ship}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
-						embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
+						embed.add_field(name=f'No known build', value=m, inline=False)
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
@@ -1952,7 +1951,7 @@ async def build(context, *args):
 				await context.send(embed=embed)
 				await correct_user_misspell(context, 'build', closest_match[0])
 			if type(e) == NoBuildFound:
-				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
