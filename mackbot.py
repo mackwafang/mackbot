@@ -304,6 +304,9 @@ consumable_descriptor = {
 	},
 }
 
+def hex_64bit(val):
+	return hex((val + (1 << 64)) % (1 << 64))[2:]
+
 def load_game_params():
 	global game_data
 	# creating GameParams json from GameParams.data
@@ -995,6 +998,7 @@ def load_ship_builds():
 	logging.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
+	extract_from_web_recently = False
 	ship_build_file_dir = os.path.join("data", "ship_builds.json")
 	build_extract_from_cache = os.path.isfile(ship_build_file_dir)
 
@@ -1012,131 +1016,147 @@ def load_ship_builds():
 
 
 	ship_build = {}
-	ship_build_competitive = []
-	ship_build_casual = []
 	# fetch ship builds and additional upgrade information
 	if command_list['build']:
 		if not build_extract_from_cache:
-			# extracting build and upgrade exclusion data from google sheets
-			from googleapiclient.errors import Error
-			from googleapiclient.discovery import build
-			from google_auth_oauthlib.flow import InstalledAppFlow
-			from google.auth.transport.requests import Request
-
-			# silence file_cache_warning
-			logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
-
-			logging.info("Attempting to fetch from sheets")
-			SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-			# The ID and range of a sample spreadsheet.
-			SAMPLE_SPREADSHEET_ID = sheet_id
-
-			creds = None
-			# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
-			# created automatically when the authorization flow completes for the first
-			# time.
-			if os.path.exists('cmd_sep.pickle'):
-				with open('cmd_sep.pickle', 'rb') as sep:
-					creds = pickle.load(sep)
-
-			# If there are no (valid) credentials available, let the user log in.
+			# no build file found, retrieve from google sheets
 			try:
-				if not creds or not creds.valid:
-					if creds and creds.expired and creds.refresh_token:
-						creds.refresh(Request())
-					else:
-						flow = InstalledAppFlow.from_client_secrets_file(
-							'credentials.json', SCOPES)
-						creds = flow.run_local_server(port=0)
-					# Save the credentials for the next run
-					with open('cmd_sep.pickle', 'wb') as sep:
-						pickle.dump(creds, sep)
-
-				service = build('sheets', 'v4', credentials=creds)
-
-				# Call the Sheets API
-				sheet = service.spreadsheets()
-				# fetch build
-				result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
-				values = result.get('values', [])
-
-				hex_64bit = lambda val: hex((val + (1 << 64)) % (1 << 64))[2:]
-
-				if not values:
-					logging.warning('No ship build data found.')
-					raise Error
-				else:
-					logging.info(f"Found {len(values)} ship builds")
-					for row in values:
-						build_type = row[1]
-						ship_name = row[0]
-						if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
-							ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
-						raw_id = []
-						try:
-							ship = get_ship_data(ship_name)
-						except NoShipFound:
-							logging.warning(f'Ship {ship_name} is not found')
-							continue
-						raw_id.append(ship['ship_id'])
-						raw_upgrades = (i for i in row[2:8] if len(i) > 0)
-						upgrades = []
-						for u in raw_upgrades:
-							try:
-								upgrade_data = get_upgrade_data(u)
-								uid = upgrade_data['consumable_id']
-								raw_id.append(uid)
-								upgrades.append(uid)
-							except Exception as e:
-								if type(e) is NoUpgradeFound:
-									logging.error(f"Upgrade {u} in build for ship {ship['name']} is not found")
-								else:
-									logging.error("Other Exception found")
-								pass
-						upgrades = tuple(upgrades)
-
-						raw_skills = (i for i in row[8:-2] if len(i) > 0)
-						skills = []
-						skill_pts = 0
-						for s in raw_skills:
-							try:
-								skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
-								sid = skill_data['id']
-								skill_pts += skill_data['x']
-								raw_id.append(sid)
-								skills.append(sid)
-							except Exception as e:
-								if type(e) is NoSkillFound:
-									logging.error(f"Skill {s} in build for ship {ship['name']} is not found")
-								else:
-									logging.error("Other Exception found")
-								pass
-						if skill_pts > 21:
-							logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
-						skills = tuple(skills)
-						cmdr = row[-1]
-
-						build_id = hex_64bit(hash(tuple(raw_id)))
-						ship_build[build_id] = {"ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-
-				if len(ship_build) > 0:
-					with open(ship_build_file_dir, 'w') as f:
-						logging.info("Creating ship build cache")
-						json.dump(ship_build, f)
-				logging.info("Ship build data fetching done")
+				extract_build_from_google_sheets(ship_build_file_dir)
+				extract_from_web_recently = True
 			except Exception as e:
 				extract_from_web_failed = True
-				logging.info(f"Exception raised while fetching builds: {e}")
-				traceback.print_exc()
 
 		if build_extract_from_cache or extract_from_web_failed:
 			if extract_from_web_failed:
+				# failed to get builds from google sheets, fetch local copy
 				logging.info("Get ship builds from sheets failed")
-			logging.info('Making ship build dictionary from cache')
-			with open(ship_build_file_dir) as f:
-				ship_build = json.load(f)
-			logging.info("Ship build complete")
+				logging.info('Making ship build dictionary from cache')
+				with open(ship_build_file_dir) as f:
+					ship_build = json.load(f)
+				logging.info("Ship build complete")
+			else:
+				if not extract_from_web_recently:
+					# update local copy
+					extract_build_from_google_sheets(ship_build_file_dir)
+
+
+def extract_build_from_google_sheets(dest_build_file_dir):
+	# extracting build from google sheets
+	from googleapiclient.errors import Error
+	from googleapiclient.discovery import build
+	from google_auth_oauthlib.flow import InstalledAppFlow
+	from google.auth.transport.requests import Request
+
+	# silence file_cache_warning
+	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+
+	logging.info("Attempting to fetch from sheets")
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+	# The ID and range of a sample spreadsheet.
+	SAMPLE_SPREADSHEET_ID = sheet_id
+
+	creds = None
+	# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('cmd_sep.pickle'):
+		with open('cmd_sep.pickle', 'rb') as sep:
+			creds = pickle.load(sep)
+
+	# If there are no (valid) credentials available, let the user log in.
+	try:
+		if not creds or not creds.valid:
+			if creds and creds.expired and creds.refresh_token:
+				creds.refresh(Request())
+			else:
+				flow = InstalledAppFlow.from_client_secrets_file(
+					'credentials.json', SCOPES)
+				creds = flow.run_local_server(port=0)
+			# Save the credentials for the next run
+			with open('cmd_sep.pickle', 'wb') as sep:
+				pickle.dump(creds, sep)
+
+		service = build('sheets', 'v4', credentials=creds)
+
+		# Call the Sheets API
+		sheet = service.spreadsheets()
+		# fetch build
+		result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
+		values = result.get('values', [])
+
+		if not values:
+			logging.warning('No ship build data found.')
+			raise Error
+		else:
+			logging.info(f"Found {len(values)} ship builds")
+			for row in values:
+				build_name = row[1]
+				ship_name = row[0]
+				if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
+					ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
+
+				raw_id = [build_name]
+				try:
+					ship = get_ship_data(ship_name)
+				except NoShipFound:
+					logging.warning(f'Ship {ship_name} is not found')
+					continue
+				raw_id.append(ship['ship_id'])
+				raw_upgrades = (i for i in row[2:8] if len(i) > 0)
+				upgrades = []
+				for u in raw_upgrades:
+					try:
+						upgrade_data = get_upgrade_data(u)
+						uid = upgrade_data['consumable_id']
+						raw_id.append(uid)
+						upgrades.append(uid)
+					except Exception as e:
+						if type(e) is NoUpgradeFound:
+							logging.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
+						else:
+							logging.error("Other Exception found")
+						pass
+				upgrades = tuple(upgrades)
+
+				raw_skills = (i for i in row[8:-2] if len(i) > 0)
+				skills = []
+				skill_pts = 0
+				for s in raw_skills:
+					try:
+						skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
+						sid = skill_data['id']
+						skill_pts += skill_data['y']
+						raw_id.append(sid)
+						skills.append(sid)
+					except Exception as e:
+						if type(e) is NoSkillFound:
+							logging.warning(f"Skill {s} in build for ship {ship['name']} is not found")
+						else:
+							logging.error("Other Exception found")
+						pass
+				if skill_pts > 21:
+					logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
+				skills = tuple(skills)
+				cmdr = row[-1]
+
+				build_id = hex_64bit(hash(tuple(raw_id)))
+				if build_id not in ship_build:
+					ship_build[build_id] = {"name": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
+				else:
+					logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
+
+			if len(ship_build) > 0:
+				with open(dest_build_file_dir, 'w') as f:
+					# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
+					# ship_build['checksum'] = file_check_sum
+
+					logging.info("Creating ship build cache")
+					json.dump(ship_build, f)
+			logging.info("Ship build data fetching done")
+	except Exception as e:
+		logging.info(f"Exception raised while fetching builds: {e}")
+		traceback.print_exc()
 
 def create_ship_build_images():
 	if len(ship_build) == 0:
@@ -1167,6 +1187,7 @@ def create_ship_build_images():
 
 		build = ship_build[s_build]
 		build_ship_name = build['ship']
+		build_name = build['name']
 		build_upgrades = build['upgrades']
 		build_skills = build['skills']
 		build_cmdr = build['cmdr']
@@ -1193,7 +1214,8 @@ def create_ship_build_images():
 		with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
 			ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
 			image.paste(ship_type_image, (0, 0), ship_type_image)
-		draw.text((56, 16), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font) # add ship name
+		draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
+		draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
 
 		# get skills from this ship's tree
 		skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
@@ -1213,7 +1235,7 @@ def create_ship_build_images():
 						# add number to indicate order should user take this skill
 						skill_acquired_order = build_skills.index(skill_id) + 1
 						image.paste(skill_image, coord, skill_image)
-						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=2, stroke_fill=(0, 0, 0, 255))
+						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 					else:
 						# fade out unneeded skills
 						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
@@ -1771,27 +1793,14 @@ async def build(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-
-		battle_type = args[0].lower()  # assuming build battle type is provided
-		additional_comp_keywords = ['comp']
-
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
 			args = args[1:]
-
-		if battle_type in build_battle_type_value or battle_type in additional_comp_keywords:
-			# 2nd argument provided is a known argument
-			battle_type = 'competitive'
-			ship = ''.join([i + ' ' for i in args[1:]])[:-1]  # grab ship name
-		else:
-			battle_type = 'casual'
-			ship = ''.join([i + ' ' for i in args])[:-1]  # grab ship name
-
-
+		usr_ship_name = ''.join([i + ' ' for i in args])[:-1]
 		name, images = "", None
 		try:
 			async with context.typing():
-				output = get_ship_data(ship)
+				output = get_ship_data(usr_ship_name)
 				name = output['name']
 				nation = output['nation']
 				images = output['images']
@@ -1801,23 +1810,52 @@ async def build(context, *args):
 
 				# find ship build
 				build_ids = get_ship_builds_by_name(name)
+				user_selected_build_id = 0
+
+				# get user selection for multiple ship builds
+				if len(build_ids) > 1:
+					embed = discord.Embed(title=f"Build for {name}", description='')
+					embed.set_thumbnail(url=images['small'])
+
+					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+
+					m = ""
+					for i, bid in enumerate(build_ids):
+						build_name = ship_build[bid]['name']
+						m += f"[{i + 1}] {build_name}\n"
+					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
+
+					embed.set_footer(text="Please enter the number you would like the build for.")
+					await context.send(embed=embed)
+
+					def get_user_selected_build_id(message):
+						return context.author == message.author
+					user_selected_build_id = await mackbot.wait_for('message', timeout=10, check=get_user_selected_build_id)
+					user_selected_build_id = user_selected_build_id.content.split(' ')[0]
+					try:
+						user_selected_build_id = int(user_selected_build_id) - 1
+					except ValueError:
+						await context.send(f"Input {user_selected_build_id} is invalid")
+						raise ValueError
+
 				if not build_ids:
 					raise NoBuildFound
 
 				if not send_image_build:
-					build = ship_build[build_ids[0]]
+					build = ship_build[build_ids[user_selected_build_id]]
+					build_name = build['name']
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
 
-					embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+					embed = discord.Embed(title=f"{build_name} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
 					logging.info(f"returning build information for <{name}> in embeded format")
 
-					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+					tier_string = list(roman_numeral.keys())[tier - 1]
 
-					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
 
 					footer_message = ""
 					error_value_found = False
@@ -1881,10 +1919,10 @@ async def build(context, *args):
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
 						# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
-						# footer_message += f"For image variant of this message, use [mackbot build {battle_type} {ship} image]\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {ship}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
-						embed.add_field(name=f'No known {battle_type} build', value=m, inline=False)
+						embed.add_field(name=f'No known build', value=m, inline=False)
 					error_footer_message = ""
 					if error_value_found:
 						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
@@ -1894,7 +1932,7 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_image = ship_build[build_ids[0]]['image']
+				build_image = ship_build[build_ids[user_selected_build_id]]['image']
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
 				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
@@ -1903,7 +1941,7 @@ async def build(context, *args):
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
 				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
+				closest_match = difflib.get_close_matches(usr_ship_name, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
 					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
@@ -1912,13 +1950,16 @@ async def build(context, *args):
 				embed.set_footer(text="Response expire in 10 seconds")
 				await context.send(embed=embed)
 				await correct_user_misspell(context, 'build', closest_match[0])
-			if type(e) == NoBuildFound:
-				embed = discord.Embed(title=f"{battle_type.title()} Build for {name}", description='')
+			elif type(e) == NoBuildFound:
+				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
 				await context.send(embed=embed)
+			else:
+				logging.error(f"{type(e)}")
+				traceback.print_exc()
 
 @mackbot.command(help="")
 async def ship(context, *args):
