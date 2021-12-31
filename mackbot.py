@@ -3425,6 +3425,11 @@ async def invite(context):
 	await context.send(bot_invite_url)
 
 if __name__ == '__main__':
+	import argparse
+	arg_parser = argparse.ArgumentParser()
+	arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
+	args = arg_parser.parse_args()
+
 	# pre processing botes
 	load_game_params()
 	load_skill_list()
@@ -3435,6 +3440,16 @@ if __name__ == '__main__':
 	load_ship_params()
 	update_ship_modules()
 	create_upgrade_abbr()
+
+	# retrieve new build from google sheets
+	if args.fetch_new_build:
+		try:
+			ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
+			extract_build_from_google_sheets(ship_build_file_dir)
+			os.remove(os.path.join(ship_build_file_dir))
+		except:
+			pass
+
 	load_ship_builds()
 	create_ship_build_images()
 	create_ship_tags()
@@ -3449,7 +3464,7 @@ if __name__ == '__main__':
 
 			command.help = help_command_strings[c]['help']
 			command.brief = help_command_strings[c]['brief']
-			command.usage = help_command_strings[c]['usage']
+			command.usage = "usage: " + help_command_strings[c]['usage']
 			command.description = ''.join([i + '\n' for i in help_command_strings[c]['description']])
 
 		except:

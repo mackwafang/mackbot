@@ -1,10 +1,9 @@
 # mackbot
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 The World of Warships (WoWS) Discord bot with ship build sharing and ship encyclopedia.
 
 ## Installation
-Simply run:
+After making a clone/fork, simply the following to install the necessary packages for mackbot to run:
 ```
 pip3 install -r requirements.txt
 ```
@@ -35,5 +34,5 @@ mackbot's commands include, but not limited to:
 
 
 ### Legal
-
-© Wargaming.net. All rights reserved
+All copyrighted materials owned by Wargaming.net. All rights reserved.\
+All other contents are available under the MIT license.
