@@ -3394,13 +3394,14 @@ async def doubloons(context, *args):
 				await context.send(f"An internal error has occured.")
 
 @mackbot.command()
-async def code(context, arg):
-	if len(arg) == 0:
+async def code(context, *args):
+	if len(args) == 0:
 		await context.send_help("code")
 	else:
-		s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + arg.upper()
-		logging.info(f"returned a wargaming bonus code link with code {arg}")
-		await context.send(s)
+		for code in args:
+			s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + code.upper()
+			logging.info(f"returned a wargaming bonus code link with code {code}")
+			await context.send(s)
 
 @mackbot.command()
 async def hottake(context):
