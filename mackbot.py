@@ -1,6 +1,7 @@
 import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
 import pandas as pd
 
+from pymongo import MongoClient
 from enum import IntEnum, auto
 from math import inf, ceil
 from itertools import count
@@ -33,6 +34,10 @@ class SHIP_TAG(IntEnum):
 	FAST_GUN = auto()
 	STEALTH = auto()
 	AA = auto()
+
+class SHIP_BUILD_FETCH_FROM(IntEnum):
+	LOCAL = auto()
+	MONGO_DB = auto()
 
 
 pd.set_option('display.max_columns', None)
@@ -144,11 +149,19 @@ else:
 		bot_token = data['bot_token']
 		sheet_id = data['sheet_id']
 		bot_invite_url = data['bot_invite_url']
+		mongodb_host = data['mongodb_host']
 
 # define bot stuff
 cmd_sep = ' '
 command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
+
+# define database stuff
+database_client = None
+try:
+	database_client = MongoClient(mongodb_host)
+except ConnectionError:
+	logging.warning("MongoDB cannot be connected.")
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -995,7 +1008,7 @@ def create_upgrade_abbr():
 		upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()  # add this abbreviation
 
 
-def extract_build_from_google_sheets(dest_build_file_dir):
+def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 	global ship_build
 
 	# extracting build from google sheets
@@ -1102,7 +1115,7 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 			else:
 				logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
 
-		if len(ship_build) > 0:
+		if len(ship_build) > 0 and write_cache:
 			with open(dest_build_file_dir, 'w') as f:
 				# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
 				# ship_build['checksum'] = file_check_sum
@@ -1112,6 +1125,10 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 		logging.info("Ship build data fetching done")
 
 def load_ship_builds():
+	if database_client is None:
+		# database connection successful, we don't need to fetch from local cache
+		return None
+
 	logging.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
@@ -1137,7 +1154,7 @@ def load_ship_builds():
 		if not build_extract_from_cache:
 			# no build file found, retrieve from google sheets
 			try:
-				extract_build_from_google_sheets(ship_build_file_dir)
+				extract_build_from_google_sheets(ship_build_file_dir, True)
 			except:
 				extract_from_web_failed = True
 
@@ -1369,24 +1386,29 @@ def get_ship_data(ship: str) -> dict:
 	except Exception as e:
 		raise e
 
-def get_ship_builds_by_name(ship: str) -> list:
+def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> list:
 	"""
 	Returns a ship build given the ship name
 
 	Args:
+	    fetch_from: source of ship build
 		ship: ship name
 
 	Returns:
-		object: list of build id for ship with name "ship"
+		object: list of builds for ship with name "ship"
 
 	Raises:
 		NoBuildFound exception
 	"""
+
 	try:
-		result = [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
-		if not result:
-			raise NoBuildFound
-		return result
+		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
+			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship.lower()]
+			if not result:
+				raise NoBuildFound
+			return result
+		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
+			return list(database_client['ship_build'].find({"ship": ship.lower()}))
 	except Exception as e:
 		raise e
 
@@ -1791,18 +1813,18 @@ async def build(context, *args):
 				is_prem = output['is_premium']
 
 				# find ship build
-				build_ids = get_ship_builds_by_name(name)
+				builds = get_ship_builds_by_name(name)
 				user_selected_build_id = 0
 
 				# get user selection for multiple ship builds
-				if len(build_ids) > 1:
+				if len(builds) > 1:
 					embed = discord.Embed(title=f"Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
 					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 					m = ""
-					for i, bid in enumerate(build_ids):
+					for i, bid in enumerate(builds):
 						build_name = ship_build[bid]['name']
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
@@ -1820,11 +1842,11 @@ async def build(context, *args):
 						await context.send(f"Input {user_selected_build_id} is invalid")
 						raise ValueError
 
-				if not build_ids:
+				if not builds:
 					raise NoBuildFound
 
 				if not send_image_build:
-					build = ship_build[build_ids[user_selected_build_id]]
+					build = builds[user_selected_build_id]
 					build_name = build['name']
 					upgrades = build['upgrades']
 					skills = build['skills']
@@ -1913,7 +1935,7 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_image = ship_build[build_ids[user_selected_build_id]]['image']
+				build_image = builds[user_selected_build_id]['image']
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
 				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
@@ -3430,7 +3452,7 @@ if __name__ == '__main__':
 	if args.fetch_new_build:
 		try:
 			ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
-			extract_build_from_google_sheets(ship_build_file_dir)
+			extract_build_from_google_sheets(ship_build_file_dir, True)
 			os.remove(os.path.join(ship_build_file_dir))
 		except:
 			pass
