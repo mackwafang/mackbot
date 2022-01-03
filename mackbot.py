@@ -1,6 +1,7 @@
 import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
 import pandas as pd
 
+from pymongo import MongoClient
 from enum import IntEnum, auto
 from math import inf, ceil
 from itertools import count
@@ -8,7 +9,7 @@ from random import randint
 from discord.ext import commands
 from datetime import date
 from string import ascii_letters
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from pprint import pprint
 
 class NoShipFound(Exception):
@@ -33,6 +34,10 @@ class SHIP_TAG(IntEnum):
 	FAST_GUN = auto()
 	STEALTH = auto()
 	AA = auto()
+
+class SHIP_BUILD_FETCH_FROM(IntEnum):
+	LOCAL = auto()
+	MONGO_DB = auto()
 
 
 pd.set_option('display.max_columns', None)
@@ -144,11 +149,19 @@ else:
 		bot_token = data['bot_token']
 		sheet_id = data['sheet_id']
 		bot_invite_url = data['bot_invite_url']
+		mongodb_host = data['mongodb_host']
 
 # define bot stuff
 cmd_sep = ' '
 command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
+
+# define database stuff
+database_client = None
+try:
+	database_client = MongoClient(mongodb_host)
+except ConnectionError:
+	logging.warning("MongoDB cannot be connected.")
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -627,12 +640,14 @@ def update_ship_modules():
 							atba = module_data[atba]
 							atba_guns = {'turret': {}}
 							for t in [i for i in atba if 'HP' in i]:
+								# gather all known secondary turrets
 								turret = atba[t]
 								if turret['name'] in atba_guns['turret']:
 									atba_guns['turret'][turret['name']] += [turret]
 								else:
 									atba_guns['turret'][turret['name']] = [turret]
 							else:
+								# compile the secondary guns data
 								for t in atba_guns['turret']:
 									turret_data = atba_guns['turret'][t][0]
 									atba_guns[t] = {
@@ -693,7 +708,7 @@ def update_ship_modules():
 							for item in ['atba', 'artillery']:
 								try:
 									aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
-								except:
+								except IndexError:
 									pass
 
 							for aa_component in aa_defense_far:
@@ -726,7 +741,7 @@ def update_ship_modules():
 
 							# aa rating scaling with range
 							if combined_aa_damage > 0:
-								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)
+								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800) # why 5800m? because thats the range of most ships' aa
 								if aa_range_scaling > 1:
 									aa_range_scaling = aa_range_scaling ** 3
 								aa_rating += (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
@@ -882,7 +897,6 @@ def update_ship_modules():
 						for p in planes:
 							plane = game_data[p]
 							projectile = game_data[plane['bombName']]
-							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id]['attack_size'] = plane['attackerSize']
 							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
 							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -904,13 +918,12 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
-						# get turret parameter
+						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
 						planes = module_data[planes].values()
 						for p in planes:
 							plane = game_data[p]
 							projectile = game_data[plane['bombName']]
-							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
 							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
 							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -932,7 +945,7 @@ def update_ship_modules():
 
 					# skip bomber
 					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
-						# get turret parameter
+						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
 						planes = module_data[planes].values()
 						for p in planes:
@@ -969,9 +982,9 @@ def update_ship_modules():
 		except Exception as e:
 			if not type(e) == KeyError:
 				logging.error("at ship id " + s)
-				logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.json")
+				logging.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logging.error("Update your GameParams JSON file(s)")
-			traceback.print_exc(type(e), e, None)
+			traceback.print_exc()
 
 			if mackbot.is_closed():
 				time.sleep(10)
@@ -987,7 +1000,6 @@ def create_upgrade_abbr():
 		load_upgrade_list()
 
 	for u in upgrade_list:
-		# print("'"+''.join([i[0] for i in mod_list[i].split()])+"':'"+f'{mod_list[i]}\',')
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
 		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
@@ -996,7 +1008,7 @@ def create_upgrade_abbr():
 		upgrade_abbr_list[key] = upgrade_list[u]['name'].lower()  # add this abbreviation
 
 
-def extract_build_from_google_sheets(dest_build_file_dir):
+def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 	global ship_build
 
 	# extracting build from google sheets
@@ -1053,7 +1065,7 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 			if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
 				ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
 
-			raw_id = [build_name]
+			raw_id = []
 			try:
 				ship = get_ship_data(ship_name)
 			except NoShipFound:
@@ -1084,7 +1096,7 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 					skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
 					sid = skill_data['id']
 					skill_pts += skill_data['y']
-					raw_id.append(sid)
+					raw_id.append(int(sid))
 					skills.append(sid)
 				except Exception as e:
 					if type(e) is NoSkillFound:
@@ -1103,7 +1115,7 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 			else:
 				logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
 
-		if len(ship_build) > 0:
+		if len(ship_build) > 0 and write_cache:
 			with open(dest_build_file_dir, 'w') as f:
 				# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
 				# ship_build['checksum'] = file_check_sum
@@ -1113,6 +1125,10 @@ def extract_build_from_google_sheets(dest_build_file_dir):
 		logging.info("Ship build data fetching done")
 
 def load_ship_builds():
+	if database_client is None:
+		# database connection successful, we don't need to fetch from local cache
+		return None
+
 	logging.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
@@ -1138,7 +1154,7 @@ def load_ship_builds():
 		if not build_extract_from_cache:
 			# no build file found, retrieve from google sheets
 			try:
-				extract_build_from_google_sheets(ship_build_file_dir)
+				extract_build_from_google_sheets(ship_build_file_dir, True)
 			except:
 				extract_from_web_failed = True
 
@@ -1148,18 +1164,8 @@ def load_ship_builds():
 				ship_build = json.load(f)
 
 
-def create_ship_build_images():
-	if len(ship_build) == 0:
-		logging.info("No ship builds")
-		load_ship_builds()
+def create_ship_build_images(build_name, build_ship_name, build_skills, build_upgrades, build_cmdr):
 
-	if len(game_data) == 0:
-		logging.info("No game data")
-		load_game_params()
-
-	from PIL import ImageDraw, ImageFont
-
-	logging.info("Creating images for ship builds")
 	# create dictionary for upgrade gamedata index to image name
 	image_file_dict = {}
 	image_folder_dir = os.path.join("data", "modernization_icons")
@@ -1170,83 +1176,73 @@ def create_ship_build_images():
 
 	font = ImageFont.truetype("./arialbd.ttf", encoding='unic', size=20)
 
-	# create build images
-	for s_build in ship_build:
-		image_size = (400, 400)
+	# create build image
+	image_size = (400, 400)
 
-		build = ship_build[s_build]
-		build_ship_name = build['ship']
-		build_name = build['name']
-		build_upgrades = build['upgrades']
-		build_skills = build['skills']
-		build_cmdr = build['cmdr']
+	ship = get_ship_data(build_ship_name)
 
-		ship = get_ship_data(build_ship_name)
+	# get ship type image
+	ship_type_image_filename = ""
+	if ship['type'] == 'AirCarrier':
+		ship_type_image_filename = 'carrier'
+	else:
+		ship_type_image_filename = ship['type'].lower()
+	if ship['is_premium']:
+		ship_type_image_filename += "_premium"
+	ship_type_image_filename += '.png'
 
-		# get ship type image
-		ship_type_image_filename = ""
-		if ship['type'] == 'AirCarrier':
-			ship_type_image_filename = 'carrier'
+	ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
+	ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
+
+	image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
+	draw = ImageDraw.Draw(image) # get drawing context
+
+	# draw ship name and ship type
+	with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
+		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
+		image.paste(ship_type_image, (0, 0), ship_type_image)
+	draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
+	draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
+
+	# get skills from this ship's tree
+	skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+	# draw skills
+	for skill_id in skill_list_filtererd_by_ship_type:
+		skill = skill_list_filtererd_by_ship_type[skill_id]
+		skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
+		if os.path.isfile(skill_image_filename):
+			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
+
+				coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
+				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
+
+				if skill_id in build_skills:
+					# indicate user should take this skill
+					skill_image = Image.composite(green, skill_image, skill_image)
+					# add number to indicate order should user take this skill
+					skill_acquired_order = build_skills.index(skill_id) + 1
+					image.paste(skill_image, coord, skill_image)
+					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
+				else:
+					# fade out unneeded skills
+					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
+					image.paste(skill_image, coord, skill_image)
+
+	# draw upgrades
+	for slot, u in enumerate(build_upgrades):
+		if u != -1:
+			# specific upgrade
+			upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
+			upgrade_image_dir = image_file_dict[upgrade_index]
 		else:
-			ship_type_image_filename = ship['type'].lower()
-		if ship['is_premium']:
-			ship_type_image_filename += "_premium"
-		ship_type_image_filename += '.png'
+			# any upgrade
+			upgrade_image_dir = image_file_dict['any.png']
 
-		ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
-		ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
+		with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
+			coord = (4 + (slot * 64), image.height - 60)
+			image.paste(upgrade_image, coord, upgrade_image)
 
-		image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
-		draw = ImageDraw.Draw(image) # get drawing context
-
-		# draw ship name and ship type
-		with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
-			ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
-			image.paste(ship_type_image, (0, 0), ship_type_image)
-		draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
-		draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
-
-		# get skills from this ship's tree
-		skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
-		# draw skills
-		for skill_id in skill_list_filtererd_by_ship_type:
-			skill = skill_list_filtererd_by_ship_type[skill_id]
-			skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
-			if os.path.isfile(skill_image_filename):
-				with Image.open(skill_image_filename).convert("RGBA") as skill_image:
-
-					coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
-					green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
-
-					if skill_id in build_skills:
-						# indicate user should take this skill
-						skill_image = Image.composite(green, skill_image, skill_image)
-						# add number to indicate order should user take this skill
-						skill_acquired_order = build_skills.index(skill_id) + 1
-						image.paste(skill_image, coord, skill_image)
-						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
-					else:
-						# fade out unneeded skills
-						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
-						image.paste(skill_image, coord, skill_image)
-
-		# draw upgrdes
-		for slot, u in enumerate(build_upgrades):
-			if u != -1:
-				# specific upgrade
-				upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
-				upgrade_image_dir = image_file_dict[upgrade_index]
-			else:
-				# any upgrade
-				upgrade_image_dir = image_file_dict['any.png']
-
-			with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
-				coord = (4 + (slot * 64), image.height - 60)
-				image.paste(upgrade_image, coord, upgrade_image)
-
-		ship_build[s_build]['image'] = image
-	# remove, no longer needed
-	del ImageDraw, ImageFont
+	return image
 
 def create_ship_tags():
 	logging.info("Generating ship search tags")
@@ -1354,15 +1350,12 @@ def get_ship_data(ship: str) -> dict:
 		or
 		NoBuildFound exception if no build is found
 	"""
-
-	original_arg = ship
 	try:
 		ship_found = False
-		if ship.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside prinable ?
-			ship = ship_name_to_ascii[ship.lower()]  # convert to the appropiate name
+		if ship.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable ?
+			ship = ship_name_to_ascii[ship.lower()]  # convert to the appropriate name
 		for i in ship_list:
 			ship_name_in_dict = ship_list[i]['name']
-			# print(ship.lower(),ship_name_in_dict.lower())
 			if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
 				ship_found = True
 				break
@@ -1373,24 +1366,32 @@ def get_ship_data(ship: str) -> dict:
 	except Exception as e:
 		raise e
 
-def get_ship_builds_by_name(ship: str) -> list:
+def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> list:
 	"""
 	Returns a ship build given the ship name
 
 	Args:
+	    fetch_from: source of ship build
 		ship: ship name
 
 	Returns:
-		object: list of build id for ship with name "ship"
+		object: list of builds for ship with name "ship"
 
 	Raises:
 		NoBuildFound exception
 	"""
+	if fetch_from is not SHIP_BUILD_FETCH_FROM.LOCAL:
+		if database_client is None:
+			fetch_from = SHIP_BUILD_FETCH_FROM.LOCAL
+
 	try:
-		result = [b for b in ship_build if ship_build[b]['ship'] == ship.lower()]
-		if not result:
-			raise NoBuildFound
-		return result
+		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
+			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship.lower()]
+			if not result:
+				raise NoBuildFound
+			return result
+		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
+			return list(database_client.mackbot_db.ship_build.find({"ship": ship.lower()}))
 	except Exception as e:
 		raise e
 
@@ -1406,14 +1407,11 @@ def get_ship_param(ship: str) -> dict:
 
 		raise exceptions for dictionary
 	"""
-	original_arg = ship
 	try:
-		ship_found = False
 		if ship.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside prinable ?
 			ship = ship_name_to_ascii[ship.lower()]  # convert to the appropiate name
 		for i in ship_list:
 			ship_name_in_dict = ship_list[i]['name']
-			# print(ship.lower(),ship_name_in_dict.lower())
 			if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
 				if i in ship_info:
 					return ship_info[i]
@@ -1798,18 +1796,18 @@ async def build(context, *args):
 				is_prem = output['is_premium']
 
 				# find ship build
-				build_ids = get_ship_builds_by_name(name)
+				builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
 				user_selected_build_id = 0
 
 				# get user selection for multiple ship builds
-				if len(build_ids) > 1:
+				if len(builds) > 1:
 					embed = discord.Embed(title=f"Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
 					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 					m = ""
-					for i, bid in enumerate(build_ids):
+					for i, bid in enumerate(builds):
 						build_name = ship_build[bid]['name']
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
@@ -1827,15 +1825,16 @@ async def build(context, *args):
 						await context.send(f"Input {user_selected_build_id} is invalid")
 						raise ValueError
 
-				if not build_ids:
+				if not builds:
 					raise NoBuildFound
-
-				if not send_image_build:
-					build = ship_build[build_ids[user_selected_build_id]]
+				else:
+					build = builds[user_selected_build_id]
 					build_name = build['name']
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
+
+				if not send_image_build:
 
 					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
@@ -1907,7 +1906,6 @@ async def build(context, *args):
 						else:
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
-						# footer_message += f"For {'casual' if battle_type == 'competitive' else 'competitive'} builds, use [mackbot build {'casual' if battle_type == 'competitive' else 'competitive'} {ship}]\n"
 						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {ship}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
@@ -1921,7 +1919,10 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_image = ship_build[build_ids[user_selected_build_id]]['image']
+				if database_client is None:
+					build_image = builds[user_selected_build_id]['image']
+				else:
+					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
 				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
@@ -2016,8 +2017,7 @@ async def ship(context, *args):
 						highest_caliber = sorted(modules['artillery'],
 						                         key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'],
 						                         reverse=True)
-						highest_caliber = \
-							[module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
+						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
 
 						if highest_caliber <= 155:
 							# if caliber less than or equal to 155mm
@@ -2033,11 +2033,6 @@ async def ship(context, *args):
 					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
 					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
 					embed.set_thumbnail(url=images['small'])
-					# get server emoji
-					if context.guild is not None:
-						server_emojis = context.guild.emojis
-					else:
-						server_emojis = []
 
 					# defines ship params filtering
 					hull_filter = 0
@@ -2100,12 +2095,6 @@ async def ship(context, *args):
 								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
 							if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
 								m += f"{hull['planes_amount']} Aircraft{'s' if hull['planes_amount'] > 1 else ''}\n"
-							# if ship_param['armour']['flood_damage'] > 0 or ship_param['armour']['flood_prob'] > 0:
-							# m += '\n'
-							# if ship_param['armour']['flood_damage'] > 0:
-							# m += f"**Torp. Damage**: -{ship_param['armour']['flood_damage']}%\n"
-							# if ship_param['armour']['flood_prob'] > 0:
-							# m += f"**Flood Chance**: -{ship_param['armour']['flood_prob']}%\n"
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=False)
 
@@ -2462,6 +2451,17 @@ async def ship(context, *args):
 				await context.send(f"An internal error has occured.")
 
 async def ship_compact(context, ship_data, ship_param):
+	"""
+	Send a compact version of the build command.
+
+	Args:
+		context: A discord.ext.commands.Context object
+		ship_data: ship data gathered from the get_ship_data() function
+		ship_param: ship parameter from the get_ship_param() function
+
+	Returns: None
+
+	"""
 	name = ship_data['name']
 	nation = ship_data['nation']
 	images = ship_data['images']
@@ -2725,7 +2725,7 @@ async def upgrades(context, *args):
 
 		try:
 			page = int(page[0]) - 1
-		except:
+		except ValueError:
 			page = 0
 
 		if len(tier) > 0:
@@ -2788,7 +2788,7 @@ async def maps(context, *args):
 		logging.info("sending list of maps")
 		try:
 			page = int(args[3]) - 1
-		except:
+		except ValueError:
 			page = 0
 		m = [f"{map_list[i]['name']}" for i in map_list]
 		m.sort()
@@ -2814,12 +2814,6 @@ async def maps(context, *args):
 
 @show.command()
 async def ships(context, *args):
-	if context.guild is not None:
-		server_emojis = context.guild.emojis
-	else:
-		server_emojis = []
-	message_success = False
-
 	# parsing search parameters
 	logging.info("starting parameters parsing")
 	search_param = args
@@ -2919,7 +2913,7 @@ async def upgrade(context, *args):
 			search_func = get_upgrade_data
 			logging.info("user requested an upgrade name")
 		except:
-			# does user provide ship name?
+			# does user provide ship name, probably?
 			get_legendary_upgrade_by_ship_name(upgrade)
 			search_func = get_legendary_upgrade_by_ship_name
 			logging.info("user requested an legendary upgrade")
@@ -3394,23 +3388,23 @@ async def doubloons(context, *args):
 				await context.send(f"An internal error has occured.")
 
 @mackbot.command()
-async def code(context, arg):
-	if len(arg) == 0:
+async def code(context, *args):
+	if len(args) == 0:
 		await context.send_help("code")
 	else:
-		s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + arg.upper()
-		logging.info(f"returned a wargaming bonus code link with code {arg}")
-		await context.send(s)
+		for code in args:
+			s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + code.upper()
+			logging.info(f"returned a wargaming bonus code link with code {code}")
+			await context.send(s)
 
 @mackbot.command()
 async def hottake(context):
-	logging.info("send a hottake")
+	logging.info("sending a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
 	if randint(0, 9) == 0:
 		await asyncio.sleep(2)
 		await purpose(context)
 
-@mackbot.command()
 async def purpose(context):
 	author = context.author
 	await context.send(f"{author.mention}, what is my purpose?")
@@ -3445,13 +3439,13 @@ if __name__ == '__main__':
 	if args.fetch_new_build:
 		try:
 			ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
-			extract_build_from_google_sheets(ship_build_file_dir)
+			extract_build_from_google_sheets(ship_build_file_dir, True)
 			os.remove(os.path.join(ship_build_file_dir))
 		except:
 			pass
 
-	load_ship_builds()
-	create_ship_build_images()
+	if database_client is None:
+		load_ship_builds()
 	create_ship_tags()
 
 	# post processing for bot commands
