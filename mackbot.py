@@ -1065,7 +1065,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 			if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
 				ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
 
-			raw_id = [build_name]
+			raw_id = []
 			try:
 				ship = get_ship_data(ship_name)
 			except NoShipFound:
@@ -1096,7 +1096,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 					skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
 					sid = skill_data['id']
 					skill_pts += skill_data['y']
-					raw_id.append(sid)
+					raw_id.append(int(sid))
 					skills.append(sid)
 				except Exception as e:
 					if type(e) is NoSkillFound:
@@ -1824,13 +1824,14 @@ async def build(context, *args):
 
 				if not builds:
 					raise NoBuildFound
-
-				if not send_image_build:
+				else:
 					build = builds[user_selected_build_id]
 					build_name = build['name']
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
+
+				if not send_image_build:
 
 					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
@@ -3438,7 +3439,6 @@ if __name__ == '__main__':
 			pass
 
 	load_ship_builds()
-	create_ship_build_images()
 	create_ship_tags()
 
 	# post processing for bot commands
