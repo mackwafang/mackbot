@@ -708,7 +708,7 @@ def update_ship_modules():
 							for item in ['atba', 'artillery']:
 								try:
 									aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
-								except ValueError:
+								except IndexError:
 									pass
 
 							for aa_component in aa_defense_far:
@@ -982,9 +982,9 @@ def update_ship_modules():
 		except Exception as e:
 			if not type(e) == KeyError:
 				logging.error("at ship id " + s)
-				logging.error("Ship", s, "is not known to GameParams.data or accessing incorrect key in GameParams.json")
+				logging.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logging.error("Update your GameParams JSON file(s)")
-			traceback.print_exc(type(e), e, None)
+			traceback.print_exc()
 
 			if mackbot.is_closed():
 				time.sleep(10)
@@ -1380,6 +1380,9 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 	Raises:
 		NoBuildFound exception
 	"""
+	if fetch_from is not SHIP_BUILD_FETCH_FROM.LOCAL:
+		if database_client is None:
+			fetch_from = SHIP_BUILD_FETCH_FROM.LOCAL
 
 	try:
 		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
@@ -1388,7 +1391,7 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 				raise NoBuildFound
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
-			return list(database_client['ship_build'].find({"ship": ship.lower()}))
+			return list(database_client.mackbot_db.ship_build.find({"ship": ship.lower()}))
 	except Exception as e:
 		raise e
 
@@ -1793,7 +1796,7 @@ async def build(context, *args):
 				is_prem = output['is_premium']
 
 				# find ship build
-				builds = get_ship_builds_by_name(name)
+				builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
 				user_selected_build_id = 0
 
 				# get user selection for multiple ship builds
@@ -1916,7 +1919,10 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				# send image
-				build_image = builds[user_selected_build_id]['image']
+				if database_client is None:
+					build_image = builds[user_selected_build_id]['image']
+				else:
+					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
 				await context.send(file=discord.File('temp.png'))
 				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
@@ -3438,7 +3444,8 @@ if __name__ == '__main__':
 		except:
 			pass
 
-	load_ship_builds()
+	if database_client is None:
+		load_ship_builds()
 	create_ship_tags()
 
 	# post processing for bot commands
