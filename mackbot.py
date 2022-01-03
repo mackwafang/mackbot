@@ -9,7 +9,7 @@ from random import randint
 from discord.ext import commands
 from datetime import date
 from string import ascii_letters
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from pprint import pprint
 
 class NoShipFound(Exception):
@@ -1164,18 +1164,8 @@ def load_ship_builds():
 				ship_build = json.load(f)
 
 
-def create_ship_build_images():
-	if len(ship_build) == 0:
-		logging.info("No ship builds")
-		load_ship_builds()
+def create_ship_build_images(build_name, build_ship_name, build_skills, build_upgrades, build_cmdr):
 
-	if len(game_data) == 0:
-		logging.info("No game data")
-		load_game_params()
-
-	from PIL import ImageDraw, ImageFont
-
-	logging.info("Creating images for ship builds")
 	# create dictionary for upgrade gamedata index to image name
 	image_file_dict = {}
 	image_folder_dir = os.path.join("data", "modernization_icons")
@@ -1186,83 +1176,73 @@ def create_ship_build_images():
 
 	font = ImageFont.truetype("./arialbd.ttf", encoding='unic', size=20)
 
-	# create build images
-	for s_build in ship_build:
-		image_size = (400, 400)
+	# create build image
+	image_size = (400, 400)
 
-		build = ship_build[s_build]
-		build_ship_name = build['ship']
-		build_name = build['name']
-		build_upgrades = build['upgrades']
-		build_skills = build['skills']
-		build_cmdr = build['cmdr']
+	ship = get_ship_data(build_ship_name)
 
-		ship = get_ship_data(build_ship_name)
+	# get ship type image
+	ship_type_image_filename = ""
+	if ship['type'] == 'AirCarrier':
+		ship_type_image_filename = 'carrier'
+	else:
+		ship_type_image_filename = ship['type'].lower()
+	if ship['is_premium']:
+		ship_type_image_filename += "_premium"
+	ship_type_image_filename += '.png'
 
-		# get ship type image
-		ship_type_image_filename = ""
-		if ship['type'] == 'AirCarrier':
-			ship_type_image_filename = 'carrier'
+	ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
+	ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
+
+	image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
+	draw = ImageDraw.Draw(image) # get drawing context
+
+	# draw ship name and ship type
+	with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
+		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
+		image.paste(ship_type_image, (0, 0), ship_type_image)
+	draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
+	draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
+
+	# get skills from this ship's tree
+	skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+	# draw skills
+	for skill_id in skill_list_filtererd_by_ship_type:
+		skill = skill_list_filtererd_by_ship_type[skill_id]
+		skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
+		if os.path.isfile(skill_image_filename):
+			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
+
+				coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
+				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
+
+				if skill_id in build_skills:
+					# indicate user should take this skill
+					skill_image = Image.composite(green, skill_image, skill_image)
+					# add number to indicate order should user take this skill
+					skill_acquired_order = build_skills.index(skill_id) + 1
+					image.paste(skill_image, coord, skill_image)
+					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
+				else:
+					# fade out unneeded skills
+					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
+					image.paste(skill_image, coord, skill_image)
+
+	# draw upgrades
+	for slot, u in enumerate(build_upgrades):
+		if u != -1:
+			# specific upgrade
+			upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
+			upgrade_image_dir = image_file_dict[upgrade_index]
 		else:
-			ship_type_image_filename = ship['type'].lower()
-		if ship['is_premium']:
-			ship_type_image_filename += "_premium"
-		ship_type_image_filename += '.png'
+			# any upgrade
+			upgrade_image_dir = image_file_dict['any.png']
 
-		ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
-		ship_tier_string = list(roman_numeral.keys())[ship['tier'] - 1]
+		with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
+			coord = (4 + (slot * 64), image.height - 60)
+			image.paste(upgrade_image, coord, upgrade_image)
 
-		image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
-		draw = ImageDraw.Draw(image) # get drawing context
-
-		# draw ship name and ship type
-		with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
-			ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
-			image.paste(ship_type_image, (0, 0), ship_type_image)
-		draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
-		draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
-
-		# get skills from this ship's tree
-		skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
-		# draw skills
-		for skill_id in skill_list_filtererd_by_ship_type:
-			skill = skill_list_filtererd_by_ship_type[skill_id]
-			skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
-			if os.path.isfile(skill_image_filename):
-				with Image.open(skill_image_filename).convert("RGBA") as skill_image:
-
-					coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
-					green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
-
-					if skill_id in build_skills:
-						# indicate user should take this skill
-						skill_image = Image.composite(green, skill_image, skill_image)
-						# add number to indicate order should user take this skill
-						skill_acquired_order = build_skills.index(skill_id) + 1
-						image.paste(skill_image, coord, skill_image)
-						draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
-					else:
-						# fade out unneeded skills
-						skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
-						image.paste(skill_image, coord, skill_image)
-
-		# draw upgrades
-		for slot, u in enumerate(build_upgrades):
-			if u != -1:
-				# specific upgrade
-				upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
-				upgrade_image_dir = image_file_dict[upgrade_index]
-			else:
-				# any upgrade
-				upgrade_image_dir = image_file_dict['any.png']
-
-			with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
-				coord = (4 + (slot * 64), image.height - 60)
-				image.paste(upgrade_image, coord, upgrade_image)
-
-		ship_build[s_build]['image'] = image
-	# remove, no longer needed
-	del ImageDraw, ImageFont
+	return image
 
 def create_ship_tags():
 	logging.info("Generating ship search tags")
