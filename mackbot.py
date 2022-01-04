@@ -1808,7 +1808,7 @@ async def build(context, *args):
 
 					m = ""
 					for i, bid in enumerate(builds):
-						build_name = ship_build[bid]['name']
+						build_name = builds[i]['name']
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 
