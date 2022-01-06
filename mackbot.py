@@ -3040,7 +3040,7 @@ async def player(context, *args):
 		# grab optional args
 		optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
 		battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
-		ship_filter = ''.join(option[2] for option in optional_args if len(option[2])) # get filter type by ship name
+		ship_filter = ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
 		ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
 		ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
 		try:
@@ -3168,7 +3168,7 @@ async def player(context, *args):
 				for i in range(10):
 					try:
 						s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-						m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name']:}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+						m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
 					except IndexError:
 						pass
 				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -3198,16 +3198,17 @@ async def player(context, *args):
 					# display player's ship stat
 					m = ""
 					try:
-						print(ship_filter)
-						print(player_ship_stats_df['name'])
-						ship_filter = get_ship_data(ship_filter)['name']
-						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter]
+						ship_data = get_ship_data(ship_filter)
+						ship_filter = ship_data['name'].lower()
+						ship_id = ship_data['ship_id']
+						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 						ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
 						m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name']}**\n"
 						m += f"{player_ship_stats_df['battles']} Battles\n"
 						m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 						m += f"**Survival Rate** {player_ship_stats_df['sr']:2.2%}\n"
 						m += f"**Average Damage** {player_ship_stats_df['avg_dmg']}\n"
+						m += f"**Average Kills** {player_ship_stats_df['avg_kills']}\n"
 						m += f"**Average Kills** {player_ship_stats_df['avg_kills']}\n"
 						m += f"**Average XP** {player_ship_stats_df['avg_xp']}\n"
 						m += f"**Max Damage** {player_ship_stats_df['max_dmg']}\n"
@@ -3217,7 +3218,8 @@ async def player(context, *args):
 							m += f"Ship with name {ship_filter} is not found\n"
 						else:
 							m += "An internal error has occurred.\n"
-					embed.add_field(name="Ship Specific Stat", value=m)
+							traceback.print_exc()
+					embed.add_field(name="__Ship Specific Stat__", value=m)
 
 				else:
 					# add battle distribution by ship types
