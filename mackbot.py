@@ -3203,16 +3203,15 @@ async def player(context, *args):
 						ship_id = ship_data['ship_id']
 						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 						ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-						m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name']}**\n"
-						m += f"{player_ship_stats_df['battles']} Battles\n"
-						m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
-						m += f"**Survival Rate** {player_ship_stats_df['sr']:2.2%}\n"
-						m += f"**Average Damage** {player_ship_stats_df['avg_dmg']}\n"
-						m += f"**Average Kills** {player_ship_stats_df['avg_kills']}\n"
-						m += f"**Average Kills** {player_ship_stats_df['avg_kills']}\n"
-						m += f"**Average XP** {player_ship_stats_df['avg_xp']}\n"
-						m += f"**Max Damage** {player_ship_stats_df['max_dmg']}\n"
-						m += f"**Max Kills** {player_ship_stats_df['max_kills']}\n"
+						m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
+						m += f"**{player_ship_stats_df['battles']} Battles**\n"
+						m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W / {player_ship_stats_df['losses']} L / {ship_battles_draw} D)\n"
+						m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
+						m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
+						m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
+						m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:0.2f}\n"
+						m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
+						m += f"**Max Kills: ** {player_ship_stats_df['max_kills']}\n"
 					except Exception as e:
 						if type(e) == NoShipFound:
 							m += f"Ship with name {ship_filter} is not found\n"
