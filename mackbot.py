@@ -1905,7 +1905,7 @@ async def build(context, *args):
 							embed.add_field(name='Suggested Cmdr.', value=m)
 						else:
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you."
+						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
 						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {ship}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
@@ -3040,7 +3040,7 @@ async def player(context, *args):
 		# grab optional args
 		optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
 		battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
-		ship_filter = [option[2] for option in optional_args if len(option[2])] # get filter type by ship name
+		ship_filter = ''.join(option[2] for option in optional_args if len(option[2])) # get filter type by ship name
 		ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
 		ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
 		try:
@@ -3095,7 +3095,7 @@ async def player(context, *args):
 				m += f"**Last battle**: {player_last_battle_string} "
 				if player_last_battle_days > 0:
 					if player_last_battle_months > 0:
-						m += f"({player_last_battle_months} months {player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+						m += f"({player_last_battle_months} months {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 					else:
 						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
@@ -3142,7 +3142,7 @@ async def player(context, *args):
 					ship_stat = s[battle_type]
 					ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
 					stats = {
-						"name"      : ship_name,
+						"name"      : ship_name.lower(),
 						"tier"      : ship_tier,
 						"emoji"     : emoji,
 						"nation"    : ship_nation,
@@ -3172,11 +3172,11 @@ async def player(context, *args):
 					except IndexError:
 						pass
 				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
+				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 
 				embed.add_field(name='\u200b', value='\u200b', inline=False)
 				if ship_tier_filter:
 					# list ships that the player has at this tier
-					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 					player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
 					top_n = 10
 					items_per_col = 5
@@ -3187,16 +3187,40 @@ async def player(context, *args):
 							if i <= len(player_ship_stats_df) // items_per_col:
 								for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
 									ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-									m += f"{r}) **{ship['emoji']} {ship['name']}**\n"
+									m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
 									m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
 									m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
 									r += 1
 								embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 					else:
 						embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value="Player have no ships of this tier", inline=True)
+				elif ship_filter:
+					# display player's ship stat
+					m = ""
+					try:
+						print(ship_filter)
+						print(player_ship_stats_df['name'])
+						ship_filter = get_ship_data(ship_filter)['name']
+						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter]
+						ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
+						m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name']}**\n"
+						m += f"{player_ship_stats_df['battles']} Battles\n"
+						m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
+						m += f"**Survival Rate** {player_ship_stats_df['sr']:2.2%}\n"
+						m += f"**Average Damage** {player_ship_stats_df['avg_dmg']}\n"
+						m += f"**Average Kills** {player_ship_stats_df['avg_kills']}\n"
+						m += f"**Average XP** {player_ship_stats_df['avg_xp']}\n"
+						m += f"**Max Damage** {player_ship_stats_df['max_dmg']}\n"
+						m += f"**Max Kills** {player_ship_stats_df['max_kills']}\n"
+					except Exception as e:
+						if type(e) == NoShipFound:
+							m += f"Ship with name {ship_filter} is not found\n"
+						else:
+							m += "An internal error has occurred.\n"
+					embed.add_field(name="Ship Specific Stat", value=m)
+
 				else:
 					# add battle distribution by ship types
-					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 					player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
 					m = ""
 					for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
