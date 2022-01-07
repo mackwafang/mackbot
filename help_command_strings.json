@@ -125,9 +125,10 @@
 	"code": {
 		"help": "",
 		"brief": "Generate a WoWS bonus code link",
-		"usage": "wows_code",
+		"usage": "wows_code ...",
 		"description": [
 			"Generate a WoWS bonus code link."
+			"For multiple links, separate the codes with spaces.",
 		]
 	},
 	"hottake": {

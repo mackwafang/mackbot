@@ -3209,7 +3209,7 @@ async def player(context, *args):
 						m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
 						m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
 						m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-						m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:0.2f}\n"
+						m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
 						m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
 						m += f"**Max Kills: ** {player_ship_stats_df['max_kills']}\n"
 					except Exception as e:
@@ -3250,7 +3250,7 @@ async def player(context, *args):
 							tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
 							tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
-							m += f"**{list(roman_numeral.keys())[tier - 1]}**: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+							m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
 							m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
 						except KeyError:
 							m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
