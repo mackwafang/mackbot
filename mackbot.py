@@ -3418,7 +3418,7 @@ async def code(context, *args):
 		await context.send_help("code")
 	else:
 		for code in args:
-			s = "https://na.wargaming.net/shop/redeem/?bonus_mode=" + code.upper()
+			s = f"**{code.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode= {+ code.upper()}"
 			logging.info(f"returned a wargaming bonus code link with code {code}")
 			await context.send(s)
 
