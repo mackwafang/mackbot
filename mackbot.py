@@ -3417,9 +3417,9 @@ async def code(context, *args):
 	if len(args) == 0:
 		await context.send_help("code")
 	else:
-		for code in args:
-			s = f"**{code.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode= {+ code.upper()}"
-			logging.info(f"returned a wargaming bonus code link with code {code}")
+		for c in args:
+			s = f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}"
+			logging.info(f"returned a wargaming bonus code link with code {c}")
 			await context.send(s)
 
 @mackbot.command()
