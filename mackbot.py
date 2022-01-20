@@ -585,10 +585,13 @@ def load_ship_params():
 
 def update_ship_modules():
 	logging.info("Generating information about modules")
-
+	if len(game_data) == 0:
+		logging.info("Game data is empty.")
+		load_game_params()
 	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
+		load_ship_params()
 	if len(module_list) == 0:
 		logging.info("Module list is empty.")
 		load_module_list()
@@ -800,9 +803,7 @@ def update_ship_modules():
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
 						# get turret parameter
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
-						gun = module_data[gun]
-						gun = [gun[turret]['name'] for turret in [g for g in gun if 'HP' in g]]
-
+						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						module_list[module_id]['profile']['artillery'] = {
 							'shotDelay': 0,
 							'caliber': 0,
@@ -817,8 +818,7 @@ def update_ship_modules():
 							'gun_dpm': {'HE': 0, 'AP': 0, 'CS': 0},
 						}
 						for g in gun:  # for each turret
-							turret_data = game_data[g]
-
+							turret_data = g
 							# get caliber, reload, and number of guns per turret
 							module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
 							module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
@@ -985,10 +985,6 @@ def update_ship_modules():
 				logging.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logging.error("Update your GameParams JSON file(s)")
 			traceback.print_exc()
-
-			if mackbot.is_closed():
-				time.sleep(10)
-				exit(1)
 	del ship_count
 
 def create_upgrade_abbr():
