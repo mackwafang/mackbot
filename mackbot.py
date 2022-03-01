@@ -3060,7 +3060,7 @@ async def player(context, *args):
 		except IndexError:
 			battle_type = 'pvp'
 
-		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}")
+		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}", description='')
 		if player_id:
 			player_name = player_id_results[0]['nickname']
 			if battle_type == 'pvp':
@@ -3074,6 +3074,8 @@ async def player(context, *args):
 				embed.add_field(name='Information not available', value="Account hidden", inline=False)
 			else:
 				# account not hidden, show info
+				embed.description += f"**{escape_discord_format(player_name)}**"
+
 				player_created_at_string = date.fromtimestamp(player_general_stats['created_at']).strftime("%b %d, %Y")
 				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
@@ -3445,7 +3447,7 @@ if __name__ == '__main__':
 	arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
 	args = arg_parser.parse_args()
 
-	# pre processing botes
+	# loading data
 	load_game_params()
 	load_skill_list()
 	load_module_list()
@@ -3453,7 +3455,11 @@ if __name__ == '__main__':
 	load_ship_list()
 	load_upgrade_list()
 	load_ship_params()
+
+	# updating ship modules (e.g. hull, guns, planes)
 	update_ship_modules()
+
+	# create ship upgrade abbreviations
 	create_upgrade_abbr()
 
 	# retrieve new build from google sheets
@@ -3484,5 +3490,5 @@ if __name__ == '__main__':
 
 		except:
 			pass
-	del help_command_strings
+	del help_command_strings, c
 	mackbot.run(bot_token)
