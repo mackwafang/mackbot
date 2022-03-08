@@ -3074,8 +3074,6 @@ async def player(context, *args):
 				embed.add_field(name='Information not available', value="Account hidden", inline=False)
 			else:
 				# account not hidden, show info
-				embed.description += f"**{escape_discord_format(player_name)}**"
-
 				player_created_at_string = date.fromtimestamp(player_general_stats['created_at']).strftime("%b %d, %Y")
 				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
@@ -3083,9 +3081,11 @@ async def player(context, *args):
 				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]['clan_id']
 				player_clan = None
 				player_clan_str = ""
+				player_clan_tag = ""
 				if player_clan_id is not None:
 					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
 					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
+					player_clan_tag = f"[{player_clan['tag']}]"
 				else:
 					player_clan_str = "No clan"
 
@@ -3093,13 +3093,13 @@ async def player(context, *args):
 				m += f"**Last battle**: {player_last_battle_string} "
 				if player_last_battle_days > 0:
 					if player_last_battle_months > 0:
-						m += f"({player_last_battle_months} months {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+						m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 					else:
 						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
 					m += " (Today)\n"
 				m += f"**Clan**: {player_clan_str}"
-				embed.add_field(name='__**Account**__', value=m, inline=False)
+				embed.add_field(name=f'__**{player_clan_tag} {player_name}**__', value=m, inline=False)
 
 				player_battle_stat = player_general_stats['statistics'][battle_type]
 				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
