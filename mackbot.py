@@ -3060,7 +3060,7 @@ async def player(context, *args):
 		except IndexError:
 			battle_type = 'pvp'
 
-		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}")
+		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}", description='')
 		if player_id:
 			player_name = player_id_results[0]['nickname']
 			if battle_type == 'pvp':
@@ -3081,9 +3081,11 @@ async def player(context, *args):
 				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]['clan_id']
 				player_clan = None
 				player_clan_str = ""
+				player_clan_tag = ""
 				if player_clan_id is not None:
 					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
 					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
+					player_clan_tag = f"[{player_clan['tag']}]"
 				else:
 					player_clan_str = "No clan"
 
@@ -3091,13 +3093,13 @@ async def player(context, *args):
 				m += f"**Last battle**: {player_last_battle_string} "
 				if player_last_battle_days > 0:
 					if player_last_battle_months > 0:
-						m += f"({player_last_battle_months} months {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+						m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 					else:
 						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 				else:
 					m += " (Today)\n"
 				m += f"**Clan**: {player_clan_str}"
-				embed.add_field(name='__**Account**__', value=m, inline=False)
+				embed.add_field(name=f'__**{player_clan_tag} {player_name}**__', value=m, inline=False)
 
 				player_battle_stat = player_general_stats['statistics'][battle_type]
 				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
@@ -3445,7 +3447,7 @@ if __name__ == '__main__':
 	arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
 	args = arg_parser.parse_args()
 
-	# pre processing botes
+	# loading data
 	load_game_params()
 	load_skill_list()
 	load_module_list()
@@ -3453,7 +3455,11 @@ if __name__ == '__main__':
 	load_ship_list()
 	load_upgrade_list()
 	load_ship_params()
+
+	# updating ship modules (e.g. hull, guns, planes)
 	update_ship_modules()
+
+	# create ship upgrade abbreviations
 	create_upgrade_abbr()
 
 	# retrieve new build from google sheets
@@ -3484,5 +3490,5 @@ if __name__ == '__main__':
 
 		except:
 			pass
-	del help_command_strings
+	del help_command_strings, c
 	mackbot.run(bot_token)
