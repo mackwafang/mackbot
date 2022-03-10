@@ -3096,16 +3096,18 @@ async def player(context, *args):
 				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 				player_last_battle_months = int(player_last_battle_days // 30)
-				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]
+				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
 				player_clan = None
 				player_clan_str = ""
 				player_clan_tag = ""
-				if player_clan_id is not None:
-					player_clan_id = player_clan_id['clan_id']
-
-					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
-					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
-					player_clan_tag = f"[{player_clan['tag']}]"
+				if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
+					player_clan_id = player_clan_id[player_id]['clan_id']
+					if player_clan_id is not None: # check if player is in a clan
+						player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+						player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
+						player_clan_tag = f"[{player_clan['tag']}]"
+					else:
+						player_clan_str = "No clan"
 				else:
 					player_clan_str = "No clan"
 
@@ -3229,7 +3231,6 @@ async def player(context, *args):
 						m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
 						m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
 						m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
-						m += f"**Max Kills: ** {player_ship_stats_df['max_kills']}\n"
 					except Exception as e:
 						if type(e) == NoShipFound:
 							m += f"Ship with name {ship_filter} is not found\n"
