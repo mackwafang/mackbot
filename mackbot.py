@@ -622,10 +622,11 @@ def update_ship_modules():
 				if type(ship_upgrade_info[_info]) == dict:  # if there are data
 
 					try:
+						module_id = find_module_by_tag(_info)
 						if ship_upgrade_info[_info]['ucType'] != "_SkipBomber":
 							module_id = find_module_by_tag(_info)
 						else:
-							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planeType']
+							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
 							module_id = str(game_data[module]['id'])
 							del module
 					except IndexError as e:
@@ -867,7 +868,7 @@ def update_ship_modules():
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
 						# get fighter parameter
 						planes = ship_upgrade_info[_info]['components']['fighter'][0]
-						planes = module_data[planes].values()
+						planes = list(module_data[planes].values())[0]
 						for p in planes:
 							plane = game_data[p]  # get rocket params
 							projectile = game_data[plane['bombName']]
@@ -893,7 +894,7 @@ def update_ship_modules():
 					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
 						# get torp bomber parameter
 						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
-						planes = module_data[planes].values()
+						planes = list(module_data[planes].values())[0]
 						for p in planes:
 							plane = game_data[p]
 							projectile = game_data[plane['bombName']]
@@ -920,7 +921,7 @@ def update_ship_modules():
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
 						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
-						planes = module_data[planes].values()
+						planes = list(module_data[planes].values())[0]
 						for p in planes:
 							plane = game_data[p]
 							projectile = game_data[plane['bombName']]
@@ -943,11 +944,10 @@ def update_ship_modules():
 							}
 						continue
 
-					# skip bomber
 					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
 						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
-						planes = module_data[planes].values()
+						planes = list(module_data[planes].values())[0]
 						for p in planes:
 							plane = game_data[p]
 							projectile = game_data[plane['bombName']]
@@ -1734,6 +1734,24 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 
 def escape_discord_format(s):
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
+
+def load_data():
+	# mackbot's data loading sequence
+
+	# loading data
+	load_game_params()
+	load_skill_list()
+	load_module_list()
+	load_cmdr_list()
+	load_ship_list()
+	load_upgrade_list()
+	load_ship_params()
+
+	# updating ship modules (e.g. hull, guns, planes)
+	update_ship_modules()
+
+	# create ship upgrade abbreviations
+	create_upgrade_abbr()
 
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
@@ -3078,11 +3096,13 @@ async def player(context, *args):
 				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 				player_last_battle_months = int(player_last_battle_days // 30)
-				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]['clan_id']
+				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')[player_id]
 				player_clan = None
 				player_clan_str = ""
 				player_clan_tag = ""
 				if player_clan_id is not None:
+					player_clan_id = player_clan_id['clan_id']
+
 					player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
 					player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
 					player_clan_tag = f"[{player_clan['tag']}]"
@@ -3099,7 +3119,7 @@ async def player(context, *args):
 				else:
 					m += " (Today)\n"
 				m += f"**Clan**: {player_clan_str}"
-				embed.add_field(name=f'__**{player_clan_tag} {player_name}**__', value=m, inline=False)
+				embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
 
 				player_battle_stat = player_general_stats['statistics'][battle_type]
 				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
@@ -3447,20 +3467,7 @@ if __name__ == '__main__':
 	arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
 	args = arg_parser.parse_args()
 
-	# loading data
-	load_game_params()
-	load_skill_list()
-	load_module_list()
-	load_cmdr_list()
-	load_ship_list()
-	load_upgrade_list()
-	load_ship_params()
-
-	# updating ship modules (e.g. hull, guns, planes)
-	update_ship_modules()
-
-	# create ship upgrade abbreviations
-	create_upgrade_abbr()
+	load_data()
 
 	# retrieve new build from google sheets
 	if args.fetch_new_build:
