@@ -152,6 +152,13 @@
 			"\tmackbot player your_username_here div2 (Get information about your 2-man division)"
 		]
 	},
+	"clan": {
+		"help": "",
+		"brief": "Provide general information about a WoWS clan",
+		"usage": "clan_name/clan_tag",
+		"description": [
+		]
+	},
 	"invite": {
 		"help": "",
 		"brief": "Invite mackbot to your server(s)",

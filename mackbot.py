@@ -3281,6 +3281,50 @@ async def player(context, *args):
 	await context.send(embed=embed)
 
 @mackbot.command()
+async def clan(context, *args):
+	usr_input = ' '.join(args)
+	clan_search = WG.clans.list(search=usr_input)
+	if clan_search:
+		# check for multiple clan
+		selected_clan = None
+		if len(clan_search) > 0:
+			embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+			embed.description += '\n'.join(f"[{i+1}] [{c['tag']}] {c['name']}" for i, c in enumerate(clan_search))
+			embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
+
+			await context.send(embed=embed)
+
+			usr_reply = ''
+			try:
+				usr_reply = await mackbot.wait_for('on_messaage', check=lambda m: m, timeout=10)
+			except asyncio.TimeoutError:
+				# time expired, do nothing
+				pass
+			print(usr_reply)
+			if usr_reply:
+				# parse
+				try:
+					usr_reply = int(usr_reply) - 1
+					if 0 < usr_reply < len(clan_search):
+						selected_clan = clan_search[usr_reply]
+					else:
+						await context.send(f"Input **{usr_reply}** is out of range")
+				except ValueError:
+					await context.send(f"Input **{usr_reply}** is not a number")
+
+		else:
+			selected_clan = clan_search[0]
+
+		print(selected_clan)
+	else:
+		# no clan matches search
+		embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+		embed.description += "Clan not found"
+
+		await context.send(embed=embed)
+
+
+@mackbot.command()
 async def commander(context, *args):
 	# get information on requested commander
 	# message parse
