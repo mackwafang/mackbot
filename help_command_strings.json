@@ -157,6 +157,7 @@
 		"brief": "Provide general information about a WoWS clan",
 		"usage": "clan_name/clan_tag",
 		"description": [
+			"Show clan information"
 		]
 	},
 	"invite": {

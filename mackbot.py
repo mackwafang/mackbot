@@ -142,6 +142,7 @@ if "sheets_credential" in os.environ:
 	wg_token = os.environ['wg_token']
 	bot_token = os.environ['bot_token']
 	sheet_id = os.environ['sheet_id']
+	command_prefix = "mackbot"
 else:
 	with open("config.json") as f:
 		data = json.load(f)
@@ -150,10 +151,10 @@ else:
 		sheet_id = data['sheet_id']
 		bot_invite_url = data['bot_invite_url']
 		mongodb_host = data['mongodb_host']
+		command_prefix = data['command_prefix'] if 'command_prefix' in data else 'mackbot'
 
 # define bot stuff
 cmd_sep = ' '
-command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
 
 # define database stuff
@@ -3329,33 +3330,33 @@ async def clan(context, *args):
 				selected_clan = clan_search[0]
 			# output clan information
 			# get clan information
-			clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
-			clan_id = clan_detail['clan_id']
-			embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
-			embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
-			clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
-			clan_age_day = clan_age % 30
-			clan_age_month = (clan_age // 30) % 12
-			clan_age_year = clan_age // (12 * 30)
-			clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
-			m = f"**Leader: **{clan_detail['leader_name']}\n"
-			m += f"**Created at: **{clan_created_at_str} ("
-			if clan_age_year:
-				m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
-			if clan_age_month:
-				m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
-			if clan_age_day:
-				m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
-			m += ')\n'
-			m += f"**Members: ** {clan_detail['members_count']}\n"
-			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
-			# update clan history for member transfer feature
-			# check clan in data
-			history_output = []
-			if clan_id in clan_history:
-				# check frequency for update for changes
-				if date.fromtimestamp(clan_history[clan_id]['updated_at'] - clan_detail['updated_at']).day > 1:
+			async with context.typing():
+				clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+				clan_id = clan_detail['clan_id']
+				embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
+				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
+
+				clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
+				clan_age_day = clan_age % 30
+				clan_age_month = (clan_age // 30) % 12
+				clan_age_year = clan_age // (12 * 30)
+				clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
+				m = f"**Leader: **{clan_detail['leader_name']}\n"
+				m += f"**Created at: **{clan_created_at_str} ("
+				if clan_age_year:
+					m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
+				if clan_age_month:
+					m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
+				if clan_age_day:
+					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
+				m += ')\n'
+				m += f"**Members: ** {clan_detail['members_count']}\n"
+				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+				# update clan history for member transfer feature
+				# check clan in data
+				history_output = []
+				if clan_id in clan_history:
 					# check differences
 					new_member_list = clan_detail['members']
 					previous_member_list = clan_history[clan_id]['members']
@@ -3365,20 +3366,27 @@ async def clan(context, *args):
 						history_output += [previous_member_list[m]['account_name'], icons_emoji['clan_out']]
 					for m in members_in:
 						history_output += [new_member_list[m]['account_name'], icons_emoji['clan_in']]
-			else:
-				# not in history, add to history
-				clan_history[clan_id] = {"members": clan_detail['members'], "updated_at": clan_detail['updated_at']}
-			if history_output:
-				embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
-			else:
-				embed.add_field(name=f"__**Transfer History**__", value="No recent transfers", inline=True)
-			embed.add_field(name="\u200b", value="\u200b", inline=False)
 
-			# output members
-			members_per_column = 10
-			clan_members_sort_by_alpha = sorted(list([clan_detail['members'][m]['account_name'] for m in clan_detail['members']]))
-			for i in range(0, 50, members_per_column):
-				embed.add_field(name=f"__**Members**__", value='\n'.join(clan_members_sort_by_alpha[i:i+members_per_column]), inline=True)
+					# check if last update was at least a week ago
+					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
+						# update history
+						clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+				else:
+					# not in history, add to history
+					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+
+				if history_output:
+					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
+
+				embed.add_field(name="\u200b", value="\u200b", inline=False)
+
+				# output members
+				members_per_column = 10
+				clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
+				for i in range(0, 50, members_per_column):
+					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
+					if sliced_member_list:
+						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
 			await context.send(embed=embed)
 		else:
 			# no clan matches search
