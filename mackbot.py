@@ -1,4 +1,4 @@
-import wargaming, os, re, sys, pickle, json, discord, time, logging, difflib, traceback, asyncio
+import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio
 import pandas as pd
 
 from pymongo import MongoClient
@@ -142,6 +142,7 @@ if "sheets_credential" in os.environ:
 	wg_token = os.environ['wg_token']
 	bot_token = os.environ['bot_token']
 	sheet_id = os.environ['sheet_id']
+	command_prefix = "mackbot"
 else:
 	with open("config.json") as f:
 		data = json.load(f)
@@ -150,10 +151,10 @@ else:
 		sheet_id = data['sheet_id']
 		bot_invite_url = data['bot_invite_url']
 		mongodb_host = data['mongodb_host']
+		command_prefix = data['command_prefix'] if 'command_prefix' in data else 'mackbot'
 
 # define bot stuff
 cmd_sep = ' '
-command_prefix = 'mackbot '
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
 
 # define database stuff
@@ -168,6 +169,13 @@ WG = wargaming.WoWS(wg_token, region='na', language='en')
 wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
+
+clan_roles = WG.clans.glossary()['clans_roles']
+clan_history = {}
+clan_history_file_path = os.path.join("data", "clan_history")
+if os.path.exists(clan_history_file_path):
+	with open(clan_history_file_path, 'rb') as f:
+		clan_history = pickle.load(f)
 
 icons_emoji = {
 	"torp": "<:torp:917573129579151392>",
@@ -194,6 +202,8 @@ icons_emoji = {
 	"aa": "<:aa:917590394806599780>",
 	"plane": "<:plane:917601379235815524>",
 	"concealment": "<:concealment:917605435278782474>",
+	"clan_in": "<:clan_in:952757125225021450>",
+	"clan_out": "<:clan_out:952757125237575690>",
 }
 
 
@@ -2913,7 +2923,7 @@ async def upgrade(context, *args):
 	upgrade_found = False
 	# message parse
 	upgrade = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(args) == 0:
+	if not args:
 		# argument is empty, send help message
 		await context.send_help("upgrade")
 	else:
@@ -3043,242 +3053,349 @@ async def upgrade(context, *args):
 
 @mackbot.command()
 async def player(context, *args):
-	user_input = args[0][:24]
-
-	async with context.typing():
-		player_id_results = WG.account.list(search=user_input, type='exact', language='en')
-		player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
-		battle_type = 'pvp'
-		battle_type_string = 'Random'
-
-		# grab optional args
-		optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
-		battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
-		ship_filter = ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
-		ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
-		ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
-		try:
-			ship_tier_filter = int(''.join([i[2] for i in ship_type_filter]))
-		except ValueError:
-			ship_tier_filter = ''
-		ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
-		try:
-			# convert user specified specific stat to wg values
-			battle_type = {
-				"solo": "pvp_solo",
-				"div2": "pvp_div2",
-				"div3": "pvp_div3",
-			}[battle_type[0]]
-
-			battle_type_string = {
-				"pvp_solo": "Solo Random",
-				"pvp_div2": "2-man Division",
-				"pvp_div3": "3-man Division",
-			}[battle_type]
-		except IndexError:
+	if args:
+		user_input = args[0][:24]
+		async with context.typing():
+			player_id_results = WG.account.list(search=user_input, type='exact', language='en')
+			player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 			battle_type = 'pvp'
+			battle_type_string = 'Random'
 
-		embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}", description='')
-		if player_id:
-			player_name = player_id_results[0]['nickname']
-			if battle_type == 'pvp':
-				player_general_stats = WG.account.info(account_id=player_id, language='en')[player_id]
-			else:
-				player_general_stats = WG.account.info(account_id=player_id, extra="statistics."+battle_type, language='en')[player_id]
-			player_account_hidden = player_general_stats['hidden_profile']
+			# grab optional args
+			optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
+			battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
+			ship_filter = ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
+			ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
+			ship_type_filter = ship_list_regex.findall(''.join(i + ' ' for i in ship_type_filter))
+			try:
+				ship_tier_filter = int(''.join([i[2] for i in ship_type_filter]))
+			except ValueError:
+				ship_tier_filter = ''
+			ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
+			try:
+				# convert user specified specific stat to wg values
+				battle_type = {
+					"solo": "pvp_solo",
+					"div2": "pvp_div2",
+					"div3": "pvp_div3",
+				}[battle_type[0]]
 
-			if player_account_hidden:
-				# account hidden, don't show any more status
-				embed.add_field(name='Information not available', value="Account hidden", inline=False)
-			else:
-				# account not hidden, show info
-				player_created_at_string = date.fromtimestamp(player_general_stats['created_at']).strftime("%b %d, %Y")
-				player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
-				player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
-				player_last_battle_months = int(player_last_battle_days // 30)
-				player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
-				player_clan = None
-				player_clan_str = ""
-				player_clan_tag = ""
-				if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
-					player_clan_id = player_clan_id[player_id]['clan_id']
-					if player_clan_id is not None: # check if player is in a clan
-						player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
-						player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
-						player_clan_tag = f"[{player_clan['tag']}]"
+				battle_type_string = {
+					"pvp_solo": "Solo Random",
+					"pvp_div2": "2-man Division",
+					"pvp_div3": "3-man Division",
+				}[battle_type]
+			except IndexError:
+				battle_type = 'pvp'
+
+			embed = discord.Embed(title=f"Search result for player {escape_discord_format(user_input)}", description='')
+			if player_id:
+				player_name = player_id_results[0]['nickname']
+				if battle_type == 'pvp':
+					player_general_stats = WG.account.info(account_id=player_id, language='en')[player_id]
+				else:
+					player_general_stats = WG.account.info(account_id=player_id, extra="statistics."+battle_type, language='en')[player_id]
+				player_account_hidden = player_general_stats['hidden_profile']
+
+				if player_account_hidden:
+					# account hidden, don't show any more status
+					embed.add_field(name='Information not available', value="Account hidden", inline=False)
+				else:
+					# account not hidden, show info
+					player_created_at_string = date.fromtimestamp(player_general_stats['created_at']).strftime("%b %d, %Y")
+					player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
+					player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
+					player_last_battle_months = int(player_last_battle_days // 30)
+					player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
+					player_clan = None
+					player_clan_str = ""
+					player_clan_tag = ""
+					if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
+						player_clan_id = player_clan_id[player_id]['clan_id']
+						if player_clan_id is not None: # check if player is in a clan
+							player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+							player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
+							player_clan_tag = f"[{player_clan['tag']}]"
+						else:
+							player_clan_str = "No clan"
 					else:
 						player_clan_str = "No clan"
-				else:
-					player_clan_str = "No clan"
 
-				m = f"**Created at**: {player_created_at_string}\n"
-				m += f"**Last battle**: {player_last_battle_string} "
-				if player_last_battle_days > 0:
-					if player_last_battle_months > 0:
-						m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
-					else:
-						m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
-				else:
-					m += " (Today)\n"
-				m += f"**Clan**: {player_clan_str}"
-				embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
-
-				player_battle_stat = player_general_stats['statistics'][battle_type]
-				player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
-				player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
-				player_stat_max_kills = player_battle_stat['max_frags_battle']
-
-				ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
-				player_stat_max_kills_ship = ship_data['name']
-				player_stat_max_kills_ship_type = ship_data['emoji']
-				player_stat_max_kills_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-				player_stat_max_damage = player_battle_stat['max_damage_dealt']
-
-				ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
-				player_stat_max_damage_ship = ship_data['name']
-				player_stat_max_damage_ship_type = ship_data['emoji']
-				player_stat_max_damage_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-
-				player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
-				player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
-				player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
-
-				m = f"**{player_battle_stat['battles']:,} battles**\n"
-				m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
-				m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
-				m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
-				m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
-				m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
-				m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
-				m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
-				embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
-
-				# add listing for player owned ships and of requested battle type
-				player_ships = WG.ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
-				player_ship_stats = {}
-				# calculate stats for each ships
-				for s in player_ships:
-					ship_id = s['ship_id']
-					ship_stat = s[battle_type]
-					ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
-					stats = {
-						"name"      : ship_name.lower(),
-						"tier"      : ship_tier,
-						"emoji"     : emoji,
-						"nation"    : ship_nation,
-						"type"      : ship_type,
-						"battles"   : ship_stat['battles'],
-						'wins'      : ship_stat['wins'],
-						'losses'    : ship_stat['losses'],
-						'kills'     : ship_stat['frags'],
-						'damage'    : ship_stat['damage_dealt'],
-						"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
-						"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
-						"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
-						"avg_kills" : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
-						"avg_xp"    : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
-						"max_kills" : ship_stat['max_frags_battle'],
-						"max_dmg"   : ship_stat['max_damage_dealt']
-					}
-					player_ship_stats[ship_id] = stats.copy()
-				# sort player owned ships by battle count
-				player_ship_stats = {k: v for k, v in sorted(player_ship_stats.items(), key=lambda x: x[1]['battles'], reverse=True)}
-
-				m = ""
-				for i in range(10):
-					try:
-						s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-						m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
-					except IndexError:
-						pass
-				embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
-				player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-
-				embed.add_field(name='\u200b', value='\u200b', inline=False)
-				if ship_tier_filter:
-					# list ships that the player has at this tier
-					player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
-					top_n = 10
-					items_per_col = 5
-					if len(player_ship_stats_df) > 0:
-						r = 1
-						for i in range(top_n // items_per_col):
-							m = ""
-							if i <= len(player_ship_stats_df) // items_per_col:
-								for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
-									ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-									m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
-									m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
-									m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
-									r += 1
-								embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
-					else:
-						embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value="Player have no ships of this tier", inline=True)
-				elif ship_filter:
-					# display player's ship stat
-					m = ""
-					try:
-						ship_data = get_ship_data(ship_filter)
-						ship_filter = ship_data['name'].lower()
-						ship_id = ship_data['ship_id']
-						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
-						ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-						m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
-						m += f"**{player_ship_stats_df['battles']} Battles**\n"
-						m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W / {player_ship_stats_df['losses']} L / {ship_battles_draw} D)\n"
-						m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
-						m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
-						m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-						m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
-						m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
-					except Exception as e:
-						if type(e) == NoShipFound:
-							m += f"Ship with name {ship_filter} is not found\n"
+					m = f"**Created at**: {player_created_at_string}\n"
+					m += f"**Last battle**: {player_last_battle_string} "
+					if player_last_battle_days > 0:
+						if player_last_battle_months > 0:
+							m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 						else:
-							m += "An internal error has occurred.\n"
-							traceback.print_exc()
-					embed.add_field(name="__Ship Specific Stat__", value=m)
+							m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+					else:
+						m += " (Today)\n"
+					m += f"**Clan**: {player_clan_str}"
+					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
 
-				else:
-					# add battle distribution by ship types
-					player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+					player_battle_stat = player_general_stats['statistics'][battle_type]
+					player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
+					player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
+					player_stat_max_kills = player_battle_stat['max_frags_battle']
+
+					ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
+					player_stat_max_kills_ship = ship_data['name']
+					player_stat_max_kills_ship_type = ship_data['emoji']
+					player_stat_max_kills_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
+					player_stat_max_damage = player_battle_stat['max_damage_dealt']
+
+					ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
+					player_stat_max_damage_ship = ship_data['name']
+					player_stat_max_damage_ship_type = ship_data['emoji']
+					player_stat_max_damage_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
+
+					player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
+					player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
+					player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
+
+					m = f"**{player_battle_stat['battles']:,} battles**\n"
+					m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
+					m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
+					m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
+					m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
+					m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
+					m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
+					m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+					embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
+
+					# add listing for player owned ships and of requested battle type
+					player_ships = WG.ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
+					player_ship_stats = {}
+					# calculate stats for each ships
+					for s in player_ships:
+						ship_id = s['ship_id']
+						ship_stat = s[battle_type]
+						ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
+						stats = {
+							"name"      : ship_name.lower(),
+							"tier"      : ship_tier,
+							"emoji"     : emoji,
+							"nation"    : ship_nation,
+							"type"      : ship_type,
+							"battles"   : ship_stat['battles'],
+							'wins'      : ship_stat['wins'],
+							'losses'    : ship_stat['losses'],
+							'kills'     : ship_stat['frags'],
+							'damage'    : ship_stat['damage_dealt'],
+							"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
+							"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
+							"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
+							"avg_kills" : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
+							"avg_xp"    : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
+							"max_kills" : ship_stat['max_frags_battle'],
+							"max_dmg"   : ship_stat['max_damage_dealt']
+						}
+						player_ship_stats[ship_id] = stats.copy()
+					# sort player owned ships by battle count
+					player_ship_stats = {k: v for k, v in sorted(player_ship_stats.items(), key=lambda x: x[1]['battles'], reverse=True)}
+
 					m = ""
-					for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
+					for i in range(10):
 						try:
-							type_stat = player_ship_stats_df.loc[s_t]
-							if type_stat['battles'] > 0:
-								m += f"**{ship_types[s_t]}s**\n"
-
-								type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
-								type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
-								type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
-								m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-								m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
-						except KeyError:
+							s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
+							m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+						except IndexError:
 							pass
-					embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
-
-					# average stats by tier
+					embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-					player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
-					m = ""
-					for tier in range(1, 11):
+
+					embed.add_field(name='\u200b', value='\u200b', inline=False)
+					if ship_tier_filter:
+						# list ships that the player has at this tier
+						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
+						top_n = 10
+						items_per_col = 5
+						if len(player_ship_stats_df) > 0:
+							r = 1
+							for i in range(top_n // items_per_col):
+								m = ""
+								if i <= len(player_ship_stats_df) // items_per_col:
+									for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
+										ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
+										m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
+										m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
+										m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
+										r += 1
+									embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
+						else:
+							embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value="Player have no ships of this tier", inline=True)
+					elif ship_filter:
+						# display player's ship stat
+						m = ""
 						try:
-							tier_stat = player_ship_stats_df.loc[tier]
-							tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])
-							tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
-							tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
+							ship_data = get_ship_data(ship_filter)
+							ship_filter = ship_data['name'].lower()
+							ship_id = ship_data['ship_id']
+							player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
+							ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
+							m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
+							m += f"**{player_ship_stats_df['battles']} Battles**\n"
+							m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W / {player_ship_stats_df['losses']} L / {ship_battles_draw} D)\n"
+							m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
+							m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
+							m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
+							m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
+							m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
+						except Exception as e:
+							if type(e) == NoShipFound:
+								m += f"Ship with name {ship_filter} is not found\n"
+							else:
+								m += "An internal error has occurred.\n"
+								traceback.print_exc()
+						embed.add_field(name="__Ship Specific Stat__", value=m)
 
-							m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
-							m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
-						except KeyError:
-							m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
-					embed.add_field(name=f"__**Average by Tier**__", value=m)
+					else:
+						# add battle distribution by ship types
+						player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+						m = ""
+						for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
+							try:
+								type_stat = player_ship_stats_df.loc[s_t]
+								if type_stat['battles'] > 0:
+									m += f"**{ship_types[s_t]}s**\n"
 
-				embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
+									type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
+									type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
+									type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
+									m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+									m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+							except KeyError:
+								pass
+						embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
+
+						# average stats by tier
+						player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+						player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
+						m = ""
+						for tier in range(1, 11):
+							try:
+								tier_stat = player_ship_stats_df.loc[tier]
+								tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])
+								tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
+								tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
+
+								m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
+								m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+							except KeyError:
+								m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
+						embed.add_field(name=f"__**Average by Tier**__", value=m)
+
+					embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
+			else:
+				embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(user_input)}", inline=True)
+		await context.send(embed=embed)
+	else:
+		await context.send_help("player")
+
+@mackbot.command()
+async def clan(context, *args):
+	if args:
+		usr_input = ' '.join(args)
+		clan_search = WG.clans.list(search=usr_input)
+		if clan_search:
+			# check for multiple clan
+			selected_clan = None
+			if len(clan_search) > 1:
+				embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+				embed.description += '\n'.join(f"[{i+1}] [{c['tag']}] {c['name']}" for i, c in enumerate(clan_search))
+				embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
+
+				await context.send(embed=embed)
+
+				usr_reply = ''
+				try:
+					usr_reply = await mackbot.wait_for('message', check=lambda m: context.author == m.author, timeout=10)
+					usr_reply = usr_reply.content
+				except asyncio.TimeoutError:
+					# time expired, do nothing
+					pass
+
+				if usr_reply:
+					# parse
+					try:
+						usr_reply = int(usr_reply) - 1
+						if 0 <= usr_reply < len(clan_search):
+							selected_clan = clan_search[usr_reply]
+						else:
+							await context.send(f"Input **{usr_reply}** is out of range")
+					except ValueError:
+						await context.send(f"Input **{usr_reply}** is not a number")
+
+			else:
+				selected_clan = clan_search[0]
+			# output clan information
+			# get clan information
+
+			async with context.typing():
+				clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+				clan_id = clan_detail['clan_id']
+				embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
+				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
+
+				clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
+				clan_age_day = clan_age % 30
+				clan_age_month = (clan_age // 30) % 12
+				clan_age_year = clan_age // (12 * 30)
+				clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
+				m = f"**Leader: **{clan_detail['leader_name']}\n"
+				m += f"**Created at: **{clan_created_at_str} ("
+				if clan_age_year:
+					m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
+				if clan_age_month:
+					m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
+				if clan_age_day:
+					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
+				m += ')\n'
+				m += f"**Members: ** {clan_detail['members_count']}\n"
+				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+				# update clan history for member transfer feature
+				# check clan in data
+				history_output = []
+				if clan_id in clan_history:
+					# check differences
+					new_member_list = clan_detail['members']
+					previous_member_list = clan_history[clan_id]['members']
+					members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
+					members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
+					for m in members_out:
+						history_output += [previous_member_list[m]['account_name'], icons_emoji['clan_out']]
+					for m in members_in:
+						history_output += [new_member_list[m]['account_name'], icons_emoji['clan_in']]
+
+					# check if last update was at least a week ago
+					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
+						# update history
+						clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+				else:
+					# not in history, add to history
+					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+
+				if history_output:
+					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
+
+				embed.add_field(name="\u200b", value="\u200b", inline=False)
+
+				# output members
+				members_per_column = 10
+				clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
+				for i in range(0, 50, members_per_column):
+					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
+					if sliced_member_list:
+						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
+			await context.send(embed=embed)
 		else:
-			embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(user_input)}", inline=True)
-	await context.send(embed=embed)
+			# no clan matches search
+			embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+			embed.description += "Clan not found"
+
+			await context.send(embed=embed)
+	else:
+		await context.send_help("clan")
 
 @mackbot.command()
 async def commander(context, *args):
@@ -3500,3 +3617,8 @@ if __name__ == '__main__':
 			pass
 	del help_command_strings, c
 	mackbot.run(bot_token)
+
+	# write clan history file
+	with open(clan_history_file_path, 'wb') as f:
+		pickle.dump(clan_history, f)
+	logging.info(f"Wrote {clan_history_file_path}")

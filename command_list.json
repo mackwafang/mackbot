@@ -15,5 +15,6 @@
 	"hottake": true,
 	"purpose": true,
 	"player": true,
-	"invite": true
+	"invite": true,
+	"clan": false
 }
