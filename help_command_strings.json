@@ -165,5 +165,11 @@
 		"brief": "Invite mackbot to your server(s)",
 		"usage": "",
 		"description": ["Invite mackbot to your server(s)"]
+	},
+	"web": {
+		"help": "",
+		"brief": "Get the URL to mackbot's web application page",
+		"usage": "",
+		"description": ["Get the URL to mackbot's web application page"]
 	}
 }
