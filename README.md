@@ -1,6 +1,7 @@
 # mackbot
-
 The World of Warships (WoWS) Discord bot with ship build sharing and ship encyclopedia.
+
+mackbot now has a web application with limited capabilities at https://mackbot-web.herokuapp.com/
 
 ## Installation
 After making a clone/fork, simply the following to install the necessary packages for mackbot to run:
