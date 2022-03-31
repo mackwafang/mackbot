@@ -155,6 +155,7 @@ else:
 
 # define bot stuff
 cmd_sep = ' '
+command_prefix += cmd_sep
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
 
 # define database stuff
@@ -3574,6 +3575,10 @@ async def purpose(context):
 
 	message = await mackbot.wait_for('message', timeout=30, check=check)
 	await context.send("Oh my god...")
+
+@mackbot.command()
+async def web(context):
+	await context.send("**mackbot's web application URL:\nhttps://mackbot-web.herokuapp.com/**")
 
 @mackbot.command()
 async def invite(context):

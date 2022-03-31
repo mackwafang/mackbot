@@ -16,5 +16,6 @@
 	"purpose": true,
 	"player": true,
 	"invite": true,
-	"clan": false
+	"clan": true,
+	"web": true
 }
