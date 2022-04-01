@@ -284,7 +284,7 @@ consumable_descriptor = {
 	'depthCharges': {},
 	'fighter': {
 		'name': 'Fighters',
-		'description': 'Deploy fighters to protect your ship from enemy aircrafts.'
+		'description': 'Deploy fighters to protect your ship from enemy aircraft.'
 	},
 	'healForsage': {
 		'name': '',
@@ -392,7 +392,7 @@ def find_module_by_tag(x):
 		if 'tag' in module_list[i]:
 			if x == module_list[i]['tag']:
 				l += [i]
-	if len(l) > 0:
+	if l:
 		return l[0]
 	else:
 		return []
@@ -631,12 +631,9 @@ def update_ship_modules():
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
 				if type(ship_upgrade_info[_info]) == dict:  # if there are data
-
 					try:
 						module_id = find_module_by_tag(_info)
-						if ship_upgrade_info[_info]['ucType'] != "_SkipBomber":
-							module_id = find_module_by_tag(_info)
-						else:
+						if ship_upgrade_info[_info]['ucType'] == "_SkipBomber":
 							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
 							module_id = str(game_data[module]['id'])
 							del module
@@ -877,18 +874,30 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
-						# get fighter parameter
 						planes = ship_upgrade_info[_info]['components']['fighter'][0]
-						planes = list(module_data[planes].values())[0]
+						planes = module_data[planes]['planes']
+						module_list[module_id] = {}
+
 						for p in planes:
 							plane = game_data[p]  # get rocket params
+							# adding missing information for tactical squadrons
+							module_list[module_id][p] = {}
+							# attempts to get the aircraft name
+							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
+							if plane_name[-1] in ['proto', 'Tiny']:
+								plane_name = plane_name[:-1]
+							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
-							module_list[module_id]['attack_size'] = plane['attackerSize']
-							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]['profile'] = {
+
+							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['module_id'] = module_id
+							module_list[module_id][p]['module_id_str'] = plane['index']
+							module_list[module_id][p]['attack_size'] = plane['attackerSize']
+							module_list[module_id][p]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id][p]['profile'] = {
 								"fighter": {
 									'max_damage': int(projectile['alphaDamage']),
 									'rocket_type': projectile['ammoType'],
@@ -898,24 +907,35 @@ def update_ship_modules():
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'payload': int(plane['attackCount']),
+									'payload_name': ' '.join(''.join(projectile['model'].split("/")[-2:-1]).split("_")[1:])
 								}
 							}
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
-						# get torp bomber parameter
 						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
-						planes = list(module_data[planes].values())[0]
-						for p in planes:
-							plane = game_data[p]
-							projectile = game_data[plane['bombName']]
-							module_list[module_id]['attack_size'] = plane['attackerSize']
-							module_list[module_id]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
+						planes = module_data[planes]['planes']
+						module_list[module_id] = {}
 
-							module_list[module_id]['profile'] = {
+						for p in planes:
+							plane = game_data[p]  # get rocket params
+							# adding missing information for tactical squadrons
+							module_list[module_id][p] = {}
+							# attempts to get the aircraft name
+							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
+							if plane_name[-1] in ['proto', 'Tiny']:
+								plane_name = plane_name[:-1]
+							plane_name = ' '.join(plane_name)
+							projectile = game_data[plane['bombName']]
+
+							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['attack_size'] = plane['attackerSize']
+							module_list[module_id][p]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
+
+							module_list[module_id][p]['profile'] = {
 								"torpedo_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
@@ -930,20 +950,30 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
-						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
-						planes = list(module_data[planes].values())[0]
+						planes = module_data[planes]['planes']
+						module_list[module_id] = {}
+
 						for p in planes:
-							plane = game_data[p]
+							plane = game_data[p]  # get rocket params
+							# adding missing information for tactical squadrons
+							module_list[module_id][p] = {}
+							# attempts to get the aircraft name
+							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
+							if plane_name[-1] in ['proto', 'Tiny']:
+								plane_name = plane_name[:-1]
+							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
-							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]['bomb_type'] = projectile['ammoType']
-							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-							module_list[module_id]['profile'] = {
+
+							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id][p]['bomb_type'] = projectile['ammoType']
+							module_list[module_id][p]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+							module_list[module_id][p]['profile'] = {
 								"dive_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
@@ -956,29 +986,36 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
-						# get bomber parameter
 						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
-						planes = list(module_data[planes].values())[0]
+						planes = module_data[planes]['planes']
+						module_list[module_id] = {}
+
 						for p in planes:
-							plane = game_data[p]
+							plane = game_data[p]  # get rocket params
+							# adding missing information for tactical squadrons
+							module_list[module_id][p] = {}
+							# attempts to get the aircraft name
+							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
+							if plane_name[-1] in ['proto', 'Tiny']:
+								plane_name = plane_name[:-1]
+							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
 							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
-							if plane['id'] not in module_list:
-								module_list[module_id] = {}
+
 							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
-							module_list[module_id]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]['bomb_type'] = projectile['ammoType']
-							module_list[module_id]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id][p]['bomb_type'] = projectile['ammoType']
+							module_list[module_id][p]['bomb_pen'] = int(projectile['alphaPiercingHE'])
 
 							# fill missing skip bomber info
-							module_list[module_id]['name'] = plane['name']
-							module_list[module_id]['module_id'] = module_id
-							module_list[module_id]['module_id_str'] = plane['index']
-							module_list[module_id]['profile'] = {
+							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['module_id'] = module_id
+							module_list[module_id][p]['module_id_str'] = plane['index']
+							module_list[module_id][p]['profile'] = {
 								"skip_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
@@ -2055,7 +2092,9 @@ async def ship(context, *args):
 					test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
 					embed = discord.Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
 
-					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0].upper()
+					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
+					if tier < 11:
+						tier_string = tier_string.upper()
 					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
 					embed.set_thumbnail(url=images['small'])
 
@@ -2141,10 +2180,10 @@ async def ship(context, *args):
 									# detailed air support filter
 									m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
 									if nation == 'netherlands':
-										m += f"**Squadron**: {airsup_info['squad_size']} aircrafts\n"
+										m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 										m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {airsup_info['bomb_pen']}mm)\n"
 									else:
-										m += f"**Squadron**: 2 aircrafts\n"
+										m += f"**Squadron**: 2 aircraft\n"
 										m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
 								m += '\n'
 
@@ -2301,66 +2340,69 @@ async def ship(context, *args):
 					# attackers
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
 						m = ""
-						for h in sorted(modules['fighter'],
-						                key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
-							fighter_module = module_list[str(h)]
-							fighter = module_list[str(h)]['profile']['fighter']
-							n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-							if ship_filter == 2 ** rockets_filter:
-								m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
-								m += f"**Squadron:** {fighter_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-								m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircrafts (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
-								m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
-								m += '\n'
+						for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
+							for f in module_list[str(h)]:
+								fighter_module = module_list[str(h)][f]
+								fighter = module_list[str(h)][f]['profile']['fighter']
+								n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
+								m += f"**{module_list[str(h)][f]['name'].replace(chr(10), ' ')} ({fighter['payload_name']}) **\n"
+								if ship_filter == 2 ** rockets_filter:
+									m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
+									m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
+									m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**{fighter_module['profile']['fighter']['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
+									m += '\n'
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
 					# torpedo bomber
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
 						m = ""
-						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
-							bomber_module = module_list[str(h)]
-							bomber = module_list[str(h)]['profile']['torpedo_bomber']
-							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-							if ship_filter == 2 ** torpbomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
-								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-								m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
-								m += '\n'
+						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
+							for b in module_list[str(h)]:
+								bomber_module = module_list[str(h)][b]
+								bomber = module_list[str(h)][b]['profile']['torpedo_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** torpbomber_filter:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
+									m += '\n'
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
 
 					# dive bombers
 					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
-						for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
-							bomber_module = module_list[str(h)]
-							bomber = module_list[str(h)]['profile']['dive_bomber']
-							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-							if ship_filter == 2 ** bomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
-								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-								m += '\n'
+						for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
+							for b in module_list[str(h)]:
+								bomber_module = module_list[str(h)][b]
+								bomber = module_list[str(h)][b]['profile']['dive_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** bomber_filter:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+									m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
 
 					if len(modules['skip_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
-						for h in sorted(modules['skip_bomber'], key=lambda x: module_list[str(x)]['profile']['skip_bomber']['max_health']):
-							bomber_module = module_list[str(h)]
-							bomber = module_list[str(h)]['profile']['skip_bomber']
-							n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')}**\n"
-							if ship_filter == 2 ** bomber_filter:
-								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
-								m += f"**Squadron:** {bomber_module['squad_size']} aircrafts ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-								m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircrafts (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-								m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-								m += '\n'
-						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['dive_bomber']) > 0)
+						for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
+							for b in module_list[str(h)]:
+								bomber_module = module_list[str(h)][b]
+								bomber = module_list[str(h)][b]['profile']['skip_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** bomber_filter:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+									m += '\n'
+						embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
 					# engine
 					if len(modules['engine']) > 0 and is_filtered(engine_filter):
@@ -2462,14 +2504,18 @@ async def ship(context, *args):
 				# ship with specified name is not found, user might mistype ship name?
 				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 				closest_match = difflib.get_close_matches(ship, ship_name_list)
-				closest_match_string = closest_match[0].title()
-				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
-				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expire in 10 seconds")
-				await context.send(embed=embed)
-				await correct_user_misspell(context, 'ship', closest_match[0])
+				if closest_match:
+					closest_match_string = closest_match[0].title()
+					if len(closest_match) > 0:
+						closest_match_string = f'\nDid you meant **{closest_match_string}**?'
+					embed = discord.Embed(title=f"Ship name is not understood.\n", description=closest_match_string)
+					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					embed.set_footer(text="Response expire in 10 seconds")
+					await context.send(embed=embed)
+					await correct_user_misspell(context, 'ship', closest_match[0])
+				else:
+					embed = discord.Embed(title=f"Ship not found\n")
+					await context.send(embed=embed)
 
 			else:
 				# we dun goofed
@@ -2559,58 +2605,62 @@ async def ship_compact(context, ship_data, ship_param):
 	# rockets
 	if len(modules['fighter']):
 		m = ""
-		for h in sorted(modules['fighter'], key=lambda x: module_list[str(x)]['profile']['fighter']['max_health']):
-			fighter_module = module_list[str(h)]
-			fighter = module_list[str(h)]['profile']['fighter']
-			fighter_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+		for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
+			for p in module_list[str(h)]:
+				fighter_module = module_list[str(h)][p]
+				fighter = module_list[str(h)][p]['profile']['fighter']
+				fighter_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
 
-			m += f"{icons_emoji['plane_rocket']} __**{fighter_name}**__\n"
-			m += f"{icons_emoji['plane']} x {fighter_module['squad_size']} | {fighter['cruise_speed']} kts.\n"
-			m += f":boom: {fighter['max_damage']:1.0f} x {fighter['payload']} x {fighter_module['attack_size']} {icons_emoji['plane']}\n"
-			m += f"{icons_emoji['reload']} {fighter_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+				m += f"{icons_emoji['plane_rocket']} __**{fighter_name}**__\n"
+				m += f"{icons_emoji['plane']} x {fighter_module['squad_size']} | {fighter['cruise_speed']} kts.\n"
+				m += f":boom: {fighter['max_damage']:1.0f} x {fighter['payload']} {icons_emoji['plane_rocket']} x {fighter_module['attack_size']} {icons_emoji['plane']}\n"
+				m += f"{icons_emoji['reload']} {fighter_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
 
 	# torp bomber
 	if len(modules['torpedo_bomber']):
 		m = ""
-		for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list[str(x)]['profile']['torpedo_bomber']['max_health']):
-			torpedo_bomber_module = module_list[str(h)]
-			torpedo_bomber = module_list[str(h)]['profile']['torpedo_bomber']
-			torpedo_bomber_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+		for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
+			for p in module_list[str(h)]:
+				torpedo_bomber_module = module_list[str(h)][p]
+				torpedo_bomber = module_list[str(h)][p]['profile']['torpedo_bomber']
+				torpedo_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
 
-			m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
-			m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-			m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+				m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
+				m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
+				m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+				m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
 	# bomber
 	if len(modules['dive_bomber']):
 		m = ""
-		for h in sorted(modules['dive_bomber'], key=lambda x: module_list[str(x)]['profile']['dive_bomber']['max_health']):
-			dive_bomber_module = module_list[str(h)]
-			dive_bomber = module_list[str(h)]['profile']['dive_bomber']
-			dive_bomber_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+		for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
+			for p in module_list[str(h)]:
+				dive_bomber_module = module_list[str(h)][p]
+				dive_bomber = module_list[str(h)][p]['profile']['dive_bomber']
+				dive_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
 
-			m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
-			m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_torp']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-			m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+				m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
+				m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
+				m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_bomb']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+				m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
 	# skip
 	if len(modules['skip_bomber']):
 		m = ""
-		for h in sorted(modules['skip_bomber'], key=lambda x: module_list[str(x)]['profile']['skip_bomber']['max_health']):
-			skip_bomber_module = module_list[str(h)]
-			skip_bomber = module_list[str(h)]['profile']['skip_bomber']
-			skip_bomber_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+		for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
+			for p in module_list[str(h)]:
+				skip_bomber_module = module_list[str(h)][p]
+				skip_bomber = module_list[str(h)][p]['profile']['skip_bomber']
+				skip_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
 
-			m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
-			m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
-			m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-			m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+				m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
+				m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
+				m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+				m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
 
 		embed.add_field(name="\u200b", value=m, inline=True)
 	# concealment
