@@ -745,9 +745,9 @@ def update_ship_modules():
 							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
 							# calculate mbAA rating
-							near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance'] * 1.25
-							mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance']
-							far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance']
+							near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
+							mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
+							far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
 							combined_aa_damage = near_damage + mid_damage + far_damage
 							aa_rating = 0
 
@@ -761,7 +761,7 @@ def update_ship_modules():
 							# aa rating scaling with flak
 							if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
 								flak_data = module_list[module_id]['profile']['anti_air']['flak']
-								aa_rating += flak_data['count'] * flak_data['hitChance'] * 1.5
+								aa_rating += flak_data['count'] * flak_data['hitChance'] * 2
 
 							# aa rating scaling with tier
 							aa_rating = (combined_aa_damage / (int(ship['tier']) * 9))
