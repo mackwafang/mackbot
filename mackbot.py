@@ -663,7 +663,7 @@ def update_ship_modules():
 								for t in atba_guns['turret']:
 									turret_data = atba_guns['turret'][t][0]
 									atba_guns[t] = {
-										'name': turret_data['name'],
+										'name': game_data[turret_data['name']]['name'],
 										'shotDelay': turret_data['shotDelay'],
 										'numBarrels': turret_data['numBarrels'],
 										'caliber': turret_data['barrelDiameter'],
@@ -811,49 +811,72 @@ def update_ship_modules():
 
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
 						# get turret parameter
-						gun = ship_upgrade_info[_info]['components']['artillery'][0]
-						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
-						module_list[module_id]['profile']['artillery'] = {
+						new_turret_data = {
 							'shotDelay': 0,
 							'caliber': 0,
 							'numBarrels': 0,
-							'max_damage_sap': 0,
 							'burn_probability': 0,
 							'pen_HE': 0,
 							'pen_SAP': 0,
-							'max_damage_HE': 0,
-							'max_damage_AP': 0,
-							'max_damage_SAP': 0,
-							'gun_dpm': {'HE': 0, 'AP': 0, 'CS': 0},
+							'max_damage_he': 0,
+							'max_damage_ap': 0,
+							'max_damage_sap': 0,
+							'sigma': 0,
+							'range': 0,
+							'dispersion_h': 0,
+							'dispersion_v': 0,
+							'transverse_speed': 0,
+							'gun_dpm': {'he': 0, 'ap': 0, 'cs': 0},
+							'speed': {'he': 0, 'ap': 0, 'cs': 0},
+							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
+							'mass': {'he': 0, 'ap': 0, 'cs': 0},
+							'drag': {'he': 0, 'ap': 0, 'cs': 0}
 						}
+
+						gun = ship_upgrade_info[_info]['components']['artillery'][0]
+						new_turret_data['sigmaCount'] = module_data[gun]['sigmaCount']
+
+						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						for g in gun:  # for each turret
 							turret_data = g
 							# get caliber, reload, and number of guns per turret
-							module_list[module_id]['profile']['artillery']['caliber'] = turret_data['barrelDiameter']
-							module_list[module_id]['profile']['artillery']['shotDelay'] = turret_data['shotDelay']
-							module_list[module_id]['profile']['artillery']['numBarrels'] = int(turret_data['numBarrels'])
-
+							new_turret_data['caliber'] = turret_data['barrelDiameter']
+							new_turret_data['shotDelay'] = turret_data['shotDelay']
+							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:
 								ammo = game_data[a]
 								if ammo['ammoType'] == 'HE':
-									module_list[module_id]['profile']['artillery']['burn_probability'] = int(ammo['burnProb'] * 100)
-									module_list[module_id]['profile']['artillery']['pen_HE'] = int(ammo['alphaPiercingHE'])
-									module_list[module_id]['profile']['artillery']['max_damage_HE'] = int(ammo['alphaDamage'])
-									module_list[module_id]['profile']['artillery']['gun_dpm']['HE'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['burn_probability'] = int(ammo['burnProb'] * 100)
+									new_turret_data['pen_HE'] = int(ammo['alphaPiercingHE'])
+									new_turret_data['max_damage_he'] = int(ammo['alphaDamage'])
+									new_turret_data['gun_dpm']['he'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['speed']['he'] = ammo['bulletSpeed']
+									new_turret_data['krupp']['he'] = ammo['bulletKrupp']
+									new_turret_data['mass']['he'] = ammo['bulletMass']
+									new_turret_data['drag']['he'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'CS':  # SAP rounds
-									module_list[module_id]['profile']['artillery']['pen_SAP'] = int(ammo['alphaPiercingCS'])
-									module_list[module_id]['profile']['artillery']['max_damage_SAP'] = int(ammo['alphaDamage'])
-									module_list[module_id]['profile']['artillery']['gun_dpm']['CS'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['pen_SAP'] = int(ammo['alphaPiercingCS'])
+									new_turret_data['max_damage_sap'] = int(ammo['alphaDamage'])
+									new_turret_data['gun_dpm']['cs'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['speed']['cs'] = ammo['bulletSpeed']
+									new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
+									new_turret_data['mass']['cs'] = ammo['bulletMass']
+									new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'AP':
-									module_list[module_id]['profile']['artillery']['max_damage_AP'] = int(ammo['alphaDamage'])
-									module_list[module_id]['profile']['artillery']['gun_dpm']['AP'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['max_damage_ap'] = int(ammo['alphaDamage'])
+									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+									new_turret_data['speed']['ap'] = ammo['bulletSpeed']
+									new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
+									new_turret_data['mass']['ap'] = ammo['bulletMass']
+									new_turret_data['drag']['ap'] = ammo['bulletAirDrag']
 
 							# check for belfast and belfast '43, for some reason
 							if 'Belfast' in ship['name']:
-								module_list[module_id]['profile']['artillery']['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
-								module_list[module_id]['profile']['artillery']['pen_HE'] = 0
-
+								new_turret_data['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
+								new_turret_data['pen_HE'] = 0
+							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
@@ -882,14 +905,9 @@ def update_ship_modules():
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
 							module_list[module_id][p] = {}
-							# attempts to get the aircraft name
-							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
-							if plane_name[-1] in ['proto', 'Tiny']:
-								plane_name = plane_name[:-1]
-							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['name'] = plane['name']
 							module_list[module_id][p]['module_id'] = module_id
 							module_list[module_id][p]['module_id_str'] = plane['index']
 							module_list[module_id][p]['attack_size'] = plane['attackerSize']
@@ -907,7 +925,7 @@ def update_ship_modules():
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
 									'payload': int(plane['attackCount']),
-									'payload_name': ' '.join(''.join(projectile['model'].split("/")[-2:-1]).split("_")[1:])
+									'payload_name': projectile['name']
 								}
 							}
 						continue
@@ -921,14 +939,9 @@ def update_ship_modules():
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
 							module_list[module_id][p] = {}
-							# attempts to get the aircraft name
-							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
-							if plane_name[-1] in ['proto', 'Tiny']:
-								plane_name = plane_name[:-1]
-							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['name'] = plane['name']
 							module_list[module_id][p]['attack_size'] = plane['attackerSize']
 							module_list[module_id][p]['squad_size'] = plane['numPlanesInSquadron']
 							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -945,6 +958,7 @@ def update_ship_modules():
 									'is_deep_water': projectile['isDeepWater'],
 									'distance': projectile['maxDist'] * 30 / 1000,
 									'payload': int(plane['projectilesPerAttack']),
+									'payload_name': projectile['name']
 								}
 							}
 						continue
@@ -958,14 +972,9 @@ def update_ship_modules():
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
 							module_list[module_id][p] = {}
-							# attempts to get the aircraft name
-							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
-							if plane_name[-1] in ['proto', 'Tiny']:
-								plane_name = plane_name[:-1]
-							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['name'] = plane['name']
 							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
 							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
 							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -981,6 +990,7 @@ def update_ship_modules():
 									'burn_probability': projectile['burnProb'] * 100,
 									'max_health': int(plane['maxHealth']),
 									'payload': int(plane['attackCount']),
+									'payload_name': projectile['name']
 								}
 							}
 						continue
@@ -994,11 +1004,6 @@ def update_ship_modules():
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
 							module_list[module_id][p] = {}
-							# attempts to get the aircraft name
-							plane_name = ''.join(plane['model'].split("/")[-2:-1]).split("_")[1:]
-							if plane_name[-1] in ['proto', 'Tiny']:
-								plane_name = plane_name[:-1]
-							plane_name = ' '.join(plane_name)
 							projectile = game_data[plane['bombName']]
 							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
 
@@ -1012,7 +1017,7 @@ def update_ship_modules():
 							module_list[module_id][p]['bomb_pen'] = int(projectile['alphaPiercingHE'])
 
 							# fill missing skip bomber info
-							module_list[module_id][p]['name'] = plane_name
+							module_list[module_id][p]['name'] = plane['name']
 							module_list[module_id][p]['module_id'] = module_id
 							module_list[module_id][p]['module_id_str'] = plane['index']
 							module_list[module_id][p]['profile'] = {
@@ -1023,6 +1028,7 @@ def update_ship_modules():
 									'burn_probability': projectile['burnProb'] * 100,
 									'max_health': int(plane['maxHealth']),
 									'payload': int(plane['attackCount']),
+									'payload_name': projectile['name']
 								}
 							}
 							ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
@@ -1389,7 +1395,7 @@ def get_ship_data(ship: str) -> dict:
 
 		Returns:
 			object: dict containing ship information
-		
+
 		raise InvalidShipName exception if name provided is incorrect
 		or
 		NoBuildFound exception if no build is found
@@ -2017,7 +2023,7 @@ async def build(context, *args):
 async def ship(context, *args):
 	"""
 		Outputs an embeded message to the channel (or DM) that contains information about a queried warship
-		
+
 		Discord usage:
 			mackbot ship [ship_name] (parameters)
 				ship_name 		- name of requested warship
@@ -2214,25 +2220,42 @@ async def ship(context, *args):
 					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
 						m = ""
 						m += f"**Range: **"
-						for fc in sorted(modules['fire_control'],
-						                 key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
+						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
 							m += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
 						m = m[:-2]
 						m += "km\n"
 						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
 							guns = module_list[str(h)]['profile']['artillery']
 							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({guns['numBarrels']} barrel{'s' if guns['numBarrels'] > 1 else ''}):**\n"
+							m += f"**Rotation Speed: ** {guns['transverse_speed']}\xb0/s\n"
+							if ship_filter == 2 ** guns_filter:
+								m = m[:-1]
+								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180\xb0)\n"
+								m += '-------------------\n'
 
-							if guns['max_damage_HE']:
-								m += f"**HE:** {guns['max_damage_HE']} (:fire: {guns['burn_probability']}%, {guns['gun_dpm']['HE']:,} DPM"
+							if guns['max_damage_he']:
+								m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
 								if guns['pen_HE'] > 0:
-									m += f", Pen {guns['pen_HE']} mm)\n"
+									m += f", Pen. {guns['pen_HE']} mm)\n"
 								else:
 									m += f")\n"
-							if guns['max_damage_SAP'] > 0:
-								m += f"**SAP:** {guns['max_damage_SAP']} (Pen {guns['pen_SAP']} mm, {guns['gun_dpm']['CS']:,} DPM)\n"
-							if guns['max_damage_AP'] > 0:
-								m += f"**AP:** {guns['max_damage_AP']} ({guns['gun_dpm']['AP']:,} DPM)\n"
+								if ship_filter == 2 ** guns_filter:
+									m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
+									m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
+									m += '-------------------\n'
+
+							if guns['max_damage_sap'] > 0:
+								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm\n"
+								if ship_filter == 2 ** guns_filter:
+									m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
+									m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
+									m += '-------------------\n'
+							if guns['max_damage_ap'] > 0:
+								m += f"**AP:** {guns['max_damage_ap']}\n"
+								if ship_filter == 2 ** guns_filter:
+									m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
+									m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
+									m += '-------------------\n'
 							m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 							m += '\n'
@@ -2258,12 +2281,11 @@ async def ship(context, *args):
 								for t in atba:
 									turret = atba[t]
 									# detail secondary
-									m += f"**{t} ({turret['numBarrels']} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
-									m += f"**{turret['count']}** turret{'s' if turret['count'] > 1 else ''}\n"
+									m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
 									m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
-									m += '('
+									m += ' ('
 									if turret['burn_probability'] > 0:
-										m += f":fire:{turret['burn_probability'] * 100}%, "
+										m += f":fire: {turret['burn_probability'] * 100}%, "
 									m += f"Pen. {turret['pen']}mm"
 									m += ')\n'
 									m += f"**Reload**: {turret['shotDelay']}s\n"
@@ -2340,13 +2362,16 @@ async def ship(context, *args):
 					# attackers
 					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
 						m = ""
-						for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
+						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
+						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
 							for f in module_list[str(h)]:
 								fighter_module = module_list[str(h)][f]
 								fighter = module_list[str(h)][f]['profile']['fighter']
 								n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
-								m += f"**{module_list[str(h)][f]['name'].replace(chr(10), ' ')} ({fighter['payload_name']}) **\n"
+								m += f"**{module_list[str(h)][f]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** rockets_filter:
+									m = m[:-3]
+									m += f" ({fighter['payload_name']}) **\n"
 									m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
 									m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2357,13 +2382,16 @@ async def ship(context, *args):
 					# torpedo bomber
 					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
 						m = ""
-						for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
+						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['torpedo_bomber']]
+						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
 							for b in module_list[str(h)]:
 								bomber_module = module_list[str(h)][b]
 								bomber = module_list[str(h)][b]['profile']['torpedo_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** torpbomber_filter:
+									m = m[:-3]
+									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2374,13 +2402,16 @@ async def ship(context, *args):
 					# dive bombers
 					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
-						for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
+						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['dive_bomber']]
+						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
 							for b in module_list[str(h)]:
 								bomber_module = module_list[str(h)][b]
 								bomber = module_list[str(h)][b]['profile']['dive_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** bomber_filter:
+									m = m[:-3]
+									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2390,13 +2421,16 @@ async def ship(context, *args):
 
 					if len(modules['skip_bomber']) > 0 and is_filtered(bomber_filter):
 						m = ""
-						for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
+						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['skip_bomber']]
+						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
 							for b in module_list[str(h)]:
 								bomber_module = module_list[str(h)][b]
 								bomber = module_list[str(h)][b]['profile']['skip_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** bomber_filter:
+									m = m[:-3]
+									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2579,12 +2613,12 @@ async def ship_compact(context, ship_data, ship_param):
 			mb = module_list[str(mb)]['profile']['artillery']
 			m += f"{icons_emoji['gun']} __**{mb_name}**__\n"
 			m += f"{icons_emoji['reload']} {mb['shotDelay']:0.1f}s | {icons_emoji['range']} {mb_range} km\n"
-			if mb['max_damage_HE']:
-				m += f"{icons_emoji['he']} {mb['max_damage_HE']} :boom: | :fire: {mb['burn_probability']:2.0f}% | {icons_emoji['penetration']} {mb['pen_HE']:2.0f} mm\n"
-			if mb['max_damage_SAP']:
-				m += f"{icons_emoji['sap']} {mb['max_damage_SAP']} :boom: | {icons_emoji['penetration']} {mb['pen_SAP']:2.0f} mm\n"
-			if mb['max_damage_AP']:
-				m += f"{icons_emoji['ap']} {mb['max_damage_AP']} :boom:\n"
+			if mb['max_damage_he']:
+				m += f"{icons_emoji['he']} {mb['max_damage_he']} :boom: | :fire: {mb['burn_probability']:2.0f}% | {icons_emoji['penetration']} {mb['pen_HE']:2.0f} mm\n"
+			if mb['max_damage_sap']:
+				m += f"{icons_emoji['sap']} {mb['max_damage_sap']} :boom: | {icons_emoji['penetration']} {mb['pen_SAP']:2.0f} mm\n"
+			if mb['max_damage_ap']:
+				m += f"{icons_emoji['ap']} {mb['max_damage_ap']} :boom:\n"
 			m += '\n'
 
 		embed.add_field(name="\u200b", value=m, inline=False)
