@@ -2027,9 +2027,9 @@ async def build(context, *args):
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
 					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
+				embed = discord.Embed(title=f"Ship {usr_ship_name} is not understood.\n", description=closest_match_string)
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expire in 10 seconds")
+				embed.set_footer(text="Response expires in 10 seconds")
 				await context.send(embed=embed)
 				await correct_user_misspell(context, 'build', closest_match[0])
 			elif type(e) == NoBuildFound:
