@@ -22,6 +22,14 @@
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		]
 	},
+	"compare": {
+		"help": "",
+		"brief": "Compare combat parameter of two warships",
+		"usage": " ship1 [&/and] ship2",
+		"description": [
+
+		]
+	},
 	"skill": {
 		"help": "",
 		"brief": "Get information about a commander skill",

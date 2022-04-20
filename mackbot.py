@@ -2750,6 +2750,46 @@ async def ship_compact(context, ship_data, ship_param):
 	embed.set_footer(text=footer_message)
 	await context.send(embed=embed)
 
+@mackbot.command(help="")
+async def compare(context, *args):
+	if len(args) == 0:
+		await context.send_help("compare")
+	else:
+		args = ''.join(args) # join arguments to split token
+		usr_input_ships  = args.replace("and", "&").split("&")
+		# parse whitespace
+		usr_input_ships  = [''.join(i.split()) for i in usr_input_ships]
+		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
+		ships_to_compare = []
+
+		def user_correction_check(message):
+			return context.author == message.author and message.content.lower() in ['y', 'yes']
+
+		# checking ships name
+		for s in usr_input_ships:
+			logging.info(f"checking {s}")
+			try:
+				ships_to_compare += [get_ship_data(s)]
+			except NoShipFound:
+				closest_match = difflib.get_close_matches(s, ship_name_list)
+				closest_match_string = closest_match[0].title()
+				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
+				if len(closest_match) > 0:
+					embed.description += f'\nDid you meant **{closest_match_string}**?'
+					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					embed.set_footer(text="Response expires in 10 seconds")
+					await context.send(embed=embed)
+					msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+					if msg:
+						ships_to_compare += [get_ship_data(closest_match_string)]
+				else:
+					await context.send(embed=embed)
+					return
+
+		embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+		await context.send(embed=embed)
+		del user_correction_check
+
 @mackbot.command()
 async def skill(context, *args):
 	# get information on requested skill
