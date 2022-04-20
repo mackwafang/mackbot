@@ -142,7 +142,7 @@
 	"player": {
 		"help": "",
 		"brief": "Provide general information about a player",
-		"usage": "player_name [battle_type] [ship ship_name] [ships tier]",
+		"usage": "player_name [battle_type] [--ship ship_name] [--ships tier]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
 			"[battle_type] - Optional: Acceptable values: solo, div2, div3",
