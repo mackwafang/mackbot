@@ -277,6 +277,9 @@ good_bot_messages = (
 with open(os.path.join(".", "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
 
+DEGREE_SYMBOL = "\xb0"
+SIGMA_SYMBOL = "\u03c3"
+
 consumable_descriptor = {
 	'airDefenseDisp': {
 		'name': 'Defensive Anti-Air Fire',
@@ -2261,10 +2264,9 @@ async def ship(context, *args):
 							m += f"**Rotation Speed: ** {guns['transverse_speed']}\xb0/s\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 								m = m[:-1]
-								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180\xb0)\n"
-								m += f"**Precision:** {guns['sigma']:1.1f}\u03c3\n"
+								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180{DEGREE_SYMBOL})\n"
+								m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 								m += '-------------------\n'
-
 							if guns['max_damage_he']:
 								m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
 								if guns['pen_HE'] > 0:
@@ -2786,21 +2788,19 @@ async def compare(context, *args):
 				else:
 					await context.send(embed=embed)
 					return
-
-		embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
-
 		response_embed = discord.Embed(title="Which parameter would you like to compare?", description="")
 		usr_options = [
 			"Main Battery",
 			"Secondary Battery",
+			"Torpedo",
 			"Concealment",
 			"Aircraft"
 		]
 		for i, o in enumerate(usr_options):
-			response_embed.description += f"[{i}] {o}\n"
+			response_embed.description += f"**[{i+1}]** {o}\n"
 		response_embed.set_footer(text="Response expires in 10 seconds")
 		await context.send(embed=response_embed)
-		res = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+		res = await mackbot.wait_for("message", timeout=10, check=lambda message: context.author == message.author)
 		if res.content:
 			try:
 				user_selection = int(res.content)
@@ -2809,9 +2809,84 @@ async def compare(context, *args):
 				await context.send(embed=embed)
 				return
 
+			embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			ship_module = [{}, {}]
+
+			m = "**Tier**\n"
+			m += "**Type**\n"
+			m += "**Nation**\n"
+			embed.add_field(name="__Ship__", value=m)
+			for i in range(2):
+				m = f"{list(roman_numeral)[ships_to_compare[i]['tier'] - 1].upper() if ships_to_compare[i]['tier'] < 11 else roman_numeral[10]}\n"
+				m += f"{icons_emoji[hull_classification_converter[ships_to_compare[i]['type']].lower()]}\n"
+				m += f"{nation_dictionary[ships_to_compare[i]['nation']]}\n"
+				embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m)
+
 			if user_selection == 1:
-				ship1_guns = ships_to_compare[0]['modules']['artillery']
-				ship2_guns = ships_to_compare[1]['modules']['artillery']
+				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
+				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
+				l = []
+				for _a in ship_module[0]['artillery']:
+					for _b in ship_module[1]['artillery']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							m = "**Gun**\n"
+							m += "**Caliber**\n"
+							m += "**Range**\n"
+							m += "**Reload**\n"
+							m += "**Transverse**\n"
+							m += "**Precision**\n"
+							m += "**HE DPM**\n"
+							m += "**AP DPM**\n"
+							m += "**SAP DPM**\n"
+							m += "**Salvo\n**"
+							embed.add_field(name="__Artillery__", value=m, inline=True)
+						gun_module = module_list[str(mid)]
+						m = ""
+						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+						m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
+						m += f"{gun_module['profile']['artillery']['range'] * 1000:1.1f}km\n"
+						m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
+						m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
+						m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
+						m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
+			if user_selection == 2:
+				ship_module[0]['atbas'] = ships_to_compare[0]['modules']['atbas']
+				ship_module[1]['atbas'] = ships_to_compare[1]['modules']['atbas']
+				l = []
+				for _a in ship_module[0]['atbas']:
+					for _b in ship_module[1]['atbas']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							m = "**Gun**\n"
+							m += "**Salvo\n**"
+							embed.add_field(name="__Secondary Guns__", value=m, inline=True)
+						gun_module = module_list[str(mid)]
+						m = ""
+						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+			if user_selection == 3:
+				for i in range(2):
+					ship_module[i]['torpedo'] = ships_to_compare[0]['modules']['torpedo']
+			if user_selection == 4:
+				for i in range(2):
+					ship_module[i]['hull'] = ships_to_compare[0]['modules']['hull']
+			if user_selection == 5:
+				for i in range(2):
+					ship_module[i]['fighter'] = ships_to_compare[0]['modules']['fighter']
+					ship_module[i]['torpedo_bomber'] = ships_to_compare[0]['modules']['torpedo_bomber']
+					ship_module[i]['dive_bomber'] = ships_to_compare[0]['modules']['dive_bomber']
+					ship_module[i]['skip_bomber'] = ships_to_compare[0]['modules']['skip_bomber']
 
 			await context.send(embed=embed)
 		del user_correction_check
