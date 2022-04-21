@@ -13,7 +13,7 @@
 	"ship": {
 		"help": "",
 		"brief": "Get detailed information about a ship",
-		"usage": " [compact/-c] ship_name ([parameters])",
+		"usage": " [--compact/-c] ship_name ([parameters])",
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
@@ -21,7 +21,8 @@
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
 			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
-			"\tmackbot ship midway compact (Return information about Midway in compact format)",
+			"\tmackbot ship --compact midway (Return information about Midway in compact format)",
+			"\tmackbot ship -c midway (Return information about Midway in compact format)",
 			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
@@ -32,7 +33,11 @@
 		"brief": "Compare combat parameter of two warships",
 		"usage": " ship1 [&/and] ship2",
 		"description": [
-
+			"Compares a combat parameter of two ships.",
+			"mackbot will prompt for a specific parameter",
+			"Example:",
+			"\tmackbot compare yamato and montana (returns the comparison between Yamato and Montana)",
+			"Note: Both warships must contains the same parameters."
 		]
 	},
 	"skill": {

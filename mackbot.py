@@ -913,19 +913,32 @@ def update_ship_modules():
 						# get torps parameter
 						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 						gun = module_data[gun]
+						new_turret_data = {
+							'turrets': {}
+						}
 						for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
 							turret_data = gun[g]
-							projectile = game_data[turret_data['ammoList'][0]]
-							module_list[module_id]['profile']['torpedoes'] = {
-								'numBarrels': int(turret_data['numBarrels']),
-								'shotDelay': turret_data['shotDelay'],
-								'max_damage': int(projectile['alphaDamage'] / 3 + projectile['damage']),
-								'flood_chance': int(projectile['uwCritical'] * 100),
-								'torpedo_speed': projectile['speed'],
-								'is_deep_water': projectile['isDeepWater'],
-								'distance': projectile['maxDist'] * 30 / 1000,
-								'spotting_range': projectile['visibilityFactor'],
-							}
+							# add turret type and count
+							turret_name = game_data[turret_data['name']]['name']
+							if turret_name not in new_turret_data['turrets']:
+								new_turret_data['turrets'][turret_name] = {
+									'numBarrels': int(turret_data['numBarrels']),
+									'count': 1,
+								}
+							else:
+								new_turret_data['turrets'][turret_name]['count'] += 1
+
+						projectile = game_data[turret_data['ammoList'][0]]
+						new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+						new_turret_data['shotDelay'] = turret_data['shotDelay']
+						new_turret_data['max_damage'] = int(projectile['alphaDamage'] / 3 + projectile['damage'])
+						new_turret_data['flood_chance'] = int(projectile['uwCritical'] * 100)
+						new_turret_data['torpedo_speed'] = projectile['speed']
+						new_turret_data['is_deep_water'] = projectile['isDeepWater']
+						new_turret_data['range'] = projectile['maxDist'] * 30 / 1000
+						new_turret_data['spotting_range'] = projectile['visibilityFactor']
+
+						module_list[module_id]['profile']['torpedoes'] = new_turret_data.copy()
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
@@ -993,7 +1006,7 @@ def update_ship_modules():
 									'flood_chance': int(projectile['uwCritical'] * 100),
 									'torpedo_speed': projectile['speed'],
 									'is_deep_water': projectile['isDeepWater'],
-									'distance': projectile['maxDist'] * 30 / 1000,
+									'range': projectile['maxDist'] * 30 / 1000,
 									'payload': int(plane['projectilesPerAttack']),
 									'payload_name': projectile['name'],
 									'arming_time': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
@@ -2076,7 +2089,7 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		send_compact = args[0] in ['compact', '-c']
+		send_compact = args[0] in ['--compact', '-c']
 		if send_compact:
 			args = args[1:]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
@@ -2364,8 +2377,7 @@ async def ship(context, *args):
 						else:
 							# compact detail
 							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
-							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in
-							                      modules['hull']]) / len(modules['hull'])
+							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in modules['hull']]) / len(modules['hull'])
 
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
@@ -2383,14 +2395,16 @@ async def ship(context, *args):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''})"
+							projectile_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+							turret_name = list(torps['turrets'].keys())[0]
+							m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''})"
 							if torps['is_deep_water']:
 								m += " [DW]"
 							m += '**\n'
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORPS:
 								reload_minute = int(torps['shotDelay'] // 60)
 								reload_second = int(torps['shotDelay'] % 60)
+								m += f"**Torpedo:** {projectile_name}\n"
 								m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
 								m += f"**Damage:** {torps['max_damage']}\n"
 								m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
@@ -2673,7 +2687,7 @@ async def ship_compact(context, ship_data, ship_param):
 			reload_second = int(torps['shotDelay'] % 60)
 
 			m += f"{icons_emoji['torp']} __**{torps_name}**__\n"
-			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['distance']:0.1f} km\n"
+			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['range']:0.1f} km\n"
 			m += f"{icons_emoji['plane_torp']} {torps['max_damage']:2.0f} :boom: | {icons_emoji['plane_torp']} x {torps['numBarrels']} | {torps['torpedo_speed']:0.1f} kts.\n"
 			m += '\n'
 		embed.add_field(name="\u200b", value=m, inline=False)
@@ -2759,7 +2773,10 @@ async def compare(context, *args):
 		await context.send_help("compare")
 	else:
 		args = ' '.join(args) # join arguments to split token
-		usr_input_ships  = args.replace("and", "&").split("&")
+		usr_input_ships = args.replace("and", "&").split("&")
+		if len(usr_input_ships) != 2:
+			await context.send_help("compare")
+			return
 		# parse whitespace
 		usr_input_ships  = [' '.join(i.split()) for i in usr_input_ships]
 		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
@@ -2793,8 +2810,8 @@ async def compare(context, *args):
 			"Main Battery",
 			"Secondary Battery",
 			"Torpedo",
-			"Concealment",
-			"Aircraft"
+			# "Concealment",
+			# "Aircraft"
 		]
 		for i, o in enumerate(usr_options):
 			response_embed.description += f"**[{i+1}]** {o}\n"
@@ -2879,9 +2896,40 @@ async def compare(context, *args):
 						m += f"{get_ship_param(ships_to_compare[i % 2]['name'])['atbas']['distance']:1.1f} km\n"
 						m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
 						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
 			if user_selection == 3:
-				for i in range(2):
-					ship_module[i]['torpedo'] = ships_to_compare[0]['modules']['torpedo']
+				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
+				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
+				l = []
+				for _a in ship_module[0]['torpedo']:
+					for _b in ship_module[1]['torpedo']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							# set up title axis
+							m = "**Name**\n"
+							m += "**Range**\n"
+							m += "**Spotting Range**\n"
+							m += "**Damage**\n"
+							m += "**Reload**\n"
+							m += "**Speed**\n"
+							m += "**Salvo**\n"
+							m += "**Deepwater**\n"
+							embed.add_field(name="__Torpedo__", value=m, inline=True)
+						torp_module = module_list[str(mid)]
+						m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
+						m += f"{torp_module['profile']['torpedoes']['range']} km\n"
+						m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
+						m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
+						m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
+						m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
+						m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
+						m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 4:
 				for i in range(2):
 					ship_module[i]['hull'] = ships_to_compare[0]['modules']['hull']
