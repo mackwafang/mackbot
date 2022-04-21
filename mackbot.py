@@ -39,6 +39,19 @@ class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
 	MONGO_DB = auto()
 
+class SHIP_COMBAT_PARAM_FILTER(IntEnum):
+	HULL = 0
+	GUNS = auto()
+	ATBAS = auto()
+	TORPS = auto()
+	ROCKETS = auto()
+	TORP_BOMBER = auto()
+	BOMBER = auto()
+	ENGINE = auto()
+	AA = auto()
+	CONCEAL = auto()
+	CONSUMABLE = auto()
+	UPGRADES = auto()
 
 pd.set_option('display.max_columns', None)
 
@@ -252,7 +265,7 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
-player_arg_filter_regex = re.compile('(solo|div2|div3)|(ship (.*))|(ships (.*))')
+player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--ships (.*))')
 
 good_bot_messages = (
 	'Thank you!',
@@ -263,6 +276,9 @@ good_bot_messages = (
 
 with open(os.path.join(".", "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
+
+DEGREE_SYMBOL = "\xb0"
+SIGMA_SYMBOL = "\u03c3"
 
 consumable_descriptor = {
 	'airDefenseDisp': {
@@ -897,19 +913,32 @@ def update_ship_modules():
 						# get torps parameter
 						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 						gun = module_data[gun]
+						new_turret_data = {
+							'turrets': {}
+						}
 						for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
 							turret_data = gun[g]
-							projectile = game_data[turret_data['ammoList'][0]]
-							module_list[module_id]['profile']['torpedoes'] = {
-								'numBarrels': int(turret_data['numBarrels']),
-								'shotDelay': turret_data['shotDelay'],
-								'max_damage': int(projectile['alphaDamage'] / 3 + projectile['damage']),
-								'flood_chance': int(projectile['uwCritical'] * 100),
-								'torpedo_speed': projectile['speed'],
-								'is_deep_water': projectile['isDeepWater'],
-								'distance': projectile['maxDist'] * 30 / 1000,
-								'spotting_range': projectile['visibilityFactor'],
-							}
+							# add turret type and count
+							turret_name = game_data[turret_data['name']]['name']
+							if turret_name not in new_turret_data['turrets']:
+								new_turret_data['turrets'][turret_name] = {
+									'numBarrels': int(turret_data['numBarrels']),
+									'count': 1,
+								}
+							else:
+								new_turret_data['turrets'][turret_name]['count'] += 1
+
+						projectile = game_data[turret_data['ammoList'][0]]
+						new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+						new_turret_data['shotDelay'] = turret_data['shotDelay']
+						new_turret_data['max_damage'] = int(projectile['alphaDamage'] / 3 + projectile['damage'])
+						new_turret_data['flood_chance'] = int(projectile['uwCritical'] * 100)
+						new_turret_data['torpedo_speed'] = projectile['speed']
+						new_turret_data['is_deep_water'] = projectile['isDeepWater']
+						new_turret_data['range'] = projectile['maxDist'] * 30 / 1000
+						new_turret_data['spotting_range'] = projectile['visibilityFactor']
+
+						module_list[module_id]['profile']['torpedoes'] = new_turret_data.copy()
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
@@ -977,7 +1006,7 @@ def update_ship_modules():
 									'flood_chance': int(projectile['uwCritical'] * 100),
 									'torpedo_speed': projectile['speed'],
 									'is_deep_water': projectile['isDeepWater'],
-									'distance': projectile['maxDist'] * 30 / 1000,
+									'range': projectile['maxDist'] * 30 / 1000,
 									'payload': int(plane['projectilesPerAttack']),
 									'payload_name': projectile['name'],
 									'arming_time': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
@@ -1905,7 +1934,7 @@ async def build(context, *args):
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 
-					embed.set_footer(text="Please enter the number you would like the build for.")
+					embed.set_footer(text="Please enter the number you would like the build for.\nResponse expires in 10 seconds.")
 					await context.send(embed=embed)
 
 					def get_user_selected_build_id(message):
@@ -2026,10 +2055,10 @@ async def build(context, *args):
 				closest_match = difflib.get_close_matches(usr_ship_name, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
+					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+				embed = discord.Embed(title=f"Ship {usr_ship_name} is not understood.\n", description=closest_match_string)
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expire in 10 seconds")
+				embed.set_footer(text="Response expires in 10 seconds")
 				await context.send(embed=embed)
 				await correct_user_misspell(context, 'build', closest_match[0])
 			elif type(e) == NoBuildFound:
@@ -2060,7 +2089,7 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await context.send_help("ship")
 	else:
-		send_compact = args[0] in ['compact', '-c']
+		send_compact = args[0] in ['--compact', '-c']
 		if send_compact:
 			args = args[1:]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
@@ -2127,18 +2156,6 @@ async def ship(context, *args):
 					embed.set_thumbnail(url=images['small'])
 
 					# defines ship params filtering
-					hull_filter = 0
-					guns_filter = 1
-					atbas_filter = 2
-					torps_filter = 3
-					rockets_filter = 4
-					torpbomber_filter = 5
-					bomber_filter = 6
-					engine_filter = 7
-					aa_filter = 8
-					conceal_filter = 9
-					consumable_filter = 10
-					upgrades_filter = 11
 
 					ship_filter = 0b111111111111  # assuming no filter is provided, display all
 					# grab filters
@@ -2151,18 +2168,18 @@ async def ship(context, *args):
 							return 1 if len([i[x - 1] for i in s if len(i[x - 1]) > 0]) > 0 else 0
 
 						# enables proper filter
-						ship_filter |= is_filter_requested(2) << hull_filter
-						ship_filter |= is_filter_requested(3) << guns_filter
-						ship_filter |= is_filter_requested(4) << atbas_filter
-						ship_filter |= is_filter_requested(6) << torps_filter
-						ship_filter |= is_filter_requested(8) << rockets_filter
-						ship_filter |= is_filter_requested(5) << torpbomber_filter
-						ship_filter |= is_filter_requested(7) << bomber_filter
-						ship_filter |= is_filter_requested(9) << engine_filter
-						ship_filter |= is_filter_requested(10) << aa_filter
-						ship_filter |= is_filter_requested(11) << conceal_filter
-						ship_filter |= is_filter_requested(12) << consumable_filter
-						ship_filter |= is_filter_requested(13) << upgrades_filter
+						ship_filter |= is_filter_requested(2) << SHIP_COMBAT_PARAM_FILTER.HULL
+						ship_filter |= is_filter_requested(3) << SHIP_COMBAT_PARAM_FILTER.GUNS
+						ship_filter |= is_filter_requested(4) << SHIP_COMBAT_PARAM_FILTER.ATBAS
+						ship_filter |= is_filter_requested(6) << SHIP_COMBAT_PARAM_FILTER.TORPS
+						ship_filter |= is_filter_requested(8) << SHIP_COMBAT_PARAM_FILTER.ROCKETS
+						ship_filter |= is_filter_requested(5) << SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER
+						ship_filter |= is_filter_requested(7) << SHIP_COMBAT_PARAM_FILTER.BOMBER
+						ship_filter |= is_filter_requested(9) << SHIP_COMBAT_PARAM_FILTER.ENGINE
+						ship_filter |= is_filter_requested(10) << SHIP_COMBAT_PARAM_FILTER.AA
+						ship_filter |= is_filter_requested(11) << SHIP_COMBAT_PARAM_FILTER.CONCEAL
+						ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
+						ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
 
 					def is_filtered(x):
 						return (ship_filter >> x) & 1 == 1
@@ -2173,7 +2190,7 @@ async def ship(context, *args):
 						embed.description += '\n{:,} Doubloons'.format(price_gold)
 
 					# General hull info
-					if len(modules['hull']) > 0 and is_filtered(hull_filter):
+					if len(modules['hull']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 						m = ""
 						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 							hull = module_list[str(h)]['profile']['hull']
@@ -2189,7 +2206,7 @@ async def ship(context, *args):
 							if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
 								m += f"{hull['planes_amount']} Aircraft\n"
 
-							if ship_filter == 2 ** hull_filter:
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
 								m += f"{hull['rudderTime']}s rudder shift time\n"
 								m += f"{hull['turnRadius']}m turn radius\n"
 							m += '\n'
@@ -2209,7 +2226,7 @@ async def ship(context, *args):
 								m += f"**Has {airsup_info['chargesNum']} charge(s)**\n"
 								m += f"**Reload**: {str(airsup_reload_m) + 'm' if airsup_reload_m > 0 else ''} {str(airsup_reload_s) + 's' if airsup_reload_s > 0 else ''}\n"
 
-								if ship_filter == 2 ** hull_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
 									# detailed air support filter
 									m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
 									if nation == 'netherlands':
@@ -2235,7 +2252,7 @@ async def ship(context, *args):
 								m += f"**Has {asw_info['chargesNum']} charge(s)**\n"
 								m += f"**Reload**: {str(asw_reload_m) + 'm' if asw_reload_m > 0 else ''} {str(asw_reload_s) + 's' if asw_reload_s > 0 else ''}\n"
 
-								if ship_filter == 2 ** hull_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
 									# detailed air support filter
 									m += f"**Depth charges per salvo**: {asw_info['payload']} bombs\n"
 									m += f"**Depth charge**: :boom: {asw_info['max_damage']}\n"
@@ -2244,7 +2261,7 @@ async def ship(context, *args):
 							embed.add_field(name="__**ASW**__", value=m, inline=True)
 
 					# guns info
-					if len(modules['artillery']) > 0 and is_filtered(guns_filter):
+					if len(modules['artillery']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
 						m = ""
 						m += f"**Range: **"
 						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
@@ -2258,32 +2275,31 @@ async def ship(context, *args):
 								turret = turret_data[turret_name]
 								m += f"**{turret['count']} x {turret_name} ({turret['numBarrels']} barrel{'s' if turret['numBarrels'] > 1 else ''}):**\n"
 							m += f"**Rotation Speed: ** {guns['transverse_speed']}\xb0/s\n"
-							if ship_filter == 2 ** guns_filter:
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 								m = m[:-1]
-								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180\xb0)\n"
-								m += f"**Precision:** {guns['sigma']:1.1f}\u03c3\n"
+								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180{DEGREE_SYMBOL})\n"
+								m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 								m += '-------------------\n'
-
 							if guns['max_damage_he']:
 								m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
 								if guns['pen_HE'] > 0:
 									m += f", Pen. {guns['pen_HE']} mm)\n"
 								else:
 									m += f")\n"
-								if ship_filter == 2 ** guns_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
 									m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
 									m += '-------------------\n'
 
 							if guns['max_damage_sap'] > 0:
 								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm\n"
-								if ship_filter == 2 ** guns_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 									m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
 									m += '-------------------\n'
 							if guns['max_damage_ap'] > 0:
 								m += f"**AP:** {guns['max_damage_ap']}\n"
-								if ship_filter == 2 ** guns_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
 									m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
 									m += '-------------------\n'
@@ -2293,7 +2309,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 
 					# secondary armaments
-					if ship_param['atbas'] is not None and is_filtered(atbas_filter):
+					if ship_param['atbas'] is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
 						m = ""
 						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
 						for hull in modules['hull']:
@@ -2307,7 +2323,7 @@ async def ship(context, *args):
 							m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
 							m += f'**DPM:** {gun_dpm:,}\n'
 
-							if ship_filter == 2 ** atbas_filter:
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
 								m += '\n'
 								for t in atba:
 									turret = atba[t]
@@ -2326,10 +2342,10 @@ async def ship(context, *args):
 						embed.add_field(name="__**Secondary Battery**__", value=m)
 
 					# anti air
-					if len(modules['hull']) > 0 and is_filtered(aa_filter):
+					if len(modules['hull']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
 						m = ""
 
-						if ship_filter == 2 ** aa_filter:
+						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
 							# detailed aa
 							for hull in modules['hull']:
 								aa = module_list[str(hull)]['profile']['anti_air']
@@ -2361,8 +2377,7 @@ async def ship(context, *args):
 						else:
 							# compact detail
 							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
-							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in
-							                      modules['hull']]) / len(modules['hull'])
+							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in modules['hull']]) / len(modules['hull'])
 
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
@@ -2376,18 +2391,20 @@ async def ship(context, *args):
 						embed.add_field(name="__**Anti-Air**__", value=m)
 
 					# torpedoes
-					if len(modules['torpedoes']) > 0 and is_filtered(torps_filter):
+					if len(modules['torpedoes']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
-
-							m += f"**{module_list[str(h)]['name'].replace(chr(10), ' ')} ({torps['distance']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''})"
+							projectile_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+							turret_name = list(torps['turrets'].keys())[0]
+							m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''})"
 							if torps['is_deep_water']:
 								m += " [DW]"
 							m += '**\n'
-							if ship_filter == 2 ** torps_filter:
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORPS:
 								reload_minute = int(torps['shotDelay'] // 60)
 								reload_second = int(torps['shotDelay'] % 60)
+								m += f"**Torpedo:** {projectile_name}\n"
 								m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
 								m += f"**Damage:** {torps['max_damage']}\n"
 								m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
@@ -2397,7 +2414,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Torpedoes**__", value=m)
 
 					# attackers
-					if len(modules['fighter']) > 0 and is_filtered(rockets_filter):
+					if len(modules['fighter']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2406,7 +2423,7 @@ async def ship(context, *args):
 								fighter = module_list[str(h)][f]['profile']['fighter']
 								n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
 								m += f"**{module_list[str(h)][f]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** rockets_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
 									m = m[:-3]
 									m += f" ({fighter['payload_name']}) **\n"
 									m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP, {fighter['payload']} rocket{'s' if fighter['payload'] > 1 else ''}\n"
@@ -2417,7 +2434,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
 					# torpedo bomber
-					if len(modules['torpedo_bomber']) > 0 and is_filtered(torpbomber_filter):
+					if len(modules['torpedo_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['torpedo_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2426,7 +2443,7 @@ async def ship(context, *args):
 								bomber = module_list[str(h)][b]['profile']['torpedo_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** torpbomber_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 									m = m[:-3]
 									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
@@ -2438,7 +2455,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
 
 					# dive bombers
-					if len(modules['dive_bomber']) > 0 and is_filtered(bomber_filter):
+					if len(modules['dive_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['dive_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2447,7 +2464,7 @@ async def ship(context, *args):
 								bomber = module_list[str(h)][b]['profile']['dive_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** bomber_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 									m = m[:-3]
 									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
@@ -2457,7 +2474,7 @@ async def ship(context, *args):
 									m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
 
-					if len(modules['skip_bomber']) > 0 and is_filtered(bomber_filter):
+					if len(modules['skip_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['skip_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2466,7 +2483,7 @@ async def ship(context, *args):
 								bomber = module_list[str(h)][b]['profile']['skip_bomber']
 								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** bomber_filter:
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 									m = m[:-3]
 									m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
@@ -2477,7 +2494,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
 					# engine
-					if len(modules['engine']) > 0 and is_filtered(engine_filter):
+					if len(modules['engine']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
 						m = ""
 						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
 							engine = module_list[str(e)]['profile']['engine']
@@ -2486,14 +2503,14 @@ async def ship(context, *args):
 						embed.add_field(name="__**Engine**__", value=m, inline=False)
 
 					# concealment
-					if ship_param['concealment'] is not None and is_filtered(conceal_filter):
+					if ship_param['concealment'] is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
 						m = ""
 						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
 						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
 						embed.add_field(name="__**Concealment**__", value=m, inline=True)
 
 					# upgrades
-					if ship_filter == (1 << upgrades_filter):
+					if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
 						m = ""
 						for slot in upgrades:
 							m += f"**Slot {slot + 1}**\n"
@@ -2505,12 +2522,12 @@ async def ship(context, *args):
 						embed.add_field(name="__**Upgrades**__", value=m, inline=True)
 
 					# consumables
-					if len(consumables) > 0 and is_filtered(consumable_filter):
+					if len(consumables) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 						m = ""
 						for consumable_slot in consumables:
 							if len(consumables[consumable_slot]['abils']) > 0:
 								m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
-								if ship_filter == (1 << consumable_filter):
+								if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 									m += '\n'
 								for c_index, c in enumerate(consumables[consumable_slot]['abils']):
 									consumable_id, consumable_type = c
@@ -2524,7 +2541,7 @@ async def ship(context, *args):
 									cd_time = consumable['reloadTime']
 
 									m += f"**{consumable_name}** "
-									if ship_filter == (1 << consumable_filter):  # shows detail of consumable
+									if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
 										consumable_detail = ""
 										if consumable_type == 'airDefenseDisp':
 											consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
@@ -2579,8 +2596,8 @@ async def ship(context, *args):
 				if closest_match:
 					closest_match_string = closest_match[0].title()
 					if len(closest_match) > 0:
-						closest_match_string = f'\nDid you meant **{closest_match_string}**?'
-					embed = discord.Embed(title=f"Ship name is not understood.\n", description=closest_match_string)
+						closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
 					await context.send(embed=embed)
@@ -2670,7 +2687,7 @@ async def ship_compact(context, ship_data, ship_param):
 			reload_second = int(torps['shotDelay'] % 60)
 
 			m += f"{icons_emoji['torp']} __**{torps_name}**__\n"
-			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['distance']:0.1f} km\n"
+			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['range']:0.1f} km\n"
 			m += f"{icons_emoji['plane_torp']} {torps['max_damage']:2.0f} :boom: | {icons_emoji['plane_torp']} x {torps['numBarrels']} | {torps['torpedo_speed']:0.1f} kts.\n"
 			m += '\n'
 		embed.add_field(name="\u200b", value=m, inline=False)
@@ -2750,6 +2767,182 @@ async def ship_compact(context, ship_data, ship_param):
 	embed.set_footer(text=footer_message)
 	await context.send(embed=embed)
 
+@mackbot.command(help="")
+async def compare(context, *args):
+	if len(args) == 0:
+		await context.send_help("compare")
+	else:
+		args = ' '.join(args) # join arguments to split token
+		usr_input_ships = args.replace("and", "&").split("&")
+		if len(usr_input_ships) != 2:
+			await context.send_help("compare")
+			return
+		# parse whitespace
+		usr_input_ships  = [' '.join(i.split()) for i in usr_input_ships]
+		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
+		ships_to_compare = []
+
+		def user_correction_check(message):
+			return context.author == message.author and message.content.lower() in ['y', 'yes']
+
+		# checking ships name and grab ship data
+		for s in usr_input_ships:
+			logging.info(f"checking {s}")
+			try:
+				ships_to_compare += [get_ship_data(s)]
+			except NoShipFound:
+				closest_match = difflib.get_close_matches(s, ship_name_list)
+				closest_match_string = closest_match[0].title()
+				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
+				if len(closest_match) > 0:
+					embed.description += f'\nDid you mean **{closest_match_string}**?'
+					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					embed.set_footer(text="Response expires in 10 seconds")
+					await context.send(embed=embed)
+					msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+					if msg:
+						ships_to_compare += [get_ship_data(closest_match_string)]
+				else:
+					await context.send(embed=embed)
+					return
+		response_embed = discord.Embed(title="Which parameter would you like to compare?", description="")
+		usr_options = [
+			"Main Battery",
+			"Secondary Battery",
+			"Torpedo",
+			# "Concealment",
+			# "Aircraft"
+		]
+		for i, o in enumerate(usr_options):
+			response_embed.description += f"**[{i+1}]** {o}\n"
+		response_embed.set_footer(text="Response expires in 10 seconds")
+		await context.send(embed=response_embed)
+		res = await mackbot.wait_for("message", timeout=10, check=lambda message: context.author == message.author)
+		if res.content:
+			try:
+				user_selection = int(res.content)
+			except ValueError:
+				embed.description += f"Value {res.content} is not value"
+				await context.send(embed=embed)
+				return
+
+			embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			ship_module = [{}, {}]
+
+			m = "**Tier**\n"
+			m += "**Type**\n"
+			m += "**Nation**\n"
+			embed.add_field(name="__Ship__", value=m)
+			for i in range(2):
+				m = f"{list(roman_numeral)[ships_to_compare[i]['tier'] - 1].upper() if ships_to_compare[i]['tier'] < 11 else roman_numeral[10]}\n"
+				m += f"{icons_emoji[hull_classification_converter[ships_to_compare[i]['type']].lower()]}\n"
+				m += f"{nation_dictionary[ships_to_compare[i]['nation']]}\n"
+				embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m)
+
+			if user_selection == 1:
+				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
+				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
+				l = []
+				for _a in ship_module[0]['artillery']:
+					for _b in ship_module[1]['artillery']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							# set up title axis
+							m = "**Gun**\n"
+							m += "**Caliber**\n"
+							m += "**Range**\n"
+							m += "**Reload**\n"
+							m += "**Transverse**\n"
+							m += "**Precision**\n"
+							m += "**HE DPM**\n"
+							m += "**AP DPM**\n"
+							m += "**SAP DPM**\n"
+							m += "**Salvo\n**"
+							embed.add_field(name="__Artillery__", value=m, inline=True)
+						gun_module = module_list[str(mid)]
+						m = ""
+						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+						m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
+						m += f"{gun_module['profile']['artillery']['range'] * 1000:1.1f}km\n"
+						m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
+						m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
+						m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
+						m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
+						m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
+			if user_selection == 2:
+				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
+				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
+				l = []
+				for _a in ship_module[0]['hull']:
+					for _b in ship_module[1]['hull']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							# set up title axis
+							m = "**Hull**\n"
+							m += "**Range**\n"
+							m += "**DPM**\n"
+							embed.add_field(name="__Secondary Guns__", value=m, inline=True)
+						hull_module = module_list[str(mid)]
+						m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
+						m += f"{get_ship_param(ships_to_compare[i % 2]['name'])['atbas']['distance']:1.1f} km\n"
+						m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
+			if user_selection == 3:
+				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
+				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
+				l = []
+				for _a in ship_module[0]['torpedo']:
+					for _b in ship_module[1]['torpedo']:
+						l += [_a, _b]
+				if l:
+					for i, mid in enumerate(l):
+						if i % 2 == 0:
+							# set up title axis
+							m = "**Name**\n"
+							m += "**Range**\n"
+							m += "**Spotting Range**\n"
+							m += "**Damage**\n"
+							m += "**Reload**\n"
+							m += "**Speed**\n"
+							m += "**Salvo**\n"
+							m += "**Deepwater**\n"
+							embed.add_field(name="__Torpedo__", value=m, inline=True)
+						torp_module = module_list[str(mid)]
+						m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
+						m += f"{torp_module['profile']['torpedoes']['range']} km\n"
+						m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
+						m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
+						m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
+						m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
+						m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
+						m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
+						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+				else:
+					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
+			if user_selection == 4:
+				for i in range(2):
+					ship_module[i]['hull'] = ships_to_compare[0]['modules']['hull']
+			if user_selection == 5:
+				for i in range(2):
+					ship_module[i]['fighter'] = ships_to_compare[0]['modules']['fighter']
+					ship_module[i]['torpedo_bomber'] = ships_to_compare[0]['modules']['torpedo_bomber']
+					ship_module[i]['dive_bomber'] = ships_to_compare[0]['modules']['dive_bomber']
+					ship_module[i]['skip_bomber'] = ships_to_compare[0]['modules']['skip_bomber']
+
+			await context.send(embed=embed)
+		del user_correction_check
+
 @mackbot.command()
 async def skill(context, *args):
 	# get information on requested skill
@@ -2788,7 +2981,7 @@ async def skill(context, *args):
 			closest_match = difflib.get_close_matches(skill, skill_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
 
@@ -3170,7 +3363,7 @@ async def upgrade(context, *args):
 			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
 
@@ -3588,7 +3781,7 @@ async def commander(context, *args):
 			closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Commander **{cmdr}** is not understood.")
 
@@ -3617,7 +3810,7 @@ async def map(context, *args):
 			closest_match = difflib.get_close_matches(map, map_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Map **{map}** is not understood.")
 

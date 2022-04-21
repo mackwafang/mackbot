@@ -1,14 +1,19 @@
 {
 	"build": {
 		"help": "",
-		"brief": "Get a recommended build",
-		"usage": "",
-		"description": []
+		"brief": "Get a basic build",
+		"usage": " [-i/--image] ship_name",
+		"description": [
+			"Display a basic warships build",
+			"mackbot may prompt you for a secondary response if it founds multiple builds.",
+			"",
+			"[-i/--image] - Optional: Provide an image version of the requested item instead."
+		]
 	},
 	"ship": {
 		"help": "",
 		"brief": "Get detailed information about a ship",
-		"usage": " [compact/-c] ship_name ([parameters])",
+		"usage": " [--compact/-c] ship_name ([parameters])",
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
@@ -16,10 +21,23 @@
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
 			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
-			"\tmackbot ship midway compact (Return information about Midway in compact format)",
+			"\tmackbot ship --compact midway (Return information about Midway in compact format)",
+			"\tmackbot ship -c midway (Return information about Midway in compact format)",
 			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
+		]
+	},
+	"compare": {
+		"help": "",
+		"brief": "Compare combat parameter of two warships",
+		"usage": " ship1 [&/and] ship2",
+		"description": [
+			"Compares a combat parameter of two ships.",
+			"mackbot will prompt for a specific parameter",
+			"Example:",
+			"\tmackbot compare yamato and montana (returns the comparison between Yamato and Montana)",
+			"Note: Both warships must contains the same parameters."
 		]
 	},
 	"skill": {
@@ -29,7 +47,9 @@
 		"description": [
 			"Display information about a commander skill.",
 			"",
-			"ship_type: Can take full ship type name or abbreviation (e.g. \"bb\" or \"battleship\")"
+			"ship_type: Can take full ship type name or abbreviation (e.g. \"bb\" or \"battleship\")",
+			"Example:",
+			"\tmackbot skill cv air supremacy (returns information about the carrier skill air supremacy)"
 		]
 	},
 	"show": {
@@ -47,7 +67,7 @@
 		"usage": "[filters]",
 		"description": [
 			"show all commander skills.",
-			"Filter may include tier or ship types.",
+			"[filter] - Optional: may include tier or ship types.",
 			"",
 			"Example:",
 			"\tmackbot show skills tier 1 (shows all commander skills that cost 1 point)",
@@ -60,7 +80,7 @@
 		"usage": "[filter]",
 		"description": [
 			"show all ship upgrades.",
-			"Filter may include tier that upgrades appear in or ship types.",
+			"[filter] - Optional: may include tier that upgrades appear in or ship types.",
 			"",
 			"Example:",
 			"\tmackbot show upgrades tier 4 (show all upgrades that is available at tier 4"
@@ -84,7 +104,7 @@
 	"upgrade": {
 		"help": "",
 		"brief": "Get detail of a ship's upgrade",
-		"usage": "upgrade name/upgrade abbreviation/ship name",
+		"usage": "upgrade_name/upgrade_abbreviation/ship_name",
 		"description": [
 			"Get detail of a warship's upgrade.",
 			"This command can take either the full name of an upgrade, or a ship's name if it have a legendary upgrade.",
@@ -142,7 +162,7 @@
 	"player": {
 		"help": "",
 		"brief": "Provide general information about a player",
-		"usage": "player_name [battle_type] [ship ship_name] [ships tier]",
+		"usage": "player_name [battle_type] [--ship ship_name] [--ships tier]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
 			"[battle_type] - Optional: Acceptable values: solo, div2, div3",

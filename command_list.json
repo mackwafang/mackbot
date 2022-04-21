@@ -17,5 +17,6 @@
 	"player": true,
 	"invite": true,
 	"clan": true,
-	"web": true
+	"web": true,
+	"compare": true
 }
