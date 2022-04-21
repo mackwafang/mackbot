@@ -856,6 +856,7 @@ def update_ship_modules():
 
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
 						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
+						new_turret_data['range'] = module_data[gun]['maxDist']
 
 						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						for turret_data in gun:  # for each turret
@@ -2865,7 +2866,7 @@ async def compare(context, *args):
 						m = ""
 						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
 						m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
-						m += f"{gun_module['profile']['artillery']['range'] * 1000:1.1f}km\n"
+						m += f"{gun_module['profile']['artillery']['range'] / 1000:1.1f}km\n"
 						m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
 						m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
 						m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
