@@ -2758,17 +2758,17 @@ async def compare(context, *args):
 	if len(args) == 0:
 		await context.send_help("compare")
 	else:
-		args = ''.join(args) # join arguments to split token
+		args = ' '.join(args) # join arguments to split token
 		usr_input_ships  = args.replace("and", "&").split("&")
 		# parse whitespace
-		usr_input_ships  = [''.join(i.split()) for i in usr_input_ships]
+		usr_input_ships  = [' '.join(i.split()) for i in usr_input_ships]
 		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 		ships_to_compare = []
 
 		def user_correction_check(message):
 			return context.author == message.author and message.content.lower() in ['y', 'yes']
 
-		# checking ships name
+		# checking ships name and grab ship data
 		for s in usr_input_ships:
 			logging.info(f"checking {s}")
 			try:
@@ -2832,6 +2832,7 @@ async def compare(context, *args):
 				if l:
 					for i, mid in enumerate(l):
 						if i % 2 == 0:
+							# set up title axis
 							m = "**Gun**\n"
 							m += "**Caliber**\n"
 							m += "**Range**\n"
@@ -2859,21 +2860,24 @@ async def compare(context, *args):
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
 			if user_selection == 2:
-				ship_module[0]['atbas'] = ships_to_compare[0]['modules']['atbas']
-				ship_module[1]['atbas'] = ships_to_compare[1]['modules']['atbas']
+				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
+				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = []
-				for _a in ship_module[0]['atbas']:
-					for _b in ship_module[1]['atbas']:
+				for _a in ship_module[0]['hull']:
+					for _b in ship_module[1]['hull']:
 						l += [_a, _b]
 				if l:
 					for i, mid in enumerate(l):
 						if i % 2 == 0:
-							m = "**Gun**\n"
-							m += "**Salvo\n**"
+							# set up title axis
+							m = "**Hull**\n"
+							m += "**Range**\n"
+							m += "**DPM**\n"
 							embed.add_field(name="__Secondary Guns__", value=m, inline=True)
-						gun_module = module_list[str(mid)]
-						m = ""
-						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+						hull_module = module_list[str(mid)]
+						m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
+						m += f"{get_ship_param(ships_to_compare[i % 2]['name'])['atbas']['distance']:1.1f} km\n"
+						m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
 						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
 			if user_selection == 3:
 				for i in range(2):
