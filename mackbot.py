@@ -1918,7 +1918,7 @@ async def build(context, *args):
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 
-					embed.set_footer(text="Please enter the number you would like the build for.")
+					embed.set_footer(text="Please enter the number you would like the build for.\nResponse expires in 10 seconds.")
 					await context.send(embed=embed)
 
 					def get_user_selected_build_id(message):
@@ -2039,7 +2039,7 @@ async def build(context, *args):
 				closest_match = difflib.get_close_matches(usr_ship_name, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
-					closest_match_string = f'\nDid you meant **{closest_match_string}**?'
+					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
 				embed = discord.Embed(title=f"Ship {usr_ship_name} is not understood.\n", description=closest_match_string)
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 				embed.set_footer(text="Response expires in 10 seconds")
@@ -2580,8 +2580,8 @@ async def ship(context, *args):
 				if closest_match:
 					closest_match_string = closest_match[0].title()
 					if len(closest_match) > 0:
-						closest_match_string = f'\nDid you meant **{closest_match_string}**?'
-					embed = discord.Embed(title=f"Ship name is not understood.\n", description=closest_match_string)
+						closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description=closest_match_string)
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
 					await context.send(embed=embed)
@@ -2776,7 +2776,7 @@ async def compare(context, *args):
 				closest_match_string = closest_match[0].title()
 				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
 				if len(closest_match) > 0:
-					embed.description += f'\nDid you meant **{closest_match_string}**?'
+					embed.description += f'\nDid you mean **{closest_match_string}**?'
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
@@ -2789,9 +2789,31 @@ async def compare(context, *args):
 
 		embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 
+		response_embed = discord.Embed(title="Which parameter would you like to compare?", description="")
+		usr_options = [
+			"Main Battery",
+			"Secondary Battery",
+			"Concealment",
+			"Aircraft"
+		]
+		for i, o in enumerate(usr_options):
+			response_embed.description += f"[{i}] {o}\n"
+		response_embed.set_footer(text="Response expires in 10 seconds")
+		await context.send(embed=response_embed)
+		res = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+		if res.content:
+			try:
+				user_selection = int(res.content)
+			except ValueError:
+				embed.description += f"Value {res.content} is not value"
+				await context.send(embed=embed)
+				return
 
+			if user_selection == 1:
+				ship1_guns = ships_to_compare[0]['modules']['artillery']
+				ship2_guns = ships_to_compare[1]['modules']['artillery']
 
-		await context.send(embed=embed)
+			await context.send(embed=embed)
 		del user_correction_check
 
 @mackbot.command()
@@ -2832,7 +2854,7 @@ async def skill(context, *args):
 			closest_match = difflib.get_close_matches(skill, skill_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
 
@@ -3214,7 +3236,7 @@ async def upgrade(context, *args):
 			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
 
@@ -3632,7 +3654,7 @@ async def commander(context, *args):
 			closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Commander **{cmdr}** is not understood.")
 
@@ -3661,7 +3683,7 @@ async def map(context, *args):
 			closest_match = difflib.get_close_matches(map, map_name_list)
 			closest_match_string = ""
 			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you meant **{closest_match[0]}**?'
+				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
 			await context.send(f"Map **{map}** is not understood.")
 
