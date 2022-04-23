@@ -1,6 +1,7 @@
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
+from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from enum import IntEnum, auto
 from math import inf, ceil
@@ -67,12 +68,14 @@ if cwd == '':
 	cwd = '.'
 
 # logging shenanigans
-logging.basicConfig(filename=f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log', level=logging.DEBUG)
+
 # adding this so that shows no traceback during discord client is on
-logger = logging.getLogger()
-handler = logging.StreamHandler()
+LOG_FILE_NAME = f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log'
+handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 handler.setFormatter(formatter)
+
+logger = logging.getLogger()
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
