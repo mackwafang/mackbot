@@ -7,7 +7,7 @@
 	"list" : true,
 	"upgrade" : true,
 	"commander" : true,
-	"feedback" : true,
+	"feedback" : false,
 	"map" : true,
 	"ship" : true,
 	"doubloons" : true,

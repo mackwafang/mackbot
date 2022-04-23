@@ -1,4 +1,4 @@
-import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio
+import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
 from pymongo import MongoClient
@@ -10,7 +10,6 @@ from discord.ext import commands
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
-from pprint import pprint
 
 class NoShipFound(Exception):
 	pass
@@ -68,9 +67,8 @@ if cwd == '':
 	cwd = '.'
 
 # logging shenanigans
-# logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
+logging.basicConfig(filename=f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log', level=logging.DEBUG)
 # adding this so that shows no traceback during discord client is on
-
 logger = logging.getLogger()
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
@@ -191,6 +189,7 @@ if os.path.exists(clan_history_file_path):
 	with open(clan_history_file_path, 'rb') as f:
 		clan_history = pickle.load(f)
 
+# icons for prettifying outputs
 icons_emoji = {
 	"torp": "<:torp:917573129579151392>",
 	"dd": "<:destroyer:917573129658859573>",
@@ -236,16 +235,6 @@ ship_build = {}
 ship_build_competitive = None
 ship_build_casual = None
 
-build_battle_type = {
-	BUILD_BATTLE_TYPE.CLAN: "competitive",
-	BUILD_BATTLE_TYPE.CASUAL: "casual",
-}
-build_battle_type_value = {
-	"competitive": BUILD_BATTLE_TYPE.CLAN,
-	"casual": BUILD_BATTLE_TYPE.CASUAL,
-}
-
-
 logging.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
 
@@ -260,6 +249,8 @@ AA_RATING_DESCRIPTOR = {
 }
 
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
+DEGREE_SYMBOL = "\xb0"
+SIGMA_SYMBOL = "\u03c3"
 
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
@@ -276,9 +267,6 @@ good_bot_messages = (
 
 with open(os.path.join(".", "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
-
-DEGREE_SYMBOL = "\xb0"
-SIGMA_SYMBOL = "\u03c3"
 
 consumable_descriptor = {
 	'airDefenseDisp': {
@@ -371,7 +359,6 @@ def load_skill_list():
 			skill_list = json.load(f)
 
 		# dictionary that stores skill abbreviation
-		skill_name_abbr = {}
 		for skill in skill_list:
 			# generate abbreviation
 			abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
@@ -475,6 +462,8 @@ def load_upgrade_list():
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		# continuously count, because weegee don't list how many pages there are
+		# actually this is a lie, this page count appears in the "meta" field when getting
+		# a response from wg via http request
 		try:
 			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
 			# consumables of some page page_num
@@ -611,6 +600,12 @@ def load_ship_params():
 		logging.info("ship_params cache created")
 
 def update_ship_modules():
+	# the painstaking method of updating ship modules with useful information
+	# why? because the wg api does not provide information such as (but not limited to):
+	#   - turret counts
+	#   - skip bombers
+	#   - torpedo
+
 	logging.info("Generating information about modules")
 	if len(game_data) == 0:
 		logging.info("Game data is empty.")
