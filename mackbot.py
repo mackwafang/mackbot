@@ -72,11 +72,14 @@ if cwd == '':
 # adding this so that shows no traceback during discord client is on
 LOG_FILE_NAME = f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log'
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
+stream_handler = logging.StreamHandler();
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
 
 logger = logging.getLogger()
 logger.addHandler(handler)
+logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 # dictionary to convert user input to output nations
@@ -2044,8 +2047,11 @@ async def build(context, *args):
 				else:
 					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
-				await context.send(file=discord.File('temp.png'))
-				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
+				try:
+					await context.send(file=discord.File('temp.png'))
+					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
+				except discord.errors.Forbidden:
+					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
 
 		except Exception as e:
 			if type(e) == NoShipFound:
