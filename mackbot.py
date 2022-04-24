@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from enum import IntEnum, auto
 from math import inf, ceil
-from itertools import count
+from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
 from datetime import date
@@ -257,6 +257,7 @@ AA_RATING_DESCRIPTOR = {
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
+EMPTY_LENGTH_CHAR = '\u200b'
 
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
@@ -2847,92 +2848,100 @@ async def compare(context, *args):
 			if user_selection == 1:
 				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
 				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
-				l = []
-				for _a in ship_module[0]['artillery']:
-					for _b in ship_module[1]['artillery']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['artillery'], ship_module[1]['artillery'])
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Gun**\n"
-							m += "**Caliber**\n"
-							m += "**Range**\n"
-							m += "**Reload**\n"
-							m += "**Transverse**\n"
-							m += "**Precision**\n"
-							m += "**HE DPM**\n"
-							m += "**AP DPM**\n"
-							m += "**SAP DPM**\n"
-							m += "**Salvo\n**"
-							embed.add_field(name="__Artillery__", value=m, inline=True)
-						gun_module = module_list[str(mid)]
-						m = ""
-						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
-						m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
-						m += f"{gun_module['profile']['artillery']['range'] / 1000:1.1f}km\n"
-						m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
-						m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
-						m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
-						m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Gun**\n"
+						m += "**Caliber**\n"
+						m += "**Range**\n"
+						m += "**Reload**\n"
+						m += "**Transverse**\n"
+						m += "**Precision**\n"
+						m += "**HE DPM**\n"
+						m += "**AP DPM**\n"
+						m += "**SAP DPM**\n"
+						m += "**Salvo\n**"
+						embed.add_field(name="__Artillery__", value=m, inline=True)
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								gun_module = module_list[str(mid)]
+								m = ""
+								m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+								m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
+								m += f"{gun_module['profile']['artillery']['range'] / 1000:1.1f}km\n"
+								m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
+								m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
+								m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
+								m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
+								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
 			if user_selection == 2:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
-				l = []
-				for _a in ship_module[0]['hull']:
-					for _b in ship_module[1]['hull']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
+				try:
+					_ = get_ship_param(ships_to_compare[0]['name'])['atbas']['distance']
+					_ = get_ship_param(ships_to_compare[1]['name'])['atbas']['distance']
+				except TypeError:
+					l = []
+
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Hull**\n"
-							m += "**Range**\n"
-							m += "**DPM**\n"
-							embed.add_field(name="__Secondary Guns__", value=m, inline=True)
-						hull_module = module_list[str(mid)]
-						m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
-						m += f"{get_ship_param(ships_to_compare[i % 2]['name'])['atbas']['distance']:1.1f} km\n"
-						m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Hull**\n"
+						m += "**Range**\n"
+						m += "**DPM**\n"
+						embed.add_field(name="__Secondary Guns__", value=m, inline=True)
+
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								hull_module = module_list[str(mid)]
+								m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
+								m += f"{get_ship_param(ships_to_compare[i]['name'])['atbas']['distance']:1.1f} km\n"
+								m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
+								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
 			if user_selection == 3:
 				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
 				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
-				l = []
-				for _a in ship_module[0]['torpedo']:
-					for _b in ship_module[1]['torpedo']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['torpedo'], ship_module[1]['torpedo'])
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Name**\n"
-							m += "**Range**\n"
-							m += "**Spotting Range**\n"
-							m += "**Damage**\n"
-							m += "**Reload**\n"
-							m += "**Speed**\n"
-							m += "**Salvo**\n"
-							m += "**Deepwater**\n"
-							embed.add_field(name="__Torpedo__", value=m, inline=True)
-						torp_module = module_list[str(mid)]
-						m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
-						m += f"{torp_module['profile']['torpedoes']['range']} km\n"
-						m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
-						m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
-						m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
-						m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
-						m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
-						m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Name**\n"
+						m += "**Range**\n"
+						m += "**Spotting Range**\n"
+						m += "**Damage**\n"
+						m += "**Reload**\n"
+						m += "**Speed**\n"
+						m += "**Salvo**\n"
+						m += "**Deepwater**\n"
+						embed.add_field(name="__Torpedo__", value=m, inline=True)
+
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								torp_module = module_list[str(mid)]
+								m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
+								m += f"{torp_module['profile']['torpedoes']['range']} km\n"
+								m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
+								m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
+								m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
+								m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
+								m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
+								m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
+								embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 4:
@@ -3525,7 +3534,7 @@ async def player(context, *args):
 					embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 
-					embed.add_field(name='\u200b', value='\u200b', inline=False)
+					embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
 					if ship_tier_filter:
 						# list ships that the player has at this tier
 						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
