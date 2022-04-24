@@ -1,16 +1,16 @@
-import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio
+import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
+from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from enum import IntEnum, auto
 from math import inf, ceil
-from itertools import count
+from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
-from pprint import pprint
 
 class NoShipFound(Exception):
 	pass
@@ -68,14 +68,18 @@ if cwd == '':
 	cwd = '.'
 
 # logging shenanigans
-# logging.basicConfig(filename=f'{time.strftime("%Y_%b_%d", time.localtime())}_mackbot.log')
-# adding this so that shows no traceback during discord client is on
 
-logger = logging.getLogger()
-handler = logging.StreamHandler()
+# adding this so that shows no traceback during discord client is on
+LOG_FILE_NAME = f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log'
+handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
+stream_handler = logging.StreamHandler();
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
+
+logger = logging.getLogger()
 logger.addHandler(handler)
+logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 # dictionary to convert user input to output nations
@@ -191,6 +195,7 @@ if os.path.exists(clan_history_file_path):
 	with open(clan_history_file_path, 'rb') as f:
 		clan_history = pickle.load(f)
 
+# icons for prettifying outputs
 icons_emoji = {
 	"torp": "<:torp:917573129579151392>",
 	"dd": "<:destroyer:917573129658859573>",
@@ -236,16 +241,6 @@ ship_build = {}
 ship_build_competitive = None
 ship_build_casual = None
 
-build_battle_type = {
-	BUILD_BATTLE_TYPE.CLAN: "competitive",
-	BUILD_BATTLE_TYPE.CASUAL: "casual",
-}
-build_battle_type_value = {
-	"competitive": BUILD_BATTLE_TYPE.CLAN,
-	"casual": BUILD_BATTLE_TYPE.CASUAL,
-}
-
-
 logging.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
 
@@ -260,6 +255,9 @@ AA_RATING_DESCRIPTOR = {
 }
 
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
+DEGREE_SYMBOL = "\xb0"
+SIGMA_SYMBOL = "\u03c3"
+EMPTY_LENGTH_CHAR = '\u200b'
 
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
@@ -276,9 +274,6 @@ good_bot_messages = (
 
 with open(os.path.join(".", "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
-
-DEGREE_SYMBOL = "\xb0"
-SIGMA_SYMBOL = "\u03c3"
 
 consumable_descriptor = {
 	'airDefenseDisp': {
@@ -371,7 +366,6 @@ def load_skill_list():
 			skill_list = json.load(f)
 
 		# dictionary that stores skill abbreviation
-		skill_name_abbr = {}
 		for skill in skill_list:
 			# generate abbreviation
 			abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
@@ -475,6 +469,8 @@ def load_upgrade_list():
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		# continuously count, because weegee don't list how many pages there are
+		# actually this is a lie, this page count appears in the "meta" field when getting
+		# a response from wg via http request
 		try:
 			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
 			# consumables of some page page_num
@@ -611,6 +607,12 @@ def load_ship_params():
 		logging.info("ship_params cache created")
 
 def update_ship_modules():
+	# the painstaking method of updating ship modules with useful information
+	# why? because the wg api does not provide information such as (but not limited to):
+	#   - turret counts
+	#   - skip bombers
+	#   - torpedo
+
 	logging.info("Generating information about modules")
 	if len(game_data) == 0:
 		logging.info("Game data is empty.")
@@ -856,6 +858,7 @@ def update_ship_modules():
 
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
 						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
+						new_turret_data['range'] = module_data[gun]['maxDist']
 
 						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						for turret_data in gun:  # for each turret
@@ -2045,8 +2048,11 @@ async def build(context, *args):
 				else:
 					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
-				await context.send(file=discord.File('temp.png'))
-				await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
+				try:
+					await context.send(file=discord.File('temp.png'))
+					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
+				except discord.errors.Forbidden:
+					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
 
 		except Exception as e:
 			if type(e) == NoShipFound:
@@ -2810,7 +2816,7 @@ async def compare(context, *args):
 			"Main Battery",
 			"Secondary Battery",
 			"Torpedo",
-			# "Concealment",
+			"Concealment",
 			# "Aircraft"
 		]
 		for i, o in enumerate(usr_options):
@@ -2842,97 +2848,114 @@ async def compare(context, *args):
 			if user_selection == 1:
 				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
 				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
-				l = []
-				for _a in ship_module[0]['artillery']:
-					for _b in ship_module[1]['artillery']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['artillery'], ship_module[1]['artillery'])
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Gun**\n"
-							m += "**Caliber**\n"
-							m += "**Range**\n"
-							m += "**Reload**\n"
-							m += "**Transverse**\n"
-							m += "**Precision**\n"
-							m += "**HE DPM**\n"
-							m += "**AP DPM**\n"
-							m += "**SAP DPM**\n"
-							m += "**Salvo\n**"
-							embed.add_field(name="__Artillery__", value=m, inline=True)
-						gun_module = module_list[str(mid)]
-						m = ""
-						m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
-						m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
-						m += f"{gun_module['profile']['artillery']['range'] * 1000:1.1f}km\n"
-						m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
-						m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
-						m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
-						m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
-						m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Gun**\n"
+						m += "**Caliber**\n"
+						m += "**Range**\n"
+						m += "**Reload**\n"
+						m += "**Transverse**\n"
+						m += "**Precision**\n"
+						m += "**HE DPM**\n"
+						m += "**AP DPM**\n"
+						m += "**SAP DPM**\n"
+						m += "**Salvo\n**"
+						embed.add_field(name="__Artillery__", value=m, inline=True)
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								gun_module = module_list[str(mid)]
+								m = ""
+								m += f"{gun_module['name'][:20]}{'...' if len(gun_module['name']) > 20 else ''}\n"
+								m += f"{gun_module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
+								m += f"{gun_module['profile']['artillery']['range'] / 1000:1.1f}km\n"
+								m += f"{gun_module['profile']['artillery']['shotDelay']}s\n"
+								m += f"{gun_module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
+								m += f"{gun_module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['he']}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['ap']}\n"
+								m += f"{gun_module['profile']['artillery']['gun_dpm']['cs']}\n"
+								m += f"{sum(v['numBarrels'] * v['count'] for k, v in gun_module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
+								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
 			if user_selection == 2:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
-				l = []
-				for _a in ship_module[0]['hull']:
-					for _b in ship_module[1]['hull']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
+				try:
+					_ = get_ship_param(ships_to_compare[0]['name'])['atbas']['distance']
+					_ = get_ship_param(ships_to_compare[1]['name'])['atbas']['distance']
+				except TypeError:
+					l = []
+
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Hull**\n"
-							m += "**Range**\n"
-							m += "**DPM**\n"
-							embed.add_field(name="__Secondary Guns__", value=m, inline=True)
-						hull_module = module_list[str(mid)]
-						m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
-						m += f"{get_ship_param(ships_to_compare[i % 2]['name'])['atbas']['distance']:1.1f} km\n"
-						m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Hull**\n"
+						m += "**Range**\n"
+						m += "**DPM**\n"
+						embed.add_field(name="__Secondary Guns__", value=m, inline=True)
+
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								hull_module = module_list[str(mid)]
+								m = f"{hull_module['name'][:20]}{'...' if len(hull_module['name']) > 20 else ''}\n"
+								m += f"{get_ship_param(ships_to_compare[i]['name'])['atbas']['distance']:1.1f} km\n"
+								m += f"{int(sum([hull_module['profile']['atba'][t]['gun_dpm'] for t in hull_module['profile']['atba']]))}\n"
+								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
 			if user_selection == 3:
 				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
 				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
-				l = []
-				for _a in ship_module[0]['torpedo']:
-					for _b in ship_module[1]['torpedo']:
-						l += [_a, _b]
+				l = zip_longest(ship_module[0]['torpedo'], ship_module[1]['torpedo'])
 				if l:
-					for i, mid in enumerate(l):
-						if i % 2 == 0:
-							# set up title axis
-							m = "**Name**\n"
-							m += "**Range**\n"
-							m += "**Spotting Range**\n"
-							m += "**Damage**\n"
-							m += "**Reload**\n"
-							m += "**Speed**\n"
-							m += "**Salvo**\n"
-							m += "**Deepwater**\n"
-							embed.add_field(name="__Torpedo__", value=m, inline=True)
-						torp_module = module_list[str(mid)]
-						m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
-						m += f"{torp_module['profile']['torpedoes']['range']} km\n"
-						m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
-						m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
-						m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
-						m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
-						m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
-						m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
-						embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+					for pair in l:
+						# set up title axis
+						m = "**Name**\n"
+						m += "**Range**\n"
+						m += "**Spotting Range**\n"
+						m += "**Damage**\n"
+						m += "**Reload**\n"
+						m += "**Speed**\n"
+						m += "**Salvo**\n"
+						m += "**Deepwater**\n"
+						embed.add_field(name="__Torpedo__", value=m, inline=True)
+
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								torp_module = module_list[str(mid)]
+								m = f"{torp_module['name'][:20]}{'...' if len(torp_module['name']) > 20 else ''}\n"
+								m += f"{torp_module['profile']['torpedoes']['range']} km\n"
+								m += f"{torp_module['profile']['torpedoes']['spotting_range']} km\n"
+								m += f"{torp_module['profile']['torpedoes']['max_damage']:1.0f}\n"
+								m += f"{torp_module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
+								m += f"{torp_module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
+								m += f"{torp_module['profile']['torpedoes']['numBarrels']} torpedoes\n"
+								m += f"{'Yes' if torp_module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
+								embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 4:
+				ship_module[0]['concealment'] = get_ship_param(ships_to_compare[0]['name'])['concealment']
+				ship_module[1]['concealment'] = get_ship_param(ships_to_compare[1]['name'])['concealment']
+				# set up title axis
+				m = f"**{icons_emoji['concealment']} by Sea:**\n"
+				m += f"**{icons_emoji['concealment']} by Air:**\n"
+				embed.add_field(name="__Concealment__", value=m, inline=True)
+
 				for i in range(2):
-					ship_module[i]['hull'] = ships_to_compare[0]['modules']['hull']
+					m = f"{ship_module[i]['concealment']['detect_distance_by_ship']} km\n"
+					m += f"{ship_module[i]['concealment']['detect_distance_by_plane']} km\n"
+					embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 			if user_selection == 5:
 				for i in range(2):
 					ship_module[i]['fighter'] = ships_to_compare[0]['modules']['fighter']
@@ -3520,7 +3543,7 @@ async def player(context, *args):
 					embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 					player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 
-					embed.add_field(name='\u200b', value='\u200b', inline=False)
+					embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
 					if ship_tier_filter:
 						# list ships that the player has at this tier
 						player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
