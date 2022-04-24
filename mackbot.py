@@ -2451,7 +2451,7 @@ async def ship(context, *args):
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 									m = m[:-3]
-									m += f" ({bomber['payload_name']}) **\n"
+									# m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} torpedo{'es' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']} aircraft)\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2472,7 +2472,7 @@ async def ship(context, *args):
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 									m = m[:-3]
-									m += f" ({bomber['payload_name']}) **\n"
+									# m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
@@ -2491,7 +2491,7 @@ async def ship(context, *args):
 								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 									m = m[:-3]
-									m += f" ({bomber['payload_name']}) **\n"
+									# m += f" ({bomber['payload_name']}) **\n"
 									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP, {bomber['payload']} bomb{'s' if bomber['payload'] > 1 else ''}\n"
 									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
