@@ -71,11 +71,21 @@ if cwd == '':
 
 # adding this so that shows no traceback during discord client is on
 LOG_FILE_NAME = f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log'
+class LogFilterBlacklist(logging.Filter):
+	def __init__(self, *blacklist):
+		self.blacklist = [logging.Filter(i) for i in blacklist]
+
+	def filter(self, record):
+		return not any(f.filter(record) for f in self.blacklist)
+
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
-stream_handler = logging.StreamHandler();
+stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
+
 handler.setFormatter(formatter)
+handler.addFilter(LogFilterBlacklist("RESUMED"))
 stream_handler.setFormatter(formatter)
+stream_handler.addFilter(LogFilterBlacklist("RESUMED"))
 
 logger = logging.getLogger()
 logger.addHandler(handler)
