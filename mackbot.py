@@ -2816,7 +2816,7 @@ async def compare(context, *args):
 			"Main Battery",
 			"Secondary Battery",
 			"Torpedo",
-			# "Concealment",
+			"Concealment",
 			# "Aircraft"
 		]
 		for i, o in enumerate(usr_options):
@@ -2945,8 +2945,17 @@ async def compare(context, *args):
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 4:
+				ship_module[0]['concealment'] = get_ship_param(ships_to_compare[0]['name'])['concealment']
+				ship_module[1]['concealment'] = get_ship_param(ships_to_compare[1]['name'])['concealment']
+				# set up title axis
+				m = f"**{icons_emoji['concealment']} by Sea:**\n"
+				m += f"**{icons_emoji['concealment']} by Air:**\n"
+				embed.add_field(name="__Concealment__", value=m, inline=True)
+
 				for i in range(2):
-					ship_module[i]['hull'] = ships_to_compare[0]['modules']['hull']
+					m = f"{ship_module[i]['concealment']['detect_distance_by_ship']} km\n"
+					m += f"{ship_module[i]['concealment']['detect_distance_by_plane']} km\n"
+					embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 			if user_selection == 5:
 				for i in range(2):
 					ship_module[i]['fighter'] = ships_to_compare[0]['modules']['fighter']
