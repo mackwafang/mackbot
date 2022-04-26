@@ -2827,7 +2827,7 @@ async def compare(context, *args):
 					return
 		# ask for which parameter user would like to compare
 		response_embed = discord.Embed(title="Which parameter would you like to compare?", description="")
-		usr_options = [
+		user_options = [
 			"Main Battery",
 			"Secondary Battery",
 			"Torpedo",
@@ -2838,7 +2838,7 @@ async def compare(context, *args):
 			"Bombers",
 			"Skip Bombers",
 		]
-		for i, o in enumerate(usr_options):
+		for i, o in enumerate(user_options):
 			response_embed.description += f"**[{i+1}]** {o}\n"
 		response_embed.set_footer(text="Response expires in 15 seconds")
 		await context.send(embed=response_embed)
@@ -2848,11 +2848,11 @@ async def compare(context, *args):
 			try:
 				user_selection = int(res.content)
 			except ValueError:
-				embed.description += f"Value {res.content} is not value"
+				embed.description += f"Value {res.content} is not a valid value"
 				await context.send(embed=embed)
 				return
 
-			embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']}'s and {ships_to_compare[1]['name']}'s {user_options[user_selection - 1]}")
 			ship_module = [{}, {}]
 
 			m = "**Tier**\n"
@@ -3023,6 +3023,7 @@ async def compare(context, *args):
 						m += "**Payload/Flight**\n"
 						m += "**Flight Count**\n"
 						m += "**Attacking Flight**\n"
+						m += "**Attack Delay**\n"
 						embed.add_field(name="__Attack Aircraft__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
@@ -3039,6 +3040,7 @@ async def compare(context, *args):
 									m += f"{plane['payload'] * module['attack_size']:1.0f} rocket(s)\n"
 									m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
 									m += f"{module['attack_size']:1.0f} aircraft\n"
+									m += f"{plane['aiming_time']:0.1f}s\n"
 									embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
 									break
 							else:
