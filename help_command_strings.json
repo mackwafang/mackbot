@@ -35,9 +35,20 @@
 		"description": [
 			"Compares a combat parameter of two ships.",
 			"mackbot will prompt for a specific parameter",
+			"Comparable parameters include:",
+			"\tMain Battery",
+			"\tSecondary Battery",
+			"\tTorpedo",
+			"\tConcealment",
+			"\tAnti-Air",
+			"\tAttack Aircraft",
+			"\tTorpedo Bombers",
+			"\tBombers",
+			"\tSkip Bombers",
+			"",
 			"Example:",
 			"\tmackbot compare yamato and montana (returns the comparison between Yamato and Montana)",
-			"Note: Both warships must contains the same parameters."
+			"Note: Both warships must contains the same parameters. (i.e. you can't compare the torpedoes of Des Moines and Zao because the Des Moines does not have torpedoes)"
 		]
 	},
 	"skill": {
