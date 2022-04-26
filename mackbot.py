@@ -1025,7 +1025,7 @@ def update_ship_modules():
 									'range': projectile['maxDist'] * 30 / 1000,
 									'payload': int(plane['projectilesPerAttack']),
 									'payload_name': projectile['name'],
-									'arming_time': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
+									'arming_range': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
 								}
 							}
 						continue
@@ -2469,7 +2469,7 @@ async def ship(context, *args):
 									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
 									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
 									m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
-									m += f"**Arming Range:** {bomber['arming_time']:0.1f}m\n"
+									m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
 									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
 									m += '\n'
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
@@ -2852,7 +2852,7 @@ async def compare(context, *args):
 				await context.send(embed=embed)
 				return
 
-			embed = discord.Embed(title=f"Comparing {ships_to_compare[0]['name']}'s and {ships_to_compare[1]['name']}'s {user_options[user_selection - 1]}")
+			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1]} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
 
 			m = "**Tier**\n"
@@ -2869,7 +2869,7 @@ async def compare(context, *args):
 				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
 				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
 				l = zip_longest(ship_module[0]['artillery'], ship_module[1]['artillery'])
-				if l:
+				if ship_module[0]['artillery'] and ship_module[1]['artillery']:
 					for pair in l:
 						# set up title axis
 						m = "**Gun**\n"
@@ -2935,7 +2935,7 @@ async def compare(context, *args):
 				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
 				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
 				l = zip_longest(ship_module[0]['torpedo'], ship_module[1]['torpedo'])
-				if l:
+				if ship_module[0]['torpedo'] and ship_module[1]['torpedo']:
 					for pair in l:
 						# set up title axis
 						m = "**Name**\n"
@@ -2980,7 +2980,7 @@ async def compare(context, *args):
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
-				if l:
+				if ship_module[0]['hull'] and ship_module[1]['hull']:
 					for pair in l:
 						# set up title axis
 						m = "**Name**\n"
@@ -3007,11 +3007,29 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection == 6:
-				ship_module[0]['fighter'] = ships_to_compare[0]['modules']['fighter']
-				ship_module[1]['fighter'] = ships_to_compare[1]['modules']['fighter']
-				l = zip_longest(ship_module[0]['fighter'], ship_module[1]['fighter'])
-				if l:
+			if user_selection in [6, 7, 8, 9]:
+				module_name = {
+					6: 'fighter',
+					7: 'torpedo_bomber',
+					8: 'dive_bomber',
+					9: 'skip_bomber',
+				}[user_selection]
+				projectile_type = {
+					6: 'rocket(s)',
+					7: 'torpedo(es)',
+					8: 'bomb(s)',
+					9: 'bomb(s)',
+				}[user_selection]
+				for i in range(2):
+					mid = ships_to_compare[i]['modules'][module_name]
+					ship_module[i][module_name] = []
+					# for each aircraft found in this module, pair it with the associated module id
+					# so that we can output every modules of each ships in alternating pattern
+					# (ie, fighter1, fighter2, fighter1, fighter2...)
+					for m in mid:
+						ship_module[i][module_name] += [(p, m) for p in list(module_list[str(m)])]
+				l = zip_longest(ship_module[0][module_name], ship_module[1][module_name])
+				if ship_module[0][module_name] and ship_module[1][module_name]:
 					for pair in l:
 						# set up title axis
 						m = "**Name**\n"
@@ -3019,110 +3037,42 @@ async def compare(context, *args):
 						m += "**Speed**\n"
 						m += "**Max Speed**\n"
 						m += "**Health**\n"
+						m += "**DMG/Projectile**\n"
 						m += "**Max DMG/Flight**\n"
 						m += "**Payload/Flight**\n"
 						m += "**Flight Count**\n"
 						m += "**Attacking Flight**\n"
-						m += "**Attack Delay**\n"
-						embed.add_field(name="__Attack Aircraft__", value=m, inline=True)
-
-						for i, mid in enumerate(pair):
-							if mid is not None:
-								for m in module_list[str(mid)]:
-									module = module_list[str(mid)][m]
-									plane = module['profile']['fighter']
-									m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-									m += f"{plane['payload_name']}{'...' if len(plane['payload_name']) > 20 else ''}\n"
-									m += f"{plane['cruise_speed']} kts.\n"
-									m += f"{plane['max_speed']} kts.\n"
-									m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
-									m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
-									m += f"{plane['payload'] * module['attack_size']:1.0f} rocket(s)\n"
-									m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
-									m += f"{module['attack_size']:1.0f} aircraft\n"
+						if user_selection == 6:
+							m += "**Attack Delay**\n"
+						if user_selection == 7:
+							m += "**Torpedo Speed**\n"
+							m += "**Arming Range**\n"
+						embed.add_field(name=f"__{user_options[user_selection - 1]}__", value=m, inline=True)
+						for ship_module_index, i in enumerate(pair):
+							if i is not None:
+								m, mid = i
+								module = module_list[str(mid)][m]
+								plane = module['profile'][module_name]
+								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
+								m += f"{plane['payload_name']}{'...' if len(plane['payload_name']) > 20 else ''}\n"
+								m += f"{plane['cruise_speed']} kts.\n"
+								m += f"{plane['max_speed']} kts.\n"
+								m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
+								m += f"{plane['max_damage']:1.0f}\n"
+								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
+								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
+								m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
+								m += f"{module['attack_size']:1.0f} aircraft\n"
+								if user_selection == 6:
 									m += f"{plane['aiming_time']:0.1f}s\n"
-									embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
-									break
+								if user_selection == 7:
+									m += f"{plane['torpedo_speed']:0.1f} kts\n"
+									m += f"{plane['arming_range']:0.1f} km\n"
+								embed.add_field(name=f"__{ships_to_compare[ship_module_index]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
-					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection == 7:
-				ship_module[0]['torpedo_bomber'] = ships_to_compare[0]['modules']['torpedo_bomber']
-				ship_module[1]['torpedo_bomber'] = ships_to_compare[1]['modules']['torpedo_bomber']
-				l = zip_longest(ship_module[0]['torpedo_bomber'], ship_module[1]['torpedo_bomber'])
-				if l:
-					for pair in l:
-						# set up title axis
-						m = "**Name**\n"
-						m += "**Payload**\n"
-						m += "**Speed**\n"
-						m += "**Max Speed**\n"
-						m += "**Health**\n"
-						m += "**Max DMG/Flight**\n"
-						m += "**Payload/Flight**\n"
-						m += "**Flight Count**\n"
-						m += "**Attacking Flight**\n"
-						embed.add_field(name="__Torpedo Bomber__", value=m, inline=True)
-
-						for i, mid in enumerate(pair):
-							if mid is not None:
-								for m in module_list[str(mid)]:
-									module = module_list[str(mid)][m]
-									plane = module['profile']['torpedo_bomber']
-									m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-									m += f"{plane['payload_name']}{'...' if len(plane['payload_name']) > 20 else ''}\n"
-									m += f"{plane['cruise_speed']} kts.\n"
-									m += f"{plane['max_speed']} kts.\n"
-									m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
-									m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
-									m += f"{plane['payload'] * module['attack_size']:1.0f} rocket(s)\n"
-									m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
-									m += f"{module['attack_size']:1.0f} aircraft\n"
-									embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
-									break
-							else:
-								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
-				else:
-					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection == 8:
-				ship_module[0]['dive_bomber'] = ships_to_compare[0]['modules']['dive_bomber']
-				ship_module[1]['dive_bomber'] = ships_to_compare[1]['modules']['dive_bomber']
-				l = zip_longest(ship_module[0]['fighter'], ship_module[1]['fighter'])
-				if l:
-					for pair in l:
-						# set up title axis
-						m = "**Name**\n"
-						embed.add_field(name="__Aircraft__", value=m, inline=True)
-
-						for i, mid in enumerate(pair):
-							if mid is not None:
-								module = module_list[str(mid)]
-								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
-							else:
-								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
-				else:
-					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection == 9:
-				ship_module[0]['skip_bomber'] = ships_to_compare[0]['modules']['skip_bomber']
-				ship_module[1]['skip_bomber'] = ships_to_compare[1]['modules']['skip_bomber']
-				l = zip_longest(ship_module[0]['fighter'], ship_module[1]['fighter'])
-				if l:
-					for pair in l:
-						# set up title axis
-						m = "**Name**\n"
-						embed.add_field(name="__Aircraft__", value=m, inline=True)
-
-						for i, mid in enumerate(pair):
-							if mid is not None:
-								module = module_list[str(mid)]
-								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								embed.add_field(name=f"__{ships_to_compare[i % 2]['name']}__", value=m, inline=True)
-							else:
-								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
-				else:
-					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
+					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection - 1].lower()}")
 			await context.send(embed=embed)
 		del user_correction_check
 
