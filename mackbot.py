@@ -1,3 +1,4 @@
+import numpy as np
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
@@ -112,6 +113,7 @@ nation_dictionary = {
 	'commonwealth': 'Commonwealth',
 	'pan_america': 'Pan-American',
 	'netherlands': "Dutch",
+	'spain': "Spanish"
 }
 # convert weegee ship type to usn hull classifications
 hull_classification_converter = {
@@ -240,7 +242,6 @@ icons_emoji = {
 
 game_data = {}
 ship_list = {}
-ship_info = {}
 skill_list = {}
 module_list = {}
 upgrade_list = {}
@@ -577,47 +578,6 @@ def load_upgrade_list():
 
 	create_upgrade_abbr()
 
-def load_ship_params():
-	global ship_info
-	logging.info("Fetching Ship Parameters")
-	if len(ship_list) == 0:
-		logging.info("Ship list is empty.")
-		load_ship_list()
-
-	ship_param_file_name = 'ship_param'
-	ship_param_file_dir = os.path.join(".", "data", ship_param_file_name)
-	logging.info("	Checking cached ship_param file...")
-	fetch_ship_params_from_wg = False
-	if os.path.isfile(ship_param_file_dir):
-		# check ship_params exists
-		logging.info("	File found. Loading file")
-		with open(ship_param_file_dir, 'rb') as f:
-			ship_info = pickle.load(f)
-
-		if ship_info['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
-			logging.info("	Ship params outdated, fetching new list")
-			fetch_ship_params_from_wg = True
-			ship_info = {}
-	else:
-		fetch_ship_params_from_wg = True
-
-	if fetch_ship_params_from_wg:
-		logging.info("Fetching new ship params from weegee")
-		i = 0
-		ship_info = {'ships_updated_at': wows_encyclopedia.info()['ships_updated_at']}
-		for s in ship_list:
-			ship = wows_encyclopedia.shipprofile(ship_id=int(s), language='en')
-			ship_info[s] = ship[s]
-			ship_info[s]['skip_bomber'] = None
-			i += 1
-			if (i % 50 == 0 and i > 0) or (i == len(ship_list)):
-				logging.info(f"{i}/{len(ship_list)} ships found")
-		logging.info("Done")
-		logging.info("Creating ship_params cache")
-		with open(ship_param_file_dir, 'wb') as f:
-			pickle.dump(ship_info, f)
-		logging.info("ship_params cache created")
-
 def update_ship_modules():
 	# the painstaking method of updating ship modules with useful information
 	# why? because the wg api does not provide information such as (but not limited to):
@@ -632,7 +592,7 @@ def update_ship_modules():
 	if len(ship_list) == 0:
 		logging.info("Ship list is empty.")
 		load_ship_list()
-		load_ship_params()
+		# load_ship_params()
 	if len(module_list) == 0:
 		logging.info("Module list is empty.")
 		load_module_list()
@@ -676,6 +636,8 @@ def update_ship_modules():
 						hull = module_data[ship_upgrade_info[_info]['components']['hull'][0]]
 						module_list[module_id]['profile']['hull']['rudderTime'] = hull['rudderTime']
 						module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
+						module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
+						module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
 
 						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
 							module_list[module_id]['profile']['atba'] = {
@@ -718,6 +680,7 @@ def update_ship_modules():
 											atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
 							del atba_guns['turret']
 							module_list[module_id]['profile']['atba'] = atba_guns
+							module_list[module_id]['profile']['atba']['range'] = atba['maxDist']
 
 						# getting aa information and calculate mbAA
 						if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
@@ -800,10 +763,6 @@ def update_ship_modules():
 							# aa rating scaling with tier
 							aa_rating = (combined_aa_damage / (int(ship['tier']) * 10))
 							module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
-
-							if ship_info[s]['anti_aircraft'] is None:
-								ship_info[s]['anti_aircraft'] = {}
-							ship_info[s]['anti_aircraft'][module_list[module_id]['profile']['anti_air']['hull']] = module_list[module_id]['profile']['anti_air'].copy()
 
 						# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
 						if 'airSupport' in ship_upgrade_info[_info]['components']:
@@ -917,10 +876,6 @@ def update_ship_modules():
 									new_turret_data['mass']['ap'] = ammo['bulletMass']
 									new_turret_data['drag']['ap'] = ammo['bulletAirDrag']
 
-							# check for belfast and belfast '43, for some reason
-							if 'Belfast' in ship['name']:
-								new_turret_data['burn_probability'] = int(ship_info[str(s)]['artillery']['shells']['HE']['burn_probability'])
-								new_turret_data['pen_HE'] = 0
 							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
 						continue
 
@@ -1102,7 +1057,6 @@ def update_ship_modules():
 									'payload_name': projectile['name']
 								}
 							}
-							ship_info[s]['skip_bomber'] = {'skip_bomber_id': module_id}
 						continue
 		except Exception as e:
 			if not type(e) == KeyError:
@@ -1417,45 +1371,52 @@ def create_ship_tags():
 				t = 'Aircraft Carrier'
 			tier = ship_list[s]['tier']  # add tier to search
 			prem = ship_list[s]['is_premium']  # is bote premium
-			ship_speed = ship_info[s]['mobility']['max_speed']
+			ship_speed = 0
+			for e in ship_list[s]['modules']['engine']:
+				max_speed = module_list[str(e)]['profile']['engine']['max_speed']
+				ship_speed = max(ship_speed, max_speed)
 			# add tags based on speed
 			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]['max_threshold']:
 				tags += [SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]
 			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]['min_threshold']:
 				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]
-			concealment = ship_info[s]['concealment']
+			concealment = {
+				'detect_distance_by_plane': 0,
+				'detect_distance_by_ship': 0,
+			}
+			for e in ship_list[s]['modules']['hull']:
+				c = module_list[str(e)]['profile']['hull']
+				concealment['detect_distance_by_ship'] = max(concealment['detect_distance_by_ship'], c['detect_distance_by_ship'])
+				concealment['detect_distance_by_plane'] = max(concealment['detect_distance_by_plane'], c['detect_distance_by_plane'])
 			# add tags based on detection range
 			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_sea_spot_range']:
 				tags += [SHIP_TAG_LIST[SHIP_TAG.STEALTH]]
 			# add tags based on gun firerate
 			try:
 				# some ships have main battery guns
-				fireRate = ship_info[s]['artillery']['shot_delay']
+				fireRate = inf
+				for g in ship_list[s]['modules']['artillery']:
+					fireRate = min(fireRate, module_list[str(g)]['profile']['artillery']['shotDelay'])
 			except TypeError:
 				# some dont *ahemCVsahem*
 				fireRate = inf
 			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
 				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_GUN], 'dakka']
-			# add tags based on aa
-			if ship_info[s]['anti_aircraft'] is not None:
-				for hull in ship_info[s]['anti_aircraft']:
-					if hull not in ['defense', 'slots']:
-						aa_rating = ship_info[s]['anti_aircraft'][hull]['rating']
-						aa_max_range = ship_info[s]['anti_aircraft'][hull]['max_range']
-						if aa_rating > 50 or aa_max_range > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
-							if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
-								tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
+			# add tags based on a
+			for h in ship_list[s]['modules']['hull']:
+				if 'anti_air' in module_list[str(h)]['profile']:
+					aa = module_list[str(h)]['profile']['anti_air']
+					if aa['rating'] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
+						if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
+							tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
 
 			tags += [nat, f't{tier}', t, t + 's', hull_class]
 			ship_list[s]['tags'] = tags
 			if prem:
 				ship_list[s]['tags'] += ['premium']
 		except Exception as e:
-			if type(e) == KeyError:
-				logging.warning(f"Ship Tags Generator: Ship {s} not found")
-			else:
-				logging.warning("%s %s at ship id %s" % (type(e), e, s))
-				traceback.print_exc(type(e), e, None)
+			logging.warning(f"{type(e)} {e} at ship id {s}")
+			traceback.print_exc(type(e), e, None)
 
 def get_ship_data(ship: str) -> dict:
 	"""
@@ -1513,31 +1474,6 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
 			return list(database_client.mackbot_db.ship_build.find({"ship": ship.lower()}))
-	except Exception as e:
-		raise e
-
-def get_ship_param(ship: str) -> dict:
-	"""
-		returns combat parameters of requested warship name
-
-		Arguments:
-			ship: ship name
-
-		Returns:
-			object: dictionary containing ship's combat parameter
-
-		raise exceptions for dictionary
-	"""
-	try:
-		if ship.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside prinable ?
-			ship = ship_name_to_ascii[ship.lower()]  # convert to the appropiate name
-		for i in ship_list:
-			ship_name_in_dict = ship_list[i]['name']
-			if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
-				if i in ship_info:
-					return ship_info[i]
-				else:
-					raise NoShipFound
 	except Exception as e:
 		raise e
 
@@ -1869,7 +1805,7 @@ def load_data():
 	load_cmdr_list()
 	load_ship_list()
 	load_upgrade_list()
-	load_ship_params()
+	# load_ship_params()
 
 	# updating ship modules (e.g. hull, guns, planes)
 	update_ship_modules()
@@ -2124,12 +2060,10 @@ async def ship(context, *args):
 
 		try:
 			if send_compact:
-				ship_param = get_ship_param(ship)
 				ship_data = get_ship_data(ship)
-				await ship_compact(context, ship_data, ship_param)
+				await ship_compact(context, ship_data)
 			else:
 				async with context.typing():
-					ship_param = get_ship_param(ship)
 					ship_data = get_ship_data(ship)
 					if ship_data is None:
 						raise NoShipFound
@@ -2209,7 +2143,7 @@ async def ship(context, *args):
 						embed.description += '\n{:,} Doubloons'.format(price_gold)
 
 					# General hull info
-					if len(modules['hull']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
+					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 						m = ""
 						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
 							hull = module_list[str(h)]['profile']['hull']
@@ -2280,7 +2214,7 @@ async def ship(context, *args):
 							embed.add_field(name="__**ASW**__", value=m, inline=True)
 
 					# guns info
-					if len(modules['artillery']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
+					if len(modules['artillery']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
 						m = ""
 						m += f"**Range: **"
 						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
@@ -2328,40 +2262,42 @@ async def ship(context, *args):
 						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 
 					# secondary armaments
-					if ship_param['atbas'] is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
+					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
 						m = ""
-						m += f"**Range:** {ship_param['atbas']['distance']} km\n"
 						for hull in modules['hull']:
-							atba = module_list[str(hull)]['profile']['atba']
-							hull_name = module_list[str(hull)]['name']
+							if 'atba' in module_list[str(hull)]['profile']:
+								atba = module_list[str(hull)]['profile']['atba']
+								hull_name = module_list[str(hull)]['name']
 
-							gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba]))
-							gun_count = int(sum([atba[t]['count'] for t in atba]))
+								gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba if type(atba[t]) == dict]))
+								gun_count = int(sum([atba[t]['count'] for t in atba if type(atba[t]) == dict]))
 
-							m += f"**{hull_name} Hull**\n"
-							m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
-							m += f'**DPM:** {gun_dpm:,}\n'
+								m += f"**{hull_name}**\n"
+								m += f"**Range:** {atba['range'] / 1000:1.1f} km\n"
+								m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
+								m += f'**DPM:** {gun_dpm:,}\n'
 
-							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
-								m += '\n'
-								for t in atba:
-									turret = atba[t]
-									# detail secondary
-									m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
-									m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
-									m += ' ('
-									if turret['burn_probability'] > 0:
-										m += f":fire: {turret['burn_probability'] * 100}%, "
-									m += f"Pen. {turret['pen']}mm"
-									m += ')\n'
-									m += f"**Reload**: {turret['shotDelay']}s\n"
-							if len(modules['hull']) > 1:
-								m += '-------------------\n'
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
+									m += '\n'
+									for t in atba:
+										turret = atba[t]
+										if type(atba[t]) == dict:
+											# detail secondary
+											m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+											m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
+											m += ' ('
+											if turret['burn_probability'] > 0:
+												m += f":fire: {turret['burn_probability'] * 100}%, "
+											m += f"Pen. {turret['pen']}mm"
+											m += ')\n'
+											m += f"**Reload**: {turret['shotDelay']}s\n"
+								if len(modules['hull']) > 1:
+									m += '-------------------\n'
 
-						embed.add_field(name="__**Secondary Battery**__", value=m)
+								embed.add_field(name="__**Secondary Battery**__", value=m)
 
 					# anti air
-					if len(modules['hull']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
+					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
 						m = ""
 
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
@@ -2410,7 +2346,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Anti-Air**__", value=m)
 
 					# torpedoes
-					if len(modules['torpedoes']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
+					if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
 						m = ""
 						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
 							torps = module_list[str(h)]['profile']['torpedoes']
@@ -2433,7 +2369,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Torpedoes**__", value=m)
 
 					# attackers
-					if len(modules['fighter']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
+					if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2454,7 +2390,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
 					# torpedo bomber
-					if len(modules['torpedo_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
+					if len(modules['torpedo_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['torpedo_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2475,7 +2411,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
 
 					# dive bombers
-					if len(modules['dive_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
+					if len(modules['dive_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['dive_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2494,7 +2430,7 @@ async def ship(context, *args):
 									m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
 
-					if len(modules['skip_bomber']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
+					if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
 						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['skip_bomber']]
 						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
@@ -2514,7 +2450,7 @@ async def ship(context, *args):
 						embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
 					# engine
-					if len(modules['engine']) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
+					if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
 						m = ""
 						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
 							engine = module_list[str(e)]['profile']['engine']
@@ -2523,10 +2459,14 @@ async def ship(context, *args):
 						embed.add_field(name="__**Engine**__", value=m, inline=False)
 
 					# concealment
-					if ship_param['concealment'] is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
+					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONCEAL):
 						m = ""
-						m += f"**By Sea**: {ship_param['concealment']['detect_distance_by_ship']} km\n"
-						m += f"**By Air**: {ship_param['concealment']['detect_distance_by_plane']} km\n"
+						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+							hull = module_list[str(h)]['profile']['hull']
+							m += f"**{module_list[str(h)]['name']}**\n"
+							m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
+							m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
+							m += "\n"
 						embed.add_field(name="__**Concealment**__", value=m, inline=True)
 
 					# upgrades
@@ -2630,14 +2570,13 @@ async def ship(context, *args):
 				# we dun goofed
 				await context.send(f"An internal error has occured.")
 
-async def ship_compact(context, ship_data, ship_param):
+async def ship_compact(context, ship_data):
 	"""
 	Send a compact version of the build command.
 
 	Args:
 		context: A discord.ext.commands.Context object
 		ship_data: ship data gathered from the get_ship_data() function
-		ship_param: ship parameter from the get_ship_param() function
 
 	Returns: None
 
@@ -2773,10 +2712,13 @@ async def ship_compact(context, ship_data, ship_param):
 
 		embed.add_field(name="\u200b", value=m, inline=True)
 	# concealment
-	if ship_param['concealment']:
+	if len(modules['hull']):
 		m = ""
-		m += f"{icons_emoji['concealment']}{ship_type_emoji}: {ship_param['concealment']['detect_distance_by_ship']:0.1f} km\n"
-		m += f"{icons_emoji['concealment']}{icons_emoji['plane']}: {ship_param['concealment']['detect_distance_by_plane']:0.1f} km\n"
+		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+			hull = module_list[str(h)]['profile']['hull']
+			m += f"**{module_list[str(h)]['name']}**\n"
+			m += f"{icons_emoji['concealment']}{ship_type_emoji}: {hull['detect_distance_by_ship']:0.1f} km\n"
+			m += f"{icons_emoji['concealment']}{icons_emoji['plane']}: {hull['detect_distance_by_plane']:0.1f} km\n"
 		embed.add_field(name="\u200b", value=m, inline=False)
 
 	footer_message = "Parameters does not take into account upgrades or commander skills\n"
@@ -2854,7 +2796,7 @@ async def compare(context, *args):
 
 			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1]} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
-
+			logging.info(f"returning comparison for {user_options[user_selection - 1]}")
 			m = "**Tier**\n"
 			m += "**Type**\n"
 			m += "**Nation**\n"
@@ -2906,13 +2848,8 @@ async def compare(context, *args):
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
-				try:
-					_ = get_ship_param(ships_to_compare[0]['name'])['atbas']['distance']
-					_ = get_ship_param(ships_to_compare[1]['name'])['atbas']['distance']
-				except TypeError:
-					l = []
 
-				if l:
+				if ships_to_compare[0]['default_profile']['atbas'] is not None and ships_to_compare[1]['default_profile']['atbas'] is not None :
 					for pair in l:
 						# set up title axis
 						m = "**Hull**\n"
@@ -2924,8 +2861,8 @@ async def compare(context, *args):
 							if mid is not None:
 								module = module_list[str(mid)]
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								m += f"{get_ship_param(ships_to_compare[i]['name'])['atbas']['distance']:1.1f} km\n"
-								m += f"{int(sum([module['profile']['atba'][t]['gun_dpm'] for t in module['profile']['atba']]))}\n"
+								m += f"{module['profile']['atba']['range']/1000:1.1f} km\n"
+								m += f"{int(sum([module['profile']['atba'][t]['gun_dpm'] for t in module['profile']['atba'] if type(module['profile']['atba'][t]) == dict]))}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
@@ -2965,17 +2902,27 @@ async def compare(context, *args):
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 4:
-				ship_module[0]['concealment'] = get_ship_param(ships_to_compare[0]['name'])['concealment']
-				ship_module[1]['concealment'] = get_ship_param(ships_to_compare[1]['name'])['concealment']
-				# set up title axis
-				m = f"**{icons_emoji['concealment']} by Sea:**\n"
-				m += f"**{icons_emoji['concealment']} by Air:**\n"
-				embed.add_field(name="__Concealment__", value=m, inline=True)
+				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
+				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
+				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
+				if ship_module[0]['hull'] and ship_module[1]['hull']:
+					for pair in l:
+						# set up title axis
+						m = f"**Hull:**\n"
+						m += f"**{icons_emoji['concealment']} by Sea:**\n"
+						m += f"**{icons_emoji['concealment']} by Air:**\n"
+						embed.add_field(name="__Concealment__", value=m, inline=True)
 
-				for i in range(2):
-					m = f"{ship_module[i]['concealment']['detect_distance_by_ship']} km\n"
-					m += f"{ship_module[i]['concealment']['detect_distance_by_plane']} km\n"
-					embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+						for i, mid in enumerate(pair):
+							if mid is not None:
+								module = module_list[str(mid)]
+								hull = module['profile']['hull']
+								m = f"{module['name']}\n"
+								m += f"{hull['detect_distance_by_ship']:1.1f} km\n"
+								m += f"{hull['detect_distance_by_plane']:1.1f} km\n"
+								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
+							else:
+								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 			if user_selection == 5:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
