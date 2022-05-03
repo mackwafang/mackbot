@@ -1979,7 +1979,7 @@ async def build(context, *args):
 						else:
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
-						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {ship}]\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {usr_ship_name}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
 						embed.add_field(name=f'No known build', value=m, inline=False)
@@ -2794,7 +2794,7 @@ async def compare(context, *args):
 				await context.send(embed=embed)
 				return
 
-			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1]} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
 			logging.info(f"returning comparison for {user_options[user_selection - 1]}")
 			m = "**Tier**\n"
@@ -3235,7 +3235,6 @@ async def maps(context, *args):
 @show.command()
 async def ships(context, *args):
 	# parsing search parameters
-	logging.info("starting parameters parsing")
 	search_param = args
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 
@@ -3246,7 +3245,7 @@ async def ships(context, *args):
 
 	try:
 		page = int(page[0]) - 1
-	except:
+	except ValueError:
 		page = 0
 
 	if len(tier) > 0:
@@ -3265,10 +3264,8 @@ async def ships(context, *args):
 				result += [s]
 		except:
 			pass
-	logging.info("parsing complete")
-	logging.info("compiling message")
 	m = []
-	logging.info(f"found {len(m)} items matching criteria {''.join(key)}")
+	logging.info(f"found {len(result)} items matching criteria {' '.join(key)}")
 	if len(result) > 0:
 		# return the list of ships with fitting criteria
 		for ship in result:
