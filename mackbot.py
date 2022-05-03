@@ -68,7 +68,7 @@ cwd = sys.path[0]
 if cwd == '':
 	cwd = '.'
 
-# logging shenanigans
+# logger shenanigans
 
 # adding this so that shows no traceback during discord client is on
 LOG_FILE_NAME = os.path.join('logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
@@ -90,7 +90,7 @@ handler.addFilter(LogFilterBlacklist("RESUME"))
 stream_handler.setFormatter(formatter)
 stream_handler.addFilter(LogFilterBlacklist("RESUME"))
 
-logger = logging.getLogger()
+logger = logging.getLogger("mackbot")
 logger.addHandler(handler)
 logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
@@ -167,7 +167,7 @@ roman_numeral = {
 }
 
 # actual stuff
-logging.info("Fetching WoWS Encyclopedia")
+logger.info("Fetching WoWS Encyclopedia")
 # load important stuff
 if "sheets_credential" in os.environ:
 	wg_token = os.environ['wg_token']
@@ -194,7 +194,7 @@ database_client = None
 try:
 	database_client = MongoClient(mongodb_host)
 except ConnectionError:
-	logging.warning("MongoDB cannot be connected.")
+	logger.warning("MongoDB cannot be connected.")
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -254,7 +254,7 @@ ship_build = {}
 ship_build_competitive = None
 ship_build_casual = None
 
-logging.info("Fetching Maps")
+logger.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
 
 AA_RATING_DESCRIPTOR = {
@@ -359,7 +359,7 @@ def hex_64bit(val):
 def load_game_params():
 	global game_data
 	# creating GameParams json from GameParams.data
-	logging.info(f"Loading GameParams")
+	logger.info(f"Loading GameParams")
 	for file_count in count(0):
 		try:
 			with open(os.path.join(".", "data", f'GameParamsPruned_{file_count}.json')) as f:
@@ -373,7 +373,7 @@ def load_game_params():
 def load_skill_list():
 	global skill_list
 	# loading skills list
-	logging.info("Fetching Skill List")
+	logger.info("Fetching Skill List")
 	try:
 		with open(os.path.join("data", "skill_list.json")) as f:
 			skill_list = json.load(f)
@@ -385,11 +385,11 @@ def load_skill_list():
 			skill_list[skill]['abbr'] = abbr_name
 			skill_list[skill]['id'] = skill
 	except FileNotFoundError:
-		logging.error("skill_list.json is not found")
+		logger.error("skill_list.json is not found")
 
 def load_module_list():
 	global module_list
-	logging.info("Fetching Module List")
+	logger.info("Fetching Module List")
 	for page in count(1):
 		try:
 			m = wows_encyclopedia.modules(language='en', page_no=page)
@@ -400,9 +400,9 @@ def load_module_list():
 				if e.args[0] == "PAGE_NO_NOT_FOUND":
 					break
 				else:
-					logging.info(type(e), e)
+					logger.info(type(e), e)
 			else:
-				logging.info(type(e), e)
+				logger.info(type(e), e)
 			break
 
 # find game data items by tags
@@ -422,11 +422,11 @@ def find_module_by_tag(x):
 
 def load_cmdr_list():
 	global cmdr_list
-	logging.info("Fetching Commander List")
+	logger.info("Fetching Commander List")
 	cmdr_list = wows_encyclopedia.crews()
 
 def load_ship_list():
-	logging.info("Fetching Ship List")
+	logger.info("Fetching Ship List")
 	global ship_list
 	ship_list_file_name = 'ship_list'
 	ship_list_file_dir = os.path.join(".", "data", ship_list_file_name)
@@ -439,11 +439,11 @@ def load_ship_list():
 
 		# check to see if it is out of date
 		if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
-			logging.info("Ship list outdated, fetching new list")
+			logger.info("Ship list outdated, fetching new list")
 			fetch_ship_list_from_wg = True
 			ship_list = {}
 	else:
-		logging.info("No ship list file, fetching new")
+		logger.info("No ship list file, fetching new")
 		fetch_ship_list_from_wg = True
 
 	if fetch_ship_list_from_wg:
@@ -459,9 +459,9 @@ def load_ship_list():
 					if e.args[0] == "PAGE_NO_NOT_FOUND":
 						break
 					else:
-						logging.info(type(e), e)
+						logger.info(type(e), e)
 				else:
-					logging.info(type(e), e)
+					logger.info(type(e), e)
 				break
 		with open(ship_list_file_dir, 'wb') as f:
 			ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
@@ -470,13 +470,13 @@ def load_ship_list():
 	del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
 
 def load_upgrade_list():
-	logging.info("Fetching Camo, Flags and Modification List")
+	logger.info("Fetching Camo, Flags and Modification List")
 	if len(ship_list) == 0:
-		logging.info("Ship list is empty.")
+		logger.info("Ship list is empty.")
 		load_ship_list()
 
 	if len(game_data) == 0:
-		logging.info("No game data")
+		logger.info("No game data")
 		load_game_params()
 
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
@@ -522,13 +522,13 @@ def load_upgrade_list():
 					break
 				else:
 					# something else came up that is not a "exceed max number of pages"
-					logging.info(type(e), e)
+					logger.info(type(e), e)
 			else:
 				# we done goof now
-				logging.info(type(e), e)
+				logger.info(type(e), e)
 			break
 
-	logging.info('Adding upgrade information')
+	logger.info('Adding upgrade information')
 	obsolete_upgrade = []
 	for i in game_data:
 		value = game_data[i]
@@ -562,7 +562,7 @@ def load_upgrade_list():
 
 	legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
 
-	logging.info('Removing obsolete upgrades')
+	logger.info('Removing obsolete upgrades')
 	for i in obsolete_upgrade:
 		del upgrade_list[i]
 
@@ -585,16 +585,16 @@ def update_ship_modules():
 	#   - skip bombers
 	#   - torpedo
 
-	logging.info("Generating information about modules")
+	logger.info("Generating information about modules")
 	if len(game_data) == 0:
-		logging.info("Game data is empty.")
+		logger.info("Game data is empty.")
 		load_game_params()
 	if len(ship_list) == 0:
-		logging.info("Ship list is empty.")
+		logger.info("Ship list is empty.")
 		load_ship_list()
 		# load_ship_params()
 	if len(module_list) == 0:
-		logging.info("Module list is empty.")
+		logger.info("Module list is empty.")
 		load_module_list()
 
 	ship_count = 0
@@ -602,7 +602,7 @@ def update_ship_modules():
 		ship = ship_list[s]
 		ship_count += 1
 		if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)):
-			logging.info(f"	{ship_count}/{len(ship_list)} ships")
+			logger.info(f"	{ship_count}/{len(ship_list)} ships")
 		try:
 			module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 			module_data = game_data[module_full_id_str]
@@ -1060,18 +1060,18 @@ def update_ship_modules():
 						continue
 		except Exception as e:
 			if not type(e) == KeyError:
-				logging.error("at ship id " + s)
-				logging.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
-				logging.error("Update your GameParams JSON file(s)")
+				logger.error("at ship id " + s)
+				logger.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
+				logger.error("Update your GameParams JSON file(s)")
 			traceback.print_exc()
 	del ship_count
 
 def create_upgrade_abbr():
-	logging.info("Creating abbreviation for upgrades")
+	logger.info("Creating abbreviation for upgrades")
 	global upgrade_abbr_list
 
 	if len(upgrade_list) == 0:
-		logging.info("Upgrade list is empty.")
+		logger.info("Upgrade list is empty.")
 		load_upgrade_list()
 
 	for u in upgrade_list:
@@ -1095,7 +1095,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 	# silence file_cache_warning
 	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
 
-	logging.info("Attempting to fetch from sheets")
+	logger.info("Attempting to fetch from sheets")
 	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
 	# The ID and range of a sample spreadsheet.
@@ -1130,10 +1130,10 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 	values = result.get('values', [])
 
 	if not values:
-		logging.warning('No ship build data found.')
+		logger.warning('No ship build data found.')
 		raise Error
 	else:
-		logging.info(f"Found {len(values)} ship builds")
+		logger.info(f"Found {len(values)} ship builds")
 		for row in values:
 			build_name = row[1]
 			ship_name = row[0]
@@ -1144,7 +1144,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 			try:
 				ship = get_ship_data(ship_name)
 			except NoShipFound:
-				logging.warning(f'Ship {ship_name} is not found')
+				logger.warning(f'Ship {ship_name} is not found')
 				continue
 			raw_id.append(ship['ship_id'])
 			raw_upgrades = (i for i in row[2:8] if len(i) > 0)
@@ -1157,9 +1157,9 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 					upgrades.append(uid)
 				except Exception as e:
 					if type(e) is NoUpgradeFound:
-						logging.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
+						logger.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
 					else:
-						logging.error("Other Exception found")
+						logger.error("Other Exception found")
 					pass
 			upgrades = tuple(upgrades)
 
@@ -1169,18 +1169,18 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 			for s in raw_skills:
 				try:
 					skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
-					sid = skill_data['id']
+					sid = int(skill_data['id'])
 					skill_pts += skill_data['y']
-					raw_id.append(int(sid))
+					raw_id.append(sid)
 					skills.append(sid)
 				except Exception as e:
 					if type(e) is NoSkillFound:
-						logging.warning(f"Skill {s} in build for ship {ship['name']} is not found")
+						logger.warning(f"Skill {s} in build for ship {ship['name']} is not found")
 					else:
-						logging.error("Other Exception found")
+						logger.error("Other Exception found")
 					pass
 			if skill_pts > 21:
-				logging.warning(f"Build for ship {ship['name']} exceeds 21 points!")
+				logger.warning(f"Build for ship {ship['name']} exceeds 21 points!")
 			skills = tuple(skills)
 			cmdr = row[-1]
 
@@ -1188,38 +1188,38 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 			if build_id not in ship_build:
 				ship_build[build_id] = {"name": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
 			else:
-				logging.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
+				logger.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
 
 		if len(ship_build) > 0 and write_cache:
 			with open(dest_build_file_dir, 'w') as f:
 				# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
 				# ship_build['checksum'] = file_check_sum
 
-				logging.info("Creating ship build cache")
+				logger.info("Creating ship build cache")
 				json.dump(ship_build, f)
-		logging.info("Ship build data fetching done")
+		logger.info("Ship build data fetching done")
 
 def load_ship_builds():
 	if database_client is None:
 		# database connection successful, we don't need to fetch from local cache
 		return None
 
-	logging.info('Fetching ship build file...')
+	logger.info('Fetching ship build file...')
 	global ship_build, ship_build_competitive, ship_build_casual
 	extract_from_web_failed = False
 	ship_build_file_dir = os.path.join("data", "ship_builds.json")
 	build_extract_from_cache = os.path.isfile(ship_build_file_dir)
 
 	if len(ship_list) == 0:
-		logging.info("Ship list is empty.")
+		logger.info("Ship list is empty.")
 		load_ship_list()
 
 	if len(upgrade_list) == 0:
-		logging.info("Upgrade list is empty.")
+		logger.info("Upgrade list is empty.")
 		load_upgrade_list()
 
 	if len(skill_list) == 0:
-		logging.info("Skill list is empty.")
+		logger.info("Skill list is empty.")
 		load_skill_list()
 
 
@@ -1291,11 +1291,11 @@ def create_ship_build_images(build_name, build_ship_name, build_skills, build_up
 				coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
 				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
 
-				if skill_id in build_skills:
+				if int(skill_id) in build_skills:
 					# indicate user should take this skill
 					skill_image = Image.composite(green, skill_image, skill_image)
 					# add number to indicate order should user take this skill
-					skill_acquired_order = build_skills.index(skill_id) + 1
+					skill_acquired_order = build_skills.index(int(skill_id)) + 1
 					image.paste(skill_image, coord, skill_image)
 					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 				else:
@@ -1320,9 +1320,9 @@ def create_ship_build_images(build_name, build_ship_name, build_skills, build_up
 	return image
 
 def create_ship_tags():
-	logging.info("Generating ship search tags")
+	logger.info("Generating ship search tags")
 	if len(ship_list) == 0:
-		logging.info("Ship list is empty.")
+		logger.info("Ship list is empty.")
 		load_ship_list()
 
 	SHIP_TAG_LIST = (
@@ -1415,7 +1415,7 @@ def create_ship_tags():
 			if prem:
 				ship_list[s]['tags'] += ['premium']
 		except Exception as e:
-			logging.warning(f"{type(e)} {e} at ship id {s}")
+			logger.warning(f"{type(e)} {e} at ship id {s}")
 			traceback.print_exc(type(e), e, None)
 
 def get_ship_data(ship: str) -> dict:
@@ -1573,7 +1573,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logging.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: ", e)
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
@@ -1637,7 +1637,7 @@ def get_upgrade_data(upgrade: str) -> dict:
 				'price_gold': 0,
 				'profile': {}
 			}
-		logging.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: ", e)
 		raise e
 
 def get_commander_data(cmdr: str) -> tuple:
@@ -1675,7 +1675,7 @@ def get_commander_data(cmdr: str) -> tuple:
 
 				return name, icons, nation, i
 	except Exception as e:
-		logging.error(f"Exception {type(e)}", e)
+		logger.error(f"Exception {type(e)}", e)
 		raise e
 
 def get_flag_data(flag: str) -> tuple:
@@ -1718,7 +1718,7 @@ def get_flag_data(flag: str) -> tuple:
 		return profile, name, price_gold, image, price_credit, description
 
 	except Exception as e:
-		logging.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: ", e)
 		raise e
 
 def get_map_data(map: str) -> tuple:
@@ -1748,7 +1748,7 @@ def get_map_data(map: str) -> tuple:
 				description, image, id, name = map_list[m].values()
 				return description, image, id, name
 	except Exception as e:
-		logging.info("Exception {type(e): ", e)
+		logger.info("Exception {type(e): ", e)
 		raise e
 
 async def correct_user_misspell(context, command, *args):
@@ -1819,14 +1819,14 @@ def load_data():
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
-	logging.info("Logged on")
+	logger.info("Logged on")
 
 @mackbot.event
 async def on_command(context):
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
-		logging.info("User {} via {} queried {}".format(context.author, from_server, query))
+		logger.info("User {} via {} queried {}".format(context.author, from_server, query))
 
 @mackbot.command()
 async def whoami(context):
@@ -1838,12 +1838,12 @@ async def whoami(context):
 async def goodbot(context):
 	# good bot
 	r = randint(0, len(good_bot_messages) - 1)
-	logging.info(f"send reply message for goodbot")
+	logger.info(f"send reply message for goodbot")
 	await context.send(good_bot_messages[r])  # block until message is sent
 
 @mackbot.command()
 async def feedback(context):
-	logging.info("send feedback link")
+	logger.info("send feedback link")
 	await context.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
 @mackbot.command()
@@ -1912,7 +1912,7 @@ async def build(context, *args):
 					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
 					embed.set_thumbnail(url=images['small'])
 
-					logging.info(f"returning build information for <{name}> in embeded format")
+					logger.info(f"returning build information for <{name}> in embeded format")
 
 					tier_string = list(roman_numeral.keys())[tier - 1]
 
@@ -1934,7 +1934,7 @@ async def build(context, *args):
 									try:  # ew, nested try/catch
 										upgrade_name = upgrade_list[str(upgrade)]['name']
 									except Exception as e:
-										logging.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+										logger.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
 										error_value_found = True
 										upgrade_name = upgrade + ":warning:"
 								m += f'(Slot {i}) **' + upgrade_name + '**\n'
@@ -1949,12 +1949,12 @@ async def build(context, *args):
 							for s in skills:
 								skill_name = "[Missing]"
 								try:  # ew, nested try/catch
-									skill = skill_list[s]
+									skill = skill_list[str(s)]
 									skill_name = skill['name']
 									col = skill['x'] + 1
 									tier = skill['y'] + 1
 								except Exception as e:
-									logging.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+									logger.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
 									error_value_found = True
 									skill_name = skill + ":warning:"
 								m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
@@ -1971,7 +1971,7 @@ async def build(context, *args):
 								try:
 									m = get_commander_data(cmdr)[0]
 								except Exception as e:
-									logging.info(f"Exception {type(e)}", e, "in ship, listing commander")
+									logger.info(f"Exception {type(e)}", e, "in ship, listing commander")
 									error_value_found = True
 									m = f"{cmdr}:warning:"
 							# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
@@ -2024,7 +2024,7 @@ async def build(context, *args):
 
 				await context.send(embed=embed)
 			else:
-				logging.error(f"{type(e)}")
+				logger.error(f"{type(e)}")
 				traceback.print_exc()
 
 @mackbot.command(help="")
@@ -2081,7 +2081,7 @@ async def ship(context, *args):
 					price_gold = ship_data['price_gold']
 					price_credit = ship_data['price_credit']
 					price_xp = ship_data['price_xp']
-					logging.info(f"returning ship information for <{name}> in embeded format")
+					logger.info(f"returning ship information for <{name}> in embeded format")
 					ship_type = ship_types[ship_type]
 
 					if ship_type == 'Cruiser':
@@ -2547,7 +2547,7 @@ async def ship(context, *args):
 					embed.set_footer(text=footer_message)
 				await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)}", e)
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -2589,7 +2589,7 @@ async def ship_compact(context, ship_data):
 	modules = ship_data['modules']
 	is_prem = ship_data['is_premium']
 	is_test_ship = ship_data['is_test_ship']
-	logging.info(f"returning ship information for <{name}> in embeded format")
+	logger.info(f"returning ship information for <{name}> in embeded format")
 	ship_type = ship_types[ship_type]
 	ship_type_emoji = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 
@@ -2749,7 +2749,7 @@ async def compare(context, *args):
 
 		# checking ships name and grab ship data
 		for s in usr_input_ships:
-			logging.info(f"checking {s}")
+			logger.info(f"checking {s}")
 			try:
 				ships_to_compare += [get_ship_data(s)]
 			except NoShipFound:
@@ -2796,7 +2796,7 @@ async def compare(context, *args):
 
 			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
-			logging.info(f"returning comparison for {user_options[user_selection - 1]}")
+			logger.info(f"returning comparison for {user_options[user_selection - 1]}")
 			m = "**Tier**\n"
 			m += "**Type**\n"
 			m += "**Nation**\n"
@@ -3035,7 +3035,7 @@ async def skill(context, *args):
 			ship_class = args[0].lower()
 			skill = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 
-			logging.info(f'sending message for skill <{skill}>')
+			logger.info(f'sending message for skill <{skill}>')
 			async with context.typing():
 				skill_data = get_skill_data(ship_class, skill)
 				name = skill_data['name']
@@ -3055,7 +3055,7 @@ async def skill(context, *args):
 			await context.send(embed=embed)
 
 		except Exception as e:
-			logging.info("Exception", type(e), ":", e)
+			logger.info("Exception", type(e), ":", e)
 			# error, skill name not understood
 			skill_name_list = [skill_list[i]['name'] for i in skill_list]
 			closest_match = difflib.get_close_matches(skill, skill_name_list)
@@ -3133,7 +3133,7 @@ async def upgrades(context, *args):
 	embed = None
 	try:
 		# parsing search parameters
-		logging.info("starting parameters parsing")
+		logger.info("starting parameters parsing")
 		search_param = args
 		s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 
@@ -3164,8 +3164,8 @@ async def upgrades(context, *args):
 			tags = [str(i).lower() for i in upgrade_list[u]['tags']]
 			if all([k in tags for k in key]):
 				result += [u]
-		logging.info("parsing complete")
-		logging.info("compiling message")
+		logger.info("parsing complete")
+		logger.info("compiling message")
 		if len(result) > 0:
 			m = []
 			for u in result:
@@ -3195,17 +3195,17 @@ async def upgrades(context, *args):
 		if type(e) == IndexError:
 			error_message = f"Page {page + 1} does not exists"
 		elif type(e) == ValueError:
-			logging.info(f"Upgrade listing argument <{args[3]}> is invalid.")
+			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
 			error_message = f"Value {args[3]} is not understood"
 		else:
-			logging.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
 
 @show.command()
 async def maps(context, *args):
 	# list all maps
 	try:
-		logging.info("sending list of maps")
+		logger.info("sending list of maps")
 		try:
 			page = int(args[3]) - 1
 		except ValueError:
@@ -3226,10 +3226,10 @@ async def maps(context, *args):
 			embed = None
 			error_message = f"Page {page + 1} does not exists"
 		elif type(e) == ValueError:
-			logging.info(f"Upgrade listing argument <{args[3]}> is invalid.")
+			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
 			error_message = f"Value {args[3]} is not understood"
 		else:
-			logging.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)}", e)
 	await context.send(embed=embed)
 
 @show.command()
@@ -3265,7 +3265,7 @@ async def ships(context, *args):
 		except:
 			pass
 	m = []
-	logging.info(f"found {len(result)} items matching criteria {' '.join(key)}")
+	logger.info(f"found {len(result)} items matching criteria {' '.join(key)}")
 	if len(result) > 0:
 		# return the list of ships with fitting criteria
 		for ship in result:
@@ -3328,16 +3328,16 @@ async def upgrade(context, *args):
 			# does user provide upgrade name?
 			get_upgrade_data(upgrade)
 			search_func = get_upgrade_data
-			logging.info("user requested an upgrade name")
+			logger.info("user requested an upgrade name")
 		except:
 			# does user provide ship name, probably?
 			get_legendary_upgrade_by_ship_name(upgrade)
 			search_func = get_legendary_upgrade_by_ship_name
-			logging.info("user requested an legendary upgrade")
+			logger.info("user requested an legendary upgrade")
 
 		try:
 			# assuming that user provided the correct upgrade
-			logging.info(f'sending message for upgrade <{upgrade}>')
+			logger.info(f'sending message for upgrade <{upgrade}>')
 			output = search_func(upgrade)
 			profile = output['profile']
 			name = output['name']
@@ -3369,18 +3369,18 @@ async def upgrade(context, *args):
 			if len(name) > 0:
 				embed.description += f"**{name}**\n"
 			else:
-				logging.info("name is empty")
+				logger.info("name is empty")
 			embed.description += f"**Slot {slot}**\n"
 			if len(description) > 0:
 				embed.add_field(name='Description', value=description, inline=False)
 			else:
-				logging.info("description field empty")
+				logger.info("description field empty")
 			if len(profile) > 0:
 				embed.add_field(name='Effect',
 				                value=''.join([profile[detail]['description'] + '\n' for detail in profile]),
 				                inline=False)
 			else:
-				logging.info("effect field empty")
+				logger.info("effect field empty")
 			if not is_special == 'Unique':
 				if len(type_restriction) > 0:
 					# find the server emoji id for this emoji id
@@ -3423,18 +3423,18 @@ async def upgrade(context, *args):
 						}[is_special]
 						embed.add_field(name=ship_restrict_title, value=m)
 					else:
-						logging.warning('Ships field is empty')
+						logger.warning('Ships field is empty')
 			if len(special_restriction) > 0:
 				m = special_restriction
 				if len(m) > 0:
 					embed.add_field(name="Additonal Requirements", value=m)
 				else:
-					logging.warning("Additional requirements field empty")
+					logger.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 			await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)}", e)
 			# error, ship name not understood
 			upgrade_name_list = [upgrade_list[i]['name'] for i in upgrade_list]
 			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
@@ -3800,7 +3800,7 @@ async def commander(context, *args):
 	else:
 		try:
 			async with context.typing():
-				logging.info(f'sending message for commander <{cmdr}>')
+				logger.info(f'sending message for commander <{cmdr}>')
 
 				output = get_commander_data(cmdr)
 				if output is None:
@@ -3852,7 +3852,7 @@ async def commander(context, *args):
 				'''
 			await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}: ", e)
+			logger.info(f"Exception {type(e)}: ", e)
 			# error, ship name not understood
 			cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
 			closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
@@ -3872,7 +3872,7 @@ async def map(context, *args):
 	else:
 		try:
 			async with context.typing():
-				logging.info(f'sending message for map <{map}>')
+				logger.info(f'sending message for map <{map}>')
 				description, image, id, name = get_map_data(map)
 				embed = discord.Embed(title="Map")
 				embed.set_image(url=image)
@@ -3881,7 +3881,7 @@ async def map(context, *args):
 
 			await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}: ", e)
+			logger.info(f"Exception {type(e)}: ", e)
 			# error, ship name not understood
 			map_name_list = [map_list[i]['name'] for i in map_list]
 			closest_match = difflib.get_close_matches(map, map_name_list)
@@ -3911,7 +3911,7 @@ async def doubloons(context, *args):
 					def dollar_formula(x):
 						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-					logging.info(f"converting {dollar} dollars -> doubloons")
+					logger.info(f"converting {dollar} dollars -> doubloons")
 					embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
 					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
 					embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
@@ -3924,7 +3924,7 @@ async def doubloons(context, *args):
 				def doub_formula(x):
 					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-				logging.info(f"converting {doub} doubloons -> dollars")
+				logger.info(f"converting {doub} doubloons -> dollars")
 				embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
 				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
 				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
@@ -3935,7 +3935,7 @@ async def doubloons(context, *args):
 
 			await context.send(embed=embed)
 		except Exception as e:
-			logging.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)}", e)
 			if type(e) == TypeError:
 				await context.send(f"Value **{doub}** is not a number.")
 			else:
@@ -3948,12 +3948,12 @@ async def code(context, *args):
 	else:
 		for c in args:
 			s = f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}"
-			logging.info(f"returned a wargaming bonus code link with code {c}")
+			logger.info(f"returned a wargaming bonus code link with code {c}")
 			await context.send(s)
 
 @mackbot.command()
 async def hottake(context):
-	logging.info("sending a hottake")
+	logger.info("sending a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
 	if randint(0, 9) == 0:
 		await asyncio.sleep(2)
@@ -3989,7 +3989,6 @@ if __name__ == '__main__':
 		try:
 			ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
 			extract_build_from_google_sheets(ship_build_file_dir, True)
-			os.remove(os.path.join(ship_build_file_dir))
 		except:
 			pass
 
@@ -3998,7 +3997,7 @@ if __name__ == '__main__':
 	create_ship_tags()
 
 	# post processing for bot commands
-	logging.info("Post-processing bot commands")
+	logger.info("Post-processing bot commands")
 	with open(os.path.join(".", "help_command_strings.json")) as f:
 		help_command_strings = json.load(f)
 	for c in help_command_strings:
@@ -4018,4 +4017,4 @@ if __name__ == '__main__':
 	# write clan history file
 	with open(clan_history_file_path, 'wb') as f:
 		pickle.dump(clan_history, f)
-	logging.info(f"Wrote {clan_history_file_path}")
+	logger.info(f"Wrote {clan_history_file_path}")
