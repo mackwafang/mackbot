@@ -1949,30 +1949,9 @@ async def build(context, *args):
 					def get_user_selected_build_id(message):
 						return context.author == message.author
 					# set up feature where one can select from drop down menu or enter value
-					done, pending = await asyncio.wait([
-							mackbot.loop.create_task(mackbot.wait_for('message', timeout=10, check=get_user_selected_build_id)),
-							mackbot.loop.create_task(mackbot.wait_for('select_option', timeout=10, check=get_user_selected_build_id)),
-						],
-						return_when=asyncio.FIRST_COMPLETED
-					)
-					if len(done) == 1:
-						# if any task is done, cancel all other tasks
-						for task in pending:
-							task.cancel()
-					else:
-						# if no respond from user, both tasks are returned as done. hence len(done) == 2
-						await multi_build_output_msg.edit(components=[
-							Select(
-								options=[SelectOption(label='a', value=0)],
-								placeholder=f"Response Timed-out",
-								disabled=True
-							)
-						])
-						# git out
-						return
+					multi_build_user_response = await get_user_response_with_drop_down(context, 10, multi_build_output_msg)
 
 					# check type of user response
-					multi_build_user_response = done.pop().result()
 					if type(multi_build_user_response) == discord_components.Interaction:
 						# discord drop down component
 						user_selected_build_id = multi_build_user_response.values[0]
