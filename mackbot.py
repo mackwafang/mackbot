@@ -1,4 +1,3 @@
-import numpy as np
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
@@ -9,6 +8,7 @@ from math import inf, ceil
 from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
+from discord_components import DiscordComponents, ComponentsBot, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
@@ -74,21 +74,22 @@ if cwd == '':
 LOG_FILE_NAME = os.path.join('logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
 if not os.path.isdir("logs"):
 	os.mkdir("logs")
+
 class LogFilterBlacklist(logging.Filter):
 	def __init__(self, *blacklist):
-		self.blacklist = [logging.Filter(i) for i in blacklist]
+		self.blacklist = [i for i in blacklist]
 
 	def filter(self, record):
-		return not any(f.filter(record) for f in self.blacklist)
+		return not any(f in record.getMessage() for f in self.blacklist)
 
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 
 handler.setFormatter(formatter)
-handler.addFilter(LogFilterBlacklist("RESUME"))
+handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
 stream_handler.setFormatter(formatter)
-stream_handler.addFilter(LogFilterBlacklist("RESUME"))
+stream_handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
 
 logger = logging.getLogger("mackbot")
 logger.addHandler(handler)
@@ -188,6 +189,7 @@ else:
 cmd_sep = ' '
 command_prefix += cmd_sep
 mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
+DiscordComponents(mackbot)
 
 # define database stuff
 database_client = None
@@ -358,7 +360,7 @@ def hex_64bit(val):
 
 def load_game_params():
 	global game_data
-	# creating GameParams json from GameParams.data
+	# load the gameparams files
 	logger.info(f"Loading GameParams")
 	for file_count in count(0):
 		try:
@@ -389,6 +391,7 @@ def load_skill_list():
 
 def load_module_list():
 	global module_list
+	# get modules (i.e. guns, hulls, planes)
 	logger.info("Fetching Module List")
 	for page in count(1):
 		try:
@@ -448,6 +451,9 @@ def load_ship_list():
 
 	if fetch_ship_list_from_wg:
 		for page in count(1):
+			# continuously count, because weegee don't list how many pages there are
+			# actually the above is a lie, this page count appears in the "meta" field when getting
+			# a response from wg via http request
 			try:
 				l = wows_encyclopedia.ships(language='en', page_no=page)
 				for i in l:
@@ -481,9 +487,6 @@ def load_upgrade_list():
 
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
-		# continuously count, because weegee don't list how many pages there are
-		# actually this is a lie, this page count appears in the "meta" field when getting
-		# a response from wg via http request
 		try:
 			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
 			# consumables of some page page_num
@@ -886,6 +889,8 @@ def update_ship_modules():
 						new_turret_data = {
 							'turrets': {}
 						}
+
+						turret_data = None
 						for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
 							turret_data = gun[g]
 							# add turret type and count
@@ -1031,7 +1036,6 @@ def update_ship_modules():
 							projectile = game_data[plane['bombName']]
 							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
 
-							# print(plane['numPlanesInSquadron'], plane['attackerSize'], plane['attackCount'], projectile['alphaDamage'], projectile['ammoType'], projectile['burnProb'])
 							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
 							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
 							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
@@ -1088,7 +1092,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 
 	# extracting build from google sheets
 	from googleapiclient.errors import Error
-	from googleapiclient.discovery import build
+	from googleapiclient.discovery import build as google_build
 	from google_auth_oauthlib.flow import InstalledAppFlow
 	from google.auth.transport.requests import Request
 
@@ -1121,7 +1125,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 		with open('cmd_sep.pickle', 'wb') as sep:
 			pickle.dump(creds, sep)
 
-	service = build('sheets', 'v4', credentials=creds)
+	service = google_build('sheets', 'v4', credentials=creds)
 
 	# Call the Sheets API
 	sheet = service.spreadsheets()
@@ -1197,9 +1201,12 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 
 				logger.info("Creating ship build cache")
 				json.dump(ship_build, f)
+
+		del Error, google_build, InstalledAppFlow, Request
 		logger.info("Ship build data fetching done")
 
 def load_ship_builds():
+	# load ship builds from a local file
 	if database_client is None:
 		# database connection successful, we don't need to fetch from local cache
 		return None
@@ -1320,6 +1327,7 @@ def create_ship_build_images(build_name, build_ship_name, build_skills, build_up
 	return image
 
 def create_ship_tags():
+	# generate ship tags for searching purpose via the "show ships" command
 	logger.info("Generating ship search tags")
 	if len(ship_list) == 0:
 		logger.info("Ship list is empty.")
@@ -1805,7 +1813,6 @@ def load_data():
 	load_cmdr_list()
 	load_ship_list()
 	load_upgrade_list()
-	# load_ship_params()
 
 	# updating ship modules (e.g. hull, guns, planes)
 	update_ship_modules()
@@ -1881,12 +1888,16 @@ async def build(context, *args):
 					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 					m = ""
+					multiple_build_components = []
 					for i, bid in enumerate(builds):
 						build_name = builds[i]['name']
-						m += f"[{i + 1}] {build_name}\n"
-					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
+						label = f"[{i + 1}] {build_name}\n"
 
+						m += label
+						multiple_build_components.append(SelectOption(label=label))
+					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 					embed.set_footer(text="Please enter the number you would like the build for.\nResponse expires in 10 seconds.")
+
 					await context.send(embed=embed)
 
 					def get_user_selected_build_id(message):
@@ -2055,9 +2066,6 @@ async def ship(context, *args):
 			args = args[:args.find('(') - 1]
 		args = args.split(' ')
 		ship = ' '.join(i for i in args)  # grab ship name
-		# if not param_filter:
-		# 	ship = ship[:-1]
-
 		try:
 			if send_compact:
 				ship_data = get_ship_data(ship)
@@ -2244,13 +2252,13 @@ async def ship(context, *args):
 									m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
 									m += '-------------------\n'
 
-							if guns['max_damage_sap'] > 0:
+							if guns['max_damage_sap']:
 								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 									m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
 									m += '-------------------\n'
-							if guns['max_damage_ap'] > 0:
+							if guns['max_damage_ap']:
 								m += f"**AP:** {guns['max_damage_ap']}\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
