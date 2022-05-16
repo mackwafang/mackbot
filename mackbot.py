@@ -2,6 +2,7 @@ import discord_components
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
+from typing import Union
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from enum import IntEnum, auto
@@ -1427,6 +1428,50 @@ def create_ship_tags():
 			logger.warning(f"{type(e)} {e} at ship id {s}")
 			traceback.print_exc(type(e), e, None)
 
+async def get_user_response_with_drop_down(context: discord.ext.commands.Context, timeout: int, response_prompt_output: discord.Message) -> Union[discord.Message, discord_components.Interaction, None]:
+	"""
+	Wait for a user message or if user selected an item from the drop-down menu
+
+	Args:
+		context: A discord.ext.commands.Context object
+		timeout: how many seconds to time out
+		response_prompt_output: a discord.Message object to edit out the drop down menu
+
+	Returns:
+		response - The object that user responded with
+
+	"""
+	# wait for a message response or an option response
+	done, pending = await asyncio.wait([
+			mackbot.loop.create_task(mackbot.wait_for("message", check=lambda message: context.author == message.author)),
+			mackbot.loop.create_task(mackbot.wait_for("select_option", check=lambda message: context.author == message.author)),
+		],
+		timeout=timeout,
+		return_when=asyncio.FIRST_COMPLETED
+	)
+
+	if len(done) == 1:
+		# of of these tasks is done
+		for task in pending:
+			task.cancel()
+	else:
+		# if no respond from user, both tasks are returned as done. hence len(done) == 2
+		await response_prompt_output.edit(components=[
+			Select(
+				options=[SelectOption(label='a', value='0')],
+				placeholder=f"Response Timed-out",
+				disabled=True
+			)
+		])
+
+	user_response = None
+	try:
+		user_response = done.pop().result()
+	except Exception as e:
+		if type(e) in [asyncio.CancelledError, asyncio.TimeoutError]:
+			logger.info("No response from user")
+	return user_response
+
 def get_ship_data(ship: str) -> dict:
 	"""
 		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
@@ -1865,11 +1910,11 @@ async def build(context, *args):
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
 			args = args[1:]
-		usr_ship_name = ''.join([i + ' ' for i in args])[:-1]
+		user_ship_name = ''.join([i + ' ' for i in args])[:-1]
 		name, images = "", None
 		try:
 			async with context.typing():
-				output = get_ship_data(usr_ship_name)
+				output = get_ship_data(user_ship_name)
 				name = output['name']
 				nation = output['nation']
 				images = output['images']
@@ -1880,7 +1925,7 @@ async def build(context, *args):
 				# find ship build
 				builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
 				user_selected_build_id = 0
-				multi_build_usr_response = None
+				multi_build_user_response = None
 
 				# get user selection for multiple ship builds
 				if len(builds) > 1:
@@ -1910,20 +1955,32 @@ async def build(context, *args):
 						],
 						return_when=asyncio.FIRST_COMPLETED
 					)
-					# cancel all other tasks
-					for task in pending:
-						task.cancel()
+					if len(done) == 1:
+						# if any task is done, cancel all other tasks
+						for task in pending:
+							task.cancel()
+					else:
+						# if no respond from user, both tasks are returned as done. hence len(done) == 2
+						await multi_build_output_msg.edit(components=[
+							Select(
+								options=[SelectOption(label='a', value=0)],
+								placeholder=f"Response Timed-out",
+								disabled=True
+							)
+						])
+						# git out
+						return
 
 					# check type of user response
-					multi_build_usr_response = done.pop().result()
-					if type(multi_build_usr_response) == discord_components.Interaction:
+					multi_build_user_response = done.pop().result()
+					if type(multi_build_user_response) == discord_components.Interaction:
 						# discord drop down component
-						user_selected_build_id = multi_build_usr_response.values[0]
+						user_selected_build_id = multi_build_user_response.values[0]
 
-					if type(multi_build_usr_response) == discord.Message:
+					if type(multi_build_user_response) == discord.Message:
 						# user entered value
-						user_selected_build_id = multi_build_usr_response.content.split(' ')[0]
-						multi_build_usr_response = None
+						user_selected_build_id = multi_build_user_response.content.split(' ')[0]
+						multi_build_user_response = None
 
 					try:
 						user_selected_build_id = int(user_selected_build_id) - 1
@@ -1934,11 +1991,7 @@ async def build(context, *args):
 					# disable selected drop-down menu
 					await multi_build_output_msg.edit(components=[
 						Select(
-							options=[SelectOption(
-								label='a',
-								value=0,
-							)
-							],
+							options=[SelectOption(label='a',value=0,)],
 							placeholder=f"[{user_selected_build_id + 1}] {builds[user_selected_build_id]['name']}",
 							disabled=True
 						)
@@ -2024,7 +2077,7 @@ async def build(context, *args):
 						else:
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
-						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {usr_ship_name}]\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
 					else:
 						m = "mackbot does not know any build for this ship :("
 						embed.add_field(name=f'No known build', value=m, inline=False)
@@ -2034,9 +2087,9 @@ async def build(context, *args):
 					embed.set_footer(text=error_footer_message + footer_message)
 
 			if not send_image_build:
-				if multi_build_usr_response:
+				if multi_build_user_response:
 					# response to user's selection of drop-down menu
-					await multi_build_usr_response.respond(embed=embed, ephemeral=False)
+					await multi_build_user_response.respond(embed=embed, ephemeral=False)
 				else:
 					await context.send(embed=embed)
 			else:
@@ -2049,9 +2102,9 @@ async def build(context, *args):
 					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
 				try:
-					if multi_build_usr_response:
+					if multi_build_user_response:
 						# response to user's selection of drop-down menu
-						await multi_build_usr_response.respond(file=discord.File('temp.png'), ephemeral=False)
+						await multi_build_user_response.respond(file=discord.File('temp.png'), ephemeral=False)
 					else:
 						await context.send(file=discord.File('temp.png'))
 					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
@@ -2062,11 +2115,11 @@ async def build(context, *args):
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
 				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(usr_ship_name, ship_name_list)
+				closest_match = difflib.get_close_matches(user_ship_name, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				if len(closest_match) > 0:
 					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {usr_ship_name} is not understood.\n", description=closest_match_string)
+				embed = discord.Embed(title=f"Ship {user_ship_name} is not understood.\n", description=closest_match_string)
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 				embed.set_footer(text="Response expires in 10 seconds")
 				await context.send(embed=embed)
@@ -2787,12 +2840,12 @@ async def compare(context, *args):
 		await context.send_help("compare")
 	else:
 		args = ' '.join(args) # join arguments to split token
-		usr_input_ships = args.replace("and", "&").split("&")
-		if len(usr_input_ships) != 2:
+		user_input_ships = args.replace("and", "&").split("&")
+		if len(user_input_ships) != 2:
 			await context.send_help("compare")
 			return
 		# parse whitespace
-		usr_input_ships  = [' '.join(i.split()) for i in usr_input_ships]
+		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
 		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 		ships_to_compare = []
 
@@ -2800,7 +2853,7 @@ async def compare(context, *args):
 			return context.author == message.author and message.content.lower() in ['y', 'yes']
 
 		# checking ships name and grab ship data
-		for s in usr_input_ships:
+		for s in user_input_ships:
 			logger.info(f"checking {s}")
 			try:
 				ships_to_compare += [get_ship_data(s)]
@@ -2835,14 +2888,25 @@ async def compare(context, *args):
 		for i, o in enumerate(user_options):
 			response_embed.description += f"**[{i+1}]** {o}\n"
 		response_embed.set_footer(text="Response expires in 15 seconds")
-		await context.send(embed=response_embed)
-		res = await mackbot.wait_for("message", timeout=15, check=lambda message: context.author == message.author)
+		response_selection_options = [
+			Select(options=[SelectOption(label=o, value=str(i+1)) for i, o in enumerate(user_options)])
+		]
+
+		response_prompt_output = await context.send(embed=response_embed, components=response_selection_options)
+		user_response = await get_user_response_with_drop_down(context, 10, response_prompt_output)
+
+		user_selection = -1
+		if type(user_response) == discord.Message:
+			user_selection = user_response.content
+		if type(user_response) == discord_components.Interaction:
+			user_selection = user_response.values[0]
+
 		# compile info
-		if res.content:
+		if user_selection:
 			try:
-				user_selection = int(res.content)
+				user_selection = int(user_selection)
 			except ValueError:
-				embed.description += f"Value {res.content} is not a valid value"
+				embed.description += f"Value {user_selection} is not a valid value"
 				await context.send(embed=embed)
 				return
 
@@ -3072,7 +3136,20 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection - 1].lower()}")
-			await context.send(embed=embed)
+
+			if type(user_response) == discord_components.Interaction:
+				await user_response.respond(embed=embed, ephemeral=False)
+			if type(user_response) == discord.Message:
+				await context.send(embed=embed)
+
+			# disable the drop down menu
+			await response_prompt_output.edit(components=[
+				Select(
+					options=[SelectOption(label='a', value=0, )],
+					placeholder=f"{user_options[user_selection - 1]}",
+					disabled=True
+				)
+			])
 		del user_correction_check
 
 @mackbot.command()
@@ -3740,36 +3817,36 @@ async def player(context, *args):
 @mackbot.command()
 async def clan(context, *args):
 	if args:
-		usr_input = ' '.join(args)
-		clan_search = WG.clans.list(search=usr_input)
+		user_input = ' '.join(args)
+		clan_search = WG.clans.list(search=user_input)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
 			if len(clan_search) > 1:
-				embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
 				embed.description += '\n'.join(f"[{i+1}] [{c['tag']}] {c['name']}" for i, c in enumerate(clan_search))
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
 
 				await context.send(embed=embed)
 
-				usr_reply = ''
+				user_reply = ''
 				try:
-					usr_reply = await mackbot.wait_for('message', check=lambda m: context.author == m.author, timeout=10)
-					usr_reply = usr_reply.content
+					user_reply = await mackbot.wait_for('message', check=lambda m: context.author == m.author, timeout=10)
+					user_reply = user_reply.content
 				except asyncio.TimeoutError:
 					# time expired, do nothing
 					pass
 
-				if usr_reply:
+				if user_reply:
 					# parse
 					try:
-						usr_reply = int(usr_reply) - 1
-						if 0 <= usr_reply < len(clan_search):
-							selected_clan = clan_search[usr_reply]
+						user_reply = int(user_reply) - 1
+						if 0 <= user_reply < len(clan_search):
+							selected_clan = clan_search[user_reply]
 						else:
-							await context.send(f"Input **{usr_reply}** is out of range")
+							await context.send(f"Input **{user_reply}** is out of range")
 					except ValueError:
-						await context.send(f"Input **{usr_reply}** is not a number")
+						await context.send(f"Input **{user_reply}** is not a number")
 
 			else:
 				selected_clan = clan_search[0]
@@ -3835,7 +3912,7 @@ async def clan(context, *args):
 			await context.send(embed=embed)
 		else:
 			# no clan matches search
-			embed = discord.Embed(title=f"Search result for clan {usr_input}", description="")
+			embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
 			embed.description += "Clan not found"
 
 			await context.send(embed=embed)
