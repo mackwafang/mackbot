@@ -1,3 +1,4 @@
+import discord_components
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 
@@ -8,7 +9,7 @@ from math import inf, ceil
 from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
-from discord_components import DiscordComponents, ComponentsBot, SelectOption
+from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
@@ -1879,6 +1880,7 @@ async def build(context, *args):
 				# find ship build
 				builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
 				user_selected_build_id = 0
+				multi_build_usr_response = None
 
 				# get user selection for multiple ship builds
 				if len(builds) > 1:
@@ -1888,27 +1890,59 @@ async def build(context, *args):
 					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 					m = ""
-					multiple_build_components = []
 					for i, bid in enumerate(builds):
 						build_name = builds[i]['name']
-						label = f"[{i + 1}] {build_name}\n"
-
-						m += label
-						multiple_build_components.append(SelectOption(label=label))
+						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 					embed.set_footer(text="Please enter the number you would like the build for.\nResponse expires in 10 seconds.")
+					multi_build_embed_components = [
+						Select(options=[SelectOption(label=f"[{i+1}] {builds[i]['name']}", value=i+1) for i, b in enumerate(builds)])
+					]
 
-					await context.send(embed=embed)
+					multi_build_output_msg = await context.send(embed=embed, components=multi_build_embed_components)
 
 					def get_user_selected_build_id(message):
 						return context.author == message.author
-					user_selected_build_id = await mackbot.wait_for('message', timeout=10, check=get_user_selected_build_id)
-					user_selected_build_id = user_selected_build_id.content.split(' ')[0]
+					# set up feature where one can select from drop down menu or enter value
+					done, pending = await asyncio.wait([
+							mackbot.loop.create_task(mackbot.wait_for('message', timeout=10, check=get_user_selected_build_id)),
+							mackbot.loop.create_task(mackbot.wait_for('select_option', timeout=10, check=get_user_selected_build_id)),
+						],
+						return_when=asyncio.FIRST_COMPLETED
+					)
+					# cancel all other tasks
+					for task in pending:
+						task.cancel()
+
+					# check type of user response
+					multi_build_usr_response = done.pop().result()
+					if type(multi_build_usr_response) == discord_components.Interaction:
+						# discord drop down component
+						user_selected_build_id = multi_build_usr_response.values[0]
+
+					if type(multi_build_usr_response) == discord.Message:
+						# user entered value
+						user_selected_build_id = multi_build_usr_response.content.split(' ')[0]
+						multi_build_usr_response = None
+
 					try:
 						user_selected_build_id = int(user_selected_build_id) - 1
 					except ValueError:
 						await context.send(f"Input {user_selected_build_id} is invalid")
 						raise ValueError
+
+					# disable selected drop-down menu
+					await multi_build_output_msg.edit(components=[
+						Select(
+							options=[SelectOption(
+								label='a',
+								value=0,
+							)
+							],
+							placeholder=f"[{user_selected_build_id + 1}] {builds[user_selected_build_id]['name']}",
+							disabled=True
+						)
+					])
 
 				if not builds:
 					raise NoBuildFound
@@ -2000,16 +2034,26 @@ async def build(context, *args):
 					embed.set_footer(text=error_footer_message + footer_message)
 
 			if not send_image_build:
-				await context.send(embed=embed)
+				if multi_build_usr_response:
+					# response to user's selection of drop-down menu
+					await multi_build_usr_response.respond(embed=embed, ephemeral=False)
+				else:
+					await context.send(embed=embed)
 			else:
 				# send image
 				if database_client is None:
+					# getting from local ship build file
 					build_image = builds[user_selected_build_id]['image']
 				else:
+					# dynamically create
 					build_image = create_ship_build_images(build_name, name, skills, upgrades, cmdr)
 				build_image.save("temp.png")
 				try:
-					await context.send(file=discord.File('temp.png'))
+					if multi_build_usr_response:
+						# response to user's selection of drop-down menu
+						await multi_build_usr_response.respond(file=discord.File('temp.png'), ephemeral=False)
+					else:
+						await context.send(file=discord.File('temp.png'))
 					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
 				except discord.errors.Forbidden:
 					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
