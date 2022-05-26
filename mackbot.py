@@ -190,7 +190,7 @@ else:
 # define bot stuff
 cmd_sep = ' '
 command_prefix += cmd_sep
-mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix))
+mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix), help_command=None)
 DiscordComponents(mackbot)
 
 # define database stuff
@@ -255,6 +255,7 @@ flag_list = {}
 legendary_upgrades = {}
 upgrade_abbr_list = {}
 ship_build = {}
+help_dictionary = {}
 ship_build_competitive = None
 ship_build_casual = None
 
@@ -1729,7 +1730,7 @@ def get_commander_data(cmdr: str) -> tuple:
 
 				return name, icons, nation, i
 	except Exception as e:
-		logger.error(f"Exception {type(e)}", e)
+		logger.error(f"Exception {type(e)} {e}")
 		raise e
 
 def get_flag_data(flag: str) -> tuple:
@@ -1850,6 +1851,22 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 def escape_discord_format(s):
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
 
+def compile_help_strings():
+	global help_dictionary
+
+
+	with open(os.path.join("help_command_strings.json")) as f:
+		data = json.load(f)
+		for k, v in data.items():
+			help_dictionary[k] = v
+
+	with open(os.path.join("help_terminology_strings.json")) as f:
+		data = json.load(f)
+		for k, v in data.items():
+			help_dictionary[k] = v
+
+	del data
+
 def load_data():
 	# mackbot's data loading sequence
 	# loading data
@@ -1865,6 +1882,8 @@ def load_data():
 
 	# create ship upgrade abbreviations
 	create_upgrade_abbr()
+
+	compile_help_strings()
 
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
@@ -1905,7 +1924,7 @@ async def build(context, *args):
 	# message parse
 	ship_found = False
 	if len(args) == 0:
-		await context.send_help("ship")
+		await help(context, "build")
 	else:
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
@@ -2011,7 +2030,7 @@ async def build(context, *args):
 									try:  # ew, nested try/catch
 										upgrade_name = upgrade_list[str(upgrade)]['name']
 									except Exception as e:
-										logger.info(f"Exception {type(e)}", e, f"in ship, listing upgrade {i}")
+										logger.info(f"Exception {type(e)} {e} in ship, listing upgrade {i}")
 										error_value_found = True
 										upgrade_name = upgrade + ":warning:"
 								m += f'(Slot {i}) **' + upgrade_name + '**\n'
@@ -2031,7 +2050,7 @@ async def build(context, *args):
 									col = skill['x'] + 1
 									tier = skill['y'] + 1
 								except Exception as e:
-									logger.info(f"Exception {type(e)}", e, f"in ship, listing skill {i}")
+									logger.info(f"Exception {type(e)} {e} in ship, listing skill {i}")
 									error_value_found = True
 									skill_name = skill + ":warning:"
 								m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
@@ -2048,7 +2067,7 @@ async def build(context, *args):
 								try:
 									m = get_commander_data(cmdr)[0]
 								except Exception as e:
-									logger.info(f"Exception {type(e)}", e, "in ship, listing commander")
+									logger.info(f"Exception {type(e)} {e} in ship, listing commander")
 									error_value_found = True
 									m = f"{cmdr}:warning:"
 							# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
@@ -2129,7 +2148,7 @@ async def ship(context, *args):
 
 	# message parse
 	if len(args) == 0:
-		await context.send_help("ship")
+		await help(context, "ship")
 	else:
 		send_compact = args[0] in ['--compact', '-c']
 		if send_compact:
@@ -2631,7 +2650,7 @@ async def ship(context, *args):
 					embed.set_footer(text=footer_message)
 				await context.send(embed=embed)
 		except Exception as e:
-			logger.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -2816,12 +2835,12 @@ async def ship_compact(context, ship_data):
 @mackbot.command(help="")
 async def compare(context, *args):
 	if len(args) == 0:
-		await context.send_help("compare")
+		await help(context, "compare")
 	else:
 		args = ' '.join(args) # join arguments to split token
 		user_input_ships = args.replace("and", "&").split("&")
 		if len(user_input_ships) != 2:
-			await context.send_help("compare")
+			await help(context, "compare")
 			return
 		# parse whitespace
 		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
@@ -3136,7 +3155,7 @@ async def skill(context, *args):
 	# get information on requested skill
 	# message parse
 	if len(args) == 0:
-		await context.send_help("skill")
+		await help(context, "skill")
 	else:
 		skill = ''
 		try:
@@ -3306,7 +3325,7 @@ async def upgrades(context, *args):
 			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
 			error_message = f"Value {args[3]} is not understood"
 		else:
-			logger.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)} {e}")
 	await context.send(embed=embed)
 
 @show.command()
@@ -3337,7 +3356,7 @@ async def maps(context, *args):
 			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
 			error_message = f"Value {args[3]} is not understood"
 		else:
-			logger.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)} {e}")
 	await context.send(embed=embed)
 
 @show.command()
@@ -3426,7 +3445,7 @@ async def upgrade(context, *args):
 	upgrade = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if not args:
 		# argument is empty, send help message
-		await context.send_help("upgrade")
+		await help(context, "upgrade")
 	else:
 		# user provided an argument
 
@@ -3542,7 +3561,7 @@ async def upgrade(context, *args):
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
 			await context.send(embed=embed)
 		except Exception as e:
-			logger.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
 			upgrade_name_list = [upgrade_list[i]['name'] for i in upgrade_list]
 			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
@@ -3791,7 +3810,7 @@ async def player(context, *args):
 				embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(user_input)}", inline=True)
 		await context.send(embed=embed)
 	else:
-		await context.send_help("player")
+		await help(context, "player")
 
 @mackbot.command()
 async def clan(context, *args):
@@ -3896,7 +3915,7 @@ async def clan(context, *args):
 
 			await context.send(embed=embed)
 	else:
-		await context.send_help("clan")
+		await help(context, "clan")
 
 @mackbot.command()
 async def commander(context, *args):
@@ -3904,7 +3923,7 @@ async def commander(context, *args):
 	# message parse
 	cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if len(args) == 0:
-		await context.send_help("commander")
+		await help(context, "commander")
 	else:
 		try:
 			async with context.typing():
@@ -3976,7 +3995,7 @@ async def map(context, *args):
 	# message parse
 	map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
 	if len(args) == 0:
-		await context.send_help("map")
+		await help(context, "map")
 	else:
 		try:
 			async with context.typing():
@@ -4003,7 +4022,7 @@ async def map(context, *args):
 async def doubloons(context, *args):
 	# get conversion between doubloons and usd and vice versa
 	if len(args) == 0:
-		await context.send_help("doubloons")
+		await help(context, "doubloons")
 	else:
 		# user provided an argument
 		doub = 0
@@ -4043,7 +4062,7 @@ async def doubloons(context, *args):
 
 			await context.send(embed=embed)
 		except Exception as e:
-			logger.info(f"Exception {type(e)}", e)
+			logger.info(f"Exception {type(e)} {e}")
 			if type(e) == TypeError:
 				await context.send(f"Value **{doub}** is not a number.")
 			else:
@@ -4052,7 +4071,7 @@ async def doubloons(context, *args):
 @mackbot.command()
 async def code(context, *args):
 	if len(args) == 0:
-		await context.send_help("code")
+		await help(context, "code")
 	else:
 		for c in args:
 			s = f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}"
@@ -4084,6 +4103,25 @@ async def web(context):
 async def invite(context):
 	await context.send(bot_invite_url)
 
+@mackbot.command()
+async def help(context, help_key=""):
+	logger.info(f"can i haz halp for {help_key}")
+	if help_key in help_dictionary:
+		# look for help of a command
+		if help_key.split()[0] in command_list:
+			embed = discord.Embed(title=f"The {help_key} command")
+			help_content = help_dictionary[help_key]
+
+			embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
+			embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
+			if "options" in help_content:
+				embed.add_field(name="Options", value='\n'.join(f"**{k}**: {v}" for k, v in help_content['options'].items()), inline=False)
+
+			await context.send(embed=embed)
+	else:
+		await context.send(f"The term {help_key} is not understood.")
+
+
 if __name__ == '__main__':
 	import argparse
 	arg_parser = argparse.ArgumentParser()
@@ -4104,22 +4142,6 @@ if __name__ == '__main__':
 		load_ship_builds()
 	create_ship_tags()
 
-	# post processing for bot commands
-	logger.info("Post-processing bot commands")
-	with open(os.path.join(".", "help_command_strings.json")) as f:
-		help_command_strings = json.load(f)
-	for c in help_command_strings:
-		try:
-			command = mackbot.get_command(c)
-
-			command.help = help_command_strings[c]['help']
-			command.brief = help_command_strings[c]['brief']
-			command.usage = "usage: " + help_command_strings[c]['usage']
-			command.description = ''.join([i + '\n' for i in help_command_strings[c]['description']])
-
-		except:
-			pass
-	del help_command_strings, c
 	mackbot.run(bot_token)
 
 	# write clan history file
