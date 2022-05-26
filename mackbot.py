@@ -223,8 +223,8 @@ icons_emoji = {
 	"ss_prem": "<:submarine_premium:917573129851764776>",
 	"ss": "<:submarine:917573129876955147>",
 	"bb": "<:battleship:917573129876959232>",
-	"c": "<:cruiser:917573129885323374>",
 	"cv": "<:carrier:917573129931477053>",
+	"c": "<:cruiser:917573129885323374>",
 	"dd_prem": "<:destroyer_premium:917573129944059965>",
 	"plane_rocket": "<:plane_projectile:917573129956638750>",
 	"c_prem": "<:cruiser_premium:917573129965027398>",
@@ -241,6 +241,8 @@ icons_emoji = {
 	"concealment": "<:concealment:917605435278782474>",
 	"clan_in": "<:clan_in:952757125225021450>",
 	"clan_out": "<:clan_out:952757125237575690>",
+	"green_plus": "<:green_plus:979497350869450812>",
+	"red_dash": "<:red_dash:979497350911385620>",
 }
 
 
@@ -256,6 +258,7 @@ legendary_upgrades = {}
 upgrade_abbr_list = {}
 ship_build = {}
 help_dictionary = {}
+help_dictionary_index = {}
 ship_build_competitive = None
 ship_build_casual = None
 
@@ -1853,17 +1856,20 @@ def escape_discord_format(s):
 
 def compile_help_strings():
 	global help_dictionary
-
-
+	logger.info("Creating help index")
 	with open(os.path.join("help_command_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
+			help_dictionary_index[k] = k
 
 	with open(os.path.join("help_terminology_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
+			help_dictionary_index[k] = k
+			for related_term in v['related_terms']:
+				help_dictionary_index[related_term.lower()] = k
 
 	del data
 
@@ -4104,18 +4110,35 @@ async def invite(context):
 	await context.send(bot_invite_url)
 
 @mackbot.command()
-async def help(context, help_key=""):
+async def help(context, *help_key):
+	help_key = ' '.join(help_key).lower()
 	logger.info(f"can i haz halp for {help_key}")
-	if help_key in help_dictionary:
-		# look for help of a command
+	if help_key in help_dictionary_index:
+		# look for help content and tries to find its index
+		help_content = help_dictionary[help_dictionary_index[help_key]]
 		if help_key.split()[0] in command_list:
 			embed = discord.Embed(title=f"The {help_key} command")
-			help_content = help_dictionary[help_key]
 
 			embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
 			embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 			if "options" in help_content:
 				embed.add_field(name="Options", value='\n'.join(f"**{k}**: {v}" for k, v in help_content['options'].items()), inline=False)
+
+			await context.send(embed=embed)
+		else:
+			# a help on terminology
+			embed = discord.Embed(title=f"Terminology Help")
+			pat = re.compile('\$(' + '|'.join(icons_emoji.keys()) + ')')
+
+			description_string = '\n'.join(help_content['description'])
+			description_string = pat.sub(lambda x: icons_emoji[x.group(0)[1:]], description_string)
+
+			embed.add_field(name="Description", value=description_string, inline=False)
+			if help_content['related_commands']:
+				embed.add_field(name="Related mackbot Commands", value='\n'.join(f"{command_prefix} {i}" for i in help_content['related_commands']), inline=False)
+			if help_content['related_terms']:
+				embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
+			embed.description = help_key.title()
 
 			await context.send(embed=embed)
 	else:
