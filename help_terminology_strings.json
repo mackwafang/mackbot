@@ -5,10 +5,7 @@
       "The largest ship class in the game, boasting high armor, large caliber main battery,",
       " and secondary and AA guns.",
       "",
-      "On the tech tree, battleships starts at tier 3 after researching a tier 3 cruiser of the same nation.",
-      "All battleships have access to Repair Party, allowing to them to recover some damage taken over time.",
-      "They also have access to Spotting Aircraft, extending their gun range by 20%.",
-      "Some are equipped with Hydroacoustic Search or Engine Boost",
+      "On the tech tree, battleships starts at tier 3 after researching a tier 3 cruiser of the same nation. All battleships have access to Repair Party, allowing to them to recover some damage taken over time. They also have access to Spotting Aircraft, extending their gun range by 20%. Depending on the nation, some are equipped with Hydroacoustic Search or Engine Boost",
       "",
       "$green_plus Large-caliber main battery guns",
       "$green_plus High survivability",
@@ -19,7 +16,8 @@
     ],
     "related_commands": [
       "show ships battleships"
-    ]
+    ],
+    "title": "Battleships"
   },
   "destroyers": {
     "description": [
@@ -27,8 +25,7 @@
       "Versatile and small, destroyers can destroy targets many times their weight with rapid-firing guns or torpedoes.",
       "",
       "On the tech tree, destroyers starts at tier 2 after researching a tier 2 cruiser of the same nation.",
-      "Most destroyers have access to Smoke Generator, allowing them to break contact from the enemy or provide concealment for allies.",
-      "They mostly also have access to Engine Boost.",
+      "Most destroyers have access to Smoke Generator, allowing them to break contact from the enemy or provide concealment for allies. Most nations have access to Engine Boost.",
       "",
       "$green_plus Stealthy",
       "$green_plus Equipped with torpedoes",
@@ -39,7 +36,8 @@
     ],
     "related_commands": [
       "show ships destroyers"
-    ]
+    ],
+    "title": "Destroyers"
   },
   "cruisers": {
     "description": [
@@ -49,9 +47,10 @@
       "On the tech tree, cruisers starts at tier 1 and it is the starting ship for most nations.",
       "They are equipped with various consumables, their range of consumables depending on their nation and type.",
       "Cruisers are split into several different categories; light, heavy, and super.",
-      "Light cruisers are equipped with guns of less than 155mm in diameter.",
-      "Heavy cruisers are equipped with guns of about 203mm in diameter.",
-      "Supercruisers are equipped with guns larger than 203 mm in diameter.",
+      "",
+      "- Light cruisers are equipped with guns of less than 155mm in diameter.",
+      "- Heavy cruisers are equipped with guns of about 203mm in diameter.",
+      "- Supercruisers are equipped with guns larger than 203 mm in diameter.",
       "",
       "$green_plus Versatility",
       "$green_plus Adaptability",
@@ -63,16 +62,15 @@
     ],
     "related_commands": [
       "show ships cruisers"
-    ]
+    ],
+    "title": "Cruisers"
   },
   "aircraft carriers": {
     "description": [
       "Aircraft Carriers (CV, $cv)",
       "The floating airfield, capable of precision airstrikes anywhere.",
       "",
-      "On the tech tree, aircraft carriers starts at tier 4 after researching a tier 4 battleship of the same nation.",
-      "Aircraft carriers are available on even tiers and on the United States, British, Russian, German, and Japanese tech trees.",
-      "Tech tree aircraft compose of three flight groups consisting of: attack aircraft, torpedo bombers, dive bombers, or skip bombers.",
+      "On the tech tree, aircraft carriers starts at tier 4 after researching a tier 4 battleship of the same nation. Aircraft carriers are available on even tiers and on the United States, British, Russian, German, and Japanese tech trees. Tech tree aircraft compose of three flight groups consisting of: attack aircraft, torpedo bombers, dive bombers, or skip bombers.",
       "",
       "$green_plus Precision airstrikes",
       "$green_plus Spotting",
@@ -83,18 +81,16 @@
     ],
     "related_commands": [
       "show ships cv"
-    ]
+    ],
+    "title": "Aircraft Carriers"
   },
   "anti-air": {
     "description": [
       "The main armaments against aircraft.",
       "",
-      "In WoWS, every anti-air armament will deal damage, and is split into different auras with different ranges: close, mid, and long. ",
-      "Anti-air armaments comes in two categories: flak and continuous.",
+      "In WoWS, every anti-air armament will deal damage, and is split into different auras with different ranges: close, mid, and long. Anti-air armaments comes in two categories: flak and continuous.",
       "**Continuous AA** continuously deals damage to any squadrons within range every second. Continuous accuracy lowers the damage stated on the AA parameter.",
-      "**Flak** will fire an explosive anti-air round ahead of the squadron's position about every 2 seconds. Flak's accuracy determines how often should the explosion appear in front of the squadron.",
-      "",
-      "**Mackbot's AA rating:** A value calculated in mackbot to more accurately determine AA strength against planes of the same tier."
+      "**Flak** will fire an explosive anti-air round ahead of the squadron's position about every 2 seconds. Flak's accuracy determines how often should the explosion appear in front of the squadron."
     ],
     "related_terms": [
       "aa"
@@ -103,7 +99,33 @@
       "ship <ship_name> (aa)",
       "compare",
       "upgrade"
-    ]
+    ],
+    "title": "Anti-Air"
+  },
+  "mackbot aa rating": {
+    "description": [
+      "mackbot's AA rating (mbAA or mAAr) is a AA rating value custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
+      "mbAA is calculation is as follows:",
+      "",
+      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (midDamage * midHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
+      "",
+      "mbAA has the following ranges:",
+      "**Non-Existence**: less than **1**",
+      "**Very Weak**: between **1** and **20**",
+      "**Weak**: between **20** and **40**",
+      "**Moderate**: between **40** and **50**",
+      "**High**: between **50** and **70**",
+      "**Dangerous**: between **70** and **90**",
+      "**Very Dangerous**: higher than **90**"
+    ],
+    "related_terms": [
+      "mbAA", "mAAr"
+    ],
+    "related_commands": [
+      "ship <ship_name> (aa)",
+      "compare"
+    ],
+    "title": "Mackbot's AA Rating"
   },
   "united states": {
     "description": [
@@ -115,7 +137,7 @@
       "",
       "**Cruisers $c**",
       "$green_plus Fast-firing and fast-turning guns",
-      "$green_plus Long duration Surveillance Radars",
+      "$green_plus Long duration, short-range Surveillance Radars",
       "$red_dash High shell arcs",
       "",
       "**Battleships $bb**",
@@ -133,7 +155,8 @@
     ],
     "related_commands": [
       "show ships us"
-    ]
+    ],
+    "title": "The United States Navy"
   },
 
   "united kingdom": {
@@ -159,13 +182,14 @@
       "**Aircraft Carriers $cv**",
       "$green_plus Relatively higher plane health pool vs. other nations",
       "$green_plus Bombers have carpet bombing",
-      "$red_dash "
+      "$red_dash Very slow planes"
     ],
     "related_terms": [
       "UK", "British", "Royal Navy"
     ],
     "related_commands": [
       "show ships us"
-    ]
+    ],
+    "title": "The Royal Navy"
   }
 }

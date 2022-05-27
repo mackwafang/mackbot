@@ -4134,18 +4134,20 @@ async def help(context, *help_key):
 			await context.send(embed=embed)
 		else:
 			# a help on terminology
-			embed = discord.Embed(title=f"Terminology Help")
+			embed = discord.Embed(title=help_content['title'])
 			pat = re.compile('\$(' + '|'.join(icons_emoji.keys()) + ')')
 
 			description_string = '\n'.join(help_content['description'])
 			description_string = pat.sub(lambda x: icons_emoji[x.group(0)[1:]], description_string)
 
-			embed.add_field(name="Description", value=description_string, inline=False)
+			# split "paragraphs" that are split by 2 newlines into fields
+			for p, content in enumerate(description_string.split("\n\n")):
+				embed.add_field(name="Description" if p == 0 else EMPTY_LENGTH_CHAR, value=content, inline=False)
+
 			if help_content['related_commands']:
 				embed.add_field(name="Related mackbot Commands", value='\n'.join(f"{command_prefix} {i}" for i in help_content['related_commands']), inline=False)
 			if help_content['related_terms']:
 				embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
-			embed.description = help_key.title()
 
 			await context.send(embed=embed)
 	else:
