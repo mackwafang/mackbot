@@ -134,5 +134,38 @@
     "related_commands": [
       "show ships us"
     ]
+  },
+
+  "united kingdom": {
+    "description": [
+      "__**Play style:**__",
+      "**Destroyers $dd**",
+      "$green_plus High concealment",
+      "$green_plus Short-range, long duration hydroaccoustic",
+      "$red_dash Short duration smokes",
+      "$red_dash No engine boost",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Equipped with enhanced Repair Party (2%/s vs. 0.5%/s on most cruisers)",
+      "$green_plus CLs have short-fused AP shells, smoke or radar, and devastating AA",
+      "$green_plus CAs have effective HE",
+      "$red_dash Relatively poor armor",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Devastating, high fire starting chance HE shells",
+      "$green_plus Equipped with enhanced Repair Party (2%/s vs. 0.5%/s on most battleships)",
+      "$red_dash Lower health pool vs. other battleships",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Relatively higher plane health pool vs. other nations",
+      "$green_plus Bombers have carpet bombing",
+      "$red_dash "
+    ],
+    "related_terms": [
+      "UK", "British", "Royal Navy"
+    ],
+    "related_commands": [
+      "show ships us"
+    ]
   }
 }

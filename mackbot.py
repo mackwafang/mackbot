@@ -1904,7 +1904,7 @@ async def on_command(context):
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
-		logger.info("User {} via {} queried {}".format(context.author, from_server, query))
+		logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
 
 @mackbot.command()
 async def whoami(context):
@@ -1995,7 +1995,7 @@ async def build(context, *args):
 					# disable selected drop-down menu
 					await multi_build_output_msg.edit(components=[
 						Select(
-							options=[SelectOption(label='a',value=0,)],
+							options=[SelectOption(label='a',value=0)],
 							placeholder=f"[{user_selected_build_id + 1}] {builds[user_selected_build_id]['name']}",
 							disabled=True
 						)
@@ -2858,10 +2858,11 @@ async def compare(context, *args):
 
 		# checking ships name and grab ship data
 		for s in user_input_ships:
-			logger.info(f"checking {s}")
 			try:
 				ships_to_compare += [get_ship_data(s)]
 			except NoShipFound:
+				logger.info(f"ship check [{s}] FAILED")
+				logger.info(f"sending correction reponse")
 				closest_match = difflib.get_close_matches(s, ship_name_list)
 				closest_match_string = closest_match[0].title()
 				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
@@ -2876,13 +2877,15 @@ async def compare(context, *args):
 				else:
 					await context.send(embed=embed)
 					return
+			finally:
+				logger.info(f"ship check [{s}] OK")
 		# ask for which parameter user would like to compare
 		response_embed = discord.Embed(title="Which parameter would you like to compare?", description="")
 		user_options = [
 			"Main Battery",
 			"Secondary Battery",
 			"Torpedo",
-			"Concealment",
+			"Hull",
 			"Anti-Air",
 			"Attack Aircraft",
 			"Torpedo Bombers",
@@ -2906,7 +2909,7 @@ async def compare(context, *args):
 			user_selection = user_response.values[0]
 
 		# compile info
-		if user_selection:
+		if user_selection != -1:
 			try:
 				user_selection = int(user_selection)
 			except ValueError:
@@ -3028,9 +3031,12 @@ async def compare(context, *args):
 				if ship_module[0]['hull'] and ship_module[1]['hull']:
 					for pair in l:
 						# set up title axis
-						m = f"**Hull:**\n"
-						m += f"**{icons_emoji['concealment']} by Sea:**\n"
-						m += f"**{icons_emoji['concealment']} by Air:**\n"
+						m = f"**Hull**\n"
+						m += f"**Health**\n"
+						m += f"**Turn Radius**\n"
+						m += f"**Rudder Time**\n"
+						m += f"**{icons_emoji['concealment']} by Sea**\n"
+						m += f"**{icons_emoji['concealment']} by Air**\n"
 						embed.add_field(name="__Concealment__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
@@ -3038,6 +3044,9 @@ async def compare(context, *args):
 								module = module_list[str(mid)]
 								hull = module['profile']['hull']
 								m = f"{module['name']}\n"
+								m += f"{hull['health']:1.0f} HP\n"
+								m += f"{hull['turnRadius']:1.0f}m\n"
+								m += f"{hull['rudderTime']:1.1f}s\n"
 								m += f"{hull['detect_distance_by_ship']:1.1f} km\n"
 								m += f"{hull['detect_distance_by_plane']:1.1f} km\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
@@ -3151,6 +3160,16 @@ async def compare(context, *args):
 				Select(
 					options=[SelectOption(label='a', value=0, )],
 					placeholder=f"{user_options[user_selection - 1]}",
+					disabled=True
+				)
+			])
+		else:
+			logging.info("Response expired")
+			# disable selected drop-down menu when expired
+			await response_prompt_output.edit(components=[
+				Select(
+					options=[SelectOption(label='a', value=0)],
+					placeholder=f"Response timed-out",
 					disabled=True
 				)
 			])
@@ -3276,10 +3295,8 @@ async def upgrades(context, *args):
 		tier = [i[3] for i in s if len(i[3]) > 1]
 		embed_title = "Search result for: "
 
-		try:
-			page = int(page[0]) - 1
-		except ValueError:
-			page = 0
+		# select page
+		page = int(page[0]) if len(page) > 0 else 0
 
 		if len(tier) > 0:
 			for t in tier:
@@ -3334,36 +3351,36 @@ async def upgrades(context, *args):
 			logger.info(f"Exception {type(e)} {e}")
 	await context.send(embed=embed)
 
-@show.command()
-async def maps(context, *args):
-	# list all maps
-	try:
-		logger.info("sending list of maps")
-		try:
-			page = int(args[3]) - 1
-		except ValueError:
-			page = 0
-		m = [f"{map_list[i]['name']}" for i in map_list]
-		m.sort()
-		items_per_page = 20
-		num_pages = ceil(len(map_list) / items_per_page)
-
-		m = [m[i:i + items_per_page] for i in range(0, len(map_list), items_per_page)]  # splitting into pages
-		embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages})")
-		m = m[page]  # select page
-		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-		for i in m:
-			embed.add_field(name="Map", value=''.join([v + '\n' for v in i]))
-	except Exception as e:
-		if type(e) == IndexError:
-			embed = None
-			error_message = f"Page {page + 1} does not exists"
-		elif type(e) == ValueError:
-			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
-			error_message = f"Value {args[3]} is not understood"
-		else:
-			logger.info(f"Exception {type(e)} {e}")
-	await context.send(embed=embed)
+# @show.command()
+# async def maps(context, *args):
+# 	# list all maps
+# 	try:
+# 		logger.info("sending list of maps")
+# 		try:
+# 			page = int(args[3]) - 1
+# 		except ValueError:
+# 			page = 0
+# 		m = [f"{map_list[i]['name']}" for i in map_list]
+# 		m.sort()
+# 		items_per_page = 20
+# 		num_pages = ceil(len(map_list) / items_per_page)
+#
+# 		m = [m[i:i + items_per_page] for i in range(0, len(map_list), items_per_page)]  # splitting into pages
+# 		embed = discord.Embed(title="Map List " + f"({page + 1}/{num_pages})")
+# 		m = m[page]  # select page
+# 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+# 		for i in m:
+# 			embed.add_field(name="Map", value=''.join([v + '\n' for v in i]))
+# 	except Exception as e:
+# 		if type(e) == IndexError:
+# 			embed = None
+# 			error_message = f"Page {page + 1} does not exists"
+# 		elif type(e) == ValueError:
+# 			logger.info(f"Upgrade listing argument <{args[3]}> is invalid.")
+# 			error_message = f"Value {args[3]} is not understood"
+# 		else:
+# 			logger.info(f"Exception {type(e)} {e}")
+# 	await context.send(embed=embed)
 
 @show.command()
 async def ships(context, *args):
@@ -3376,10 +3393,8 @@ async def ships(context, *args):
 	page = [i[6] for i in s if len(i[6]) > 0]
 	embed_title = "Search result for: "
 
-	try:
-		page = int(page[0]) - 1
-	except ValueError:
-		page = 0
+	# select page
+	page = int(page[0]) if len(page) > 0 else 0
 
 	if len(tier) > 0:
 		if tier in roman_numeral:
@@ -3398,7 +3413,7 @@ async def ships(context, *args):
 		except:
 			pass
 	m = []
-	logger.info(f"found {len(result)} items matching criteria {' '.join(key)}")
+	logger.info(f"found {len(result)} items matching criteria: {' '.join(key)}")
 	if len(result) > 0:
 		# return the list of ships with fitting criteria
 		for ship in result:
@@ -3417,14 +3432,6 @@ async def ships(context, *args):
 
 		num_items = len(m)
 		m.sort(key=lambda x: (x[0], x[2], x[-1]))
-		# m_mod = []
-		# for i, v in enumerate(m):
-		# 	if v[0] != m[i - 1][0]:
-		# 		m_mod += [[-1, '', '', '']]
-		# 	m_mod += [v]
-		# m = m_mod
-		#
-		# m = [f"**{tier_string:<6} {type_icon}** {name}" if tier != -1 else "-------------" for tier, tier_string, type_icon, name in m]
 		m = [f"**{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name in m]
 
 		items_per_page = 30

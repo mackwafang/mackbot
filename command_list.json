@@ -4,7 +4,7 @@
 	"build" : true,
 	"skill" : true,
 	"whoami" : true,
-	"list" : true,
+	"show" : true,
 	"upgrade" : true,
 	"commander" : true,
 	"feedback" : false,
