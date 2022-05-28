@@ -104,12 +104,12 @@
   },
   "mackbot aa rating": {
     "description": [
-      "mackbot's AA rating (mbAA or mAAr) is a AA rating value custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
+      "mackbot's AA rating (mbAA or mAAr) is a value to rate a warship's anti-air custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
       "mbAA is calculation is as follows:",
       "",
       "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (midDamage * midHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
       "",
-      "mbAA has the following ranges:",
+      "mbAA has the following ratings:",
       "**Non-Existence**: less than **1**",
       "**Very Weak**: between **1** and **20**",
       "**Weak**: between **20** and **40**",
@@ -129,7 +129,7 @@
   },
   "united states": {
     "description": [
-      "__**Play style:**__",
+      "__**Ship Characteristics:**__",
       "**Destroyers $dd**",
       "$green_plus Fast-firing main batteries",
       "$green_plus Long duration smoke",
@@ -137,6 +137,7 @@
       "",
       "**Cruisers $c**",
       "$green_plus Fast-firing and fast-turning guns",
+      "$green_plus CAs have enhanced AP shells",
       "$green_plus Long duration, short-range Surveillance Radars",
       "$red_dash High shell arcs",
       "",
@@ -148,7 +149,9 @@
       "**Aircraft Carriers $cv**",
       "$green_plus Devastating HE payloads",
       "$green_plus Higher than average plane HP",
-      "$red_dash Slow planes"
+      "$green_plus Strong deck armor",
+      "$red_dash Slow planes",
+      "$red_dash Weak side armor"
     ],
     "related_terms": [
       "US", "USN"
@@ -158,13 +161,13 @@
     ],
     "title": "The United States Navy"
   },
-
   "united kingdom": {
     "description": [
-      "__**Play style:**__",
+      "__**Ship Characteristics:**__",
       "**Destroyers $dd**",
       "$green_plus High concealment",
       "$green_plus Short-range, long duration hydroaccoustic",
+      "$green_plus Large quantity, quick recharge smokes",
       "$red_dash Short duration smokes",
       "$red_dash No engine boost",
       "",
@@ -182,14 +185,83 @@
       "**Aircraft Carriers $cv**",
       "$green_plus Relatively higher plane health pool vs. other nations",
       "$green_plus Bombers have carpet bombing",
-      "$red_dash Very slow planes"
+      "$green_plus Gradient deck armor (thicker at center)",
+      "$red_dash Very slow planes",
+      "$red_dash Relatively weak side armor"
     ],
     "related_terms": [
       "UK", "British", "Royal Navy"
     ],
     "related_commands": [
-      "show ships us"
+      "show ships uk"
     ],
     "title": "The Royal Navy"
+  },
+  "germany": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Mix of good guns and torpedoes",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Relatively shorter duration smoke",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Longer main battery range",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Relatively weaker armor",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Devastating secondary batteries",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Vulnerable to long range bombardment",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Very fast squadrons",
+      "$green_plus AP payloads",
+      "$green_plus Tough citadel armor",
+      "$red_dash Low plane survivability"
+    ],
+    "related_terms": [
+      "German", "Kriegsmarine", "KMS"
+    ],
+    "related_commands": [
+      "show ships germany"
+    ],
+    "title": "Kriegsmarine"
+  },
+  "japan": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Very stealthy",
+      "$green_plus Deadly, long-range torpedoes",
+      "$green_plus Rapid firing 100mm guns on alternative line",
+      "$red_dash Slow turning, long reload main battery on the main line",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Earliest access to 203mm guns",
+      "$green_plus Great HE shell characteristics",
+      "$red_dash Average AA",
+      "$red_dash Poor torpedo launch angles",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Yamato",
+      "$green_plus Larger caliber guns",
+      "$red_dash Average AA",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Fast planes",
+      "$green_plus Excellent torpedo-bombers",
+      "$green_plus AP bombs",
+      "$green_plus Excellent deck armor",
+      "$red_dash Poor side armor"
+    ],
+    "related_terms": [
+      "Japanese", "Imperial Japanese Navy", "IJN"
+    ],
+    "related_commands": [
+      "show ships japanese"
+    ],
+    "title": "Imperial Japanese Navy"
   }
 }
