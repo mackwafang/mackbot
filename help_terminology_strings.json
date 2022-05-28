@@ -1,0 +1,267 @@
+{
+  "battleships": {
+    "description": [
+      "Battleships (BB, $bb)",
+      "The largest ship class in the game, boasting high armor, large caliber main battery,",
+      " and secondary and AA guns.",
+      "",
+      "On the tech tree, battleships starts at tier 3 after researching a tier 3 cruiser of the same nation. All battleships have access to Repair Party, allowing to them to recover some damage taken over time. They also have access to Spotting Aircraft, extending their gun range by 20%. Depending on the nation, some are equipped with Hydroacoustic Search or Engine Boost",
+      "",
+      "$green_plus Large-caliber main battery guns",
+      "$green_plus High survivability",
+      "$red_dash Low maneuverability and concealment"
+    ],
+    "related_terms": [
+      "BB"
+    ],
+    "related_commands": [
+      "show ships battleships"
+    ],
+    "title": "Battleships"
+  },
+  "destroyers": {
+    "description": [
+      "Destroyers (DD, $dd)",
+      "Versatile and small, destroyers can destroy targets many times their weight with rapid-firing guns or torpedoes.",
+      "",
+      "On the tech tree, destroyers starts at tier 2 after researching a tier 2 cruiser of the same nation.",
+      "Most destroyers have access to Smoke Generator, allowing them to break contact from the enemy or provide concealment for allies. Most nations have access to Engine Boost.",
+      "",
+      "$green_plus Stealthy",
+      "$green_plus Equipped with torpedoes",
+      "$red_dash Often harassed by aircraft and radar-equipped cruisers"
+    ],
+    "related_terms": [
+      "DD"
+    ],
+    "related_commands": [
+      "show ships destroyers"
+    ],
+    "title": "Destroyers"
+  },
+  "cruisers": {
+    "description": [
+      "Cruisers (C, $c)",
+      "The most versatile ship type, capable of doing almost any naval tasks.",
+      "",
+      "On the tech tree, cruisers starts at tier 1 and it is the starting ship for most nations.",
+      "They are equipped with various consumables, their range of consumables depending on their nation and type.",
+      "Cruisers are split into several different categories; light, heavy, and super.",
+      "",
+      "- Light cruisers are equipped with guns of less than 155mm in diameter.",
+      "- Heavy cruisers are equipped with guns of about 203mm in diameter.",
+      "- Supercruisers are equipped with guns larger than 203 mm in diameter.",
+      "",
+      "$green_plus Versatility",
+      "$green_plus Adaptability",
+      "$red_dash May lack in survivability"
+
+    ],
+    "related_terms": [
+      "CA", "CL", "C", "Heavy cruisers", "Light Cruisers"
+    ],
+    "related_commands": [
+      "show ships cruisers"
+    ],
+    "title": "Cruisers"
+  },
+  "aircraft carriers": {
+    "description": [
+      "Aircraft Carriers (CV, $cv)",
+      "The floating airfield, capable of precision airstrikes anywhere.",
+      "",
+      "On the tech tree, aircraft carriers starts at tier 4 after researching a tier 4 battleship of the same nation. Aircraft carriers are available on even tiers and on the United States, British, Russian, German, and Japanese tech trees. Tech tree aircraft compose of three flight groups consisting of: attack aircraft, torpedo bombers, dive bombers, or skip bombers.",
+      "",
+      "$green_plus Precision airstrikes",
+      "$green_plus Spotting",
+      "$red_dash Poor armor and concealment"
+    ],
+    "related_terms": [
+      "CV", "sky cancer"
+    ],
+    "related_commands": [
+      "show ships cv"
+    ],
+    "title": "Aircraft Carriers"
+  },
+  "anti-air": {
+    "description": [
+      "The main armaments against aircraft.",
+      "",
+      "In WoWS, every anti-air armament will deal damage, and is split into different auras with different ranges: close, mid, and long. Anti-air armaments comes in two categories: flak and continuous.",
+      "**Continuous AA** continuously deals damage to any squadrons within range every second. Continuous accuracy lowers the damage stated on the AA parameter.",
+      "**Flak** will fire an explosive anti-air round ahead of the squadron's position about every 2 seconds. Flak's accuracy determines how often should the explosion appear in front of the squadron."
+    ],
+    "related_terms": [
+      "aa"
+    ],
+    "related_commands": [
+      "ship <ship_name> (aa)",
+      "compare",
+      "upgrade"
+    ],
+    "title": "Anti-Air"
+  },
+  "mackbot aa rating": {
+    "description": [
+      "mackbot's AA rating (mbAA or mAAr) is a value to rate a warship's anti-air custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
+      "mbAA is calculation is as follows:",
+      "",
+      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (midDamage * midHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
+      "",
+      "mbAA has the following ratings:",
+      "**Non-Existence**: less than **1**",
+      "**Very Weak**: between **1** and **20**",
+      "**Weak**: between **20** and **40**",
+      "**Moderate**: between **40** and **50**",
+      "**High**: between **50** and **70**",
+      "**Dangerous**: between **70** and **90**",
+      "**Very Dangerous**: higher than **90**"
+    ],
+    "related_terms": [
+      "mbAA", "mAAr"
+    ],
+    "related_commands": [
+      "ship <ship_name> (aa)",
+      "compare"
+    ],
+    "title": "Mackbot's AA Rating"
+  },
+  "united states": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Fast-firing main batteries",
+      "$green_plus Long duration smoke",
+      "$red_dash High shell arcs",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Fast-firing and fast-turning guns",
+      "$green_plus CAs have enhanced AP shells",
+      "$green_plus Long duration, short-range Surveillance Radars",
+      "$red_dash High shell arcs",
+      "",
+      "**Battleships $bb**",
+      "$green_plus High shell volume",
+      "$green_plus High AA",
+      "$red_dash Relatively low mobility",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Devastating HE payloads",
+      "$green_plus Higher than average plane HP",
+      "$green_plus Strong deck armor",
+      "$red_dash Slow planes",
+      "$red_dash Weak side armor"
+    ],
+    "related_terms": [
+      "US", "USN"
+    ],
+    "related_commands": [
+      "show ships us"
+    ],
+    "title": "The United States Navy"
+  },
+  "united kingdom": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus High concealment",
+      "$green_plus Short-range, long duration hydroaccoustic",
+      "$green_plus Large quantity, quick recharge smokes",
+      "$red_dash Short duration smokes",
+      "$red_dash No engine boost",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Equipped with enhanced Repair Party (2%/s vs. 0.5%/s on most cruisers)",
+      "$green_plus CLs have short-fused AP shells, smoke or radar, and devastating AA",
+      "$green_plus CAs have effective HE",
+      "$red_dash Relatively poor armor",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Devastating, high fire starting chance HE shells",
+      "$green_plus Equipped with enhanced Repair Party (2%/s vs. 0.5%/s on most battleships)",
+      "$red_dash Lower health pool vs. other battleships",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Relatively higher plane health pool vs. other nations",
+      "$green_plus Bombers have carpet bombing",
+      "$green_plus Gradient deck armor (thicker at center)",
+      "$red_dash Very slow planes",
+      "$red_dash Relatively weak side armor"
+    ],
+    "related_terms": [
+      "UK", "British", "Royal Navy"
+    ],
+    "related_commands": [
+      "show ships uk"
+    ],
+    "title": "The Royal Navy"
+  },
+  "germany": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Mix of good guns and torpedoes",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Relatively shorter duration smoke",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Longer main battery range",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Relatively weaker armor",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Devastating secondary batteries",
+      "$green_plus Equipped with long range Hydroaccoustic Search",
+      "$red_dash Vulnerable to long range bombardment",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Very fast squadrons",
+      "$green_plus AP payloads",
+      "$green_plus Tough citadel armor",
+      "$red_dash Low plane survivability"
+    ],
+    "related_terms": [
+      "German", "Kriegsmarine", "KMS"
+    ],
+    "related_commands": [
+      "show ships germany"
+    ],
+    "title": "Kriegsmarine"
+  },
+  "japan": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Very stealthy",
+      "$green_plus Deadly, long-range torpedoes",
+      "$green_plus Rapid firing 100mm guns on alternative line",
+      "$red_dash Slow turning, long reload main battery on the main line",
+      "",
+      "**Cruisers $c**",
+      "$green_plus Earliest access to 203mm guns",
+      "$green_plus Great HE shell characteristics",
+      "$red_dash Average AA",
+      "$red_dash Poor torpedo launch angles",
+      "",
+      "**Battleships $bb**",
+      "$green_plus Yamato",
+      "$green_plus Larger caliber guns",
+      "$red_dash Average AA",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus Fast planes",
+      "$green_plus Excellent torpedo-bombers",
+      "$green_plus AP bombs",
+      "$green_plus Excellent deck armor",
+      "$red_dash Poor side armor"
+    ],
+    "related_terms": [
+      "Japanese", "Imperial Japanese Navy", "IJN"
+    ],
+    "related_commands": [
+      "show ships japanese"
+    ],
+    "title": "Imperial Japanese Navy"
+  }
+}

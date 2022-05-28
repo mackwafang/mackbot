@@ -1,23 +1,22 @@
 {
 	"build": {
-		"help": "",
 		"brief": "Get a basic build",
-		"usage": " [-i/--image] ship_name",
+		"usage": " [options] ship_name",
 		"description": [
 			"Display a basic warships build",
-			"mackbot may prompt you for a secondary response if it founds multiple builds.",
-			"",
-			"[-i/--image] - Optional: Provide an image version of the requested item instead."
-		]
+			"mackbot may prompt you for a secondary response if it founds multiple builds."
+		],
+		"options": {
+			"-i, --image": "Provide an image version of the requested item instead."
+		}
 	},
 	"ship": {
-		"help": "",
 		"brief": "Get detailed information about a ship",
-		"usage": " [--compact/-c] ship_name ([parameters])",
+		"usage": "[options] ship_name (parameters)",
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
-			"For more detailed information of a specific paramater, enclose the parameter names in a pair of paranthesis after the ship name.",
+			"For more detailed information of a specific parameter, enclose the parameter names in a pair of parenthesis after the ship name.",
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
 			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
@@ -26,25 +25,18 @@
 			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
-		]
+		],
+		"options": {
+			"-c, --compact": "Provide a compact version of the requested item instead.",
+			"parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers). Parameters must be enclosed in a pair of parenthesis."
+		}
 	},
 	"compare": {
-		"help": "",
 		"brief": "Compare combat parameter of two warships",
 		"usage": " ship1 [&/and] ship2",
 		"description": [
 			"Compares a combat parameter of two ships.",
 			"mackbot will prompt for a specific parameter",
-			"Comparable parameters include:",
-			"\tMain Battery",
-			"\tSecondary Battery",
-			"\tTorpedo",
-			"\tConcealment",
-			"\tAnti-Air",
-			"\tAttack Aircraft",
-			"\tTorpedo Bombers",
-			"\tBombers",
-			"\tSkip Bombers",
 			"",
 			"Example:",
 			"\tmackbot compare yamato and montana (returns the comparison between Yamato and Montana)",
@@ -52,7 +44,6 @@
 		]
 	},
 	"skill": {
-		"help": "",
 		"brief": "Get information about a commander skill",
 		"usage": "ship_type skill_name",
 		"description": [
@@ -64,21 +55,19 @@
 		]
 	},
 	"show": {
-		"help": "",
-		"brief": "show all items of a specifed category",
-		"usage": "[category] [arguments]",
+		"brief": "show all items of a specified category",
+		"usage": "category arguments",
 		"description": [
-			"show all items of a specifed category.",
+			"show all items of a specified category.",
+			"",
 			"showings may returns in multiple pages. Add \"page x\" to access other pages."
 		]
 	},
 	"show skills": {
-		"help": "",
 		"brief": "show all commander skills",
 		"usage": "[filters]",
 		"description": [
 			"show all commander skills.",
-			"[filter] - Optional: may include tier or ship types.",
 			"",
 			"Example:",
 			"\tmackbot show skills tier 1 (shows all commander skills that cost 1 point)",
@@ -86,25 +75,21 @@
 		]
 	},
 	"show upgrades": {
-		"help": "",
 		"brief": "show all ship upgrades",
-		"usage": "[filter]",
+		"usage": "[filters]",
 		"description": [
 			"show all ship upgrades.",
-			"[filter] - Optional: may include tier that upgrades appear in or ship types.",
 			"",
 			"Example:",
 			"\tmackbot show upgrades tier 4 (show all upgrades that is available at tier 4"
 		]
 	},
 	"show maps": {
-		"help": "",
 		"brief": "show all maps",
 		"usage": "[page]",
 		"description": ["show all maps"]
 	},
 	"show ships": {
-		"help": "",
 		"brief": "show all ships",
 		"usage": "[filters]",
 		"description": [
@@ -113,12 +98,11 @@
 		]
 	},
 	"upgrade": {
-		"help": "",
 		"brief": "Get detail of a ship's upgrade",
-		"usage": "upgrade_name/upgrade_abbreviation/ship_name",
+		"usage": "name",
 		"description": [
 			"Get detail of a warship's upgrade.",
-			"This command can take either the full name of an upgrade, or a ship's name if it have a legendary upgrade.",
+			"This command can take either the full name or an abbreviation of an upgrade, or a ship's name, if it have a legendary upgrade.",
 			"",
 			"Example:",
 			"\tmackbot upgrade csm1 (Get detailed information about Concealment System Modification 1)",
@@ -126,7 +110,6 @@
 		]
 	},
 	"commander": {
-		"help": "",
 		"brief": "Get detail of a unique commander",
 		"usage": "commander_name",
 		"description": [
@@ -134,7 +117,6 @@
 		]
 	},
 	"map": {
-		"help": "",
 		"brief": "Show image of a map",
 		"usage": "map_name",
 		"description": [
@@ -142,28 +124,29 @@
 		]
 	},
 	"doubloons": {
-		"help": "",
 		"brief": "Display the doubloons to dollar conversion",
-		"usage": "doubloons or mackbot doubloons [dollar] [$/dollars]",
+		"usage": "[options]",
 		"description": [
 			"Get the money conversion value of doubloons to USD or vice versa.",
 			"",
 			"Example:",
 			"\tmackbot doubloons 1000 (Get the amount of USD for 1000 doubloons)",
 			"\tmackbot doubloons 10 $ (Get the amount of doubloons for 10 USD)"
-		]
+		],
+		"options": {
+			"<doubloons>": "The number of doubloons in USD to request conversion.",
+			"<dollar> $, dollars": "The number of dollars to request conversion."
+		}
 	},
 	"code": {
-		"help": "",
 		"brief": "Generate a WoWS bonus code link",
-		"usage": "wows_code ...",
+		"usage": "wows_code...",
 		"description": [
 			"Generate a WoWS bonus code link.",
 			"For multiple links, separate the codes with spaces."
 		]
 	},
 	"hottake": {
-		"help": "",
 		"brief": "Give a WoWS hot take",
 		"usage": "",
 		"description": [
@@ -171,22 +154,22 @@
 		]
 	},
 	"player": {
-		"help": "",
 		"brief": "Provide general information about a player",
-		"usage": "player_name [battle_type] [--ship ship_name] [--ships tier]",
+		"usage": "player_name [options]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
-			"[battle_type] - Optional: Acceptable values: solo, div2, div3",
-			"[ship] - Optional: Display a ship stat",
-			"[ships] - Optional: Display stats by tier",
 			"",
 			"Usage example:",
-			"\tmackbot player your_username_here (Get information about your account)",
-			"\tmackbot player your_username_here div2 (Get information about your 2-man division)"
-		]
+			"\tmackbot player username (Get information about your account)",
+			"\tmackbot player username div2 (Get information about your 2-man division)"
+		],
+		"options": {
+			"battle_type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
+			"--ship <ship_name>": "Display which ship to display.",
+			"--ships <tier>": "Display the top 10 ships that this player owns in descending battle count."
+		}
 	},
 	"clan": {
-		"help": "",
 		"brief": "Provide general information about a WoWS clan",
 		"usage": "clan_name/clan_tag",
 		"description": [
@@ -194,13 +177,11 @@
 		]
 	},
 	"invite": {
-		"help": "",
 		"brief": "Invite mackbot to your server(s)",
 		"usage": "",
 		"description": ["Invite mackbot to your server(s)"]
 	},
 	"web": {
-		"help": "",
 		"brief": "Get the URL to mackbot's web application page",
 		"usage": "",
 		"description": ["Get the URL to mackbot's web application page"]
