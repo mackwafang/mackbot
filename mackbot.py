@@ -3261,7 +3261,6 @@ async def skills(context, *args):
 	m = [
 		f"**({hull_classification_converter[filtered_skill_list[s]['tree']]} T{filtered_skill_list[s]['y'] + 1})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list
 	]
-
 	# splitting list into pages
 	num_items = len(m)
 	m.sort()
@@ -3269,7 +3268,8 @@ async def skills(context, *args):
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), min(1, num_pages)))
+	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
+	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
 	# spliting selected page into columns
 	m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
@@ -4120,38 +4120,48 @@ async def invite(context):
 async def help(context, *help_key):
 	help_key = ' '.join(help_key).lower()
 	logger.info(f"can i haz halp for {help_key}")
-	if help_key in help_dictionary_index:
-		# look for help content and tries to find its index
-		help_content = help_dictionary[help_dictionary_index[help_key]]
-		if help_key.split()[0] in command_list:
-			embed = discord.Embed(title=f"The {help_key} command")
+	if len(help_key):
+		if help_key in help_dictionary_index:
+			# look for help content and tries to find its index
+			help_content = help_dictionary[help_dictionary_index[help_key]]
+			if help_key.split()[0] in command_list:
+				embed = discord.Embed(title=f"The {help_key} command")
 
-			embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
-			embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
-			if "options" in help_content:
-				embed.add_field(name="Options", value='\n'.join(f"**{k}**: {v}" for k, v in help_content['options'].items()), inline=False)
+				embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
+				embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
+				if "options" in help_content:
+					embed.add_field(name="Options", value='\n'.join(f"**{k}**: {v}" for k, v in help_content['options'].items()), inline=False)
 
-			await context.send(embed=embed)
+				await context.send(embed=embed)
+			else:
+				# a help on terminology
+				embed = discord.Embed(title=help_content['title'])
+				pat = re.compile('\$(' + '|'.join(icons_emoji.keys()) + ')')
+
+				description_string = '\n'.join(help_content['description'])
+				description_string = pat.sub(lambda x: icons_emoji[x.group(0)[1:]], description_string)
+
+				# split "paragraphs" that are split by 2 newlines into fields
+				for p, content in enumerate(description_string.split("\n\n")):
+					embed.add_field(name="Description" if p == 0 else EMPTY_LENGTH_CHAR, value=content, inline=False)
+
+				if help_content['related_commands']:
+					embed.add_field(name="Related mackbot Commands", value='\n'.join(f"{command_prefix} {i}" for i in help_content['related_commands']), inline=False)
+				if help_content['related_terms']:
+					embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
+
+				await context.send(embed=embed)
 		else:
-			# a help on terminology
-			embed = discord.Embed(title=help_content['title'])
-			pat = re.compile('\$(' + '|'.join(icons_emoji.keys()) + ')')
-
-			description_string = '\n'.join(help_content['description'])
-			description_string = pat.sub(lambda x: icons_emoji[x.group(0)[1:]], description_string)
-
-			# split "paragraphs" that are split by 2 newlines into fields
-			for p, content in enumerate(description_string.split("\n\n")):
-				embed.add_field(name="Description" if p == 0 else EMPTY_LENGTH_CHAR, value=content, inline=False)
-
-			if help_content['related_commands']:
-				embed.add_field(name="Related mackbot Commands", value='\n'.join(f"{command_prefix} {i}" for i in help_content['related_commands']), inline=False)
-			if help_content['related_terms']:
-				embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
-
-			await context.send(embed=embed)
+			await context.send(f"The term {help_key} is not understood.")
 	else:
-		await context.send(f"The term {help_key} is not understood.")
+
+		help_content = help_dictionary[help_dictionary_index["help"]]
+		embed = discord.Embed(title=f"The help command")
+
+		embed.add_field(name="Usage", value=f"{command_prefix} help {help_content['usage']}", inline=False)
+		embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
+		embed.add_field(name="Commands", value='\n'.join(f"**{k}**: {v['brief']}" for k, v in sorted(help_dictionary.items()) if k in command_list), inline=False)
+		await context.send(embed=embed)
 
 
 if __name__ == '__main__':
