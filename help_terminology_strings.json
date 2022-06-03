@@ -107,7 +107,7 @@
       "mackbot's AA rating (mbAA or mAAr) is a value to rate a warship's anti-air custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
       "mbAA is calculation is as follows:",
       "",
-      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (midDamage * midHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
+      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (longDamage * longHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
       "",
       "mbAA has the following ratings:",
       "**Non-Existence**: less than **1**",
@@ -263,5 +263,70 @@
       "show ships japanese"
     ],
     "title": "Imperial Japanese Navy"
+  },
+  "russian": {
+    "description": [
+      "__**Ship Characteristics:**__",
+      "**Destroyers $dd**",
+      "$green_plus Fast reload main battery",
+      "$green_plus Flatter shell arcs",
+      "$green_plus Excel in mid-long combat",
+      "$red_dash Mediocre torpedoes",
+      "",
+      "**Cruisers $c**",
+      "$green_plus",
+      "$green_plus",
+      "$red_dash",
+      "",
+      "**Battleships $bb**",
+      "$green_plus",
+      "$green_plus",
+      "$red_dash",
+      "",
+      "**Aircraft Carriers $cv**",
+      "$green_plus",
+      "$green_plus",
+      "$red_dash"
+    ],
+    "related_terms": [
+      "USSR", "Russian", "Soviet Navy"
+    ],
+    "related_commands": [
+      "show ships japanese"
+    ],
+    "title": "The Imperial Russian Navy"
+  },
+  "fire": {
+    "description": [
+      "A damage-over-time effect causes by high-explosive (HE) armaments. There can be up to **4** areas that can be set ablaze; fore, aft, fore-end mid-ship, and aft-end mid-ship. With the battleship's skill **Fire Prevention Expert**, the maximum number of fires is lowered to **3** (fore, aft, and midship)",
+      "",
+      "Each fire instance deals **0.3% of max HP per second** (**1% of max HP per second** for CVs). The duration of fires depend on the ship type:",
+      "Destroyers: 30 seconds",
+      "Cruisers: 30 seconds",
+      "Battleships: 60 seconds",
+      "Aircraft carriers: 5 seconds",
+      "Graf Spee and Supercruisers: 45 seconds",
+      "",
+      "Each ship type has a fire resistance value, lowering the chance of catching fire:",
+      "Non-carriers: up to 50% at tier X",
+      "Aircraft carriers: 20%"
+    ],
+    "related_terms": [
+    ],
+    "related_commands": [
+    ],
+    "title": "Fire"
+  },
+  "Flood": {
+    "description": [
+      "A damage-over-time effect causes by torpedoes or ramming. There can be up to **2** area that can be flooded at the same time: fore and aft",
+      "",
+      "Each flood instance deals **0.25% of max HP per second** for aircraft carriers, destroyers, and cruisers. Battleships and supercruisers takes **0.5% of max HP per second**. Graf Spee takes **0.375% of max HP per second**. Flood lasts 30 seconds on carriers and 40 seconds on other classes."
+    ],
+    "related_terms": [
+    ],
+    "related_commands": [
+    ],
+    "title": "Floods"
   }
 }

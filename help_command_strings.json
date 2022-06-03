@@ -58,9 +58,14 @@
 		"brief": "show all items of a specified category",
 		"usage": "category arguments",
 		"description": [
-			"show all items of a specified category.",
+			"Show all items of a specified category.",
 			"",
-			"showings may returns in multiple pages. Add \"page x\" to access other pages."
+			"Showings may returns in multiple pages. Add \"page x\" to access other pages.",
+			"",
+			"Categories:",
+			"**skills**",
+			"**ships**",
+			"**upgrades**"
 		]
 	},
 	"show skills": {
@@ -83,11 +88,6 @@
 			"Example:",
 			"\tmackbot show upgrades tier 4 (show all upgrades that is available at tier 4"
 		]
-	},
-	"show maps": {
-		"brief": "show all maps",
-		"usage": "[page]",
-		"description": ["show all maps"]
 	},
 	"show ships": {
 		"brief": "show all ships",
@@ -185,5 +185,10 @@
 		"brief": "Get the URL to mackbot's web application page",
 		"usage": "",
 		"description": ["Get the URL to mackbot's web application page"]
+	},
+	"help": {
+		"brief": "Get help on a command or a terminology",
+		"usage": "command/terminology",
+		"description": ["Get help on a command or a terminology"]
 	}
 }
