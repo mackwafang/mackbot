@@ -274,19 +274,20 @@
       "$red_dash Mediocre torpedoes",
       "",
       "**Cruisers $c**",
-      "$green_plus",
-      "$green_plus",
-      "$red_dash",
+      "$green_plus Fast shell velocity, low arcs",
+      "$green_plus Long-range, short duration Surveillance Radar",
+      "$red_dash ",
       "",
       "**Battleships $bb**",
-      "$green_plus",
-      "$green_plus",
-      "$red_dash",
+      "$green_plus ",
+      "$green_plus Quick recharge Damage Control Party",
+      "$red_dash Damage Control Party has limited charges",
       "",
       "**Aircraft Carriers $cv**",
-      "$green_plus",
-      "$green_plus",
-      "$red_dash"
+      "$green_plus Squads have large, devastating payload",
+      "$green_plus Skip-bombers",
+      "$red_dash Only 1 attack run per squadron",
+      "$red_dash Poor armor and concealment"
     ],
     "related_terms": [
       "USSR", "Russian", "Soviet Navy"
@@ -317,7 +318,7 @@
     ],
     "title": "Fire"
   },
-  "Flood": {
+  "flood": {
     "description": [
       "A damage-over-time effect causes by torpedoes or ramming. There can be up to **2** area that can be flooded at the same time: fore and aft",
       "",
@@ -328,5 +329,18 @@
     "related_commands": [
     ],
     "title": "Floods"
+  },
+  "attack aircraft": {
+    "description": [
+      "Attack aircraft are aircraft that carry rockets, either **high-explosive (HE)** or **armor-piercing (AP)**. Most rocket payloads are usually high in rocket count, with low damage and penetration.",
+      "At the beginning of an attack"
+    ],
+    "related_terms": [
+      "Rocket planes"
+    ],
+    "related_commands": [
+      "ship <ship_name> (rockets)"
+    ],
+    "title": "Attack Aircraft"
   }
 }

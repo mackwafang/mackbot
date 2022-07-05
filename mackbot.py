@@ -3267,7 +3267,7 @@ async def skills(context, *args):
 	items_per_page = 24
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
-
+	
 	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
 	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
@@ -3658,7 +3658,7 @@ async def player(context, *args):
 					m += f"**Last battle**: {player_last_battle_string} "
 					if player_last_battle_days > 0:
 						if player_last_battle_months > 0:
-							m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
+							m += f"({player_last_battle_months} month{'s' if player_last_battle_months > 1 else ''} {player_last_battle_days // 30} day{'s' if player_last_battle_days // 30 > 1 else ''} ago)\n"
 						else:
 							m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 					else:
