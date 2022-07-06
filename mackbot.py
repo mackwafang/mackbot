@@ -169,6 +169,16 @@ roman_numeral = {
 	':star:': 11,
 }
 
+# barrel count names
+barrel_count_names = {
+	1: "Single",
+	2: "Double",
+	3: "Triple",
+	4: "Quadurple",
+	5: "Quintuple",
+	6: "Sextuple"
+}
+
 # actual stuff
 logger.info("Fetching WoWS Encyclopedia")
 # load important stuff
@@ -1891,6 +1901,12 @@ def load_data():
 
 	compile_help_strings()
 
+def to_plural(str, count):
+	if str[-1].lower() == 'y':
+		return f"{count} {str[-1] + 'ies'}"
+	else:
+		return f"{count} {str + 's'}"
+
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
 
@@ -2335,7 +2351,7 @@ async def ship(context, *args):
 							turret_data = module_list[str(h)]['profile']['artillery']['turrets']
 							for turret_name in turret_data:
 								turret = turret_data[turret_name]
-								m += f"**{turret['count']} x {turret_name} ({turret['numBarrels']} barrel{'s' if turret['numBarrels'] > 1 else ''}):**\n"
+								m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])}):**\n"
 							m += f"**Rotation Speed: ** {guns['transverse_speed']}\xb0/s\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 								m = m[:-1]
@@ -2354,7 +2370,7 @@ async def ship(context, *args):
 									m += '-------------------\n'
 
 							if guns['max_damage_sap']:
-								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm\n"
+								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm)\n"
 								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 									m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 									m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
@@ -2430,7 +2446,7 @@ async def ship(context, *args):
 								medium = aa['medium']
 								far = aa['far']
 								if flak['damage'] > 0:
-									m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {flak['count']} burst{'s' if flak['count'] > 0 else ''}, {flak['damage']}:boom:\n"
+									m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', flak['count'])}, {flak['damage']}:boom:\n"
 								if near['damage'] > 0:
 									m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 								if medium['damage'] > 0:
@@ -2461,7 +2477,7 @@ async def ship(context, *args):
 							torps = module_list[str(h)]['profile']['torpedoes']
 							projectile_name = module_list[str(h)]['name'].replace(chr(10), ' ')
 							turret_name = list(torps['turrets'].keys())[0]
-							m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {torps['numBarrels']} tube{'s' if torps['numBarrels'] > 1 else ''})"
+							m += f"**{torps['turrets'][turret_name]['count']} {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
 							if torps['is_deep_water']:
 								m += " [DW]"
 							m += '**\n'
@@ -3692,7 +3708,7 @@ async def player(context, *args):
 					m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
 					m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
 					m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
-					m += f"**Highest kill**: {player_stat_max_kills} kill{'s' if player_stat_max_kills > 0 else ''} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
+					m += f"**Highest kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
 					m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
 					embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
