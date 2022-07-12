@@ -174,7 +174,7 @@ barrel_count_names = {
 	1: "Single",
 	2: "Double",
 	3: "Triple",
-	4: "Quadurple",
+	4: "Quadruple",
 	5: "Quintuple",
 	6: "Sextuple"
 }
@@ -206,9 +206,23 @@ DiscordComponents(mackbot)
 # define database stuff
 database_client = None
 try:
+	logger.info("MongoDB connection successful.")
 	database_client = MongoClient(mongodb_host)
 except ConnectionError:
-	logger.warning("MongoDB cannot be connected.")
+	logger.warning("MongoDB cannot be connected. Loading data from local")
+	import mackbot_data_prep as data_loader
+	data_loader.load()
+
+	game_data = data_loader.game_data.copy()
+	ship_list = data_loader.ship_list.copy()
+	skill_list = data_loader.skill_list.copy()
+	module_list = data_loader.module_list.copy()
+	upgrade_list = data_loader.upgrade_list.copy()
+	camo_list = data_loader.camo_list.copy()
+	cmdr_list = data_loader.cmdr_list.copy()
+	flag_list = data_loader.flag_list.copy()
+	upgrade_abbr_list = data_loader.upgrade_abbr_list.copy()
+
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -479,7 +493,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 					if type(e) is NoUpgradeFound:
 						logger.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
 					else:
-						logger.error("Other Exception found")
+						logger.error(f"Exception {type(e)} found: {e}")
 					pass
 			upgrades = tuple(upgrades)
 
@@ -497,7 +511,7 @@ def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
 					if type(e) is NoSkillFound:
 						logger.warning(f"Skill {s} in build for ship {ship['name']} is not found")
 					else:
-						logger.error("Other Exception found")
+						logger.error(f"Exception {type(e)} found: {e}")
 					pass
 			if skill_pts > 21:
 				logger.warning(f"Build for ship {ship['name']} exceeds 21 points!")
@@ -787,15 +801,28 @@ def get_ship_data(ship: str) -> dict:
 		ship_found = False
 		if ship.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable ?
 			ship = ship_name_to_ascii[ship.lower()]  # convert to the appropriate name
-		for i in ship_list:
-			ship_name_in_dict = ship_list[i]['name']
-			if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
-				ship_found = True
-				break
-		if ship_found:
-			return ship_list[i]
+
+		if database_client is not None:
+			# connection to db
+			query_result = database_client.mackbot_db.ship_list.find_one({
+				"name": {"$regex": f"^{ship.lower()}$", "$options": "i"}
+			})
+			if query_result is None:
+				# query returns no result
+				raise NoShipFound
+			else:
+				return query_result
 		else:
-			raise NoShipFound
+			# cannot connect to db
+			for i in ship_list:
+				ship_name_in_dict = ship_list[i]['name']
+				if ship.lower() == ship_name_in_dict.lower():  # find ship based on name
+					ship_found = True
+					break
+			if ship_found:
+				return ship_list[i]
+			else:
+				raise NoShipFound
 	except Exception as e:
 		raise e
 
@@ -900,16 +927,28 @@ def get_skill_data(tree: str, skill: str) -> dict:
 						tree = h.lower()
 						break
 
-			# looking for skill based on full name
-			filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
-			for f_s in filtered_skill_list:
-				for lookup_type in ['name', 'abbr']:
-					if filtered_skill_list[f_s]['name'].lower() == skill:
-						s = filtered_skill_list[f_s].copy()
-						if s['tree'] == 'AirCarrier':
-							s['tree'] = "Aircraft Carrier"
-						return s #s['name'], s['tree'], s['description'], s['effect'], s['x'] + 1, s['y'] + 1, s['category']
-			raise NoSkillFound
+			if database_client is not None:
+				# connection to db
+				query_result = database_client.mackbot_db.skill_list.find_one({
+					"name": {"$regex": f"^{skill.lower()}$", "$options": "i"},
+					"tree": {"$regex": f"^{tree.lower()}$", "$options": "i"}
+				})
+				if query_result is None:
+					# query returns no result
+					raise NoSkillFound
+				else:
+					return query_result
+			else:
+				# looking for skill based on full name
+				filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
+				for f_s in filtered_skill_list:
+					for lookup_type in ['name', 'abbr']:
+						if filtered_skill_list[f_s]['name'].lower() == skill:
+							s = filtered_skill_list[f_s].copy()
+							if s['tree'] == 'AirCarrier':
+								s['tree'] = "Aircraft Carrier"
+							return s
+				raise NoSkillFound
 
 	except Exception as e:
 		if skill == "*":
@@ -960,19 +999,41 @@ def get_upgrade_data(upgrade: str) -> dict:
 	upgrade = upgrade.lower()
 	try:
 		upgrade_found = False
-		# assuming input is full upgrade name
-		for i in upgrade_list:
-			if upgrade.lower() == upgrade_list[i]['name'].lower():
-				upgrade_found = True
-				break
-		# parsed item is probably an abbreviation, checking abbreviation
-		if not upgrade_found:
-			upgrade = upgrade_abbr_list[upgrade]
+
+		if database_client is not None:
+			# connection to db
+			query_result = database_client.mackbot_db.upgrade_list.find_one({
+				"name": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
+			})
+			if query_result is None:
+				# query returns no result
+				# maybe an abbreviation?
+				abbr_query_result = database_client.mackbot_db.upgrade_abbr_list.find_one({
+					"abbr": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
+				})
+				if abbr_query_result is not None:
+					# it is an abbreviation, grab it
+					query_result = database_client.mackbot_db.upgrade_list.find_one({
+						"name": {"$regex": f"^{abbr_query_result['upgrade']}$", "$options": "i"}
+					})
+				else:
+					# not an abbreviation, user error
+					raise NoUpgradeFound
+			return query_result
+		else:
+			# assuming input is full upgrade name
 			for i in upgrade_list:
 				if upgrade.lower() == upgrade_list[i]['name'].lower():
 					upgrade_found = True
 					break
-		return upgrade_list[i]
+			# parsed item is probably an abbreviation, checking abbreviation
+			if not upgrade_found:
+				upgrade = upgrade_abbr_list[upgrade]
+				for i in upgrade_list:
+					if upgrade.lower() == upgrade_list[i]['name'].lower():
+						upgrade_found = True
+						break
+			return upgrade_list[i]
 	except Exception as e:
 		if upgrade == '*':
 			return {
@@ -1027,49 +1088,6 @@ def get_commander_data(cmdr: str) -> tuple:
 				return name, icons, nation, i
 	except Exception as e:
 		logger.error(f"Exception {type(e)} {e}")
-		raise e
-
-def get_flag_data(flag: str) -> tuple:
-	"""
-		returns information of a requested warship upgrade
-
-		Arguments:
-		-------
-			- cmdr : (string)
-				Commander's full name
-
-		Returns:
-		-------
-		tuple:
-			profile			- (dict) flag's bonuses
-			name			- (str) flag name
-			price_gold		- (int) flag's price in doubloons
-			image			- (str) image url on WG's server
-			price_credit	- (int) flag's price in credits
-			description		- (str) flag's summary
-
-		raise exceptions for dictionary
-	"""
-
-	flag = flag.lower()
-	try:
-		flag_found = False
-		# assuming input is full flag name
-		for i in flag_list:
-			if flag == flag_list[i]['name'].lower():
-				flag_found = True
-				break
-		# parsed item is probably an abbreviation, checking abbreviation
-		if not flag_found:
-			for i in flag_list:
-				if flag.lower() == flag_list[i]['name'].lower():
-					flag_found = True
-					break
-		profile, name, price_gold, image, _, price_credit, _, description = flag_list[i].values()
-		return profile, name, price_gold, image, price_credit, description
-
-	except Exception as e:
-		logger.info(f"Exception {type(e)}: ", e)
 		raise e
 
 def get_map_data(map: str) -> tuple:
@@ -1538,7 +1556,15 @@ async def ship(context, *args):
 					# General hull info
 					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 						m = ""
-						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+						query_result = []
+						if database_client is not None:
+							query_result = database_client.find({
+								"module_id": modules['hull']
+							})
+						else:
+							query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+
+						for h in query_result:
 							hull = module_list[str(h)]['profile']['hull']
 							m += f"**{module_list[str(h)]['name']}:** **{hull['health']} HP**\n"
 							if hull['artillery_barrels'] > 0:
