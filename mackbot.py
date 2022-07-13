@@ -1,6 +1,7 @@
 import discord_components
 import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
+import mackbot_data_prep as data_loader
 
 from typing import Union
 from logging.handlers import RotatingFileHandler
@@ -61,10 +62,6 @@ pd.set_option('display.max_columns', None)
 with open("command_list.json") as f:
 	command_list = json.load(f)
 
-print("commands usable:")
-for c in command_list:
-	print(f"{c:<10}: {'Yes' if command_list[c] else 'No':<3}")
-
 # dont remeber why this is here. DO NOT REMOVE
 cwd = sys.path[0]
 if cwd == '':
@@ -97,6 +94,22 @@ logger = logging.getLogger("mackbot")
 logger.addHandler(handler)
 logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
+
+game_data = {}
+ship_list = {}
+skill_list = {}
+module_list = {}
+upgrade_list = {}
+camo_list = {}
+cmdr_list = {}
+flag_list = {}
+legendary_upgrades = {}
+upgrade_abbr_list = {}
+ship_build = {}
+help_dictionary = {}
+help_dictionary_index = {}
+ship_build_competitive = None
+ship_build_casual = None
 
 # dictionary to convert user input to output nations
 nation_dictionary = {
@@ -208,12 +221,13 @@ database_client = None
 try:
 	logger.info("MongoDB connection successful.")
 	database_client = MongoClient(mongodb_host)
+
+	data_loader.load_game_params()
+	game_data = data_loader.game_data.copy()
+
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected. Loading data from local")
-	import mackbot_data_prep as data_loader
 	data_loader.load()
-
-	game_data = data_loader.game_data.copy()
 	ship_list = data_loader.ship_list.copy()
 	skill_list = data_loader.skill_list.copy()
 	module_list = data_loader.module_list.copy()
@@ -222,7 +236,8 @@ except ConnectionError:
 	cmdr_list = data_loader.cmdr_list.copy()
 	flag_list = data_loader.flag_list.copy()
 	upgrade_abbr_list = data_loader.upgrade_abbr_list.copy()
-
+	game_data = data_loader.game_data.copy()
+del data_loader
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -268,22 +283,6 @@ icons_emoji = {
 	"green_plus": "<:green_plus:979497350869450812>",
 	"red_dash": "<:red_dash:979497350911385620>",
 }
-
-game_data = {}
-ship_list = {}
-skill_list = {}
-module_list = {}
-upgrade_list = {}
-camo_list = {}
-cmdr_list = {}
-flag_list = {}
-legendary_upgrades = {}
-upgrade_abbr_list = {}
-ship_build = {}
-help_dictionary = {}
-help_dictionary_index = {}
-ship_build_competitive = None
-ship_build_casual = None
 
 logger.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
@@ -384,8 +383,6 @@ consumable_descriptor = {
 	},
 }
 
-def hex_64bit(val):
-	return hex((val + (1 << 64)) % (1 << 64))[2:]
 
 def load_game_params():
 	global game_data
@@ -417,124 +414,6 @@ def find_module_by_tag(x):
 	else:
 		return []
 
-def extract_build_from_google_sheets(dest_build_file_dir, write_cache):
-	global ship_build
-
-	# extracting build from google sheets
-	from googleapiclient.errors import Error
-	from googleapiclient.discovery import build as google_build
-	from google_auth_oauthlib.flow import InstalledAppFlow
-	from google.auth.transport.requests import Request
-
-	# silence file_cache_warning
-	logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
-
-	logger.info("Attempting to fetch from sheets")
-	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-	# The ID and range of a sample spreadsheet.
-	SAMPLE_SPREADSHEET_ID = sheet_id
-
-	creds = None
-	# The file cmd_sep.pickle stores the user's access and refresh cmd_seps, and is
-	# created automatically when the authorization flow completes for the first
-	# time.
-	if os.path.exists('cmd_sep.pickle'):
-		with open('cmd_sep.pickle', 'rb') as sep:
-			creds = pickle.load(sep)
-
-	# If there are no (valid) credentials available, let the user log in.
-	if not creds or not creds.valid:
-		if creds and creds.expired and creds.refresh_token:
-			creds.refresh(Request())
-		else:
-			flow = InstalledAppFlow.from_client_secrets_file(
-				'credentials.json', SCOPES)
-			creds = flow.run_local_server(port=0)
-		# Save the credentials for the next run
-		with open('cmd_sep.pickle', 'wb') as sep:
-			pickle.dump(creds, sep)
-
-	service = google_build('sheets', 'v4', credentials=creds)
-
-	# Call the Sheets API
-	sheet = service.spreadsheets()
-	# fetch build
-	result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID, range='ship_builds!B2:Z1000').execute()
-	values = result.get('values', [])
-
-	if not values:
-		logger.warning('No ship build data found.')
-		raise Error
-	else:
-		logger.info(f"Found {len(values)} ship builds")
-		for row in values:
-			build_name = row[1]
-			ship_name = row[0]
-			if ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable) ?
-				ship_name = ship_name_to_ascii[ship_name.lower()]  # convert to the appropriate name
-
-			raw_id = []
-			try:
-				ship = get_ship_data(ship_name)
-			except NoShipFound:
-				logger.warning(f'Ship {ship_name} is not found')
-				continue
-			raw_id.append(ship['ship_id'])
-			raw_upgrades = (i for i in row[2:8] if len(i) > 0)
-			upgrades = []
-			for u in raw_upgrades:
-				try:
-					upgrade_data = get_upgrade_data(u)
-					uid = upgrade_data['consumable_id']
-					raw_id.append(uid)
-					upgrades.append(uid)
-				except Exception as e:
-					if type(e) is NoUpgradeFound:
-						logger.warning(f"Upgrade {u} in build for ship {ship['name']} is not found")
-					else:
-						logger.error(f"Exception {type(e)} found: {e}")
-					pass
-			upgrades = tuple(upgrades)
-
-			raw_skills = (i for i in row[8:-2] if len(i) > 0)
-			skills = []
-			skill_pts = 0
-			for s in raw_skills:
-				try:
-					skill_data = get_skill_data(hull_classification_converter[ship['type']].lower(), s)
-					sid = int(skill_data['id'])
-					skill_pts += skill_data['y']
-					raw_id.append(sid)
-					skills.append(sid)
-				except Exception as e:
-					if type(e) is NoSkillFound:
-						logger.warning(f"Skill {s} in build for ship {ship['name']} is not found")
-					else:
-						logger.error(f"Exception {type(e)} found: {e}")
-					pass
-			if skill_pts > 21:
-				logger.warning(f"Build for ship {ship['name']} exceeds 21 points!")
-			skills = tuple(skills)
-			cmdr = row[-1]
-
-			build_id = hex_64bit(hash(tuple(raw_id)))
-			if build_id not in ship_build:
-				ship_build[build_id] = {"name": build_name, "ship": ship_name, "upgrades": upgrades, "skills": skills, "cmdr": cmdr}
-			else:
-				logger.error(f"build for ship {ship_name} with id {build_id} collides with build of ship {ship_name}")
-
-		if len(ship_build) > 0 and write_cache:
-			with open(dest_build_file_dir, 'w') as f:
-				# file_check_sum = hex_64bit(hash(tuple(ship_build.keys())))
-				# ship_build['checksum'] = file_check_sum
-
-				logger.info("Creating ship build cache")
-				json.dump(ship_build, f)
-
-		del Error, google_build, InstalledAppFlow, Request
-		logger.info("Ship build data fetching done")
-
 def load_ship_builds():
 	# load ship builds from a local file
 	if database_client is None:
@@ -553,7 +432,8 @@ def load_ship_builds():
 		if not build_extract_from_cache:
 			# no build file found, retrieve from google sheets
 			try:
-				extract_build_from_google_sheets(ship_build_file_dir, True)
+				# extract_build_from_google_sheets(ship_build_file_dir, True)
+				pass
 			except:
 				extract_from_web_failed = True
 
@@ -1556,17 +1436,16 @@ async def ship(context, *args):
 					# General hull info
 					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 						m = ""
-						query_result = []
 						if database_client is not None:
-							query_result = database_client.find({
-								"module_id": modules['hull']
-							})
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['hull']}
+							}).sort("name", 1)
 						else:
-							query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+							query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
 
-						for h in query_result:
-							hull = module_list[str(h)]['profile']['hull']
-							m += f"**{module_list[str(h)]['name']}:** **{hull['health']} HP**\n"
+						for module in query_result:
+							hull = module['profile']['hull']
+							m += f"**{module['name']}:** **{hull['health']} HP**\n"
 							if hull['artillery_barrels'] > 0:
 								m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
 							if hull['torpedoes_barrels'] > 0:
@@ -1584,13 +1463,13 @@ async def ship(context, *args):
 							m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=True)
 
-						if 'airSupport' in module_list[str(h)]['profile']:
+						if 'airSupport' in query_result:
 							# air support info
 							m = ''
-							for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-								hull = module_list[str(h)]['profile']['hull']
-								m += f"**{module_list[str(h)]['name']}**\n"
-								airsup_info = module_list[str(h)]['profile']['airSupport']
+							for module in query_result:
+								hull = module['profile']['hull']
+								m += f"**{module['name']}**\n"
+								airsup_info = module['profile']['airSupport']
 
 								airsup_reload_m = int(airsup_info['reloadTime'] // 60)
 								airsup_reload_s = int(airsup_info['reloadTime'] % 60)
@@ -1610,13 +1489,13 @@ async def ship(context, *args):
 								m += '\n'
 
 							embed.add_field(name="__**Air Support**__", value=m, inline=True)
-						if 'asw' in module_list[str(h)]['profile']:
+						if 'asw' in query_result:
 							# depth charges info
 							m = ''
-							for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-								hull = module_list[str(h)]['profile']['hull']
-								m += f"**{module_list[str(h)]['name']}**\n"
-								asw_info = module_list[str(h)]['profile']['asw']
+							for module in query_result:
+								hull = module['profile']['hull']
+								m += f"**{module['name']}**\n"
+								asw_info = module['profile']['asw']
 
 								asw_reload_m = int(asw_info['reloadTime'] // 60)
 								asw_reload_s = int(asw_info['reloadTime'] % 60)
@@ -1634,15 +1513,25 @@ async def ship(context, *args):
 
 					# guns info
 					if len(modules['artillery']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['artillery']}
+							}).sort("name", 1)
+							fire_control_range = list(database_client.mackbot_db.module_list.find({"module_id": {"$in": modules['fire_control']}}))
+							fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
+						else:
+							query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
+							fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
+
 						m = ""
 						m += f"**Range: **"
-						for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
-							m += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
+						m += ' - '.join(str(fc) for fc in fire_control_range)
 						m = m[:-2]
-						m += "km\n"
-						for h in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name']):
-							guns = module_list[str(h)]['profile']['artillery']
-							turret_data = module_list[str(h)]['profile']['artillery']['turrets']
+						m += " km\n"
+
+						for module in query_result:
+							guns = module['profile']['artillery']
+							turret_data = module['profile']['artillery']['turrets']
 							for turret_name in turret_data:
 								turret = turret_data[turret_name]
 								m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])}):**\n"
@@ -1683,10 +1572,17 @@ async def ship(context, *args):
 					# secondary armaments
 					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
 						m = ""
-						for hull in modules['hull']:
-							if 'atba' in module_list[str(hull)]['profile']:
-								atba = module_list[str(hull)]['profile']['atba']
-								hull_name = module_list[str(hull)]['name']
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['hull']}
+							}).sort("name", 1)
+						else:
+							query_result = [module_list[str(i)] for i in modules["hull"]]
+
+						for hull in query_result:
+							if 'atba' in hull['profile']:
+								atba = hull['profile']['atba']
+								hull_name = hull['name']
 
 								gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba if type(atba[t]) == dict]))
 								gun_count = int(sum([atba[t]['count'] for t in atba if type(atba[t]) == dict]))
@@ -1718,11 +1614,17 @@ async def ship(context, *args):
 					# anti air
 					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
 						m = ""
+						if database_client is not None:
+							query_result = list(database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['hull']}
+							}).sort("name", 1))
+						else:
+							query_result = [module_list[str(i)] for i in modules["hull"]]
 
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
 							# detailed aa
-							for hull in modules['hull']:
-								aa = module_list[str(hull)]['profile']['anti_air']
+							for hull in query_result:
+								aa = hull['profile']['anti_air']
 								m += f"**{name} ({aa['hull']}) Hull**\n"
 
 								rating_descriptor = ""
@@ -1750,8 +1652,8 @@ async def ship(context, *args):
 								m += '\n'
 						else:
 							# compact detail
-							aa = module_list[str(modules['hull'][0])]['profile']['anti_air']
-							average_rating = sum([module_list[str(hull)]['profile']['anti_air']['rating'] for hull in modules['hull']]) / len(modules['hull'])
+							aa = query_result[0]['profile']['anti_air']
+							average_rating = sum([hull['profile']['anti_air']['rating'] for hull in query_result]) / len(modules['hull'])
 
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
@@ -1767,9 +1669,16 @@ async def ship(context, *args):
 					# torpedoes
 					if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
 						m = ""
-						for h in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
-							torps = module_list[str(h)]['profile']['torpedoes']
-							projectile_name = module_list[str(h)]['name'].replace(chr(10), ' ')
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['torpedoes']}
+							}).sort("name", 1)
+						else:
+							query_result = [module_list[str(m)] for m in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name'])]
+
+						for module in query_result:
+							torps = module['profile']['torpedoes']
+							projectile_name = module['name'].replace(chr(10), ' ')
 							turret_name = list(torps['turrets'].keys())[0]
 							m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
 							if torps['is_deep_water']:
@@ -1790,99 +1699,145 @@ async def ship(context, *args):
 					# attackers
 					if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
 						m = ""
-						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
-						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
-							for f in module_list[str(h)]:
-								fighter_module = module_list[str(h)][f]
-								fighter = module_list[str(h)][f]['profile']['fighter']
-								n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
-								m += f"**{module_list[str(h)][f]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
-									m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
-									m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-									m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
-									m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
-									m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
-									m += f"**Firing Delay:** {fighter_module['profile']['fighter']['aiming_time']:0.1f}s\n"
-									m += f"**Attack Cooldown:** {fighter_module['attack_cooldown']:0.1f}s\n"
-									m += '\n'
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['fighter']}
+							}).sort("name", 1)
+							query_result = [(document['module_id'], document) for document in query_result]
+						else:
+							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
+
+						for module in query_result:
+							for f in module:
+								if type(module[f]) == dict:
+									fighter_module = module[f]
+									fighter = module[f]['profile']['fighter']
+									n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
+									m += f"**{module[f]['name'].replace(chr(10), ' ')}**\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
+										m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
+										m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
+										m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
+										m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
+										m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
+										m += f"**Firing Delay:** {fighter_module['profile']['fighter']['aiming_time']:0.1f}s\n"
+										m += f"**Attack Cooldown:** {fighter_module['attack_cooldown']:0.1f}s\n"
+										m += '\n'
 						embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
 					# torpedo bomber
 					if len(modules['torpedo_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
 						m = ""
-						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['torpedo_bomber']]
-						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
-							for b in module_list[str(h)]:
-								bomber_module = module_list[str(h)][b]
-								bomber = module_list[str(h)][b]['profile']['torpedo_bomber']
-								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
-									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']} aircraft)\n"
-									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-									m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
-									m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
-									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-									m += '\n'
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['torpedo_bomber']}
+							}).sort("name", 1)
+							query_result = [(document['module_id'], document) for document in query_result]
+						else:
+							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
+
+						for module in query_result:
+							for b in module:
+								if type(module[b]) == dict:
+									bomber_module = module[b]
+									bomber = bomber_module['profile']['torpedo_bomber']
+									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
+										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']} aircraft)\n"
+										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
+										m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
+										m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
+										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+										m += '\n'
 						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
 
 					# dive bombers
 					if len(modules['dive_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
-						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['dive_bomber']]
-						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
-							for b in module_list[str(h)]:
-								bomber_module = module_list[str(h)][b]
-								bomber = module_list[str(h)][b]['profile']['dive_bomber']
-								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-									m += '\n'
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['dive_bomber']}
+							}).sort("name", 1)
+							query_result = [(document['module_id'], document) for document in query_result]
+						else:
+							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
+
+						for module in query_result:
+							for b in module:
+								if type(module[b]) == dict:
+									bomber_module = module[b]
+									bomber = bomber_module['profile']['dive_bomber']
+									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
+										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
+										m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+										m += '\n'
 						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
 
 					if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 						m = ""
-						plane_module_with_health = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['skip_bomber']]
-						for h, _ in sorted(plane_module_with_health, key=lambda x: x[1]):
-							for b in module_list[str(h)]:
-								bomber_module = module_list[str(h)][b]
-								bomber = module_list[str(h)][b]['profile']['skip_bomber']
-								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-								m += f"**{module_list[str(h)][b]['name'].replace(chr(10), ' ')}**\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
-									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-									m += '\n'
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['skip_bomber']}
+							}).sort("name", 1)
+							query_result = [(document['module_id'], document) for document in query_result]
+						else:
+							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
+
+						for module in query_result:
+							for b in module:
+								if type(module[b]) == dict:
+									bomber_module = module[b]
+									bomber = bomber_module['profile']['skip_bomber']
+									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
+										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
+										m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+										m += '\n'
 						embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
 					# engine
 					if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
 						m = ""
-						for e in sorted(modules['engine'], key=lambda x: module_list[str(x)]['name']):
-							engine = module_list[str(e)]['profile']['engine']
-							m += f"**{module_list[str(e)]['name']}**: {engine['max_speed']} kts\n"
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['engine']}
+							}).sort("name", 1)
+						else:
+							query_result = sorted(modules['engine'], key=lambda x: module_list[str(x)]['name'])
+
+						for module in query_result:
+							engine = module['profile']['engine']
+							m += f"**{module['name']}**: {engine['max_speed']} kts\n"
 							m += '\n'
 						embed.add_field(name="__**Engine**__", value=m, inline=False)
 
 					# concealment
 					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONCEAL):
 						m = ""
-						for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-							hull = module_list[str(h)]['profile']['hull']
-							m += f"**{module_list[str(h)]['name']}**\n"
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules['hull']}
+							}).sort("name", 1)
+						else:
+							query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+
+						for module in query_result:
+							hull = module['profile']['hull']
+							m += f"**{module['name']}**\n"
 							m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
 							m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
 							m += "\n"
@@ -1988,6 +1943,7 @@ async def ship(context, *args):
 			else:
 				# we dun goofed
 				await context.send(f"An internal error has occured.")
+				traceback.print_exc()
 
 async def ship_compact(context, ship_data):
 	"""
@@ -2816,21 +2772,18 @@ async def upgrade(context, *args):
 			else:
 				server_emojis = []
 
-			if len(name) > 0:
-				embed.description += f"**{name}**\n"
-			else:
-				logger.info("name is empty")
+			embed.description += f"**{name}**\n"
 			embed.description += f"**Slot {slot}**\n"
-			if len(description) > 0:
+			if len(description.split()) > 0:
 				embed.add_field(name='Description', value=description, inline=False)
-			else:
-				logger.info("description field empty")
+
 			if len(profile) > 0:
 				embed.add_field(name='Effect',
 				                value=''.join([profile[detail]['description'] + '\n' for detail in profile]),
 				                inline=False)
 			else:
 				logger.info("effect field empty")
+
 			if not is_special == 'Unique':
 				if len(type_restriction) > 0:
 					# find the server emoji id for this emoji id
@@ -3477,18 +3430,22 @@ async def help(context, *help_key):
 if __name__ == '__main__':
 	import argparse
 	arg_parser = argparse.ArgumentParser()
-	arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
+	# arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
 	args = arg_parser.parse_args()
 
 	load_data()
 
 	# retrieve new build from google sheets
-	if args.fetch_new_build:
-		try:
-			ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
-			extract_build_from_google_sheets(ship_build_file_dir, True)
-		except:
-			pass
+	# if args.fetch_new_build:
+	# 	try:
+	# 		ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
+	# 		extract_build_from_google_sheets(ship_build_file_dir, True)
+	# 	except:
+	# 		pass
+
+	print("commands usable:")
+	for c in command_list:
+		print(f"{c:<10}: {'Yes' if command_list[c] else 'No':<3}")
 
 	if database_client is None:
 		load_ship_builds()

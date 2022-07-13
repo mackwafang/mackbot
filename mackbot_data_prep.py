@@ -203,7 +203,6 @@ def load_upgrade_list():
 					upgrade_list[consumable]['slot'] = ''
 					upgrade_list[consumable]['additional_restriction'] = ''
 					upgrade_list[consumable]['tags'] = []
-					upgrade_list[consumable]['description'] = ""
 
 				if c_type == 'Flags':
 					# grab flags
@@ -612,7 +611,7 @@ def update_ship_modules():
 						planes = ship_upgrade_info[_info]['components']['fighter'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = module_id
+						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Fighter'
 
@@ -650,7 +649,7 @@ def update_ship_modules():
 						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = module_id
+						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Torpedo Bomber'
 
@@ -690,7 +689,7 @@ def update_ship_modules():
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = module_id
+						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Dive Bomber'
 
@@ -727,7 +726,7 @@ def update_ship_modules():
 						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = module_id
+						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Skip Bomber'
 
