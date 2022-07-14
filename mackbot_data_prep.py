@@ -78,7 +78,7 @@ def load_skill_list():
 			# generate abbreviation
 			abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
 			skill_list[skill]['abbr'] = abbr_name
-			skill_list[skill]['id'] = skill
+			skill_list[skill]['skill_id'] = int(skill)
 	except FileNotFoundError:
 		logger.error("skill_list.json is not found")
 

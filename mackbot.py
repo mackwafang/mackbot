@@ -948,7 +948,7 @@ def get_commander_data(cmdr: str) -> tuple:
 
 		raise exceptions for dictionary
 	"""
-
+	# TODO: rewrite
 	cmdr = cmdr.lower()
 	try:
 		cmdr_found = False
@@ -1020,27 +1020,45 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		"is_prem": False,
 		"emoji": '',
 	}
-	try:
-		ship_data['name'] = ship_list[str(ship_id)]['name']
-		ship_data['tier'] = ship_list[str(ship_id)]['tier']
-		ship_data['nation'] = ship_list[str(ship_id)]['nation']
-		ship_data['type'] = ship_list[str(ship_id)]['type']
-		ship_data['is_prem'] = ship_list[str(ship_id)]['is_premium']
-	except KeyError:
-		# some ships are not available in wg api
-		data = game_data[[i for i in game_data if game_data[i]['id'] == ship_id][0]]
-		ship_name = data['name']
-		ship_name = ship_name.replace(str(data['index']), '')[1:]
-		ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
-		ship_name = ''.join(ship_name)
-		ship_name = ship_name.replace("_", " ")
+	if database_client is not None:
+		query_result = database_client.mackbot_db.ship_list.find_one({
+			{"ship_id": ship_id}
+		})
+		if query_result is not None:
+			ship_data['name'] = query_result['name']
+			ship_data['tier'] = query_result['tier']
+			ship_data['nation'] = query_result['nation']
+			ship_data['type'] = query_result['type']
+			ship_data['is_prem'] = query_result['is_premium']
+			return ship_data
+		else:
+			raise NoShipFound
+	else:
+		try:
+			ship_data['name'] = ship_list[str(ship_id)]['name']
+			ship_data['tier'] = ship_list[str(ship_id)]['tier']
+			ship_data['nation'] = ship_list[str(ship_id)]['nation']
+			ship_data['type'] = ship_list[str(ship_id)]['type']
+			ship_data['is_prem'] = ship_list[str(ship_id)]['is_premium']
+		except KeyError:
+			# some ships are not available in wg api
+			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
+			if len(query_result) > 0:
+				data = game_data[query_result[0]]
+				ship_name = data['name']
+				ship_name = ship_name.replace(str(data['index']), '')[1:]
+				ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
+				ship_name = ''.join(ship_name)
+				ship_name = ship_name.replace("_", " ")
 
-		ship_data['name'] = ship_name + " (old)"
-		ship_data['tier'] = data['level']
-		ship_data['nation'] = data['navalFlag']
-		ship_data['type'] = data['typeinfo']['species']
-	ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
-	return ship_data
+				ship_data['name'] = ship_name + " (old)"
+				ship_data['tier'] = data['level']
+				ship_data['nation'] = data['navalFlag']
+				ship_data['type'] = data['typeinfo']['species']
+			else:
+				raise NoShipFound
+		ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
+		return ship_data
 
 def escape_discord_format(s):
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
@@ -1216,7 +1234,14 @@ async def build(context, *args):
 									upgrade_name = "Any"
 								else:
 									try:  # ew, nested try/catch
-										upgrade_name = upgrade_list[str(upgrade)]['name']
+										if database_client is not None:
+											query_result = database_client.mackbot_db.upgrade_list.find_one({"consumable_id": upgrade})
+											if query_result is None:
+												raise IndexError
+											else:
+												upgrade_name = query_result['name']
+										else:
+											upgrade_name = get_upgrade_data(upgrade)['name']
 									except Exception as e:
 										logger.info(f"Exception {type(e)} {e} in ship, listing upgrade {i}")
 										error_value_found = True
@@ -1233,7 +1258,14 @@ async def build(context, *args):
 							for s in skills:
 								skill_name = "[Missing]"
 								try:  # ew, nested try/catch
-									skill = skill_list[str(s)]
+									if database_client is not None:
+										query_result = database_client.mackbot_db.skill_list.find_one({"skill_id":s})
+										if query_result is None:
+											raise IndexError
+										else:
+											skill = query_result.copy()
+									else:
+										skill = skill_list[str(s)]
 									skill_name = skill['name']
 									col = skill['x'] + 1
 									tier = skill['y'] + 1
