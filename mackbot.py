@@ -836,7 +836,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'category': 'Any',
 				'description': 'Any skill',
 				'effect': '',
-				'id': -1,
+				'skill_id': -1,
 				'name': 'Any',
 				'tree': 'Any',
 				'x': -1,
@@ -931,6 +931,19 @@ def get_upgrade_data(upgrade: str) -> dict:
 			}
 		logger.info(f"Exception {type(e)}: ", e)
 		raise e
+
+def get_module_data(module_id: int) -> dict:
+	if database_client is not None:
+		query_result = database_client.mackbot_db.module_list.find_one({
+			"module_id": module_id
+		})
+		if query_result is None:
+			raise IndexError
+		else:
+			del query_result['_id']
+			return query_result.copy()
+	else:
+		return module_list[str(module_id)]
 
 def get_commander_data(cmdr: str) -> tuple:
 	"""
@@ -2248,7 +2261,7 @@ async def compare(context, *args):
 						embed.add_field(name="__Artillery__", value=m, inline=True)
 						for i, mid in enumerate(pair):
 							if mid is not None:
-								module = module_list[str(mid)]
+								module = get_module_data(mid)
 								m = ""
 								m += f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
@@ -2280,7 +2293,7 @@ async def compare(context, *args):
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
-								module = module_list[str(mid)]
+								module = get_module_data(mid)
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{module['profile']['atba']['range']/1000:1.1f} km\n"
 								m += f"{int(sum([module['profile']['atba'][t]['gun_dpm'] for t in module['profile']['atba'] if type(module['profile']['atba'][t]) == dict]))}\n"
@@ -2308,7 +2321,7 @@ async def compare(context, *args):
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
-								module = module_list[str(mid)]
+								module = get_module_data(mid)
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{module['profile']['torpedoes']['range']} km\n"
 								m += f"{module['profile']['torpedoes']['spotting_range']} km\n"
@@ -2339,7 +2352,7 @@ async def compare(context, *args):
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
-								module = module_list[str(mid)]
+								module = get_module_data(mid)
 								hull = module['profile']['hull']
 								m = f"{module['name']}\n"
 								m += f"{hull['health']:1.0f} HP\n"
@@ -2364,7 +2377,7 @@ async def compare(context, *args):
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
-								module = module_list[str(mid)]
+								module = get_module_data(mid)
 								aa = module['profile']['anti_air']
 								rating_descriptor = ""
 								for d in AA_RATING_DESCRIPTOR:
@@ -2401,7 +2414,8 @@ async def compare(context, *args):
 					# so that we can output every modules of each ships in alternating pattern
 					# (ie, fighter1, fighter2, fighter1, fighter2...)
 					for m in mid:
-						ship_module[i][module_name] += [(p, m) for p in list(module_list[str(m)])]
+						m_list = get_module_data(m)
+						ship_module[i][module_name] += [(p, m) for p in list(m_list) if type(m_list[p]) == dict]
 				l = zip_longest(ship_module[0][module_name], ship_module[1][module_name])
 				if ship_module[0][module_name] and ship_module[1][module_name]:
 					for pair in l:
@@ -2425,7 +2439,7 @@ async def compare(context, *args):
 						for ship_module_index, i in enumerate(pair):
 							if i is not None:
 								m, mid = i
-								module = module_list[str(mid)][m]
+								module = get_module_data(mid)[m]
 								plane = module['profile'][module_name]
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{plane['payload_name']}{'...' if len(plane['payload_name']) > 20 else ''}\n"

@@ -148,7 +148,6 @@ def load_ship_list():
 					ship_list[i] = l[i]
 					# add skip bomber field to list's modules listing
 					ship_list[i]['modules']['skip_bomber'] = []
-					del ship_list[i]['default_profile']
 			except Exception as e:
 				if type(e) == wargaming.exceptions.RequestError:
 					if e.args[0] == "PAGE_NO_NOT_FOUND":
