@@ -3,6 +3,7 @@ import wargaming, sys, traceback, time, json, logging, os, pickle
 from pymongo import MongoClient
 from itertools import count
 from math import inf
+from enum import IntEnum, auto
 
 game_data = {}
 ship_list = {}
@@ -13,6 +14,13 @@ camo_list = {}
 cmdr_list = {}
 flag_list = {}
 upgrade_abbr_list = {}
+
+class SHIP_TAG(IntEnum):
+	SLOW_SPD = auto()
+	FAST_SPD = auto()
+	FAST_GUN = auto()
+	STEALTH = auto()
+	AA = auto()
 
 class LogFilterBlacklist(logging.Filter):
 	def __init__(self, *blacklist):
@@ -30,6 +38,37 @@ stream_handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
 logger = logging.getLogger("mackbot_data_loader")
 logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
+
+# dictionary to convert user input to output nations
+nation_dictionary = {
+	'usa': 'US',
+	'us': 'US',
+	'pan_asia': 'Pan-Asian',
+	'ussr': 'Russian',
+	'russian': 'Russian',
+	'europe': 'European',
+	'japan': 'Japanese',
+	'uk': 'British',
+	'british': 'British',
+	'france': 'France',
+	'french': 'France',
+	'germany': 'German',
+	'italy': 'Italian',
+	'commonwealth': 'Commonwealth',
+	'pan_america': 'Pan-American',
+	'netherlands': "Dutch",
+	'spain': "Spanish"
+}
+
+# convert weegee ship type to usn hull classifications
+hull_classification_converter = {
+	'Destroyer': 'DD',
+	'AirCarrier': 'CV',
+	'Aircraft Carrier': 'CV',
+	'Battleship': 'BB',
+	'Cruiser': 'C',
+	'Submarine': 'SS'
+}
 
 # load config
 with open("config.json") as f:
@@ -247,7 +286,7 @@ def load_upgrade_list():
 					upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
 				upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
 				upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
-				upgrade_list[uid]['tier_restriction'] = [t for t in upgrade['shiplevel']]
+				upgrade_list[uid]['tier_restriction'] = [str(t) for t in upgrade['shiplevel']]
 
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']
@@ -770,6 +809,104 @@ def update_ship_modules():
 			traceback.print_exc()
 	del ship_count
 
+
+def create_ship_tags():
+	# generate ship tags for searching purpose via the "show ships" command
+	logger.info("Generating ship search tags")
+
+	SHIP_TAG_LIST = (
+		'',
+		'slow',
+		'fast',
+		'fast-firing',
+		'stealth',
+		'anti-air',
+	)
+	ship_tags = {
+		SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]: {
+			'min_threshold': 0,
+			'max_threshold': 30,
+			'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]: {
+			'min_threshold': 30,
+			'max_threshold': 99,
+			'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]: {
+			'min_threshold': 0,
+			'max_threshold': 6,
+			'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG.STEALTH]: {
+			'min_air_spot_range': 4,
+			'min_sea_spot_range': 6,
+			'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
+		},
+		SHIP_TAG_LIST[SHIP_TAG.AA]: {
+			'min_aa_range': 5.8,
+			'damage_threshold_multiplier': 75,
+			'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
+		},
+	}
+
+	for s in ship_list:
+		try:
+			nat = nation_dictionary[ship_list[s]['nation']]
+			tags = []
+			t = ship_list[s]['type']
+			hull_class = hull_classification_converter[t]
+			if t == 'AirCarrier':
+				t = 'Aircraft Carrier'
+			tier = ship_list[s]['tier']  # add tier to search
+			prem = ship_list[s]['is_premium']  # is bote premium
+			ship_speed = 0
+			for e in ship_list[s]['modules']['engine']:
+				max_speed = module_list[str(e)]['profile']['engine']['max_speed']
+				ship_speed = max(ship_speed, max_speed)
+			# add tags based on speed
+			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]['max_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]
+			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]['min_threshold']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]
+			concealment = {
+				'detect_distance_by_plane': 0,
+				'detect_distance_by_ship': 0,
+			}
+			for e in ship_list[s]['modules']['hull']:
+				c = module_list[str(e)]['profile']['hull']
+				concealment['detect_distance_by_ship'] = max(concealment['detect_distance_by_ship'], c['detect_distance_by_ship'])
+				concealment['detect_distance_by_plane'] = max(concealment['detect_distance_by_plane'], c['detect_distance_by_plane'])
+			# add tags based on detection range
+			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_sea_spot_range']:
+				tags += [SHIP_TAG_LIST[SHIP_TAG.STEALTH]]
+			# add tags based on gun firerate
+			try:
+				# some ships have main battery guns
+				fireRate = inf
+				for g in ship_list[s]['modules']['artillery']:
+					fireRate = min(fireRate, module_list[str(g)]['profile']['artillery']['shotDelay'])
+			except TypeError:
+				# some dont *ahemCVsahem*
+				fireRate = inf
+			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
+				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_GUN], 'dakka']
+			# add tags based on a
+			for h in ship_list[s]['modules']['hull']:
+				if 'anti_air' in module_list[str(h)]['profile']:
+					aa = module_list[str(h)]['profile']['anti_air']
+					if aa['rating'] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
+						if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
+							tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
+
+			tags += [nat, f't{tier}', t, t + 's', hull_class]
+			ship_list[s]['tags'] = tags
+			if prem:
+				ship_list[s]['tags'] += ['premium']
+		except Exception as e:
+			logger.warning(f"{type(e)} {e} at ship id {s}")
+			traceback.print_exc(type(e), e, None)
+
 def create_upgrade_abbr():
 	logger.info("Creating abbreviation for upgrades")
 	global upgrade_abbr_list
@@ -803,3 +940,4 @@ def load():
 	load_ship_list()
 	load_upgrade_list()
 	update_ship_modules()
+	create_ship_tags()

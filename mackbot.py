@@ -32,13 +32,6 @@ class BUILD_BATTLE_TYPE(IntEnum):
 	CLAN = auto()
 	CASUAL = auto()
 
-class SHIP_TAG(IntEnum):
-	SLOW_SPD = auto()
-	FAST_SPD = auto()
-	FAST_GUN = auto()
-	STEALTH = auto()
-	AA = auto()
-
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
 	MONGO_DB = auto()
@@ -521,103 +514,6 @@ def create_ship_build_images(build_name, build_ship_name, build_skills, build_up
 			image.paste(upgrade_image, coord, upgrade_image)
 
 	return image
-
-def create_ship_tags():
-	# generate ship tags for searching purpose via the "show ships" command
-	logger.info("Generating ship search tags")
-
-	SHIP_TAG_LIST = (
-		'',
-		'slow',
-		'fast',
-		'fast-firing',
-		'stealth',
-		'anti-air',
-	)
-	ship_tags = {
-		SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]: {
-			'min_threshold': 0,
-			'max_threshold': 30,
-			'description': f"Any ships in this category have a **base speed** of **30 knots or slower**",
-		},
-		SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]: {
-			'min_threshold': 30,
-			'max_threshold': 99,
-			'description': "Any ships in this category have a **base speed** of **30 knots or faster**",
-		},
-		SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]: {
-			'min_threshold': 0,
-			'max_threshold': 6,
-			'description': "Any ships in this category have main battery guns that **reload** in **6 seconds or less**",
-		},
-		SHIP_TAG_LIST[SHIP_TAG.STEALTH]: {
-			'min_air_spot_range': 4,
-			'min_sea_spot_range': 6,
-			'description': "Any ships in this category have a **base air detection range** of **4 km or less** or a **base sea detection range** of **6 km or less**",
-		},
-		SHIP_TAG_LIST[SHIP_TAG.AA]: {
-			'min_aa_range': 5.8,
-			'damage_threshold_multiplier': 75,
-			'description': "Any ships in this category has **anti-air gun range** larger than **5.8 km** or the ship's **mbAA rating of at least 50**",
-		},
-	}
-
-	for s in ship_list:
-		try:
-			nat = nation_dictionary[ship_list[s]['nation']]
-			tags = []
-			t = ship_list[s]['type']
-			hull_class = hull_classification_converter[t]
-			if t == 'AirCarrier':
-				t = 'Aircraft Carrier'
-			tier = ship_list[s]['tier']  # add tier to search
-			prem = ship_list[s]['is_premium']  # is bote premium
-			ship_speed = 0
-			for e in ship_list[s]['modules']['engine']:
-				max_speed = module_list[str(e)]['profile']['engine']['max_speed']
-				ship_speed = max(ship_speed, max_speed)
-			# add tags based on speed
-			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]['max_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]
-			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]['min_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]
-			concealment = {
-				'detect_distance_by_plane': 0,
-				'detect_distance_by_ship': 0,
-			}
-			for e in ship_list[s]['modules']['hull']:
-				c = module_list[str(e)]['profile']['hull']
-				concealment['detect_distance_by_ship'] = max(concealment['detect_distance_by_ship'], c['detect_distance_by_ship'])
-				concealment['detect_distance_by_plane'] = max(concealment['detect_distance_by_plane'], c['detect_distance_by_plane'])
-			# add tags based on detection range
-			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_sea_spot_range']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.STEALTH]]
-			# add tags based on gun firerate
-			try:
-				# some ships have main battery guns
-				fireRate = inf
-				for g in ship_list[s]['modules']['artillery']:
-					fireRate = min(fireRate, module_list[str(g)]['profile']['artillery']['shotDelay'])
-			except TypeError:
-				# some dont *ahemCVsahem*
-				fireRate = inf
-			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_GUN], 'dakka']
-			# add tags based on a
-			for h in ship_list[s]['modules']['hull']:
-				if 'anti_air' in module_list[str(h)]['profile']:
-					aa = module_list[str(h)]['profile']['anti_air']
-					if aa['rating'] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
-						if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
-							tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
-
-			tags += [nat, f't{tier}', t, t + 's', hull_class]
-			ship_list[s]['tags'] = tags
-			if prem:
-				ship_list[s]['tags'] += ['premium']
-		except Exception as e:
-			logger.warning(f"{type(e)} {e} at ship id {s}")
-			traceback.print_exc(type(e), e, None)
 
 async def get_user_response_with_drop_down(context: discord.ext.commands.Context, timeout: int, response_prompt_output: discord.Message) -> Union[discord.Message, discord_components.Interaction, None]:
 	"""
@@ -2622,19 +2518,30 @@ async def upgrades(context, *args):
 		embed_title += f"{''.join([i.title() + ' ' for i in key])}"
 		# look up
 		result = []
-		for u in upgrade_list:
-			tags = [str(i).lower() for i in upgrade_list[u]['tags']]
-			if all([k in tags for k in key]):
-				result += [u]
+		u_abbr_list = upgrade_abbr_list
+
+		if database_client is not None:
+			u_abbr_list = database_client.mackbot_db.upgrade_abbr_list.find({})
+			query_result = database_client.mackbot_db.upgrade_list.find({
+				"tags": {"$all": [re.compile(i, re.I) for i in key]}
+			})
+			result = dict((i['consumable_id'], i) for i in query_result)
+			u_abbr_list = dict((i['abbr'], i['upgrade']) for i in u_abbr_list)
+		else:
+			for u in upgrade_list:
+				tags = [str(i).lower() for i in upgrade_list[u]['tags']]
+				if all([k in tags for k in key]):
+					result += [u]
 		logger.info("parsing complete")
 		logger.info("compiling message")
+
 		if len(result) > 0:
 			m = []
 			for u in result:
-				upgrade = upgrade_list[u]
-				name = get_upgrade_data(upgrade['name'])['name']
-				for u_b in upgrade_abbr_list:
-					if upgrade_abbr_list[u_b] == name.lower():
+				upgrade = result[u]
+				name = upgrade['name']
+				for u_b in u_abbr_list:
+					if u_abbr_list[u_b] == name.lower():
 						m += [f"**{name}** ({u_b.upper()})"]
 						break
 
@@ -2644,8 +2551,8 @@ async def upgrades(context, *args):
 			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			embed = discord.Embed(title=embed_title + f"({page + 1}/{num_pages})")
-			m = m[page]  # select page
+			embed = discord.Embed(title=embed_title + f"({max(1, page)}/{num_pages})")
+			m = m[page - 1]  # select page
 			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 			embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
 			for i in m:
@@ -2713,23 +2620,32 @@ async def ships(context, *args):
 			tier = roman_numeral[tier]
 		tier = f't{tier}'
 		key += [tier]
-	key = [i for i in key if not 'page' in i]
+	key = [i.lower() for i in key if not 'page' in i]
 	embed_title += f"{''.join([i.title() + ' ' for i in key])}"
+
 	# look up
 	result = []
-	for s in ship_list:
-		try:
-			tags = [i.lower() for i in ship_list[s]['tags']]
-			if all([k.lower() in tags for k in key]):
-				result += [s]
-		except:
-			pass
+	if database_client is not None:
+		query_result = database_client.mackbot_db.ship_list.find({
+			"tags": {"$all": [re.compile(i, re.I) for i in key]}
+		})
+		if query_result is not None:
+			result = dict((str(i["ship_id"]), i) for i in query_result)
+	else:
+		for s in ship_list:
+			try:
+				tags = [i.lower() for i in ship_list[s]['tags']]
+				if all([k in tags for k in key]):
+					result += [s]
+			except Exception as e:
+				traceback.print_exc()
+				pass
 	m = []
 	logger.info(f"found {len(result)} items matching criteria: {' '.join(key)}")
 	if len(result) > 0:
 		# return the list of ships with fitting criteria
 		for ship in result:
-			ship_data = get_ship_data(ship_list[ship]['name'])
+			ship_data = result[ship]
 			if ship_data is None:
 				continue
 			name = ship_data['name']
@@ -2750,8 +2666,8 @@ async def ships(context, *args):
 		num_pages = ceil(len(m) / items_per_page)
 		m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-		embed = discord.Embed(title=embed_title + f"({max(1, page + 1)}/{max(1, num_pages)})")
-		m = m[page]  # select page
+		embed = discord.Embed(title=embed_title + f"({max(1, page)}/{max(1, num_pages)})")
+		m = m[page - 1]  # select page
 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 		embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
 		for i in m:
@@ -3495,7 +3411,6 @@ if __name__ == '__main__':
 
 	if database_client is None:
 		load_ship_builds()
-	create_ship_tags()
 
 	mackbot.run(bot_token)
 
