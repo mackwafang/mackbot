@@ -2440,7 +2440,11 @@ async def skills(context, *args):
 	search_param = args
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
-	filtered_skill_list = skill_list.copy()
+	if database_client is not None:
+		filtered_skill_list = database_client.mackbot_db.skill_list.find({})
+		filtered_skill_list = dict((str(i['skill_id']), i) for i in filtered_skill_list)
+	else:
+		filtered_skill_list = skill_list.copy()
 
 	# filter by ship class
 	ship_class = [i[0] for i in search_param if len(i[0]) > 0]
