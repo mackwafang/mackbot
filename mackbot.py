@@ -72,7 +72,7 @@ class LogFilterBlacklist(logging.Filter):
 		self.blacklist = [i for i in blacklist]
 
 	def filter(self, record):
-		return not any(f in record.getMessage() for f in self.blacklist)
+		return not any(i in record.getMessage() for i in self.blacklist)
 
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
@@ -1291,576 +1291,580 @@ async def ship(context, *args):
 		args = args.split(' ')
 		ship = ' '.join(i for i in args)  # grab ship name
 		try:
-			if send_compact:
+			async with context.typing():
 				ship_data = get_ship_data(ship)
-				await ship_compact(context, ship_data)
-			else:
-				async with context.typing():
-					ship_data = get_ship_data(ship)
-					if ship_data is None:
-						raise NoShipFound
+				if ship_data is None:
+					raise NoShipFound
 
-					name = ship_data['name']
-					nation = ship_data['nation']
-					images = ship_data['images']
-					ship_type = ship_data['type']
-					tier = ship_data['tier']
-					consumables = ship_data['consumables']
-					modules = ship_data['modules']
-					upgrades = ship_data['upgrades']
-					is_prem = ship_data['is_premium']
-					is_test_ship = ship_data['is_test_ship']
-					price_gold = ship_data['price_gold']
-					price_credit = ship_data['price_credit']
-					price_xp = ship_data['price_xp']
-					logger.info(f"returning ship information for <{name}> in embeded format")
-					ship_type = ship_types[ship_type]
+				name = ship_data['name']
+				nation = ship_data['nation']
+				images = ship_data['images']
+				ship_type = ship_data['type']
+				tier = ship_data['tier']
+				consumables = ship_data['consumables']
+				modules = ship_data['modules']
+				upgrades = ship_data['upgrades']
+				is_prem = ship_data['is_premium']
+				is_test_ship = ship_data['is_test_ship']
+				price_gold = ship_data['price_gold']
+				price_credit = ship_data['price_credit']
+				price_xp = ship_data['price_xp']
+				logger.info(f"returning ship information for <{name}> in embeded format")
+				ship_type = ship_types[ship_type]
 
-					if ship_type == 'Cruiser':
-						# reclassify cruisers to their correct classification based on the washington naval treaty
+				if ship_type == 'Cruiser':
+					# reclassify cruisers to their correct classification based on the washington naval treaty
 
-						# check for the highest main battery caliber found on this warship
+					# check for the highest main battery caliber found on this warship
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['artillery']}
+						}).sort(
+							"profile.artillery.caliber", -1
+						)
+						highest_caliber = list(query_result)[0]['profile']['artillery']['caliber'] * 1000
+					else:
 						highest_caliber = sorted(modules['artillery'], key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'],reverse=True)
 						highest_caliber = [module_list[str(i)]['profile']['artillery']['caliber'] for i in highest_caliber][0] * 1000
 
-						if highest_caliber <= 155:
-							# if caliber less than or equal to 155mm
-							ship_type = "Light Cruiser"
-						elif highest_caliber <= 203:
-							# if caliber between 155mm and up to 203mm
-							ship_type = "Heavy Cruiser"
-						else:
-							ship_type = "Battlecruiser"
-					test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
-					embed = discord.Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
+					if highest_caliber <= 155:
+						# if caliber less than or equal to 155mm
+						ship_type = "Light Cruiser"
+					elif highest_caliber <= 203:
+						# if caliber between 155mm and up to 203mm
+						ship_type = "Heavy Cruiser"
+					else:
+						ship_type = "Battlecruiser"
+				test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
+				embed = discord.Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
 
-					tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
-					if tier < 11:
-						tier_string = tier_string.upper()
-					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
-					embed.set_thumbnail(url=images['small'])
+				tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
+				if tier < 11:
+					tier_string = tier_string.upper()
+				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+				embed.set_thumbnail(url=images['small'])
 
-					# defines ship params filtering
+				# defines ship params filtering
 
-					ship_filter = 0b111111111111  # assuming no filter is provided, display all
-					# grab filters
-					if len(param_filter) > 0:
-						ship_filter = 0  # filter is requested, disable all
-						s = ship_param_filter_regex.findall(param_filter)  # what am i looking for?
+				ship_filter = 0b111111111111  # assuming no filter is provided, display all
+				# grab filters
+				if len(param_filter) > 0:
+					ship_filter = 0  # filter is requested, disable all
+					s = ship_param_filter_regex.findall(param_filter)  # what am i looking for?
 
-						def is_filter_requested(x):
-							# check length of regex capture groups. if len > 0, request is valid
-							return 1 if len([i[x - 1] for i in s if len(i[x - 1]) > 0]) > 0 else 0
+					def is_filter_requested(x):
+						# check length of regex capture groups. if len > 0, request is valid
+						return 1 if len([i[x - 1] for i in s if len(i[x - 1]) > 0]) > 0 else 0
 
-						# enables proper filter
-						ship_filter |= is_filter_requested(2) << SHIP_COMBAT_PARAM_FILTER.HULL
-						ship_filter |= is_filter_requested(3) << SHIP_COMBAT_PARAM_FILTER.GUNS
-						ship_filter |= is_filter_requested(4) << SHIP_COMBAT_PARAM_FILTER.ATBAS
-						ship_filter |= is_filter_requested(6) << SHIP_COMBAT_PARAM_FILTER.TORPS
-						ship_filter |= is_filter_requested(8) << SHIP_COMBAT_PARAM_FILTER.ROCKETS
-						ship_filter |= is_filter_requested(5) << SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER
-						ship_filter |= is_filter_requested(7) << SHIP_COMBAT_PARAM_FILTER.BOMBER
-						ship_filter |= is_filter_requested(9) << SHIP_COMBAT_PARAM_FILTER.ENGINE
-						ship_filter |= is_filter_requested(10) << SHIP_COMBAT_PARAM_FILTER.AA
-						ship_filter |= is_filter_requested(11) << SHIP_COMBAT_PARAM_FILTER.CONCEAL
-						ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
-						ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
+					# enables proper filter
+					ship_filter |= is_filter_requested(2) << SHIP_COMBAT_PARAM_FILTER.HULL
+					ship_filter |= is_filter_requested(3) << SHIP_COMBAT_PARAM_FILTER.GUNS
+					ship_filter |= is_filter_requested(4) << SHIP_COMBAT_PARAM_FILTER.ATBAS
+					ship_filter |= is_filter_requested(6) << SHIP_COMBAT_PARAM_FILTER.TORPS
+					ship_filter |= is_filter_requested(8) << SHIP_COMBAT_PARAM_FILTER.ROCKETS
+					ship_filter |= is_filter_requested(5) << SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER
+					ship_filter |= is_filter_requested(7) << SHIP_COMBAT_PARAM_FILTER.BOMBER
+					ship_filter |= is_filter_requested(9) << SHIP_COMBAT_PARAM_FILTER.ENGINE
+					ship_filter |= is_filter_requested(10) << SHIP_COMBAT_PARAM_FILTER.AA
+					ship_filter |= is_filter_requested(11) << SHIP_COMBAT_PARAM_FILTER.CONCEAL
+					ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
+					ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
 
-					def is_filtered(x):
-						return (ship_filter >> x) & 1 == 1
+				def is_filtered(x):
+					return (ship_filter >> x) & 1 == 1
 
-					if price_credit > 0 and price_xp > 0:
-						embed.description += '\n{:,} XP\n{:,} Credits'.format(price_xp, price_credit)
-					if price_gold > 0 and is_prem:
-						embed.description += '\n{:,} Doubloons'.format(price_gold)
+				if price_credit > 0 and price_xp > 0:
+					embed.description += '\n{:,} XP\n{:,} Credits'.format(price_xp, price_credit)
+				if price_gold > 0 and is_prem:
+					embed.description += '\n{:,} Doubloons'.format(price_gold)
 
-					# General hull info
-					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['hull']}
-							}).sort("name", 1)
-						else:
-							query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
+				# General hull info
+				if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['hull']}
+						}).sort("name", 1)
+					else:
+						query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
 
+					for module in query_result:
+						hull = module['profile']['hull']
+						m += f"**{module['name']}:** **{hull['health']} HP**\n"
+						if hull['artillery_barrels'] > 0:
+							m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
+						if hull['torpedoes_barrels'] > 0:
+							m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
+						if hull['atba_barrels'] > 0:
+							m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
+						if hull['anti_aircraft_barrels'] > 0:
+							m += f"{hull['anti_aircraft_barrels']} AA Gun{'s' if hull['anti_aircraft_barrels'] > 1 else ''}\n"
+						if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
+							m += f"{hull['planes_amount']} Aircraft\n"
+
+						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
+							m += f"{hull['rudderTime']}s rudder shift time\n"
+							m += f"{hull['turnRadius']}m turn radius\n"
+						m += '\n'
+					embed.add_field(name="__**Hull**__", value=m, inline=True)
+
+					if 'airSupport' in query_result:
+						# air support info
+						m = ''
 						for module in query_result:
 							hull = module['profile']['hull']
-							m += f"**{module['name']}:** **{hull['health']} HP**\n"
-							if hull['artillery_barrels'] > 0:
-								m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
-							if hull['torpedoes_barrels'] > 0:
-								m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
-							if hull['atba_barrels'] > 0:
-								m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
-							if hull['anti_aircraft_barrels'] > 0:
-								m += f"{hull['anti_aircraft_barrels']} AA Gun{'s' if hull['anti_aircraft_barrels'] > 1 else ''}\n"
-							if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
-								m += f"{hull['planes_amount']} Aircraft\n"
+							m += f"**{module['name']}**\n"
+							airsup_info = module['profile']['airSupport']
+
+							airsup_reload_m = int(airsup_info['reloadTime'] // 60)
+							airsup_reload_s = int(airsup_info['reloadTime'] % 60)
+
+							m += f"**Has {airsup_info['chargesNum']} charge(s)**\n"
+							m += f"**Reload**: {str(airsup_reload_m) + 'm' if airsup_reload_m > 0 else ''} {str(airsup_reload_s) + 's' if airsup_reload_s > 0 else ''}\n"
 
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
-								m += f"{hull['rudderTime']}s rudder shift time\n"
-								m += f"{hull['turnRadius']}m turn radius\n"
-							m += '\n'
-						embed.add_field(name="__**Hull**__", value=m, inline=True)
-
-						if 'airSupport' in query_result:
-							# air support info
-							m = ''
-							for module in query_result:
-								hull = module['profile']['hull']
-								m += f"**{module['name']}**\n"
-								airsup_info = module['profile']['airSupport']
-
-								airsup_reload_m = int(airsup_info['reloadTime'] // 60)
-								airsup_reload_s = int(airsup_info['reloadTime'] % 60)
-
-								m += f"**Has {airsup_info['chargesNum']} charge(s)**\n"
-								m += f"**Reload**: {str(airsup_reload_m) + 'm' if airsup_reload_m > 0 else ''} {str(airsup_reload_s) + 's' if airsup_reload_s > 0 else ''}\n"
-
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
-									# detailed air support filter
-									m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
-									if nation == 'netherlands':
-										m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
-										m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {airsup_info['bomb_pen']}mm)\n"
-									else:
-										m += f"**Squadron**: 2 aircraft\n"
-										m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
-								m += '\n'
-
-							embed.add_field(name="__**Air Support**__", value=m, inline=True)
-						if 'asw' in query_result:
-							# depth charges info
-							m = ''
-							for module in query_result:
-								hull = module['profile']['hull']
-								m += f"**{module['name']}**\n"
-								asw_info = module['profile']['asw']
-
-								asw_reload_m = int(asw_info['reloadTime'] // 60)
-								asw_reload_s = int(asw_info['reloadTime'] % 60)
-
-								m += f"**Has {asw_info['chargesNum']} charge(s)**\n"
-								m += f"**Reload**: {str(asw_reload_m) + 'm' if asw_reload_m > 0 else ''} {str(asw_reload_s) + 's' if asw_reload_s > 0 else ''}\n"
-
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
-									# detailed air support filter
-									m += f"**Depth charges per salvo**: {asw_info['payload']} bombs\n"
-									m += f"**Depth charge**: :boom: {asw_info['max_damage']}\n"
-
-								m += '\n'
-							embed.add_field(name="__**ASW**__", value=m, inline=True)
-
-					# guns info
-					if len(modules['artillery']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['artillery']}
-							}).sort("name", 1)
-							fire_control_range = list(database_client.mackbot_db.module_list.find({"module_id": {"$in": modules['fire_control']}}))
-							fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
-						else:
-							query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
-							fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
-
-						m = ""
-						m += f"**Range: **"
-						m += ' - '.join(str(fc) for fc in fire_control_range)
-						m = m[:-2]
-						m += " km\n"
-
-						for module in query_result:
-							guns = module['profile']['artillery']
-							turret_data = module['profile']['artillery']['turrets']
-							for turret_name in turret_data:
-								turret = turret_data[turret_name]
-								m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])}):**\n"
-							m += f"**Rotation Speed: ** {guns['transverse_speed']}\xb0/s\n"
-							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-								m = m[:-1]
-								m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180{DEGREE_SYMBOL})\n"
-								m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
-								m += '-------------------\n'
-							if guns['max_damage_he']:
-								m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
-								if guns['pen_HE'] > 0:
-									m += f", Pen. {guns['pen_HE']} mm)\n"
+								# detailed air support filter
+								m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
+								if nation == 'netherlands':
+									m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
+									m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {airsup_info['bomb_pen']}mm)\n"
 								else:
-									m += f")\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-									m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
-									m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
-									m += '-------------------\n'
+									m += f"**Squadron**: 2 aircraft\n"
+									m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
+							m += '\n'
 
-							if guns['max_damage_sap']:
-								m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm)\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-									m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
-									m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
-									m += '-------------------\n'
-							if guns['max_damage_ap']:
-								m += f"**AP:** {guns['max_damage_ap']}\n"
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-									m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
-									m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
-									m += '-------------------\n'
-							m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
+						embed.add_field(name="__**Air Support**__", value=m, inline=True)
+					if 'asw' in query_result:
+						# depth charges info
+						m = ''
+						for module in query_result:
+							hull = module['profile']['hull']
+							m += f"**{module['name']}**\n"
+							asw_info = module['profile']['asw']
+
+							asw_reload_m = int(asw_info['reloadTime'] // 60)
+							asw_reload_s = int(asw_info['reloadTime'] % 60)
+
+							m += f"**Has {asw_info['chargesNum']} charge(s)**\n"
+							m += f"**Reload**: {str(asw_reload_m) + 'm' if asw_reload_m > 0 else ''} {str(asw_reload_s) + 's' if asw_reload_s > 0 else ''}\n"
+
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
+								# detailed air support filter
+								m += f"**Depth charges per salvo**: {asw_info['payload']} bombs\n"
+								m += f"**Depth charge**: :boom: {asw_info['max_damage']}\n"
 
 							m += '\n'
-						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+						embed.add_field(name="__**ASW**__", value=m, inline=True)
 
-					# secondary armaments
-					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['hull']}
-							}).sort("name", 1)
-						else:
-							query_result = [module_list[str(i)] for i in modules["hull"]]
+				# guns info
+				if len(modules['artillery']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['artillery']}
+						}).sort("name", 1)
+						fire_control_range = list(database_client.mackbot_db.module_list.find({"module_id": {"$in": modules['fire_control']}}))
+						fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
+					else:
+						query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
+						fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
-						for hull in query_result:
-							if 'atba' in hull['profile']:
-								atba = hull['profile']['atba']
-								hull_name = hull['name']
+					m = ""
+					m += f"**Range: **"
+					m += ' - '.join(str(fc) for fc in fire_control_range)
+					m = m[:-2]
+					m += " km\n"
 
-								gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba if type(atba[t]) == dict]))
-								gun_count = int(sum([atba[t]['count'] for t in atba if type(atba[t]) == dict]))
+					for module in query_result:
+						guns = module['profile']['artillery']
+						turret_data = module['profile']['artillery']['turrets']
+						for turret_name in turret_data:
+							turret = turret_data[turret_name]
+							m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])}):**\n"
+						m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
+						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+							m = m[:-1]
+							m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180{DEGREE_SYMBOL})\n"
+							m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
+							m += '-------------------\n'
+						if guns['max_damage_he']:
+							m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
+							if guns['pen_HE'] > 0:
+								m += f", Pen. {guns['pen_HE']} mm)\n"
+							else:
+								m += f")\n"
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+								m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
+								m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
+								m += '-------------------\n'
 
-								m += f"**{hull_name}**\n"
-								m += f"**Range:** {atba['range'] / 1000:1.1f} km\n"
-								m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
-								m += f'**DPM:** {gun_dpm:,}\n'
+						if guns['max_damage_sap']:
+							m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm)\n"
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+								m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
+								m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
+								m += '-------------------\n'
+						if guns['max_damage_ap']:
+							m += f"**AP:** {guns['max_damage_ap']}\n"
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+								m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
+								m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
+								m += '-------------------\n'
+						m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
-								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
-									m += '\n'
-									for t in atba:
-										turret = atba[t]
-										if type(atba[t]) == dict:
-											# detail secondary
-											m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
-											m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
-											m += ' ('
-											if turret['burn_probability'] > 0:
-												m += f":fire: {turret['burn_probability'] * 100}%, "
-											m += f"Pen. {turret['pen']}mm"
-											m += ')\n'
-											m += f"**Reload**: {turret['shotDelay']}s\n"
-								if len(modules['hull']) > 1:
-									m += '-------------------\n'
+						m += '\n'
+					embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 
-								embed.add_field(name="__**Secondary Battery**__", value=m)
+				# secondary armaments
+				if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['hull']}
+						}).sort("name", 1)
+					else:
+						query_result = [module_list[str(i)] for i in modules["hull"]]
 
-					# anti air
-					if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
-						m = ""
-						if database_client is not None:
-							query_result = list(database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['hull']}
-							}).sort("name", 1))
-						else:
-							query_result = [module_list[str(i)] for i in modules["hull"]]
+					for hull in query_result:
+						if 'atba' in hull['profile']:
+							atba = hull['profile']['atba']
+							hull_name = hull['name']
 
-						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
-							# detailed aa
-							for hull in query_result:
-								aa = hull['profile']['anti_air']
-								m += f"**{name} ({aa['hull']}) Hull**\n"
+							gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba if type(atba[t]) == dict]))
+							gun_count = int(sum([atba[t]['count'] for t in atba if type(atba[t]) == dict]))
 
-								rating_descriptor = ""
-								for d in AA_RATING_DESCRIPTOR:
-									low, high = AA_RATING_DESCRIPTOR[d]
-									if low <= aa['rating'] <= high:
-										rating_descriptor = d
-										break
-								m += f"**AA Rating (vs. T{tier}):** {int(aa['rating'])} ({rating_descriptor})\n"
+							m += f"**{hull_name}**\n"
+							m += f"**Range:** {atba['range'] / 1000:1.1f} km\n"
+							m += f"**{gun_count}** turret{'s' if gun_count > 1 else ''}\n"
+							m += f'**DPM:** {gun_dpm:,}\n'
 
-								m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
-								# provide more AA detail
-								flak = aa['flak']
-								near = aa['near']
-								medium = aa['medium']
-								far = aa['far']
-								if flak['damage'] > 0:
-									m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', flak['count'])}, {flak['damage']}:boom:\n"
-								if near['damage'] > 0:
-									m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
-								if medium['damage'] > 0:
-									m += f"**Mid Range:** {medium['damage']:0.1f} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance'] * 100)}%)\n"
-								if far['damage'] > 0:
-									m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance'] * 100)}%)\n"
+							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
 								m += '\n'
-						else:
-							# compact detail
-							aa = query_result[0]['profile']['anti_air']
-							average_rating = sum([hull['profile']['anti_air']['rating'] for hull in query_result]) / len(modules['hull'])
+								for t in atba:
+									turret = atba[t]
+									if type(atba[t]) == dict:
+										# detail secondary
+										m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+										m += f"**{'SAP' if turret['ammoType'] == 'CS' else turret['ammoType']}**: {int(turret['max_damage'])}"
+										m += ' ('
+										if turret['burn_probability'] > 0:
+											m += f":fire: {turret['burn_probability'] * 100}%, "
+										m += f"Pen. {turret['pen']}mm"
+										m += ')\n'
+										m += f"**Reload**: {turret['shotDelay']}s\n"
+							if len(modules['hull']) > 1:
+								m += '-------------------\n'
+
+							embed.add_field(name="__**Secondary Battery**__", value=m)
+
+				# anti air
+				if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
+					m = ""
+					if database_client is not None:
+						query_result = list(database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['hull']}
+						}).sort("name", 1))
+					else:
+						query_result = [module_list[str(i)] for i in modules["hull"]]
+
+					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
+						# detailed aa
+						for hull in query_result:
+							aa = hull['profile']['anti_air']
+							m += f"**{name} ({aa['hull']}) Hull**\n"
 
 							rating_descriptor = ""
 							for d in AA_RATING_DESCRIPTOR:
 								low, high = AA_RATING_DESCRIPTOR[d]
-								if low <= average_rating <= high:
+								if low <= aa['rating'] <= high:
 									rating_descriptor = d
 									break
-							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
-							m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
+							m += f"**AA Rating (vs. T{tier}):** {int(aa['rating'])} ({rating_descriptor})\n"
 
-						embed.add_field(name="__**Anti-Air**__", value=m)
-
-					# torpedoes
-					if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['torpedoes']}
-							}).sort("name", 1)
-						else:
-							query_result = [module_list[str(m)] for m in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name'])]
-
-						for module in query_result:
-							torps = module['profile']['torpedoes']
-							projectile_name = module['name'].replace(chr(10), ' ')
-							turret_name = list(torps['turrets'].keys())[0]
-							m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
-							if torps['is_deep_water']:
-								m += " [DW]"
-							m += '**\n'
-							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORPS:
-								reload_minute = int(torps['shotDelay'] // 60)
-								reload_second = int(torps['shotDelay'] % 60)
-								m += f"**Torpedo:** {projectile_name}\n"
-								m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
-								m += f"**Damage:** {torps['max_damage']}\n"
-								m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
-								m += f"**Spotting Range:** {torps['spotting_range']} km\n"
-								m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
-								m += '-------------------\n'
-						embed.add_field(name="__**Torpedoes**__", value=m)
-
-					# attackers
-					if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['fighter']}
-							}).sort("name", 1)
-							query_result = [(document['module_id'], document) for document in query_result]
-						else:
-							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
-
-						for module in query_result:
-							for f in module:
-								if type(module[f]) == dict:
-									fighter_module = module[f]
-									fighter = module[f]['profile']['fighter']
-									n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
-									m += f"**{module[f]['name'].replace(chr(10), ' ')}**\n"
-									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
-										m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
-										m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
-										m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
-										m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
-										m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
-										m += f"**Firing Delay:** {fighter_module['profile']['fighter']['aiming_time']:0.1f}s\n"
-										m += f"**Attack Cooldown:** {fighter_module['attack_cooldown']:0.1f}s\n"
-										m += '\n'
-						embed.add_field(name="__**Attackers**__", value=m, inline=False)
-
-					# torpedo bomber
-					if len(modules['torpedo_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['torpedo_bomber']}
-							}).sort("name", 1)
-							query_result = [(document['module_id'], document) for document in query_result]
-						else:
-							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
-
-						for module in query_result:
-							for b in module:
-								if type(module[b]) == dict:
-									bomber_module = module[b]
-									bomber = bomber_module['profile']['torpedo_bomber']
-									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
-									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
-										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']} aircraft)\n"
-										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-										m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
-										m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
-										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-										m += '\n'
-						embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
-
-					# dive bombers
-					if len(modules['dive_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['dive_bomber']}
-							}).sort("name", 1)
-							query_result = [(document['module_id'], document) for document in query_result]
-						else:
-							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
-
-						for module in query_result:
-							for b in module:
-								if type(module[b]) == dict:
-									bomber_module = module[b]
-									bomber = bomber_module['profile']['dive_bomber']
-									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
-									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-										m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-										m += '\n'
-						embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
-
-					if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['skip_bomber']}
-							}).sort("name", 1)
-							query_result = [(document['module_id'], document) for document in query_result]
-						else:
-							query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
-
-						for module in query_result:
-							for b in module:
-								if type(module[b]) == dict:
-									bomber_module = module[b]
-									bomber = bomber_module['profile']['skip_bomber']
-									n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
-									m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
-									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-										m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-										m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
-										m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
-										m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
-										m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-										m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
-										m += '\n'
-						embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
-
-					# engine
-					if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['engine']}
-							}).sort("name", 1)
-						else:
-							query_result = sorted(modules['engine'], key=lambda x: module_list[str(x)]['name'])
-
-						for module in query_result:
-							engine = module['profile']['engine']
-							m += f"**{module['name']}**: {engine['max_speed']} kts\n"
+							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+							# provide more AA detail
+							flak = aa['flak']
+							near = aa['near']
+							medium = aa['medium']
+							far = aa['far']
+							if flak['damage'] > 0:
+								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', flak['count'])}, {flak['damage']}:boom:\n"
+							if near['damage'] > 0:
+								m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
+							if medium['damage'] > 0:
+								m += f"**Mid Range:** {medium['damage']:0.1f} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance'] * 100)}%)\n"
+							if far['damage'] > 0:
+								m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance'] * 100)}%)\n"
 							m += '\n'
-						embed.add_field(name="__**Engine**__", value=m, inline=False)
+					else:
+						# compact detail
+						aa = query_result[0]['profile']['anti_air']
+						average_rating = sum([hull['profile']['anti_air']['rating'] for hull in query_result]) / len(modules['hull'])
 
-					# concealment
-					if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONCEAL):
-						m = ""
-						if database_client is not None:
-							query_result = database_client.mackbot_db.module_list.find({
-								"module_id": {"$in": modules['hull']}
-							}).sort("name", 1)
-						else:
-							query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+						rating_descriptor = ""
+						for d in AA_RATING_DESCRIPTOR:
+							low, high = AA_RATING_DESCRIPTOR[d]
+							if low <= average_rating <= high:
+								rating_descriptor = d
+								break
+						m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
+						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 
-						for module in query_result:
-							hull = module['profile']['hull']
-							m += f"**{module['name']}**\n"
-							m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
-							m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
-							m += "\n"
-						embed.add_field(name="__**Concealment**__", value=m, inline=True)
+					embed.add_field(name="__**Anti-Air**__", value=m)
 
-					# upgrades
-					if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
-						m = ""
-						for slot in upgrades:
-							m += f"**Slot {slot + 1}**\n"
-							if len(upgrades[slot]) > 0:
-								for u in upgrades[slot]:
-									m += f"{upgrade_list[u]['name']}\n"
-							m += "\n"
+				# torpedoes
+				if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['torpedoes']}
+						}).sort("name", 1)
+					else:
+						query_result = [module_list[str(m)] for m in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name'])]
 
-						embed.add_field(name="__**Upgrades**__", value=m, inline=True)
+					for module in query_result:
+						torps = module['profile']['torpedoes']
+						projectile_name = module['name'].replace(chr(10), ' ')
+						turret_name = list(torps['turrets'].keys())[0]
+						m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
+						if torps['is_deep_water']:
+							m += " [DW]"
+						m += '**\n'
+						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORPS:
+							reload_minute = int(torps['shotDelay'] // 60)
+							reload_second = int(torps['shotDelay'] % 60)
+							m += f"**Torpedo:** {projectile_name}\n"
+							m += f"**Reload:** {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s\n"
+							m += f"**Damage:** {torps['max_damage']}\n"
+							m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
+							m += f"**Spotting Range:** {torps['spotting_range']} km\n"
+							m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
+							m += '-------------------\n'
+					embed.add_field(name="__**Torpedoes**__", value=m)
 
-					# consumables
-					if len(consumables) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
-						m = ""
-						for consumable_slot in consumables:
-							if len(consumables[consumable_slot]['abils']) > 0:
-								m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
-								if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
+				# attackers
+				if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['fighter']}
+						}).sort("name", 1)
+						query_result = [(document['module_id'], document) for document in query_result]
+					else:
+						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
+
+					for _, module in query_result:
+						for f in module:
+							if type(module[f]) == dict:
+								fighter_module = module[f]
+								fighter = module[f]['profile']['fighter']
+								n_attacks = fighter_module['squad_size'] // fighter_module['attack_size']
+								m += f"**{module[f]['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
+									m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
+									m += f"**Squadron:** {fighter_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {fighter_module['attack_size']})\n"
+									m += f"**Hangar:** {fighter_module['hangarSettings']['startValue']} aircraft (Restore {fighter_module['hangarSettings']['restoreAmount']} aircraft every {fighter_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
+									m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
+									m += f"**Firing Delay:** {fighter_module['profile']['fighter']['aiming_time']:0.1f}s\n"
+									m += f"**Attack Cooldown:** {fighter_module['attack_cooldown']:0.1f}s\n"
 									m += '\n'
-								for c_index, c in enumerate(consumables[consumable_slot]['abils']):
-									consumable_id, consumable_type = c
-									consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
-									consumable_name = consumable_descriptor[consumable['consumableType']]['name']
-									# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
-									consumable_type = consumable["consumableType"]
+					embed.add_field(name="__**Attackers**__", value=m, inline=False)
 
-									charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
-									action_time = consumable['workTime']
-									cd_time = consumable['reloadTime']
+				# torpedo bomber
+				if len(modules['torpedo_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['torpedo_bomber']}
+						}).sort("name", 1)
+						query_result = [(document['module_id'], document) for document in query_result]
+					else:
+						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
 
-									m += f"**{consumable_name}** "
-									if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
-										consumable_detail = ""
-										if consumable_type == 'airDefenseDisp':
-											consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
-										if consumable_type == 'artilleryBoosters':
-											consumable_detail = f'Reload Time: -50%'
-										if consumable_type == 'regenCrew':
-											consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
-											for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-												hull = module_list[str(h)]['profile']['hull']
-												consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
-											consumable_detail = consumable_detail[:-1]
-										if consumable_type == 'rls':
-											consumable_detail = f'Range: {round(consumable["distShip"] * 30) / 1000:0.1f} km'
-										if consumable_type == 'scout':
-											consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
-										if consumable_type == 'smokeGenerator':
-											consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60)) + "m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60)) + "s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
-										if consumable_type == 'sonar':
-											consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] * 30) / 1000:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] * 30) / 1000:0.1f} km'
-										if consumable_type == 'speedBoosters':
-											consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
-										if consumable_type == 'torpedoReloader':
-											consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
+					for _, module in query_result:
+						for b in module:
+							if type(module[b]) == dict:
+								bomber_module = module[b]
+								bomber = bomber_module['profile']['torpedo_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']} aircraft)\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
+									m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
+									m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
+									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+									m += '\n'
+					embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
 
-										m += '\n'
-										m += f"{charges} charge{'s' if charges != 1 else ''}, "
-										m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
-										m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
-										if len(consumable_detail) > 0:
-											m += consumable_detail
-											m += '\n'
-									else:
-										if len(consumables[consumable_slot]['abils']) > 1 and c_index != len(consumables[consumable_slot]['abils']) - 1:
-											m += 'or '
+				# dive bombers
+				if len(modules['dive_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['dive_bomber']}
+						}).sort("name", 1)
+						query_result = [(document['module_id'], document) for document in query_result]
+					else:
+						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
+
+					for _, module in query_result:
+						for b in module:
+							if type(module[b]) == dict:
+								bomber_module = module[b]
+								bomber = bomber_module['profile']['dive_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
+									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+									m += '\n'
+					embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
+
+				if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['skip_bomber']}
+						}).sort("name", 1)
+						query_result = [(document['module_id'], document) for document in query_result]
+					else:
+						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
+
+					for _, module in query_result:
+						for b in module:
+							if type(module[b]) == dict:
+								bomber_module = module[b]
+								bomber = bomber_module['profile']['skip_bomber']
+								n_attacks = bomber_module['squad_size'] // bomber_module['attack_size']
+								m += f"**{bomber_module['name'].replace(chr(10), ' ')}**\n"
+								if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
+									m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
+									m += f"**Squadron:** {bomber_module['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {bomber_module['attack_size']})\n"
+									m += f"**Hangar:** {bomber_module['hangarSettings']['startValue']} aircraft (Restore {bomber_module['hangarSettings']['restoreAmount']} aircraft every {bomber_module['hangarSettings']['timeToRestore']}s)\n"
+									m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
+									m += f"**{bomber_module['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(bomber_module['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
+									m += f"**Attack Cooldown:** {bomber_module['attack_cooldown']:0.1f}s\n"
+									m += '\n'
+					embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
+
+				# engine
+				if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['engine']}
+						}).sort("name", 1)
+					else:
+						query_result = sorted(modules['engine'], key=lambda x: module_list[str(x)]['name'])
+
+					for module in query_result:
+						engine = module['profile']['engine']
+						m += f"**{module['name']}**: {engine['max_speed']} kts\n"
+						m += '\n'
+					embed.add_field(name="__**Engine**__", value=m, inline=False)
+
+				# concealment
+				if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONCEAL):
+					m = ""
+					if database_client is not None:
+						query_result = database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['hull']}
+						}).sort("name", 1)
+					else:
+						query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+
+					for module in query_result:
+						hull = module['profile']['hull']
+						m += f"**{module['name']}**\n"
+						m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
+						m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
+						m += "\n"
+					embed.add_field(name="__**Concealment**__", value=m, inline=True)
+
+				# upgrades
+				if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
+					m = ""
+					for slot in upgrades:
+						m += f"**Slot {slot + 1}**\n"
+						if len(upgrades[slot]) > 0:
+							for u in upgrades[slot]:
+								m += f"{upgrade_list[u]['name']}\n"
+						m += "\n"
+
+					embed.add_field(name="__**Upgrades**__", value=m, inline=True)
+
+				# consumables
+				if len(consumables) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
+					m = ""
+					for consumable_slot in consumables:
+						if len(consumables[consumable_slot]['abils']) > 0:
+							m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
+							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 								m += '\n'
+							for c_index, c in enumerate(consumables[consumable_slot]['abils']):
+								consumable_id, consumable_type = c
+								consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
+								consumable_name = consumable_descriptor[consumable['consumableType']]['name']
+								# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
+								consumable_type = consumable["consumableType"]
 
-						embed.add_field(name="__**Consumables**__", value=m, inline=False)
-					footer_message = "Parameters does not take into account upgrades or commander skills\n"
-					footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
-					footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
-					if is_test_ship:
-						footer_message += f"*Test ship is subject to change before her release\n"
-					embed.set_footer(text=footer_message)
-				await context.send(embed=embed)
+								charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
+								action_time = consumable['workTime']
+								cd_time = consumable['reloadTime']
+
+								m += f"**{consumable_name}** "
+								if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
+									consumable_detail = ""
+									if consumable_type == 'airDefenseDisp':
+										consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
+									if consumable_type == 'artilleryBoosters':
+										consumable_detail = f'Reload Time: -50%'
+									if consumable_type == 'regenCrew':
+										consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
+										for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+											hull = module_list[str(h)]['profile']['hull']
+											consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
+										consumable_detail = consumable_detail[:-1]
+									if consumable_type == 'rls':
+										consumable_detail = f'Range: {round(consumable["distShip"] * 30) / 1000:0.1f} km'
+									if consumable_type == 'scout':
+										consumable_detail = f'Main Battery firing range: +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
+									if consumable_type == 'smokeGenerator':
+										consumable_detail = f'Smoke lasts {str(int(consumable["lifeTime"] // 60)) + "m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60)) + "s" if consumable["lifeTime"] % 60 > 0 else ""}\nSmoke radius: {consumable["radius"] * 10} meters\nConceal user up to {consumable["speedLimit"]} knots while active.'
+									if consumable_type == 'sonar':
+										consumable_detail = f'Assured Ship Range: {round(consumable["distShip"] * 30) / 1000:0.1f}km\nAssured Torp. Range: {round(consumable["distTorpedo"] * 30) / 1000:0.1f} km'
+									if consumable_type == 'speedBoosters':
+										consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
+									if consumable_type == 'torpedoReloader':
+										consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
+
+									m += '\n'
+									m += f"{charges} charge{'s' if charges != 1 else ''}, "
+									m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
+									m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
+									if len(consumable_detail) > 0:
+										m += consumable_detail
+										m += '\n'
+								else:
+									if len(consumables[consumable_slot]['abils']) > 1 and c_index != len(consumables[consumable_slot]['abils']) - 1:
+										m += 'or '
+							m += '\n'
+
+					embed.add_field(name="__**Consumables**__", value=m, inline=False)
+				footer_message = "Parameters does not take into account upgrades or commander skills\n"
+				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
+				footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
+				if is_test_ship:
+					footer_message += f"*Test ship is subject to change before her release\n"
+				embed.set_footer(text=footer_message)
+			await context.send(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
@@ -1886,164 +1890,165 @@ async def ship(context, *args):
 				await context.send(f"An internal error has occured.")
 				traceback.print_exc()
 
-async def ship_compact(context, ship_data):
-	"""
-	Send a compact version of the build command.
+# async def ship_compact(context, ship_data):
+# 	"""
+# 	Send a compact version of the build command.
+#
+# 	Args:
+# 		context: A discord.ext.commands.Context object
+# 		ship_data: ship data gathered from the get_ship_data() function
+#
+# 	Returns: None
+#
+# 	"""
+# 	name = ship_data['name']
+# 	nation = ship_data['nation']
+# 	images = ship_data['images']
+# 	ship_type = ship_data['type']
+# 	tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
+# 	modules = ship_data['modules']
+# 	is_prem = ship_data['is_premium']
+# 	is_test_ship = ship_data['is_test_ship']
+# 	logger.info(f"returning ship information for <{name}> in embeded format")
+# 	ship_type = ship_types[ship_type]
+# 	ship_type_emoji = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
+#
+# 	embed = discord.Embed(title=f"{ship_type_emoji} {tier} {name} {'' if not is_test_ship else '[TEST SHIP]'}", description="")
+# 	embed.set_thumbnail(url=images['small'])
+#
+# 	# hull info
+# 	if len(modules['hull']):
+# 		m = ""
+# 		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+# 			hull = module_list[str(h)]['profile']['hull']
+# 			hull_name = module_list[str(h)]['name']
+# 			aa = module_list[str(h)]['profile']['anti_air']
+# 			rating_descriptor = ""
+# 			for d in AA_RATING_DESCRIPTOR:
+# 				low, high = AA_RATING_DESCRIPTOR[d]
+# 				if low <= aa['rating'] <= high:
+# 					rating_descriptor = d
+# 					break
+#
+# 			m += f"{ship_type_emoji} __**{hull_name}**__ \n"
+# 			m += f"{hull['health']:1.0f} HP\n"
+# 			m += f"{icons_emoji['aa']} {aa['max_range']/1000:0.1f} km | {rating_descriptor} AA\n"
+# 		m += "\n"
+# 		embed.add_field(name="\u200b", value=m, inline=False)
+# 	# gun info
+# 	if len(modules['artillery']):
+# 		m = ""
+# 		for mb in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'], reverse=True):
+# 			mb_name = module_list[str(mb)]['name']
+# 			mb_range = ""
+# 			for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
+# 				mb_range += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
+# 			mb_range = mb_range[:-2]
+# 			mb = module_list[str(mb)]['profile']['artillery']
+# 			m += f"{icons_emoji['gun']} __**{mb_name}**__\n"
+# 			m += f"{icons_emoji['reload']} {mb['shotDelay']:0.1f}s | {icons_emoji['range']} {mb_range} km\n"
+# 			if mb['max_damage_he']:
+# 				m += f"{icons_emoji['he']} {mb['max_damage_he']} :boom: | :fire: {mb['burn_probability']:2.0f}% | {icons_emoji['penetration']} {mb['pen_HE']:2.0f} mm\n"
+# 			if mb['max_damage_sap']:
+# 				m += f"{icons_emoji['sap']} {mb['max_damage_sap']} :boom: | {icons_emoji['penetration']} {mb['pen_SAP']:2.0f} mm\n"
+# 			if mb['max_damage_ap']:
+# 				m += f"{icons_emoji['ap']} {mb['max_damage_ap']} :boom:\n"
+# 			m += '\n'
+#
+# 		embed.add_field(name="\u200b", value=m, inline=False)
+# 	# torp info
+# 	if len(modules['torpedoes']):
+# 		m = ""
+# 		for t in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
+# 			torps = module_list[str(t)]['profile']['torpedoes']
+# 			torps_name = module_list[str(t)]['name'].replace(chr(10), ' ')
+# 			reload_minute = int(torps['shotDelay'] // 60)
+# 			reload_second = int(torps['shotDelay'] % 60)
+#
+# 			m += f"{icons_emoji['torp']} __**{torps_name}**__\n"
+# 			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['range']:0.1f} km\n"
+# 			m += f"{icons_emoji['plane_torp']} {torps['max_damage']:2.0f} :boom: | {icons_emoji['plane_torp']} x {torps['numBarrels']} | {torps['torpedo_speed']:0.1f} kts.\n"
+# 			m += '\n'
+# 		embed.add_field(name="\u200b", value=m, inline=False)
+# 	# rockets
+# 	if len(modules['fighter']):
+# 		m = ""
+# 		for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
+# 			for p in module_list[str(h)]:
+# 				fighter_module = module_list[str(h)][p]
+# 				fighter = module_list[str(h)][p]['profile']['fighter']
+# 				fighter_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
+#
+# 				m += f"{icons_emoji['plane_rocket']} __**{fighter_name}**__\n"
+# 				m += f"{icons_emoji['plane']} x {fighter_module['squad_size']} | {fighter['cruise_speed']} kts.\n"
+# 				m += f":boom: {fighter['max_damage']:1.0f} x {fighter['payload']} {icons_emoji['plane_rocket']} x {fighter_module['attack_size']} {icons_emoji['plane']}\n"
+# 				m += f"{icons_emoji['reload']} {fighter_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+#
+# 		embed.add_field(name="\u200b", value=m, inline=True)
+#
+# 	# torp bomber
+# 	if len(modules['torpedo_bomber']):
+# 		m = ""
+# 		for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
+# 			for p in module_list[str(h)]:
+# 				torpedo_bomber_module = module_list[str(h)][p]
+# 				torpedo_bomber = module_list[str(h)][p]['profile']['torpedo_bomber']
+# 				torpedo_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
+#
+# 				m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
+# 				m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
+# 				m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+# 				m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+#
+# 		embed.add_field(name="\u200b", value=m, inline=True)
+# 	# bomber
+# 	if len(modules['dive_bomber']):
+# 		m = ""
+# 		for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
+# 			for p in module_list[str(h)]:
+# 				dive_bomber_module = module_list[str(h)][p]
+# 				dive_bomber = module_list[str(h)][p]['profile']['dive_bomber']
+# 				dive_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
+#
+# 				m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
+# 				m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
+# 				m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_bomb']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+# 				m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+#
+# 		embed.add_field(name="\u200b", value=m, inline=True)
+# 	# skip
+# 	if len(modules['skip_bomber']):
+# 		m = ""
+# 		for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
+# 			for p in module_list[str(h)]:
+# 				skip_bomber_module = module_list[str(h)][p]
+# 				skip_bomber = module_list[str(h)][p]['profile']['skip_bomber']
+# 				skip_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
+#
+# 				m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
+# 				m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
+# 				m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
+# 				m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
+#
+# 		embed.add_field(name="\u200b", value=m, inline=True)
+# 	# concealment
+# 	if len(modules['hull']):
+# 		m = ""
+# 		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
+# 			hull = module_list[str(h)]['profile']['hull']
+# 			m += f"**{module_list[str(h)]['name']}**\n"
+# 			m += f"{icons_emoji['concealment']}{ship_type_emoji}: {hull['detect_distance_by_ship']:0.1f} km\n"
+# 			m += f"{icons_emoji['concealment']}{icons_emoji['plane']}: {hull['detect_distance_by_plane']:0.1f} km\n"
+# 		embed.add_field(name="\u200b", value=m, inline=False)
+#
+# 	footer_message = "Parameters does not take into account upgrades or commander skills\n"
+# 	footer_message += f"For details specific parameters, use [mackbot ship {name} (parameters)]\n"
+# 	footer_message += f"For {name.title()} builds, use [mackbot build {name}]\n"
+# 	if is_test_ship:
+# 		footer_message += f"*Test ship is subject to change before her release\n"
+# 	embed.set_footer(text=footer_message)
+# 	await context.send(embed=embed)
 
-	Args:
-		context: A discord.ext.commands.Context object
-		ship_data: ship data gathered from the get_ship_data() function
-
-	Returns: None
-
-	"""
-	name = ship_data['name']
-	nation = ship_data['nation']
-	images = ship_data['images']
-	ship_type = ship_data['type']
-	tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-	modules = ship_data['modules']
-	is_prem = ship_data['is_premium']
-	is_test_ship = ship_data['is_test_ship']
-	logger.info(f"returning ship information for <{name}> in embeded format")
-	ship_type = ship_types[ship_type]
-	ship_type_emoji = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
-
-	embed = discord.Embed(title=f"{ship_type_emoji} {tier} {name} {'' if not is_test_ship else '[TEST SHIP]'}", description="")
-	embed.set_thumbnail(url=images['small'])
-
-	# hull info
-	if len(modules['hull']):
-		m = ""
-		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-			hull = module_list[str(h)]['profile']['hull']
-			hull_name = module_list[str(h)]['name']
-			aa = module_list[str(h)]['profile']['anti_air']
-			rating_descriptor = ""
-			for d in AA_RATING_DESCRIPTOR:
-				low, high = AA_RATING_DESCRIPTOR[d]
-				if low <= aa['rating'] <= high:
-					rating_descriptor = d
-					break
-
-			m += f"{ship_type_emoji} __**{hull_name}**__ \n"
-			m += f"{hull['health']:1.0f} HP\n"
-			m += f"{icons_emoji['aa']} {aa['max_range']/1000:0.1f} km | {rating_descriptor} AA\n"
-		m += "\n"
-		embed.add_field(name="\u200b", value=m, inline=False)
-	# gun info
-	if len(modules['artillery']):
-		m = ""
-		for mb in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'], reverse=True):
-			mb_name = module_list[str(mb)]['name']
-			mb_range = ""
-			for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
-				mb_range += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
-			mb_range = mb_range[:-2]
-			mb = module_list[str(mb)]['profile']['artillery']
-			m += f"{icons_emoji['gun']} __**{mb_name}**__\n"
-			m += f"{icons_emoji['reload']} {mb['shotDelay']:0.1f}s | {icons_emoji['range']} {mb_range} km\n"
-			if mb['max_damage_he']:
-				m += f"{icons_emoji['he']} {mb['max_damage_he']} :boom: | :fire: {mb['burn_probability']:2.0f}% | {icons_emoji['penetration']} {mb['pen_HE']:2.0f} mm\n"
-			if mb['max_damage_sap']:
-				m += f"{icons_emoji['sap']} {mb['max_damage_sap']} :boom: | {icons_emoji['penetration']} {mb['pen_SAP']:2.0f} mm\n"
-			if mb['max_damage_ap']:
-				m += f"{icons_emoji['ap']} {mb['max_damage_ap']} :boom:\n"
-			m += '\n'
-
-		embed.add_field(name="\u200b", value=m, inline=False)
-	# torp info
-	if len(modules['torpedoes']):
-		m = ""
-		for t in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
-			torps = module_list[str(t)]['profile']['torpedoes']
-			torps_name = module_list[str(t)]['name'].replace(chr(10), ' ')
-			reload_minute = int(torps['shotDelay'] // 60)
-			reload_second = int(torps['shotDelay'] % 60)
-
-			m += f"{icons_emoji['torp']} __**{torps_name}**__\n"
-			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['range']:0.1f} km\n"
-			m += f"{icons_emoji['plane_torp']} {torps['max_damage']:2.0f} :boom: | {icons_emoji['plane_torp']} x {torps['numBarrels']} | {torps['torpedo_speed']:0.1f} kts.\n"
-			m += '\n'
-		embed.add_field(name="\u200b", value=m, inline=False)
-	# rockets
-	if len(modules['fighter']):
-		m = ""
-		for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
-			for p in module_list[str(h)]:
-				fighter_module = module_list[str(h)][p]
-				fighter = module_list[str(h)][p]['profile']['fighter']
-				fighter_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-
-				m += f"{icons_emoji['plane_rocket']} __**{fighter_name}**__\n"
-				m += f"{icons_emoji['plane']} x {fighter_module['squad_size']} | {fighter['cruise_speed']} kts.\n"
-				m += f":boom: {fighter['max_damage']:1.0f} x {fighter['payload']} {icons_emoji['plane_rocket']} x {fighter_module['attack_size']} {icons_emoji['plane']}\n"
-				m += f"{icons_emoji['reload']} {fighter_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-
-		embed.add_field(name="\u200b", value=m, inline=True)
-
-	# torp bomber
-	if len(modules['torpedo_bomber']):
-		m = ""
-		for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
-			for p in module_list[str(h)]:
-				torpedo_bomber_module = module_list[str(h)][p]
-				torpedo_bomber = module_list[str(h)][p]['profile']['torpedo_bomber']
-				torpedo_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-
-				m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
-				m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
-				m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-				m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-
-		embed.add_field(name="\u200b", value=m, inline=True)
-	# bomber
-	if len(modules['dive_bomber']):
-		m = ""
-		for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
-			for p in module_list[str(h)]:
-				dive_bomber_module = module_list[str(h)][p]
-				dive_bomber = module_list[str(h)][p]['profile']['dive_bomber']
-				dive_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-
-				m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
-				m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
-				m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_bomb']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-				m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-
-		embed.add_field(name="\u200b", value=m, inline=True)
-	# skip
-	if len(modules['skip_bomber']):
-		m = ""
-		for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
-			for p in module_list[str(h)]:
-				skip_bomber_module = module_list[str(h)][p]
-				skip_bomber = module_list[str(h)][p]['profile']['skip_bomber']
-				skip_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-
-				m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
-				m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
-				m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-				m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-
-		embed.add_field(name="\u200b", value=m, inline=True)
-	# concealment
-	if len(modules['hull']):
-		m = ""
-		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-			hull = module_list[str(h)]['profile']['hull']
-			m += f"**{module_list[str(h)]['name']}**\n"
-			m += f"{icons_emoji['concealment']}{ship_type_emoji}: {hull['detect_distance_by_ship']:0.1f} km\n"
-			m += f"{icons_emoji['concealment']}{icons_emoji['plane']}: {hull['detect_distance_by_plane']:0.1f} km\n"
-		embed.add_field(name="\u200b", value=m, inline=False)
-
-	footer_message = "Parameters does not take into account upgrades or commander skills\n"
-	footer_message += f"For details specific parameters, use [mackbot ship {name} (parameters)]\n"
-	footer_message += f"For {name.title()} builds, use [mackbot build {name}]\n"
-	if is_test_ship:
-		footer_message += f"*Test ship is subject to change before her release\n"
-	embed.set_footer(text=footer_message)
-	await context.send(embed=embed)
 
 @mackbot.command(help="")
 async def compare(context, *args):
