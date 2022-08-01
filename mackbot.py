@@ -3069,7 +3069,7 @@ async def clan(context, *args):
 			selected_clan = None
 			if len(clan_search) > 1:
 				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
-				embed.description += '\n'.join(f"[{i+1}] [{c['tag']}] {c['name']}" for i, c in enumerate(clan_search))
+				embed.description += '\n'.join(f"[{i+1}] [{escape_discord_format(c['tag'])}] {c['name']}" for i, c in enumerate(clan_search))
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
 
 				await context.send(embed=embed)
@@ -3118,8 +3118,13 @@ async def clan(context, *args):
 				if clan_age_day:
 					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
 				m += ')\n'
+				if clan_detail['old_tag'] and clan_detail['old_name']:
+					m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
 				m += f"**Members: ** {clan_detail['members_count']}\n"
 				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+
+				if clan_detail['description']:
+					embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
 				# update clan history for member transfer feature
 				# check clan in data
 				history_output = []
@@ -3130,9 +3135,9 @@ async def clan(context, *args):
 					members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
 					members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
 					for m in members_out:
-						history_output += [previous_member_list[m]['account_name'], icons_emoji['clan_out']]
+						history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
 					for m in members_in:
-						history_output += [new_member_list[m]['account_name'], icons_emoji['clan_in']]
+						history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
 
 					# check if last update was at least a week ago
 					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
@@ -3144,8 +3149,6 @@ async def clan(context, *args):
 
 				if history_output:
 					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
-
-				embed.add_field(name="\u200b", value="\u200b", inline=False)
 
 				# output members
 				members_per_column = 10
