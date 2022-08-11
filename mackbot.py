@@ -52,7 +52,7 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 
 pd.set_option('display.max_columns', None)
 
-with open("command_list.json") as f:
+with open("data/command_list.json") as f:
 	command_list = json.load(f)
 
 # dont remeber why this is here. DO NOT REMOVE
@@ -931,7 +931,7 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 	}
 	if database_client is not None:
 		query_result = database_client.mackbot_db.ship_list.find_one({
-			{"ship_id": ship_id}
+			"ship_id": ship_id
 		})
 		if query_result is not None:
 			ship_data['name'] = query_result['name']
@@ -941,7 +941,24 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 			ship_data['is_prem'] = query_result['is_premium']
 			return ship_data
 		else:
-			raise NoShipFound
+			# some ships are not available in wg api
+			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
+			if len(query_result) > 0:
+				data = game_data[query_result[0]]
+				ship_name = data['name']
+				ship_name = ship_name.replace(str(data['index']), '')[1:]
+				ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
+				ship_name = ''.join(ship_name)
+				ship_name = ship_name.replace("_", " ")
+
+				ship_data['name'] = ship_name + " (old)"
+				ship_data['tier'] = data['level']
+				ship_data['nation'] = data['navalFlag']
+				ship_data['type'] = data['typeinfo']['species']
+
+				return ship_data
+			else:
+				raise NoShipFound
 	else:
 		try:
 			ship_data['name'] = ship_list[str(ship_id)]['name']
@@ -975,13 +992,13 @@ def escape_discord_format(s):
 def compile_help_strings():
 	global help_dictionary
 	logger.info("Creating help index")
-	with open(os.path.join("help_command_strings.json")) as f:
+	with open(os.path.join("data/help_command_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
 			help_dictionary_index[k] = k
 
-	with open(os.path.join("help_terminology_strings.json")) as f:
+	with open(os.path.join("data/help_terminology_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
@@ -1479,11 +1496,10 @@ async def ship(context, *args):
 						turret_data = module['profile']['artillery']['turrets']
 						for turret_name in turret_data:
 							turret = turret_data[turret_name]
-							m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])}):**\n"
+							m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 						m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 							m = m[:-1]
-							m += f" ({(180 / guns['transverse_speed']):0.1f}s for 180{DEGREE_SYMBOL})\n"
 							m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 							m += '-------------------\n'
 						if guns['max_damage_he']:
@@ -2513,7 +2529,7 @@ async def upgrades(context, *args):
 		embed_title = "Search result for: "
 
 		# select page
-		page = int(page[0]) if len(page) > 0 else 0
+		page = int(page[0]) if len(page) > 0 else 1
 
 		if len(tier) > 0:
 			for t in tier:
@@ -2561,7 +2577,7 @@ async def upgrades(context, *args):
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
 			embed = discord.Embed(title=embed_title + f"({max(1, page)}/{num_pages})")
-			m = m[page - 1]  # select page
+			m = m[page]  # select page
 			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
 			embed.set_footer(text=f"{num_items} upgrades found.\nFor more information on an upgrade, use [{command_prefix} upgrade [name/abbreviation]]")
 			for i in m:
@@ -2622,7 +2638,7 @@ async def ships(context, *args):
 	embed_title = "Search result for: "
 
 	# select page
-	page = int(page[0]) if len(page) > 0 else 0
+	page = int(page[0]) if len(page) > 0 else 1
 
 	if len(tier) > 0:
 		if tier in roman_numeral:
