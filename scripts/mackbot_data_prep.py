@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from itertools import count
 from math import inf
 from enum import IntEnum, auto
+from scripts.constants import nation_dictionary, hull_classification_converter
 
 game_data = {}
 ship_list = {}
@@ -39,39 +40,9 @@ logger = logging.getLogger("mackbot_data_loader")
 logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
-# dictionary to convert user input to output nations
-nation_dictionary = {
-	'usa': 'US',
-	'us': 'US',
-	'pan_asia': 'Pan-Asian',
-	'ussr': 'Russian',
-	'russian': 'Russian',
-	'europe': 'European',
-	'japan': 'Japanese',
-	'uk': 'British',
-	'british': 'British',
-	'france': 'France',
-	'french': 'France',
-	'germany': 'German',
-	'italy': 'Italian',
-	'commonwealth': 'Commonwealth',
-	'pan_america': 'Pan-American',
-	'netherlands': "Dutch",
-	'spain': "Spanish"
-}
-
-# convert weegee ship type to usn hull classifications
-hull_classification_converter = {
-	'Destroyer': 'DD',
-	'AirCarrier': 'CV',
-	'Aircraft Carrier': 'CV',
-	'Battleship': 'BB',
-	'Cruiser': 'C',
-	'Submarine': 'SS'
-}
 
 # load config
-with open("config.json") as f:
+with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
 	data = json.load(f)
 
 mongodb_host = data['mongodb_host']
@@ -96,7 +67,7 @@ def load_game_params():
 	logger.info(f"Loading GameParams")
 	for file_count in count(0):
 		try:
-			with open(os.path.join(".", "data", f'GameParamsPruned_{file_count}.json')) as f:
+			with open(os.path.join(os.getcwd(), "data", f'GameParamsPruned_{file_count}.json')) as f:
 				data = json.load(f)
 
 			game_data.update(data)
@@ -109,7 +80,7 @@ def load_skill_list():
 	# loading skills list
 	logger.info("Fetching Skill List")
 	try:
-		with open(os.path.join("data", "skill_list.json")) as f:
+		with open(os.path.join("./data", "skill_list.json")) as f:
 			skill_list = json.load(f)
 
 		# dictionary that stores skill abbreviation
@@ -159,7 +130,7 @@ def load_ship_list():
 	logger.info("Fetching Ship List")
 	global ship_list
 	ship_list_file_name = 'ship_list'
-	ship_list_file_dir = os.path.join(".", "data", ship_list_file_name)
+	ship_list_file_dir = os.path.join(os.getcwd(), "data", ship_list_file_name)
 
 	fetch_ship_list_from_wg = False
 	# fetching from local
@@ -172,6 +143,7 @@ def load_ship_list():
 			logger.info("Ship list outdated, fetching new list")
 			fetch_ship_list_from_wg = True
 			ship_list = {}
+
 	else:
 		logger.info("No ship list file, fetching new")
 		fetch_ship_list_from_wg = True
@@ -348,7 +320,7 @@ def update_ship_modules():
 			ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
 			ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
 
-			# is this a test bote?
+			# is this a test boat?
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
@@ -656,18 +628,18 @@ def update_ship_modules():
 						for p in planes:
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
-							module_list[module_id][p] = {}
+							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane['name']
-							module_list[module_id][p]['attack_size'] = plane['attackerSize']
-							module_list[module_id][p]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id][p]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id][p]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-							module_list[module_id][p]['profile'] = {
+							module_list[module_id]["aircraft"]['name'] = plane['name']
+							module_list[module_id]["aircraft"]['attack_size'] = plane['attackerSize']
+							module_list[module_id]["aircraft"]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
+							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
+							module_list[module_id]["aircraft"]['profile'] = {
 								"fighter": {
 									'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
 									'max_damage': int(projectile['alphaDamage']),
@@ -692,21 +664,21 @@ def update_ship_modules():
 						module_list[module_id]['type'] = 'Torpedo Bomber'
 
 						for p in planes:
-							plane = game_data[p]  # get rocket params
+							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id][p] = {}
+							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane['name']
-							module_list[module_id][p]['attack_size'] = plane['attackerSize']
-							module_list[module_id][p]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id][p]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id][p]['spotting_range_plane'] = plane['visibilityFactorByPlane']
+							module_list[module_id]["aircraft"]['name'] = plane['name']
+							module_list[module_id]["aircraft"]['attack_size'] = plane['attackerSize']
+							module_list[module_id]["aircraft"]['squad_size'] = plane['numPlanesInSquadron']
+							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
+							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
 
-							module_list[module_id][p]['profile'] = {
+							module_list[module_id]["aircraft"]['profile'] = {
 								"torpedo_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
@@ -732,22 +704,22 @@ def update_ship_modules():
 						module_list[module_id]['type'] = 'Dive Bomber'
 
 						for p in planes:
-							plane = game_data[p]  # get rocket params
+							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id][p] = {}
+							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id][p]['name'] = plane['name']
-							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id][p]['bomb_type'] = projectile['ammoType']
-							module_list[module_id][p]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-							module_list[module_id][p]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id][p]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-							module_list[module_id][p]['profile'] = {
+							module_list[module_id]["aircraft"]['name'] = plane['name']
+							module_list[module_id]["aircraft"]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id]["aircraft"]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]["aircraft"]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]["aircraft"]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
+							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
+							module_list[module_id]["aircraft"]['profile'] = {
 								"dive_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
@@ -769,27 +741,27 @@ def update_ship_modules():
 						module_list[module_id]['type'] = 'Skip Bomber'
 
 						for p in planes:
-							plane = game_data[p]  # get rocket params
+							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id][p] = {}
+							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
 
-							module_list[module_id][p]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id][p]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id][p]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id][p]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id][p]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id][p]['bomb_type'] = projectile['ammoType']
-							module_list[module_id][p]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-							module_list[module_id][p]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id][p]['spotting_range_plane'] = plane['visibilityFactorByPlane']
+							module_list[module_id]["aircraft"]['attack_size'] = int(plane['attackerSize'])
+							module_list[module_id]["aircraft"]['squad_size'] = int(plane['numPlanesInSquadron'])
+							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
+							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
+							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
+							module_list[module_id]["aircraft"]['bomb_type'] = projectile['ammoType']
+							module_list[module_id]["aircraft"]['bomb_pen'] = int(projectile['alphaPiercingHE'])
+							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
+							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
 
 							# fill missing skip bomber info
-							module_list[module_id][p]['name'] = plane['name']
-							module_list[module_id][p]['module_id'] = module_id
-							module_list[module_id][p]['module_id_str'] = plane['index']
-							module_list[module_id][p]['profile'] = {
+							module_list[module_id]["aircraft"]['name'] = plane['name']
+							module_list[module_id]["aircraft"]['module_id'] = module_id
+							module_list[module_id]["aircraft"]['module_id_str'] = plane['index']
+							module_list[module_id]["aircraft"]['profile'] = {
 								"skip_bomber": {
 									'cruise_speed': int(plane['speedMoveWithBomb']),
 									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),

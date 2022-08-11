@@ -1,6 +1,8 @@
 # mackbot
 The World of Warships (WoWS) Discord bot with ship build sharing and ship encyclopedia.
 
+Invite mackbot [here](https://discord.com/api/oauth2/authorize?client_id=667866391231332353&permissions=378880&scope=bot).
+
 mackbot now has a web application with limited capabilities at https://mackbot-web.herokuapp.com/
 
 ## Installation
