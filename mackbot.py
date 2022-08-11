@@ -1,13 +1,12 @@
-import discord_components
-import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
+import discord_components, wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
-import mackbot_data_prep as data_loader
+import scripts.mackbot_data_prep as data_loader
 
 from typing import Union
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from enum import IntEnum, auto
-from math import inf, ceil
+from math import ceil
 from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
@@ -15,22 +14,8 @@ from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
-
-class NoShipFound(Exception):
-	pass
-
-class NoBuildFound(Exception):
-	pass
-
-class NoUpgradeFound(Exception):
-	pass
-
-class NoSkillFound(Exception):
-	pass
-
-class BUILD_BATTLE_TYPE(IntEnum):
-	CLAN = auto()
-	CASUAL = auto()
+from scripts.constants import *
+from scripts.mackbot_exceptions import *
 
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
@@ -50,23 +35,7 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	CONSUMABLE = auto()
 	UPGRADES = auto()
 
-pd.set_option('display.max_columns', None)
-
-with open("data/command_list.json") as f:
-	command_list = json.load(f)
-
-# dont remeber why this is here. DO NOT REMOVE
-cwd = sys.path[0]
-if cwd == '':
-	cwd = '.'
-
-# logger shenanigans
-
-# adding this so that shows no traceback during discord client is on
-LOG_FILE_NAME = os.path.join('logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
-if not os.path.isdir("logs"):
-	os.mkdir("logs")
-
+# logger stuff
 class LogFilterBlacklist(logging.Filter):
 	def __init__(self, *blacklist):
 		self.blacklist = [i for i in blacklist]
@@ -74,7 +43,12 @@ class LogFilterBlacklist(logging.Filter):
 	def filter(self, record):
 		return not any(i in record.getMessage() for i in self.blacklist)
 
-handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5*1024*1024, backupCount=2, encoding='utf-8', delay=0)
+# log settings
+if not os.path.exists(os.path.join(os.getcwd(), "logs")):
+	os.mkdir(os.getcwd(), "logs")
+
+LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
+handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 
@@ -104,86 +78,9 @@ help_dictionary_index = {}
 ship_build_competitive = None
 ship_build_casual = None
 
-# dictionary to convert user input to output nations
-nation_dictionary = {
-	'usa': 'US',
-	'us': 'US',
-	'pan_asia': 'Pan-Asian',
-	'ussr': 'Russian',
-	'russian': 'Russian',
-	'europe': 'European',
-	'japan': 'Japanese',
-	'uk': 'British',
-	'british': 'British',
-	'france': 'France',
-	'french': 'France',
-	'germany': 'German',
-	'italy': 'Italian',
-	'commonwealth': 'Commonwealth',
-	'pan_america': 'Pan-American',
-	'netherlands': "Dutch",
-	'spain': "Spanish"
-}
-# convert weegee ship type to usn hull classifications
-hull_classification_converter = {
-	'Destroyer': 'DD',
-	'AirCarrier': 'CV',
-	'Aircraft Carrier': 'CV',
-	'Battleship': 'BB',
-	'Cruiser': 'C',
-	'Submarine': 'SS'
-}
 # dictionary to convert user inputted ship name to non-ascii ship name
-# TODO: find an automatic method, maybe
-with open("data/ship_name_dict.json", 'r', encoding='utf-8') as f:
+with open(os.path.join(os.getcwd(), "data", "ship_name_dict.json"), 'r', encoding='utf-8') as f:
 	ship_name_to_ascii = json.load(f)
-
-# see the ship name conversion dictionary comment
-cmdr_name_to_ascii = {
-	'jean-jacques honore': 'jean-jacques honoré',
-	'paul kastner': 'paul kästner',
-	'quon rong': 'quán róng',
-	'myoko': 'myōkō',
-	'myoukou': 'myōkō',
-	'reinhard von jutland': 'reinhard von jütland',
-	'matsuji ijuin': 'matsuji ijūin',
-	'kongo': 'kongō',
-	'kongou': 'kongō',
-	'tao ji': 'tāo ji',
-	'gunther lutjens': 'günther lütjens',
-	'franz von jutland': 'franz von jütland',
-	'da rong': 'dà róng',
-	'rattenkonig': 'rattenkönig',
-	'leon terraux': 'léon terraux',
-	'charles-henri honore': 'charles-henri honoré',
-	'jerzy swirski': 'Jerzy Świrski',
-	'swirski': 'Jerzy Świrski',
-	'halsey': 'william f. Halsey jr.',
-}
-# here because of lazy
-roman_numeral = {
-	'I': 1,
-	'II': 2,
-	'III': 3,
-	'IV': 4,
-	'V': 5,
-	'VI': 6,
-	'VII': 7,
-	'VIII': 8,
-	'IX': 9,
-	'X': 10,
-	':star:': 11,
-}
-
-# barrel count names
-barrel_count_names = {
-	1: "Single",
-	2: "Double",
-	3: "Triple",
-	4: "Quadruple",
-	5: "Quintuple",
-	6: "Sextuple"
-}
 
 # actual stuff
 logger.info("Fetching WoWS Encyclopedia")
@@ -194,7 +91,7 @@ if "sheets_credential" in os.environ:
 	sheet_id = os.environ['sheet_id']
 	command_prefix = "mackbot"
 else:
-	with open("config.json") as f:
+	with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
 		data = json.load(f)
 		wg_token = data['wg_token']
 		bot_token = data['bot_token']
@@ -202,6 +99,9 @@ else:
 		bot_invite_url = data['bot_invite_url']
 		mongodb_host = data['mongodb_host']
 		command_prefix = data['command_prefix'] if 'command_prefix' in data else 'mackbot'
+
+with open(os.path.join(os.getcwd(), "data", "command_list.json")) as f:
+	command_list = json.load(f)
 
 # define bot stuff
 cmd_sep = ' '
@@ -240,7 +140,7 @@ ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 
 clan_roles = WG.clans.glossary()['clans_roles']
 clan_history = {}
-clan_history_file_path = os.path.join("data", "clan_history")
+clan_history_file_path = os.path.join(os.getcwd(), "data", "clan_history")
 if os.path.exists(clan_history_file_path):
 	with open(clan_history_file_path, 'rb') as f:
 		clan_history = pickle.load(f)
@@ -280,16 +180,6 @@ icons_emoji = {
 logger.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
 
-AA_RATING_DESCRIPTOR = {
-	"Non-Existence": [0, 1],
-	"Very Weak": [1, 20],
-	"Weak": [20, 40],
-	"Moderate": [40, 50],
-	"High": [50, 70],
-	"Dangerous": [70, 90],
-	"Very Dangerous": [90, inf],
-}
-
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
@@ -308,7 +198,7 @@ good_bot_messages = (
 	':heart:',
 )
 
-with open(os.path.join(".", "data", "hottakes.txt")) as f:
+with open(os.path.join(os.getcwd(), "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
 
 consumable_descriptor = {
@@ -375,22 +265,6 @@ consumable_descriptor = {
 		'description': 'Significantly reduces the reload time of torpedoes.',
 	},
 }
-
-
-def load_game_params():
-	global game_data
-	# load the gameparams files
-	logger.info(f"Loading GameParams")
-	for file_count in count(0):
-		try:
-			with open(os.path.join(".", "data", f'GameParamsPruned_{file_count}.json')) as f:
-				data = json.load(f)
-
-			game_data.update(data)
-			del data
-		except FileNotFoundError:
-			break
-
 
 # find game data items by tags
 def find_game_data_item(item):
@@ -992,13 +866,13 @@ def escape_discord_format(s):
 def compile_help_strings():
 	global help_dictionary
 	logger.info("Creating help index")
-	with open(os.path.join("data/help_command_strings.json")) as f:
+	with open(os.path.join(os.getcwd(), "data", "help_command_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
 			help_dictionary_index[k] = k
 
-	with open(os.path.join("data/help_terminology_strings.json")) as f:
+	with open(os.path.join(os.getcwd(), "data", "help_terminology_strings.json")) as f:
 		data = json.load(f)
 		for k, v in data.items():
 			help_dictionary[k] = v
@@ -1135,6 +1009,7 @@ async def build(context, *args):
 					upgrades = build['upgrades']
 					skills = build['skills']
 					cmdr = build['cmdr']
+					build_errors = build['errors']
 
 				if not send_image_build:
 					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
@@ -1220,6 +1095,7 @@ async def build(context, *args):
 							embed.add_field(name='Suggested Cmdr.', value=m)
 						else:
 							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
+
 						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
 						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
 					else:
@@ -1406,6 +1282,8 @@ async def ship(context, *args):
 						query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
 
 					for module in query_result:
+						m = ""
+
 						hull = module['profile']['hull']
 						m += f"**{module['name']}:** **{hull['health']} HP**\n"
 						if hull['artillery_barrels'] > 0:
@@ -1423,7 +1301,7 @@ async def ship(context, *args):
 							m += f"{hull['rudderTime']}s rudder shift time\n"
 							m += f"{hull['turnRadius']}m turn radius\n"
 						m += '\n'
-					embed.add_field(name="__**Hull**__", value=m, inline=True)
+						embed.add_field(name="__**Hull**__", value=m, inline=True)
 
 					if 'airSupport' in query_result:
 						# air support info
@@ -1479,19 +1357,24 @@ async def ship(context, *args):
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['artillery']}
 						}).sort("name", 1)
-						fire_control_range = list(database_client.mackbot_db.module_list.find({"module_id": {"$in": modules['fire_control']}}))
-						fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
+
+						fire_control_range = list(database_client.mackbot_db.module_list.find({
+							"module_id": {"$in": modules['fire_control']}
+						}).sort("profile.fire_control.distance", 1))
+						# fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
 					else:
 						query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
 						fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
 					m = ""
 					m += f"**Range: **"
-					m += ' - '.join(str(fc) for fc in fire_control_range)
+					m += ' - '.join(str(fc['profile']['fire_control']['distance']) for fc in fire_control_range)
 					m = m[:-2]
 					m += " km\n"
 
 					for module in query_result:
+						m = ""
+
 						guns = module['profile']['artillery']
 						turret_data = module['profile']['artillery']['turrets']
 						for turret_name in turret_data:
@@ -1528,11 +1411,10 @@ async def ship(context, *args):
 						m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 						m += '\n'
-					embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+						embed.add_field(name="__**Main Battery**__", value=m, inline=False)
 
 				# secondary armaments
 				if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
-					m = ""
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['hull']}
@@ -1541,6 +1423,7 @@ async def ship(context, *args):
 						query_result = [module_list[str(i)] for i in modules["hull"]]
 
 					for hull in query_result:
+						m = ""
 						if 'atba' in hull['profile']:
 							atba = hull['profile']['atba']
 							hull_name = hull['name']
@@ -1567,8 +1450,8 @@ async def ship(context, *args):
 										m += f"Pen. {turret['pen']}mm"
 										m += ')\n'
 										m += f"**Reload**: {turret['shotDelay']}s\n"
-							if len(modules['hull']) > 1:
-								m += '-------------------\n'
+							# if len(modules['hull']) > 1:
+							# 	m += '-------------------\n'
 
 							embed.add_field(name="__**Secondary Battery**__", value=m)
 
@@ -1663,7 +1546,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['fighter']}
-						}).sort("name", 1)
+						}).sort("aircraft.profile.fighter.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
@@ -1692,7 +1575,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['torpedo_bomber']}
-						}).sort("name", 1)
+						}).sort("aircraft.profile.fighter.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
@@ -1721,7 +1604,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['dive_bomber']}
-						}).sort("name", 1)
+						}).sort("aircraft.profile.fighter.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
@@ -1748,7 +1631,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['skip_bomber']}
-						}).sort("name", 1)
+						}).sort("aircraft.profile.fighter.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
@@ -3420,18 +3303,13 @@ async def help(context, *help_key):
 if __name__ == '__main__':
 	import argparse
 	arg_parser = argparse.ArgumentParser()
-	# arg_parser.add_argument('--fetch_new_build', action='store_true', required=False, help="Remove local ship_builds.json file so that new builds can be fetched. mackbot will try to connect first before removing local ship build file.")
 	args = arg_parser.parse_args()
 
+	# load some stuff
 	load_data()
 
-	# retrieve new build from google sheets
-	# if args.fetch_new_build:
-	# 	try:
-	# 		ship_build_file_dir = os.path.join(".", "data", "ship_builds.json")
-	# 		extract_build_from_google_sheets(ship_build_file_dir, True)
-	# 	except:
-	# 		pass
+	if not os.path.isdir("logs"):
+		os.mkdir("logs")
 
 	print("commands usable:")
 	for c in command_list:
