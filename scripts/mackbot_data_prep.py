@@ -624,33 +624,35 @@ def update_ship_modules():
 						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Fighter'
+						module_list[module_id]["squadron"] = [{} for _ in planes]
 
-						for p in planes:
+						for p_i, p in enumerate(planes):
 							plane = game_data[p]  # get rocket params
 							# adding missing information for tactical squadrons
-							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id]["aircraft"]['name'] = plane['name']
-							module_list[module_id]["aircraft"]['attack_size'] = plane['attackerSize']
-							module_list[module_id]["aircraft"]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-							module_list[module_id]["aircraft"]['profile'] = {
-								"fighter": {
-									'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
-									'max_damage': int(projectile['alphaDamage']),
-									'rocket_type': projectile['ammoType'],
-									'burn_probability': int(projectile['burnProb'] * 100),
-									'rocket_pen': int(projectile['alphaPiercingHE']),
-									'max_health': int(plane['maxHealth']),
-									'cruise_speed': int(plane['speedMoveWithBomb']),
-									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-									'payload': int(plane['attackCount']),
-									'payload_name': projectile['name']
+							module_list[module_id]["squadron"][p_i] = {
+								'name': plane['name'],
+								'attack_size': plane['attackerSize'],
+								'squad_size': plane['numPlanesInSquadron'],
+								'speed_multiplier': plane['speedMax'],
+								'hangarSettings': plane['hangarSettings'].copy(),
+								'attack_cooldown': plane['attackCooldown'],
+								'spotting_range': plane['visibilityFactor'],
+								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'profile': {
+									"fighter": {
+										'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
+										'max_damage': int(projectile['alphaDamage']),
+										'rocket_type': projectile['ammoType'],
+										'burn_probability': int(projectile['burnProb'] * 100),
+										'rocket_pen': int(projectile['alphaPiercingHE']),
+										'max_health': int(plane['maxHealth']),
+										'cruise_speed': int(plane['speedMoveWithBomb']),
+										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+										'payload': int(plane['attackCount']),
+										'payload_name': projectile['name']
+									}
 								}
 							}
 						continue
@@ -662,35 +664,34 @@ def update_ship_modules():
 						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Torpedo Bomber'
-
-						for p in planes:
+						module_list[module_id]["squadron"] = [{} for _ in planes]
+						for p_i, p in enumerate(planes):
 							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
-
-							module_list[module_id]["aircraft"]['name'] = plane['name']
-							module_list[module_id]["aircraft"]['attack_size'] = plane['attackerSize']
-							module_list[module_id]["aircraft"]['squad_size'] = plane['numPlanesInSquadron']
-							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-
-							module_list[module_id]["aircraft"]['profile'] = {
-								"torpedo_bomber": {
-									'cruise_speed': int(plane['speedMoveWithBomb']),
-									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-									'max_damage': int((projectile['alphaDamage'] / 3) + projectile['damage']),
-									'max_health': int(plane['maxHealth']),
-									'flood_chance': int(projectile['uwCritical'] * 100),
-									'torpedo_speed': projectile['speed'],
-									'is_deep_water': projectile['isDeepWater'],
-									'range': projectile['maxDist'] * 30 / 1000,
-									'payload': int(plane['projectilesPerAttack']),
-									'payload_name': projectile['name'],
-									'arming_range': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
+							module_list[module_id]["squadron"][p_i] = {
+								'name': plane['name'],
+								'attack_size': plane['attackerSize'],
+								'squad_size': plane['numPlanesInSquadron'],
+								'speed_multiplier': plane['speedMax'],
+								'hangarSettings': plane['hangarSettings'].copy(),
+								'attack_cooldown': plane['attackCooldown'],
+								'spotting_range': plane['visibilityFactor'],
+								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'profile': {
+									"torpedo_bomber": {
+										'cruise_speed': int(plane['speedMoveWithBomb']),
+										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+										'max_damage': int((projectile['alphaDamage'] / 3) + projectile['damage']),
+										'max_health': int(plane['maxHealth']),
+										'flood_chance': int(projectile['uwCritical'] * 100),
+										'torpedo_speed': projectile['speed'],
+										'is_deep_water': projectile['isDeepWater'],
+										'range': projectile['maxDist'] * 30 / 1000,
+										'payload': int(plane['projectilesPerAttack']),
+										'payload_name': projectile['name'],
+										'arming_range': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
+									}
 								}
 							}
 						continue
@@ -702,32 +703,34 @@ def update_ship_modules():
 						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Dive Bomber'
+						module_list[module_id]["squadron"] = [{} for _ in planes]
 
-						for p in planes:
+						for p_i, p in enumerate(planes):
 							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 
-							module_list[module_id]["aircraft"]['name'] = plane['name']
-							module_list[module_id]["aircraft"]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id]["aircraft"]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]["aircraft"]['bomb_type'] = projectile['ammoType']
-							module_list[module_id]["aircraft"]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-							module_list[module_id]["aircraft"]['profile'] = {
-								"dive_bomber": {
-									'cruise_speed': int(plane['speedMoveWithBomb']),
-									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-									'max_damage': projectile['alphaDamage'],
-									'burn_probability': projectile['burnProb'] * 100,
-									'max_health': int(plane['maxHealth']),
-									'payload': int(plane['attackCount']),
-									'payload_name': projectile['name']
+							module_list[module_id]["squadron"][p_i] = {
+								'name': plane['name'],
+								'attack_size': plane['attackerSize'],
+								'squad_size': plane['numPlanesInSquadron'],
+								'speed_multiplier': plane['speedMax'],
+								'hangarSettings': plane['hangarSettings'].copy(),
+								'attack_cooldown': plane['attackCooldown'],
+								'spotting_range': plane['visibilityFactor'],
+								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'bomb_type': projectile['ammoType'],
+								'bomb_pen': int(projectile['alphaPiercingHE']),
+								'profile': {
+									"dive_bomber": {
+										'cruise_speed': int(plane['speedMoveWithBomb']),
+										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+										'max_damage': projectile['alphaDamage'],
+										'burn_probability': projectile['burnProb'] * 100,
+										'max_health': int(plane['maxHealth']),
+										'payload': int(plane['attackCount']),
+										'payload_name': projectile['name']
+									}
 								}
 							}
 						continue
@@ -739,37 +742,37 @@ def update_ship_modules():
 						module_list[module_id]['module_id'] = int(module_id)
 						module_list[module_id]['module_id_str'] = plane['index']
 						module_list[module_id]['type'] = 'Skip Bomber'
+						module_list[module_id]["squadron"] = [{} for _ in planes]
 
-						for p in planes:
+						for p_i, p in enumerate(planes):
 							plane = game_data[p]  # get params
 							# adding missing information for tactical squadrons
-							module_list[module_id]["aircraft"] = {}
 							projectile = game_data[plane['bombName']]
 							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
 
-							module_list[module_id]["aircraft"]['attack_size'] = int(plane['attackerSize'])
-							module_list[module_id]["aircraft"]['squad_size'] = int(plane['numPlanesInSquadron'])
-							module_list[module_id]["aircraft"]['speed_multiplier'] = plane['speedMax']  # squadron max speed, in multiplier
-							module_list[module_id]["aircraft"]['hangarSettings'] = plane['hangarSettings'].copy()
-							module_list[module_id]["aircraft"]['attack_cooldown'] = plane['attackCooldown']
-							module_list[module_id]["aircraft"]['bomb_type'] = projectile['ammoType']
-							module_list[module_id]["aircraft"]['bomb_pen'] = int(projectile['alphaPiercingHE'])
-							module_list[module_id]["aircraft"]['spotting_range'] = plane['visibilityFactor']
-							module_list[module_id]["aircraft"]['spotting_range_plane'] = plane['visibilityFactorByPlane']
-
-							# fill missing skip bomber info
-							module_list[module_id]["aircraft"]['name'] = plane['name']
-							module_list[module_id]["aircraft"]['module_id'] = module_id
-							module_list[module_id]["aircraft"]['module_id_str'] = plane['index']
-							module_list[module_id]["aircraft"]['profile'] = {
-								"skip_bomber": {
-									'cruise_speed': int(plane['speedMoveWithBomb']),
-									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-									'max_damage': int(projectile['alphaDamage']),
-									'burn_probability': projectile['burnProb'] * 100,
-									'max_health': int(plane['maxHealth']),
-									'payload': int(plane['attackCount']),
-									'payload_name': projectile['name']
+							module_list[module_id]["squadron"][p_i] = {
+								'name': plane['name'],
+								'attack_size': plane['attackerSize'],
+								'squad_size': plane['numPlanesInSquadron'],
+								'speed_multiplier': plane['speedMax'],
+								'hangarSettings': plane['hangarSettings'].copy(),
+								'attack_cooldown': plane['attackCooldown'],
+								'spotting_range': plane['visibilityFactor'],
+								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'bomb_type': projectile['ammoType'],
+								'bomb_pen': int(projectile['alphaPiercingHE']),
+								'module_id': module_id,
+								'module_id_str': plane['index'],
+								'profile': {
+									"skip_bomber": {
+										'cruise_speed': int(plane['speedMoveWithBomb']),
+										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+										'max_damage': int(projectile['alphaDamage']),
+										'burn_probability': projectile['burnProb'] * 100,
+										'max_health': int(plane['maxHealth']),
+										'payload': int(plane['attackCount']),
+										'payload_name': projectile['name']
+									}
 								}
 							}
 						continue
@@ -913,3 +916,6 @@ def load():
 	load_upgrade_list()
 	update_ship_modules()
 	create_ship_tags()
+
+if __name__ == "__main__":
+	load()
