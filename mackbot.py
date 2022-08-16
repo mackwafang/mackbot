@@ -1574,7 +1574,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['torpedo_bomber']}
-						}).sort("squadron.profile.fighter.max_health", 1)
+						}).sort("squadron.profile.torpedo_bomber.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
@@ -1602,7 +1602,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['dive_bomber']}
-						}).sort("squadron.profile.fighter.max_health", 1)
+						}).sort("squadron.profile.dive_bomber.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
@@ -1628,7 +1628,7 @@ async def ship(context, *args):
 					if database_client is not None:
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['skip_bomber']}
-						}).sort("squadron.profile.fighter.max_health", 1)
+						}).sort("squadron.profile.skip_bomber.max_health", 1)
 						query_result = [(document['module_id'], document) for document in query_result]
 					else:
 						query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
