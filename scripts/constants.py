@@ -79,11 +79,25 @@ barrel_count_names = {
 }
 
 AA_RATING_DESCRIPTOR = {
-	"Non-Existence": [0, 1],
-	"Very Weak": [1, 20],
-	"Weak": [20, 40],
-	"Moderate": [40, 50],
-	"High": [50, 70],
-	"Dangerous": [70, 90],
-	"Very Dangerous": [90, inf],
+	(0, 1): "Non-Existence",
+	(1, 20): "Very Weak",
+	(20, 40): "Weak",
+	(40, 50): "Moderate",
+	(50, 70): "High",
+	(70, 90): "Dangerous",
+	(90, inf): "Very Dangerous",
 }
+
+MM_WITH_CV_TIER = (
+	[],
+	[],
+	[],
+	[4,6],
+	[4,6],
+	[4,6,8],
+	[6,8,10],
+	[6,8,10],
+	[8,10],
+	[8,10],
+	[10],
+)

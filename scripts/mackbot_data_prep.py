@@ -465,8 +465,7 @@ def update_ship_modules():
 								aa_rating += flak_data['count'] * flak_data['hitChance'] * 2
 
 							# aa rating scaling with tier
-							aa_rating = (combined_aa_damage / (int(ship['tier']) * 10))
-							module_list[module_id]['profile']['anti_air']['rating'] = int(aa_rating * 10)
+							module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(combined_aa_damage / int(min(10, tier))) for tier in range(1, 12))
 
 						# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
 						if 'airSupport' in ship_upgrade_info[_info]['components']:
@@ -870,7 +869,7 @@ def create_ship_tags():
 			for h in ship_list[s]['modules']['hull']:
 				if 'anti_air' in module_list[str(h)]['profile']:
 					aa = module_list[str(h)]['profile']['anti_air']
-					if aa['rating'] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
+					if aa['rating'][tier - 1] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
 						if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
 							tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
 
