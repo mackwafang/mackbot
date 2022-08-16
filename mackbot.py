@@ -267,7 +267,7 @@ consumable_descriptor = {
 }
 
 # find game data items by tags
-def find_game_data_item(item: str) -> list[dict, ...]:
+def find_game_data_item(item: str) -> list:
 	return [i for i in game_data if item in i]
 
 def find_module_by_tag(x: str) -> Union[dict, None]:
@@ -313,8 +313,8 @@ def load_ship_builds() -> None:
 def create_ship_build_images(
 		build_name: str,
 		build_ship_name: str,
-		build_skills: list[int, ...],
-		build_upgrades: list[int, ...],
+		build_skills: list,
+		build_upgrades: list,
 		build_cmdr: str
 	) -> Image:
 	# create dictionary for upgrade gamedata index to image name
@@ -789,7 +789,7 @@ def get_map_data(map: str) -> tuple:
 		logger.info("Exception {type(e): ", e)
 		raise e
 
-async def correct_user_misspell(context: discord.ext.commands.Context, command: str, *args: list[str, ...]) -> None:
+async def correct_user_misspell(context: discord.ext.commands.Context, command: str, *args: list) -> None:
 	author = context.author
 	def check(message):
 		return author == message.author and message.content.lower() in ['y', 'yes']
