@@ -267,10 +267,10 @@ consumable_descriptor = {
 }
 
 # find game data items by tags
-def find_game_data_item(item):
+def find_game_data_item(item: str) -> list[dict, ...]:
 	return [i for i in game_data if item in i]
 
-def find_module_by_tag(x):
+def find_module_by_tag(x: str) -> Union[dict, None]:
 	l = []
 	for i in module_list:
 		if 'tag' in module_list[i]:
@@ -279,9 +279,9 @@ def find_module_by_tag(x):
 	if l:
 		return l[0]
 	else:
-		return []
+		return None
 
-def load_ship_builds():
+def load_ship_builds() -> None:
 	# load ship builds from a local file
 	if database_client is None:
 		# database connection successful, we don't need to fetch from local cache
@@ -310,7 +310,13 @@ def load_ship_builds():
 				ship_build = json.load(f)
 
 
-def create_ship_build_images(build_name, build_ship_name, build_skills, build_upgrades, build_cmdr):
+def create_ship_build_images(
+		build_name: str,
+		build_ship_name: str,
+		build_skills: list[int, ...],
+		build_upgrades: list[int, ...],
+		build_cmdr: str
+	) -> Image:
 	# create dictionary for upgrade gamedata index to image name
 	image_file_dict = {}
 	image_folder_dir = os.path.join("data", "modernization_icons")
@@ -783,7 +789,7 @@ def get_map_data(map: str) -> tuple:
 		logger.info("Exception {type(e): ", e)
 		raise e
 
-async def correct_user_misspell(context, command, *args):
+async def correct_user_misspell(context: discord.ext.commands.Context, command: str, *args: list[str, ...]) -> None:
 	author = context.author
 	def check(message):
 		return author == message.author and message.content.lower() in ['y', 'yes']
@@ -860,10 +866,10 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
 		return ship_data
 
-def escape_discord_format(s):
+def escape_discord_format(s: str) -> str:
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
 
-def compile_help_strings():
+def compile_help_strings() -> None:
 	global help_dictionary
 	logger.info("Creating help index")
 	with open(os.path.join(os.getcwd(), "data", "help_command_strings.json")) as f:
@@ -882,14 +888,17 @@ def compile_help_strings():
 
 	del data
 
-def load_data():
+def load_data() -> None:
 	compile_help_strings()
 
-def to_plural(str, count):
+def to_plural(str: str, count: int) -> str:
 	if str[-1].lower() == 'y':
 		return f"{count} {str[:-1] + 'ies'}"
 	else:
 		return f"{count} {str + 's'}"
+
+def find_aa_descriptor(rating: int) -> str:
+	return [AA_RATING_DESCRIPTOR[descriptor] for descriptor in AA_RATING_DESCRIPTOR if descriptor[0] < rating <= descriptor[1]][0]
 
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
@@ -1471,13 +1480,10 @@ async def ship(context, *args):
 							aa = hull['profile']['anti_air']
 							m += f"**{name} ({aa['hull']}) Hull**\n"
 
-							rating_descriptor = ""
-							for d in AA_RATING_DESCRIPTOR:
-								low, high = AA_RATING_DESCRIPTOR[d]
-								if low <= aa['rating'] <= high:
-									rating_descriptor = d
-									break
-							m += f"**AA Rating (vs. T{tier}):** {int(aa['rating'])} ({rating_descriptor})\n"
+							for tier_range in MM_WITH_CV_TIER[tier - 1]:
+								if 0 < tier_range <= 10:
+									rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
+									m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
 
 							m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
 							# provide more AA detail
@@ -1497,14 +1503,9 @@ async def ship(context, *args):
 					else:
 						# compact detail
 						aa = query_result[0]['profile']['anti_air']
-						average_rating = sum([hull['profile']['anti_air']['rating'] for hull in query_result]) / len(modules['hull'])
+						average_rating = sum([hull['profile']['anti_air']['rating'][tier - 1] for hull in query_result]) / len(modules['hull'])
 
-						rating_descriptor = ""
-						for d in AA_RATING_DESCRIPTOR:
-							low, high = AA_RATING_DESCRIPTOR[d]
-							if low <= average_rating <= high:
-								rating_descriptor = d
-								break
+						rating_descriptor = find_aa_descriptor(aa['rating'][tier - 1])
 						m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
 						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 
