@@ -810,6 +810,7 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		"emoji": '',
 	}
 	if database_client is not None:
+		# database fetch
 		query_result = database_client.mackbot_db.ship_list.find_one({
 			"ship_id": ship_id
 		})
@@ -819,7 +820,6 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 			ship_data['nation'] = query_result['nation']
 			ship_data['type'] = query_result['type']
 			ship_data['is_prem'] = query_result['is_premium']
-			return ship_data
 		else:
 			# some ships are not available in wg api
 			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
@@ -835,11 +835,10 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				ship_data['tier'] = data['level']
 				ship_data['nation'] = data['navalFlag']
 				ship_data['type'] = data['typeinfo']['species']
-
-				return ship_data
 			else:
 				raise NoShipFound
 	else:
+		# local fetch
 		try:
 			ship_data['name'] = ship_list[str(ship_id)]['name']
 			ship_data['tier'] = ship_list[str(ship_id)]['tier']
@@ -863,8 +862,8 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				ship_data['type'] = data['typeinfo']['species']
 			else:
 				raise NoShipFound
-		ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
-		return ship_data
+	ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
+	return ship_data
 
 def escape_discord_format(s: str) -> str:
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
