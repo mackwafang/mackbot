@@ -1390,7 +1390,6 @@ async def ship(context, *args):
 							m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 						m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-							m = m[:-1]
 							m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 							m += '-------------------\n'
 						if guns['max_damage_he']:
@@ -1491,7 +1490,7 @@ async def ship(context, *args):
 							medium = aa['medium']
 							far = aa['far']
 							if flak['damage'] > 0:
-								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', flak['count'])}, {flak['damage']}:boom:\n"
+								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', int(flak['count']))}, {flak['damage']}:boom:\n"
 							if near['damage'] > 0:
 								m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 							if medium['damage'] > 0:
@@ -1953,7 +1952,8 @@ async def compare(context, *args):
 		await help(context, "compare")
 	else:
 		args = ' '.join(args) # join arguments to split token
-		user_input_ships = args.replace("and", "&").split("&")
+		# user_input_ships = args.replace("and", "&").split("&")
+		user_input_ships = re.sub("\\sand\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
 			await help(context, "compare")
 			return
@@ -2170,23 +2170,19 @@ async def compare(context, *args):
 						# set up title axis
 						m = "**Name**\n"
 						m += "**Range**\n"
-						m += "**Rating**\n"
+						m += "**Rating vs. same tier**\n"
 						embed.add_field(name="__Anti-Air__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
 								module = get_module_data(mid)
 								aa = module['profile']['anti_air']
-								rating_descriptor = ""
-								for d in AA_RATING_DESCRIPTOR:
-									low, high = AA_RATING_DESCRIPTOR[d]
-									if low <= aa['rating'] <= high:
-										rating_descriptor = d
-										break
+								aa_rating = aa['rating'][ships_to_compare[i % 2]['tier'] - 1]
+								rating_descriptor = find_aa_descriptor(aa_rating)
 
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{aa['max_range'] / 1000:0.1f} km\n"
-								m += f"{aa['rating']} ({rating_descriptor})\n"
+								m += f"{aa_rating} ({rating_descriptor})\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
