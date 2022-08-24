@@ -972,7 +972,6 @@ async def on_ready():
 
 @mackbot.event
 async def on_command(context):
-	print(context)
 	logger.info(f"Received message [{context.message.content}] from [{context.author}, id: {context.author.id}]")
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
@@ -2048,28 +2047,22 @@ async def compare(context, *args):
 		for i, o in enumerate(user_options):
 			response_embed.description += f"**[{i+1}]** {o}\n"
 		response_embed.set_footer(text="Response expires in 15 seconds")
-		response_selection_options = [
-			Select(options=[SelectOption(label=o, value=str(i+1)) for i, o in enumerate(user_options)])
-		]
-
-		response_prompt_output = await context.send(embed=response_embed, components=response_selection_options)
-		user_response = await get_user_response_with_drop_down(context, 10, response_prompt_output)
-
-		user_selection = -1
-		if type(user_response) == discord.Message:
-			user_selection = user_response.content
-		if type(user_response) == discord_components.Interaction:
-			user_selection = user_response.values[0]
+		options = [SelectOption(label=o, value=i) for i, o in enumerate(user_options)]
+		view = UserSelection(
+			author=context.message.author,
+			timeout=15,
+			options=options,
+			placeholder="Select a build"
+		)
+		view.message = await context.send(embed=response_embed, view=view)
+		user_selection = await get_user_response_with_drop_down(view)
+		if 0 <= user_selection < len(user_options):
+			pass
+		else:
+			await context.send(f"Input {user_selection} is incorrect")
 
 		# compile info
 		if user_selection != -1:
-			try:
-				user_selection = int(user_selection)
-			except ValueError:
-				embed.description += f"Value {user_selection} is not a valid value"
-				await context.send(embed=embed)
-				return
-
 			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
 			logger.info(f"returning comparison for {user_options[user_selection - 1]}")
@@ -2215,6 +2208,7 @@ async def compare(context, *args):
 						m = "**Name**\n"
 						m += "**Range**\n"
 						m += "**Rating vs. same tier**\n"
+						m += "**Analysis**\n"
 						embed.add_field(name="__Anti-Air__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
@@ -2226,7 +2220,8 @@ async def compare(context, *args):
 
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{aa['max_range'] / 1000:0.1f} km\n"
-								m += f"{aa_rating} ({rating_descriptor})\n"
+								m += f"{aa_rating}\n"
+								m += f"{rating_descriptor}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
@@ -2297,30 +2292,9 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection - 1].lower()}")
-
-			if type(user_response) == discord_components.Interaction:
-				await user_response.respond(embed=embed, ephemeral=False)
-			if type(user_response) == discord.Message:
-				await context.send(embed=embed)
-
-			# disable the drop down menu
-			await response_prompt_output.edit(components=[
-				Select(
-					options=[SelectOption(label='a', value=0, )],
-					placeholder=f"{user_options[user_selection - 1]}",
-					disabled=True
-				)
-			])
+			await context.send(embed=embed)
 		else:
 			logging.info("Response expired")
-			# disable selected drop-down menu when expired
-			await response_prompt_output.edit(components=[
-				Select(
-					options=[SelectOption(label='a', value=0)],
-					placeholder=f"Response timed-out",
-					disabled=True
-				)
-			])
 		del user_correction_check
 
 @mackbot.command()
