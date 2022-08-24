@@ -635,7 +635,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: {e}")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
@@ -842,7 +842,7 @@ async def correct_user_misspell(context: discord.ext.commands.Context, command: 
 
 	message = await mackbot.wait_for('message', timeout=10, check=check)
 	try:
-		await globals()[command](context, ' '.join(i for i in args))
+		await globals()[command](context, *args)
 	except Exception as e:
 		pass
 
@@ -923,6 +923,38 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				raise NoShipFound
 	ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
 	return ship_data
+
+def find_close_match_item(name: str, database: str) -> list:
+	"""
+	Returns a list of closest matches for the indicated item in the database
+	Args:
+		name (str): A ship name
+		database (str): which database to use
+
+	Returns:
+		List of closest ship names
+	"""
+
+	db_selection = ['ship_list', 'upgrade_list', 'skill_list']
+	try:
+		assert database in db_selection
+	except AssertionError:
+		raise ValueError(f"{database} is not in {db_selection}")
+
+	if database_client is not None:
+		query_result = database_client.mackbot_db[database].find({}, {
+			"name": 1
+		})
+		names_list = [i['name'].lower() for i in query_result]
+	else:
+		if database == "ship_list":
+			names_list = [ship_list[i]['name'].lower() for i in ship_list]
+		if database == "upgrade_list":
+			names_list = [upgrade_list[i]['name'].lower() for i in upgrade_list]
+		if database == "skill_list":
+			names_list = [skill_list[i]['name'].lower() for i in skill_list]
+	return difflib.get_close_matches(name, names_list)
+
 
 def escape_discord_format(s: str) -> str:
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
@@ -1011,151 +1043,151 @@ async def build(context, *args):
 		name, images = "", None
 		try:
 			async with context.typing():
-					output = get_ship_data(user_ship_name)
-					name = output['name']
-					nation = output['nation']
-					images = output['images']
-					ship_type = output['type']
-					tier = output['tier']
-					is_prem = output['is_premium']
+				output = get_ship_data(user_ship_name)
+				name = output['name']
+				nation = output['nation']
+				images = output['images']
+				ship_type = output['type']
+				tier = output['tier']
+				is_prem = output['is_premium']
 
-					# find ship build
-					builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
-					user_selected_build_id = 0
-					multi_build_user_response = None
+				# find ship build
+				builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
+				user_selected_build_id = 0
+				multi_build_user_response = None
 
-					# get user selection for multiple ship builds
-					if len(builds) > 1:
-						embed = discord.Embed(title=f"Build for {name}", description='')
-						embed.set_thumbnail(url=images['small'])
+				# get user selection for multiple ship builds
+				if len(builds) > 1:
+					embed = discord.Embed(title=f"Build for {name}", description='')
+					embed.set_thumbnail(url=images['small'])
 
-						embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+					embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
-						m = ""
-						for i, bid in enumerate(builds):
-							build_name = builds[i]['name']
-							m += f"[{i + 1}] {build_name}\n"
-						embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
-						embed.set_footer(text="Please select a build.\nResponse expires in 15 seconds.")
-						options = [SelectOption(label=f"[{i+1}] {builds[i]['name']}", value=i) for i, b in enumerate(builds)]
-						view = UserSelection(
-							author=context.message.author,
-							timeout=15,
-							options=options,
-							placeholder="Select a build"
-						)
-						view.message = await context.send(embed=embed, view=view)
-						user_selected_build_id = await get_user_response_with_drop_down(view)
-						if 0 <= user_selected_build_id < len(builds):
-							pass
-						else:
-							await context.send(f"Input {user_selected_build_id} is incorrect")
-
-
-					if not builds:
-						raise NoBuildFound
+					m = ""
+					for i, bid in enumerate(builds):
+						build_name = builds[i]['name']
+						m += f"[{i + 1}] {build_name}\n"
+					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
+					embed.set_footer(text="Please select a build.\nResponse expires in 15 seconds.")
+					options = [SelectOption(label=f"[{i+1}] {builds[i]['name']}", value=i) for i, b in enumerate(builds)]
+					view = UserSelection(
+						author=context.message.author,
+						timeout=15,
+						options=options,
+						placeholder="Select a build"
+					)
+					view.message = await context.send(embed=embed, view=view)
+					user_selected_build_id = await get_user_response_with_drop_down(view)
+					if 0 <= user_selected_build_id < len(builds):
+						pass
 					else:
-						build = builds[user_selected_build_id]
-						build_name = build['name']
-						upgrades = build['upgrades']
-						skills = build['skills']
-						cmdr = build['cmdr']
-						build_errors = build['errors']
+						await context.send(f"Input {user_selected_build_id} is incorrect")
 
-					if not send_image_build:
-						embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
-						embed.set_thumbnail(url=images['small'])
 
-						logger.info(f"returning build information for <{name}> in embeded format")
+				if not builds:
+					raise NoBuildFound
+				else:
+					build = builds[user_selected_build_id]
+					build_name = build['name']
+					upgrades = build['upgrades']
+					skills = build['skills']
+					cmdr = build['cmdr']
+					build_errors = build['errors']
 
-						tier_string = list(roman_numeral.keys())[tier - 1]
+				if not send_image_build:
+					embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
+					embed.set_thumbnail(url=images['small'])
 
-						embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
+					logger.info(f"returning build information for <{name}> in embeded format")
 
-						footer_message = ""
-						error_value_found = False
-						if len(upgrades) and len(skills) and len(cmdr):
-							# suggested upgrades
-							if len(upgrades) > 0:
-								m = ""
-								i = 1
-								for upgrade in upgrades:
-									upgrade_name = "[Missing]"
-									if upgrade == -1:
-										# any thing
-										upgrade_name = "Any"
-									else:
-										try:  # ew, nested try/catch
-											if database_client is not None:
-												query_result = database_client.mackbot_db.upgrade_list.find_one({"consumable_id": upgrade})
-												if query_result is None:
-													raise IndexError
-												else:
-													upgrade_name = query_result['name']
-											else:
-												upgrade_name = get_upgrade_data(upgrade)['name']
-										except Exception as e:
-											logger.info(f"Exception {type(e)} {e} in ship, listing upgrade {i}")
-											error_value_found = True
-											upgrade_name = upgrade + ":warning:"
-									m += f'(Slot {i}) **' + upgrade_name + '**\n'
-									i += 1
-								embed.add_field(name='Suggested Upgrades', value=m, inline=False)
-							else:
-								embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
-							# suggested skills
-							if len(skills) > 0:
-								m = ""
-								i = 1
-								for s in skills:
-									skill_name = "[Missing]"
+					tier_string = list(roman_numeral.keys())[tier - 1]
+
+					embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
+
+					footer_message = ""
+					error_value_found = False
+					if len(upgrades) and len(skills) and len(cmdr):
+						# suggested upgrades
+						if len(upgrades) > 0:
+							m = ""
+							i = 1
+							for upgrade in upgrades:
+								upgrade_name = "[Missing]"
+								if upgrade == -1:
+									# any thing
+									upgrade_name = "Any"
+								else:
 									try:  # ew, nested try/catch
 										if database_client is not None:
-											query_result = database_client.mackbot_db.skill_list.find_one({"skill_id":s})
+											query_result = database_client.mackbot_db.upgrade_list.find_one({"consumable_id": upgrade})
 											if query_result is None:
 												raise IndexError
 											else:
-												skill = query_result.copy()
+												upgrade_name = query_result['name']
 										else:
-											skill = skill_list[str(s)]
-										skill_name = skill['name']
-										col = skill['x'] + 1
-										tier = skill['y'] + 1
+											upgrade_name = get_upgrade_data(upgrade)['name']
 									except Exception as e:
-										logger.info(f"Exception {type(e)} {e} in ship, listing skill {i}")
+										logger.info(f"Exception {type(e)} {e} in ship, listing upgrade {i}")
 										error_value_found = True
-										skill_name = skill + ":warning:"
-									m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
-									i += 1
-								embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
-							else:
-								embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
-							# suggested commander
-							if cmdr != "":
-								m = ""
-								if cmdr == "*":
-									m = "Any"
-								else:
-									try:
-										m = get_commander_data(cmdr)[0]
-									except Exception as e:
-										logger.info(f"Exception {type(e)} {e} in ship, listing commander")
-										error_value_found = True
-										m = f"{cmdr}:warning:"
-								# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
-								embed.add_field(name='Suggested Cmdr.', value=m)
-							else:
-								embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
-
-							footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
-							footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
+										upgrade_name = upgrade + ":warning:"
+								m += f'(Slot {i}) **' + upgrade_name + '**\n'
+								i += 1
+							embed.add_field(name='Suggested Upgrades', value=m, inline=False)
 						else:
-							m = "mackbot does not know any build for this ship :("
-							embed.add_field(name=f'No known build', value=m, inline=False)
-						error_footer_message = ""
-						if error_value_found:
-							error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
-						embed.set_footer(text=error_footer_message + footer_message)
+							embed.add_field(name='Suggested Upgrades', value="Coming Soon:tm:", inline=False)
+						# suggested skills
+						if len(skills) > 0:
+							m = ""
+							i = 1
+							for s in skills:
+								skill_name = "[Missing]"
+								try:  # ew, nested try/catch
+									if database_client is not None:
+										query_result = database_client.mackbot_db.skill_list.find_one({"skill_id":s})
+										if query_result is None:
+											raise IndexError
+										else:
+											skill = query_result.copy()
+									else:
+										skill = skill_list[str(s)]
+									skill_name = skill['name']
+									col = skill['x'] + 1
+									tier = skill['y'] + 1
+								except Exception as e:
+									logger.info(f"Exception {type(e)} {e} in ship, listing skill {i}")
+									error_value_found = True
+									skill_name = skill + ":warning:"
+								m += f'(Col. {col}, Row {tier}) **' + skill_name + '**\n'
+								i += 1
+							embed.add_field(name='Suggested Cmdr. Skills', value=m, inline=False)
+						else:
+							embed.add_field(name='Suggested Cmdr. Skills', value="Coming Soon:tm:", inline=False)
+						# suggested commander
+						if cmdr != "":
+							m = ""
+							if cmdr == "*":
+								m = "Any"
+							else:
+								try:
+									m = get_commander_data(cmdr)[0]
+								except Exception as e:
+									logger.info(f"Exception {type(e)} {e} in ship, listing commander")
+									error_value_found = True
+									m = f"{cmdr}:warning:"
+							# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
+							embed.add_field(name='Suggested Cmdr.', value=m)
+						else:
+							embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
+
+						footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
+						footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
+					else:
+						m = "mackbot does not know any build for this ship :("
+						embed.add_field(name=f'No known build', value=m, inline=False)
+					error_footer_message = ""
+					if error_value_found:
+						error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					embed.set_footer(text=error_footer_message + footer_message)
 
 			if not send_image_build:
 				if multi_build_user_response:
@@ -1185,16 +1217,18 @@ async def build(context, *args):
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(user_ship_name, ship_name_list)
-				closest_match_string = closest_match[0].title()
-				if len(closest_match) > 0:
+				closest_match = find_close_match_item(user_ship_name.lower(), "ship_list")
+				embed = discord.Embed(title=f"Ship {user_ship_name} is not understood.\n", description="")
+				if closest_match:
+					closest_match_string = closest_match[0].title()
 					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {user_ship_name} is not understood.\n", description=closest_match_string)
-				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expires in 10 seconds")
-				await context.send(embed=embed)
-				await correct_user_misspell(context, 'build', closest_match[0])
+					embed.description = closest_match_string
+					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					embed.set_footer(text="Response expires in 10 seconds")
+					await context.send(embed=embed)
+					await correct_user_misspell(context, 'build', closest_match[0])
+				else:
+					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:
 				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
@@ -1807,14 +1841,11 @@ async def ship(context, *args):
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
-
+				closest_match = find_close_match_item(ship.lower(), "ship_list")
 				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description="")
 				if closest_match:
 					closest_match_string = closest_match[0].title()
-					if len(closest_match) > 0:
-						closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
 
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
@@ -2002,7 +2033,6 @@ async def compare(context, *args):
 			return
 		# parse whitespace
 		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
-		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 		ships_to_compare = []
 
 		def user_correction_check(message):
@@ -2015,7 +2045,7 @@ async def compare(context, *args):
 			except NoShipFound:
 				logger.info(f"ship check [{s}] FAILED")
 				logger.info(f"sending correction reponse")
-				closest_match = difflib.get_close_matches(s, ship_name_list)
+				closest_match = find_close_match_item(s.lower(), "ship_list")
 				closest_match_string = closest_match[0].title()
 				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
 				if len(closest_match) > 0:
@@ -2052,7 +2082,7 @@ async def compare(context, *args):
 			author=context.message.author,
 			timeout=15,
 			options=options,
-			placeholder="Select a build"
+			placeholder="Select an option"
 		)
 		view.message = await context.send(embed=response_embed, view=view)
 		user_selection = await get_user_response_with_drop_down(view)
@@ -2329,15 +2359,17 @@ async def skill(context, *args):
 			await context.send(embed=embed)
 
 		except Exception as e:
-			logger.info("Exception", type(e), ":", e)
+			logger.info(f"Exception {type(e)}: {e}")
 			# error, skill name not understood
-			skill_name_list = [skill_list[i]['name'] for i in skill_list]
-			closest_match = difflib.get_close_matches(skill, skill_name_list)
+			closest_match = find_close_match_item(skill, "skill_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
+			embed = discord.Embed(title=f"Skill {skill} is not understood.\n", description=closest_match_string)
+			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+			embed.set_footer(text="Response expires in 10 seconds")
+			await context.send(embed=embed)
+			await correct_user_misspell(context, 'skill', ship_class, closest_match[0])
 
 @mackbot.group(pass_context=True, invoke_without_command=True)
 async def show(context, *args):
@@ -2719,13 +2751,16 @@ async def upgrade(context, *args):
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
-			upgrade_name_list = [upgrade_list[i]['name'] for i in upgrade_list]
-			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
+			closest_match = find_close_match_item(upgrade.lower(), "upgrade_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
-			await context.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
+			embed = discord.Embed(title=f"Upgrade **{upgrade}** is not understood.\n", description=closest_match_string)
+			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+			embed.set_footer(text="Response expires in 10 seconds")
+			await context.send(embed=embed)
+			await correct_user_misspell(context, 'upgrade', closest_match[0])
 
 @mackbot.command()
 async def player(context, *args):
@@ -3078,104 +3113,106 @@ async def clan(context, *args):
 
 @mackbot.command()
 async def commander(context, *args):
+	pass
 	# get information on requested commander
 	# message parse
-	cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(args) == 0:
-		await help(context, "commander")
-	else:
-		try:
-			async with context.typing():
-				logger.info(f'sending message for commander <{cmdr}>')
-
-				output = get_commander_data(cmdr)
-				if output is None:
-					raise NameError("NoCommanderFound")
-				name, icon, nation, cmdr_id = output
-				embed = discord.Embed(title="Commander")
-				embed.set_thumbnail(url=icon)
-				embed.add_field(name='Name', value=name, inline=False)
-				embed.add_field(name='Nation', value=nation_dictionary[nation], inline=False)
-
-				cmdr_data = None
-				for i in game_data:
-					if game_data[i]['typeinfo']['type'] == 'Crew':
-						if cmdr_id == str(game_data[i]['id']):
-							cmdr_data = game_data[i]
-
-				'''
-				skill_bonus_string = ''
-
-				for c in cmdr_data['Skills']:
-					skill = cmdr_data['Skills'][c].copy()
-					if skill['isEpic']:
-						skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
-						skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'
-						for v in ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
-							del skill[v]
-						if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
-							for descriptor in skill:
-								skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f}\n"
-								if c == 'MainGunsRotationModifier':
-									skill_bonus_string += ' °/sec.'
-						else:
-							for descriptor in skill:
-								if c == 'TorpedoAcceleratorModifier':
-									if descriptor in ['planeTorpedoSpeedBonus', 'torpedoSpeedBonus']:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f} kts.\n"
-									else:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
-								else:
-									if abs(skill[descriptor] - 1) > 0:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
-						skill_bonus_string += '\n'
-				
-				if len(skill_bonus_string) > 0:
-					embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
-					embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
-				else:
-					embed.add_field(name='Skill Bonuses', value="None", inline=False)
-				'''
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)}: ", e)
-			# error, ship name not understood
-			cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
-			closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Commander **{cmdr}** is not understood.")
+	# cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	# if len(args) == 0:
+	# 	await help(context, "commander")
+	# else:
+	# 	try:
+	# 		async with context.typing():
+	# 			logger.info(f'sending message for commander <{cmdr}>')
+	#
+	# 			output = get_commander_data(cmdr)
+	# 			if output is None:
+	# 				raise NameError("NoCommanderFound")
+	# 			name, icon, nation, cmdr_id = output
+	# 			embed = discord.Embed(title="Commander")
+	# 			embed.set_thumbnail(url=icon)
+	# 			embed.add_field(name='Name', value=name, inline=False)
+	# 			embed.add_field(name='Nation', value=nation_dictionary[nation], inline=False)
+	#
+	# 			cmdr_data = None
+	# 			for i in game_data:
+	# 				if game_data[i]['typeinfo']['type'] == 'Crew':
+	# 					if cmdr_id == str(game_data[i]['id']):
+	# 						cmdr_data = game_data[i]
+	#
+	# 			'''
+	# 			skill_bonus_string = ''
+	#
+	# 			for c in cmdr_data['Skills']:
+	# 				skill = cmdr_data['Skills'][c].copy()
+	# 				if skill['isEpic']:
+	# 					skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
+	# 					skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'
+	# 					for v in ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
+	# 						del skill[v]
+	# 					if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
+	# 						for descriptor in skill:
+	# 							skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f}\n"
+	# 							if c == 'MainGunsRotationModifier':
+	# 								skill_bonus_string += ' °/sec.'
+	# 					else:
+	# 						for descriptor in skill:
+	# 							if c == 'TorpedoAcceleratorModifier':
+	# 								if descriptor in ['planeTorpedoSpeedBonus', 'torpedoSpeedBonus']:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f} kts.\n"
+	# 								else:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
+	# 							else:
+	# 								if abs(skill[descriptor] - 1) > 0:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
+	# 					skill_bonus_string += '\n'
+	#
+	# 			if len(skill_bonus_string) > 0:
+	# 				embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
+	# 				embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
+	# 			else:
+	# 				embed.add_field(name='Skill Bonuses', value="None", inline=False)
+	# 			'''
+	# 		await context.send(embed=embed)
+	# 	except Exception as e:
+	# 		logger.info(f"Exception {type(e)}: ", e)
+	# 		# error, ship name not understood
+	# 		cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
+	# 		closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
+	# 		closest_match_string = ""
+	# 		if len(closest_match) > 0:
+	# 			closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
+	#
+	# 		await context.send(f"Commander **{cmdr}** is not understood.")
 
 @mackbot.command()
 async def map(context, *args):
-	# get information on requested map
-	# message parse
-	map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(args) == 0:
-		await help(context, "map")
-	else:
-		try:
-			async with context.typing():
-				logger.info(f'sending message for map <{map}>')
-				description, image, id, name = get_map_data(map)
-				embed = discord.Embed(title="Map")
-				embed.set_image(url=image)
-				embed.add_field(name='Name', value=name)
-				embed.add_field(name='Description', value=description)
-
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)}: ", e)
-			# error, ship name not understood
-			map_name_list = [map_list[i]['name'] for i in map_list]
-			closest_match = difflib.get_close_matches(map, map_name_list)
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Map **{map}** is not understood.")
+	pass
+	# # get information on requested map
+	# # message parse
+	# map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	# if len(args) == 0:
+	# 	await help(context, "map")
+	# else:
+	# 	try:
+	# 		async with context.typing():
+	# 			logger.info(f'sending message for map <{map}>')
+	# 			description, image, id, name = get_map_data(map)
+	# 			embed = discord.Embed(title="Map")
+	# 			embed.set_image(url=image)
+	# 			embed.add_field(name='Name', value=name)
+	# 			embed.add_field(name='Description', value=description)
+	#
+	# 		await context.send(embed=embed)
+	# 	except Exception as e:
+	# 		logger.info(f"Exception {type(e)}: ", e)
+	# 		# error, ship name not understood
+	# 		map_name_list = [map_list[i]['name'] for i in map_list]
+	# 		closest_match = difflib.get_close_matches(map, map_name_list)
+	# 		closest_match_string = ""
+	# 		if len(closest_match) > 0:
+	# 			closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
+	#
+	# 		await context.send(f"Map **{map}** is not understood.")
 
 @mackbot.command()
 async def doubloons(context, *args):
