@@ -1,21 +1,23 @@
-import discord_components, wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
+import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
 from typing import Union
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
-from enum import IntEnum, auto
 from math import ceil
 from itertools import count, zip_longest
 from random import randint
 from discord.ext import commands
-from discord_components import DiscordComponents, Select, SelectOption
+from discord import Interaction, SelectOption
+from discord.ui import View, Select
+# from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
 from scripts.constants import *
 from scripts.mackbot_exceptions import *
+from deprecation import deprecated
 
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
@@ -35,6 +37,40 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	CONSUMABLE = auto()
 	UPGRADES = auto()
 
+# drop down menu from discord 2.0
+class UserSelection(View):
+	def __init__(self, author: discord.Message.author, timeout: int, placeholder: str, options: list[discord.ui.select]):
+		self.select_menu = self.DropDownSelect(placeholder, options)
+		self.response = -1
+		self.author = author
+		super().__init__(timeout=timeout)
+		super().add_item(self.select_menu)
+
+	async def disable_component(self) -> None:
+		for child in self.children:
+			child.disabled = True
+		await self.message.edit(view=self)
+
+	async def on_timeout(self) -> None:
+		self.select_menu.placeholder = "Response Expired"
+		await self.disable_component()
+
+	async def interaction_check(self, interaction: Interaction) -> bool:
+		if interaction.user.id == self.author.id:
+			await self.disable_component()
+			return True
+		return False
+
+	class DropDownSelect(Select):
+		def __init__(self, placeholder: str, options: list[discord.ui.select]):
+			super().__init__(placeholder=placeholder, options=options)
+
+		async def callback(self, interaction: Interaction) -> None:
+			self.view.response = self.values[0]
+			await interaction.response.defer()
+			await self.view.disable_component()
+			self.view.stop()
+
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
 	def __init__(self, *blacklist):
@@ -50,7 +86,7 @@ if not os.path.exists(os.path.join(os.getcwd(), "logs")):
 LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
+formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(levelname)-5s] %(message)s')
 
 handler.setFormatter(formatter)
 handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
@@ -106,8 +142,13 @@ with open(os.path.join(os.getcwd(), "data", "command_list.json")) as f:
 # define bot stuff
 cmd_sep = ' '
 command_prefix += cmd_sep
-mackbot = commands.Bot(command_prefix=commands.when_mentioned_or(command_prefix), help_command=None)
-DiscordComponents(mackbot)
+bot_intents = discord.Intents().default()
+bot_intents.members = True
+bot_intents.typing = True
+bot_intents.message_content = True
+# bot_intents.value=378880
+
+mackbot = commands.Bot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
 # define database stuff
 database_client = None
@@ -267,7 +308,7 @@ consumable_descriptor = {
 }
 
 # find game data items by tags
-def find_game_data_item(item: str) -> list[dict, ...]:
+def find_game_data_item(item: str) -> list:
 	return [i for i in game_data if item in i]
 
 def find_module_by_tag(x: str) -> Union[dict, None]:
@@ -313,8 +354,8 @@ def load_ship_builds() -> None:
 def create_ship_build_images(
 		build_name: str,
 		build_ship_name: str,
-		build_skills: list[int, ...],
-		build_upgrades: list[int, ...],
+		build_skills: list,
+		build_upgrades: list,
 		build_cmdr: str
 	) -> Image:
 	# create dictionary for upgrade gamedata index to image name
@@ -395,63 +436,34 @@ def create_ship_build_images(
 
 	return image
 
-async def get_user_response_with_drop_down(context: discord.ext.commands.Context, timeout: int, response_prompt_output: discord.Message) -> Union[discord.Message, discord_components.Interaction, None]:
+async def get_user_response_with_drop_down(view: discord.ui.View) -> int:
 	"""
-	Wait for a user message or if user selected an item from the drop-down menu
+		Wait for a user message or if user selected an item from the drop-down menu
+		Args:
+			view : A Discord UI View object
 
-	Args:
-		context: A discord.ext.commands.Context object
-		timeout: how many seconds to time out
-		response_prompt_output: a discord.Message object to edit out the drop down menu
-
-	Returns:
-		response - The object that user responded with
-
+		Returns:
+			int: The value of the user selected item. Returns -1 if: A message is not attached to the view object or if view timed out.
 	"""
-	# wait for a message response or an option response
-	done, pending = await asyncio.wait([
-			mackbot.loop.create_task(mackbot.wait_for("message", check=lambda message: context.author == message.author)),
-			mackbot.loop.create_task(mackbot.wait_for("select_option", check=lambda message: context.author == message.author)),
-		],
-		timeout=timeout,
-		return_when=asyncio.FIRST_COMPLETED
-	)
-
-	if len(done) == 1:
-		# of of these tasks is done
-		for task in pending:
-			task.cancel()
+	await view.wait()
+	if view.message is None:
+		return -1
 	else:
-		# if no respond from user, both tasks are returned as done. hence len(done) == 2
-		await response_prompt_output.edit(components=[
-			Select(
-				options=[SelectOption(label='a', value='0')],
-				placeholder=f"Response Timed-out",
-				disabled=True
-			)
-		])
-
-	user_response = None
-	try:
-		user_response = done.pop().result()
-	except Exception as e:
-		if type(e) in [asyncio.CancelledError, asyncio.TimeoutError]:
-			logger.info("No response from user")
-	return user_response
+		return int(view.response)
 
 def get_ship_data(ship: str) -> dict:
 	"""
-		returns name, nation, images, ship type, tier of requested warship name along with recommended build.
+	returns name, nation, images, ship type, tier of requested warship name along with recommended build.
 
-		Arguments:
-			ship : Ship name of build to be returned
+	Arguments:
+		ship : Ship name of build to be returned
 
-		Returns:
-			object: dict containing ship information
+	Returns:
+		object: dict containing ship information
 
-		raise InvalidShipName exception if name provided is incorrect
-		or
-		NoBuildFound exception if no build is found
+	Raises:
+		InvalidShipName
+		NoBuildFound
 	"""
 	try:
 		ship_found = False
@@ -494,7 +506,7 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 		object: list of builds for ship with name "ship"
 
 	Raises:
-		NoBuildFound exception
+		NoBuildFound
 	"""
 	if fetch_from is not SHIP_BUILD_FETCH_FROM.LOCAL:
 		if database_client is None:
@@ -513,31 +525,33 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 
 def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 	"""
-		returns information of a requested legendary warship upgrade
+	returns information of a requested legendary warship upgrade
 
-		Arguments:
-			ship: Ship name
+	Arguments:
+		ship: Ship name
 
-		Returns:
-			object: dict
-			profile: (dict) upgrade's bonuses
-			name					- (str) upgrade name
-			price_gold				- (int) upgrade price in doubloons
-			image					- (str) image url
-			price_credit			- (int) price in credits
-			description				- (str) summary of upgrade
-			local_image				- (str) local location of upgrade
-			is_special				- (bool) is upgrade a legendary upgrade?
-			ship_restriction		- (list) list of ships that can only equip this
-			nation_restriction		- (list) list of nations that this upgrade can be found
-			tier_restriction		- (list) list of tiers that this upgrade can be found
-			type_restriction		- (list) which ship types can this upgrade be found on
-			slot					- (int) which slot can this upgrade be equiped on
-			special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
-										[Ship, Slot, Comments]
-			on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
+	Returns:
+		object: dict
+		profile: (dict) upgrade's bonuses
+		name					- (str) upgrade name
+		price_gold				- (int) upgrade price in doubloons
+		image					- (str) image url
+		price_credit			- (int) price in credits
+		description				- (str) summary of upgrade
+		local_image				- (str) local location of upgrade
+		is_special				- (bool) is upgrade a legendary upgrade?
+		ship_restriction		- (list) list of ships that can only equip this
+		nation_restriction		- (list) list of nations that this upgrade can be found
+		tier_restriction		- (list) list of tiers that this upgrade can be found
+		type_restriction		- (list) which ship types can this upgrade be found on
+		slot					- (int) which slot can this upgrade be equiped on
+		special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
+									[Ship, Slot, Comments]
+		on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
 
-		raise exceptions for dictionary
+	Raises:
+		ValueError
+		IndexError
 	"""
 	# convert ship names with utf-8 chars to ascii
 	if ship in ship_name_to_ascii:
@@ -550,20 +564,22 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 
 def get_skill_data(tree: str, skill: str) -> dict:
 	"""
-		returns information of a requested commander skill
+	returns information of a requested commander skill
 
-		Examples:
-			get_skill_data("Battleship", "Fire Prevention Expert")
-				- get data on the battleship's skill fire prevention expert
+	Examples:
+		get_skill_data("Battleship", "Fire Prevention Expert")
+			- get data on the battleship's skill fire prevention expert
 
-		Arguments:
-			tree: (string) Which tree to extract data from
-			skill: (string) Skill's full name
+	Arguments:
+		tree: (string) Which tree to extract data from
+		skill: (string) Skill's full name
 
-		Returns:
-			object: tuple (name, tree, description, effect, x, y, category)
+	Returns:
+		object: tuple (name, tree, description, effect, x, y, category)
 
-		raise exceptions for dictionary
+	Raises:
+		ValueError
+		IndexError
 	"""
 	skill = skill.lower()
 	try:
@@ -619,38 +635,41 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: {e}")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
 	"""
-		returns information of a requested warship upgrade
+	returns information of a requested warship upgrade
 
-		Arguments:
-			upgrade : Upgrade's full name or abbreviation
+	Arguments:
+		upgrade : Upgrade's full name or abbreviation
 
-		Returns:
-			object: dict (profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction,
-			nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships)
+	Returns:
+		object: dict (profile, name, price_gold, image, price_credit, description, local_image, is_special, ship_restriction,
+		nation_restriction, tier_restriction, type_restriction, slot, special_restriction, on_other_ships)
 
-			profile					- (dict) upgrade's bonuses
-			name					- (str) upgrade name
-			price_gold				- (int) upgrade price in doubloons
-			image					- (str) image url
-			price_credit			- (int) price in credits
-			description				- (str) summary of upgrade
-			local_image				- (str) local location of upgrade
-			is_special				- (bool) is upgrade a legendary upgrade?
-			ship_restriction		- (list) list of ships that can only equip this
-			nation_restriction		- (list) list of nations that this upgrade can be found
-			tier_restriction		- (list) list of tiers that this upgrade can be found
-			type_restriction		- (list) which ship types can this upgrade be found on
-			slot					- (int) which slot can this upgrade be equiped on
-			special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
-										[Ship, Slot, Comments]
-			on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
+		profile					- (dict) upgrade's bonuses
+		name					- (str) upgrade name
+		price_gold				- (int) upgrade price in doubloons
+		image					- (str) image url
+		price_credit			- (int) price in credits
+		description				- (str) summary of upgrade
+		local_image				- (str) local location of upgrade
+		is_special				- (bool) is upgrade a legendary upgrade?
+		ship_restriction		- (list) list of ships that can only equip this
+		nation_restriction		- (list) list of nations that this upgrade can be found
+		tier_restriction		- (list) list of tiers that this upgrade can be found
+		type_restriction		- (list) which ship types can this upgrade be found on
+		slot					- (int) which slot can this upgrade be equiped on
+		special_restriction		- (list) addition restrictions on this upgrade. Each items follows the following format:
+									[Ship, Slot, Comments]
+		on_other_ships			- (list) what other ships can this upgrade be found on beside its normal places
 
-		raise exceptions for dictionary
+	Raises:
+		ValueError
+		IndexError
+		NoUpgradeFound
 	"""
 	upgrade = upgrade.lower()
 	try:
@@ -709,6 +728,18 @@ def get_upgrade_data(upgrade: str) -> dict:
 		raise e
 
 def get_module_data(module_id: int) -> dict:
+	"""
+	Return a ship's module data based on its id
+
+	Args:
+		module_id (int): Module's ID
+
+	Returns:
+		dict: Data containing information about the requested module
+
+	Raises:
+		IndexError
+	"""
 	if database_client is not None:
 		query_result = database_client.mackbot_db.module_list.find_one({
 			"module_id": module_id
@@ -723,19 +754,21 @@ def get_module_data(module_id: int) -> dict:
 
 def get_commander_data(cmdr: str) -> tuple:
 	"""
-		returns information of a requested warship upgrade
+	returns information of a requested warship upgrade
 
-		Arguments:
-			cmdr : Commander's full name
+	Arguments:
+		cmdr : Commander's full name
 
-		Returns:
-			object: tuple
+	Returns:
+		object: tuple
 
-			name	- (str) commander's name
-			icons	- (str) image url on WG's server
-			nation	- (str) Commander's nationality
+		name	- (str) commander's name
+		icons	- (str) image url on WG's server
+		nation	- (str) Commander's nationality
 
-		raise exceptions for dictionary
+	Raises:
+		ValueError
+		IndexError
 	"""
 	# TODO: rewrite
 	cmdr = cmdr.lower()
@@ -761,22 +794,24 @@ def get_commander_data(cmdr: str) -> tuple:
 
 def get_map_data(map: str) -> tuple:
 	"""
-		returns informations of a requested warship upgrade
+	returns informations of a requested warship upgrade
 
-		Arguments:
-		-------
-			- map : (string)
-				map's name
+	Arguments:
+	-------
+		- map : (string)
+			map's name
 
-		Returns:
-		-------
-		tuple:
-			description	- (str) map's description
-			image		- (str) image url on WG's server
-			id			- (str) map id
-			name		- (str) map's name
+	Returns:
+	-------
+	tuple:
+		description	- (str) map's description
+		image		- (str) image url on WG's server
+		id			- (str) map id
+		name		- (str) map's name
 
-		raise exceptions for dictionary
+	Raises:
+		ValueError
+		IndexError
 	"""
 
 	map = map.lower()
@@ -789,18 +824,42 @@ def get_map_data(map: str) -> tuple:
 		logger.info("Exception {type(e): ", e)
 		raise e
 
-async def correct_user_misspell(context: discord.ext.commands.Context, command: str, *args: list[str, ...]) -> None:
+async def correct_user_misspell(context: discord.ext.commands.Context, command: str, *args: list[str]) -> None:
+	"""
+	Correct user's spelling mistake on ships on some commands
+
+	Args:
+		context (discord.ext.commands.Context): A Discord Context object
+		command (string): The original command
+		*args (list[string]): The original command's arguments
+
+	Returns:
+		None
+	"""
 	author = context.author
 	def check(message):
 		return author == message.author and message.content.lower() in ['y', 'yes']
 
 	message = await mackbot.wait_for('message', timeout=10, check=check)
 	try:
-		await globals()[command](context, ' '.join(i for i in args))
+		await globals()[command](context, *args)
 	except Exception as e:
 		pass
 
 def get_ship_data_by_id(ship_id: int) -> dict:
+	"""
+	get_ship_build's version of getting ship data, but with ID instead. Useful in finding ship that is no
+	longer exists
+
+	Args:
+		ship_id (int): Ship ID
+
+	Returns:
+		dict: Containing ship data
+
+	Raise:
+		NoShipFound
+	"""
 	ship_data = {
 		"name": "",
 		"tier": -1,
@@ -810,6 +869,7 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 		"emoji": '',
 	}
 	if database_client is not None:
+		# database fetch
 		query_result = database_client.mackbot_db.ship_list.find_one({
 			"ship_id": ship_id
 		})
@@ -819,7 +879,6 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 			ship_data['nation'] = query_result['nation']
 			ship_data['type'] = query_result['type']
 			ship_data['is_prem'] = query_result['is_premium']
-			return ship_data
 		else:
 			# some ships are not available in wg api
 			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
@@ -835,11 +894,10 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				ship_data['tier'] = data['level']
 				ship_data['nation'] = data['navalFlag']
 				ship_data['type'] = data['typeinfo']['species']
-
-				return ship_data
 			else:
 				raise NoShipFound
 	else:
+		# local fetch
 		try:
 			ship_data['name'] = ship_list[str(ship_id)]['name']
 			ship_data['tier'] = ship_list[str(ship_id)]['tier']
@@ -863,8 +921,40 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				ship_data['type'] = data['typeinfo']['species']
 			else:
 				raise NoShipFound
-		ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
-		return ship_data
+	ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
+	return ship_data
+
+def find_close_match_item(name: str, database: str) -> list:
+	"""
+	Returns a list of closest matches for the indicated item in the database
+	Args:
+		name (str): A ship name
+		database (str): which database to use
+
+	Returns:
+		List of closest ship names
+	"""
+
+	db_selection = ['ship_list', 'upgrade_list', 'skill_list']
+	try:
+		assert database in db_selection
+	except AssertionError:
+		raise ValueError(f"{database} is not in {db_selection}")
+
+	if database_client is not None:
+		query_result = database_client.mackbot_db[database].find({}, {
+			"name": 1
+		})
+		names_list = [i['name'].lower() for i in query_result]
+	else:
+		if database == "ship_list":
+			names_list = [ship_list[i]['name'].lower() for i in ship_list]
+		if database == "upgrade_list":
+			names_list = [upgrade_list[i]['name'].lower() for i in upgrade_list]
+		if database == "skill_list":
+			names_list = [skill_list[i]['name'].lower() for i in skill_list]
+	return difflib.get_close_matches(name, names_list)
+
 
 def escape_discord_format(s: str) -> str:
 	return ''.join('\\'+i if i in ['*', '_'] else i for i in s)
@@ -903,6 +993,10 @@ def find_aa_descriptor(rating: int) -> str:
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
 
+@mackbot.check
+def check_command(context):
+	return context.command.qualified_name in command_list
+
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -910,6 +1004,7 @@ async def on_ready():
 
 @mackbot.event
 async def on_command(context):
+	logger.info(f"Received message [{context.message.content}] from [{context.author}, id: {context.author.id}]")
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
@@ -973,42 +1068,21 @@ async def build(context, *args):
 						build_name = builds[i]['name']
 						m += f"[{i + 1}] {build_name}\n"
 					embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
-					embed.set_footer(text="Please enter the number you would like the build for.\nResponse expires in 10 seconds.")
-					multi_build_embed_components = [
-						Select(options=[SelectOption(label=f"[{i+1}] {builds[i]['name']}", value=i+1) for i, b in enumerate(builds)])
-					]
+					embed.set_footer(text="Please select a build.\nResponse expires in 15 seconds.")
+					options = [SelectOption(label=f"[{i+1}] {builds[i]['name']}", value=i) for i, b in enumerate(builds)]
+					view = UserSelection(
+						author=context.message.author,
+						timeout=15,
+						options=options,
+						placeholder="Select a build"
+					)
+					view.message = await context.send(embed=embed, view=view)
+					user_selected_build_id = await get_user_response_with_drop_down(view)
+					if 0 <= user_selected_build_id < len(builds):
+						pass
+					else:
+						await context.send(f"Input {user_selected_build_id} is incorrect")
 
-					multi_build_output_msg = await context.send(embed=embed, components=multi_build_embed_components)
-
-					def get_user_selected_build_id(message):
-						return context.author == message.author
-					# set up feature where one can select from drop down menu or enter value
-					multi_build_user_response = await get_user_response_with_drop_down(context, 10, multi_build_output_msg)
-
-					# check type of user response
-					if type(multi_build_user_response) == discord_components.Interaction:
-						# discord drop down component
-						user_selected_build_id = multi_build_user_response.values[0]
-
-					if type(multi_build_user_response) == discord.Message:
-						# user entered value
-						user_selected_build_id = multi_build_user_response.content.split(' ')[0]
-						multi_build_user_response = None
-
-					try:
-						user_selected_build_id = int(user_selected_build_id) - 1
-					except ValueError:
-						await context.send(f"Input {user_selected_build_id} is invalid")
-						raise ValueError
-
-					# disable selected drop-down menu
-					await multi_build_output_msg.edit(components=[
-						Select(
-							options=[SelectOption(label='a',value=0)],
-							placeholder=f"[{user_selected_build_id + 1}] {builds[user_selected_build_id]['name']}",
-							disabled=True
-						)
-					])
 
 				if not builds:
 					raise NoBuildFound
@@ -1143,16 +1217,18 @@ async def build(context, *args):
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(user_ship_name, ship_name_list)
-				closest_match_string = closest_match[0].title()
-				if len(closest_match) > 0:
+				closest_match = find_close_match_item(user_ship_name.lower(), "ship_list")
+				embed = discord.Embed(title=f"Ship {user_ship_name} is not understood.\n", description="")
+				if closest_match:
+					closest_match_string = closest_match[0].title()
 					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
-				embed = discord.Embed(title=f"Ship {user_ship_name} is not understood.\n", description=closest_match_string)
-				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expires in 10 seconds")
-				await context.send(embed=embed)
-				await correct_user_misspell(context, 'build', closest_match[0])
+					embed.description = closest_match_string
+					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					embed.set_footer(text="Response expires in 10 seconds")
+					await context.send(embed=embed)
+					await correct_user_misspell(context, 'build', closest_match[0])
+				else:
+					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:
 				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
@@ -1391,7 +1467,6 @@ async def ship(context, *args):
 							m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 						m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-							m = m[:-1]
 							m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 							m += '-------------------\n'
 						if guns['max_damage_he']:
@@ -1492,7 +1567,7 @@ async def ship(context, *args):
 							medium = aa['medium']
 							far = aa['far']
 							if flak['damage'] > 0:
-								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', flak['count'])}, {flak['damage']}:boom:\n"
+								m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', int(flak['count']))}, {flak['damage']}:boom:\n"
 							if near['damage'] > 0:
 								m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 							if medium['damage'] > 0:
@@ -1766,14 +1841,11 @@ async def ship(context, *args):
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
-				closest_match = difflib.get_close_matches(ship, ship_name_list)
-
+				closest_match = find_close_match_item(ship.lower(), "ship_list")
 				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description="")
 				if closest_match:
 					closest_match_string = closest_match[0].title()
-					if len(closest_match) > 0:
-						closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
 
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
@@ -1954,13 +2026,13 @@ async def compare(context, *args):
 		await help(context, "compare")
 	else:
 		args = ' '.join(args) # join arguments to split token
-		user_input_ships = args.replace("and", "&").split("&")
+		# user_input_ships = args.replace("and", "&").split("&")
+		user_input_ships = re.sub("\\sand\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
 			await help(context, "compare")
 			return
 		# parse whitespace
 		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
-		ship_name_list = [ship_list[i]['name'].lower() for i in ship_list]
 		ships_to_compare = []
 
 		def user_correction_check(message):
@@ -1973,7 +2045,7 @@ async def compare(context, *args):
 			except NoShipFound:
 				logger.info(f"ship check [{s}] FAILED")
 				logger.info(f"sending correction reponse")
-				closest_match = difflib.get_close_matches(s, ship_name_list)
+				closest_match = find_close_match_item(s.lower(), "ship_list")
 				closest_match_string = closest_match[0].title()
 				embed = discord.Embed(title=f"Ship {s} is not understood.\n", description="")
 				if len(closest_match) > 0:
@@ -2005,28 +2077,22 @@ async def compare(context, *args):
 		for i, o in enumerate(user_options):
 			response_embed.description += f"**[{i+1}]** {o}\n"
 		response_embed.set_footer(text="Response expires in 15 seconds")
-		response_selection_options = [
-			Select(options=[SelectOption(label=o, value=str(i+1)) for i, o in enumerate(user_options)])
-		]
-
-		response_prompt_output = await context.send(embed=response_embed, components=response_selection_options)
-		user_response = await get_user_response_with_drop_down(context, 10, response_prompt_output)
-
-		user_selection = -1
-		if type(user_response) == discord.Message:
-			user_selection = user_response.content
-		if type(user_response) == discord_components.Interaction:
-			user_selection = user_response.values[0]
+		options = [SelectOption(label=o, value=i) for i, o in enumerate(user_options)]
+		view = UserSelection(
+			author=context.message.author,
+			timeout=15,
+			options=options,
+			placeholder="Select an option"
+		)
+		view.message = await context.send(embed=response_embed, view=view)
+		user_selection = await get_user_response_with_drop_down(view)
+		if 0 <= user_selection < len(user_options):
+			pass
+		else:
+			await context.send(f"Input {user_selection} is incorrect")
 
 		# compile info
 		if user_selection != -1:
-			try:
-				user_selection = int(user_selection)
-			except ValueError:
-				embed.description += f"Value {user_selection} is not a valid value"
-				await context.send(embed=embed)
-				return
-
 			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
 			logger.info(f"returning comparison for {user_options[user_selection - 1]}")
@@ -2171,23 +2237,21 @@ async def compare(context, *args):
 						# set up title axis
 						m = "**Name**\n"
 						m += "**Range**\n"
-						m += "**Rating**\n"
+						m += "**Rating vs. same tier**\n"
+						m += "**Analysis**\n"
 						embed.add_field(name="__Anti-Air__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
 							if mid is not None:
 								module = get_module_data(mid)
 								aa = module['profile']['anti_air']
-								rating_descriptor = ""
-								for d in AA_RATING_DESCRIPTOR:
-									low, high = AA_RATING_DESCRIPTOR[d]
-									if low <= aa['rating'] <= high:
-										rating_descriptor = d
-										break
+								aa_rating = aa['rating'][ships_to_compare[i % 2]['tier'] - 1]
+								rating_descriptor = find_aa_descriptor(aa_rating)
 
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{aa['max_range'] / 1000:0.1f} km\n"
-								m += f"{aa['rating']} ({rating_descriptor})\n"
+								m += f"{aa_rating}\n"
+								m += f"{rating_descriptor}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
@@ -2258,30 +2322,9 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection - 1].lower()}")
-
-			if type(user_response) == discord_components.Interaction:
-				await user_response.respond(embed=embed, ephemeral=False)
-			if type(user_response) == discord.Message:
-				await context.send(embed=embed)
-
-			# disable the drop down menu
-			await response_prompt_output.edit(components=[
-				Select(
-					options=[SelectOption(label='a', value=0, )],
-					placeholder=f"{user_options[user_selection - 1]}",
-					disabled=True
-				)
-			])
+			await context.send(embed=embed)
 		else:
 			logging.info("Response expired")
-			# disable selected drop-down menu when expired
-			await response_prompt_output.edit(components=[
-				Select(
-					options=[SelectOption(label='a', value=0)],
-					placeholder=f"Response timed-out",
-					disabled=True
-				)
-			])
 		del user_correction_check
 
 @mackbot.command()
@@ -2316,15 +2359,17 @@ async def skill(context, *args):
 			await context.send(embed=embed)
 
 		except Exception as e:
-			logger.info("Exception", type(e), ":", e)
+			logger.info(f"Exception {type(e)}: {e}")
 			# error, skill name not understood
-			skill_name_list = [skill_list[i]['name'] for i in skill_list]
-			closest_match = difflib.get_close_matches(skill, skill_name_list)
+			closest_match = find_close_match_item(skill, "skill_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Skill **{skill}** is not understood." + closest_match_string)
+			embed = discord.Embed(title=f"Skill {skill} is not understood.\n", description=closest_match_string)
+			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+			embed.set_footer(text="Response expires in 10 seconds")
+			await context.send(embed=embed)
+			await correct_user_misspell(context, 'skill', ship_class, closest_match[0])
 
 @mackbot.group(pass_context=True, invoke_without_command=True)
 async def show(context, *args):
@@ -2706,13 +2751,16 @@ async def upgrade(context, *args):
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
-			upgrade_name_list = [upgrade_list[i]['name'] for i in upgrade_list]
-			closest_match = difflib.get_close_matches(upgrade, upgrade_name_list)
+			closest_match = find_close_match_item(upgrade.lower(), "upgrade_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
-			await context.send(f"Upgrade **{upgrade}** is not understood." + closest_match_string)
+			embed = discord.Embed(title=f"Upgrade **{upgrade}** is not understood.\n", description=closest_match_string)
+			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+			embed.set_footer(text="Response expires in 10 seconds")
+			await context.send(embed=embed)
+			await correct_user_misspell(context, 'upgrade', closest_match[0])
 
 @mackbot.command()
 async def player(context, *args):
@@ -3065,104 +3113,106 @@ async def clan(context, *args):
 
 @mackbot.command()
 async def commander(context, *args):
+	pass
 	# get information on requested commander
 	# message parse
-	cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(args) == 0:
-		await help(context, "commander")
-	else:
-		try:
-			async with context.typing():
-				logger.info(f'sending message for commander <{cmdr}>')
-
-				output = get_commander_data(cmdr)
-				if output is None:
-					raise NameError("NoCommanderFound")
-				name, icon, nation, cmdr_id = output
-				embed = discord.Embed(title="Commander")
-				embed.set_thumbnail(url=icon)
-				embed.add_field(name='Name', value=name, inline=False)
-				embed.add_field(name='Nation', value=nation_dictionary[nation], inline=False)
-
-				cmdr_data = None
-				for i in game_data:
-					if game_data[i]['typeinfo']['type'] == 'Crew':
-						if cmdr_id == str(game_data[i]['id']):
-							cmdr_data = game_data[i]
-
-				'''
-				skill_bonus_string = ''
-
-				for c in cmdr_data['Skills']:
-					skill = cmdr_data['Skills'][c].copy()
-					if skill['isEpic']:
-						skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
-						skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'
-						for v in ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
-							del skill[v]
-						if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
-							for descriptor in skill:
-								skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f}\n"
-								if c == 'MainGunsRotationModifier':
-									skill_bonus_string += ' °/sec.'
-						else:
-							for descriptor in skill:
-								if c == 'TorpedoAcceleratorModifier':
-									if descriptor in ['planeTorpedoSpeedBonus', 'torpedoSpeedBonus']:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f} kts.\n"
-									else:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
-								else:
-									if abs(skill[descriptor] - 1) > 0:
-										skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
-						skill_bonus_string += '\n'
-				
-				if len(skill_bonus_string) > 0:
-					embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
-					embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
-				else:
-					embed.add_field(name='Skill Bonuses', value="None", inline=False)
-				'''
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)}: ", e)
-			# error, ship name not understood
-			cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
-			closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Commander **{cmdr}** is not understood.")
+	# cmdr = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	# if len(args) == 0:
+	# 	await help(context, "commander")
+	# else:
+	# 	try:
+	# 		async with context.typing():
+	# 			logger.info(f'sending message for commander <{cmdr}>')
+	#
+	# 			output = get_commander_data(cmdr)
+	# 			if output is None:
+	# 				raise NameError("NoCommanderFound")
+	# 			name, icon, nation, cmdr_id = output
+	# 			embed = discord.Embed(title="Commander")
+	# 			embed.set_thumbnail(url=icon)
+	# 			embed.add_field(name='Name', value=name, inline=False)
+	# 			embed.add_field(name='Nation', value=nation_dictionary[nation], inline=False)
+	#
+	# 			cmdr_data = None
+	# 			for i in game_data:
+	# 				if game_data[i]['typeinfo']['type'] == 'Crew':
+	# 					if cmdr_id == str(game_data[i]['id']):
+	# 						cmdr_data = game_data[i]
+	#
+	# 			'''
+	# 			skill_bonus_string = ''
+	#
+	# 			for c in cmdr_data['Skills']:
+	# 				skill = cmdr_data['Skills'][c].copy()
+	# 				if skill['isEpic']:
+	# 					skill_name, _, skill_type, _, _, _ = get_skill_data_by_grid(skill['column'], skill['tier'])
+	# 					skill_bonus_string += f'**{skill_name}** ({skill_type}, Tier {skill["tier"]}):\n'
+	# 					for v in ['column', 'skillType', 'tier', 'isEpic', 'turnOffOnRetraining']:
+	# 						del skill[v]
+	# 					if c in ['SurvivalModifier', 'MainGunsRotationModifier']:
+	# 						for descriptor in skill:
+	# 							skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f}\n"
+	# 							if c == 'MainGunsRotationModifier':
+	# 								skill_bonus_string += ' °/sec.'
+	# 					else:
+	# 						for descriptor in skill:
+	# 							if c == 'TorpedoAcceleratorModifier':
+	# 								if descriptor in ['planeTorpedoSpeedBonus', 'torpedoSpeedBonus']:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] > 0 else ''}{skill[descriptor]:0.0f} kts.\n"
+	# 								else:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
+	# 							else:
+	# 								if abs(skill[descriptor] - 1) > 0:
+	# 									skill_bonus_string += f"{cmdr_skill_descriptor[c][descriptor + 'Descriptor']} {'+' if skill[descriptor] - 1 > 0 else ''}{int(round((skill[descriptor] - 1) * 100))}%\n"
+	# 					skill_bonus_string += '\n'
+	#
+	# 			if len(skill_bonus_string) > 0:
+	# 				embed.add_field(name='Skill Bonuses', value=skill_bonus_string, inline=False)
+	# 				embed.set_footer(text="For default skill bonuses, use [mackbot skill [skill name]]")
+	# 			else:
+	# 				embed.add_field(name='Skill Bonuses', value="None", inline=False)
+	# 			'''
+	# 		await context.send(embed=embed)
+	# 	except Exception as e:
+	# 		logger.info(f"Exception {type(e)}: ", e)
+	# 		# error, ship name not understood
+	# 		cmdr_name_list = [cmdr_list[i]['first_names'] for i in cmdr_list]
+	# 		closest_match = difflib.get_close_matches(cmdr, cmdr_name_list)
+	# 		closest_match_string = ""
+	# 		if len(closest_match) > 0:
+	# 			closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
+	#
+	# 		await context.send(f"Commander **{cmdr}** is not understood.")
 
 @mackbot.command()
 async def map(context, *args):
-	# get information on requested map
-	# message parse
-	map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if len(args) == 0:
-		await help(context, "map")
-	else:
-		try:
-			async with context.typing():
-				logger.info(f'sending message for map <{map}>')
-				description, image, id, name = get_map_data(map)
-				embed = discord.Embed(title="Map")
-				embed.set_image(url=image)
-				embed.add_field(name='Name', value=name)
-				embed.add_field(name='Description', value=description)
-
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)}: ", e)
-			# error, ship name not understood
-			map_name_list = [map_list[i]['name'] for i in map_list]
-			closest_match = difflib.get_close_matches(map, map_name_list)
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-
-			await context.send(f"Map **{map}** is not understood.")
+	pass
+	# # get information on requested map
+	# # message parse
+	# map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
+	# if len(args) == 0:
+	# 	await help(context, "map")
+	# else:
+	# 	try:
+	# 		async with context.typing():
+	# 			logger.info(f'sending message for map <{map}>')
+	# 			description, image, id, name = get_map_data(map)
+	# 			embed = discord.Embed(title="Map")
+	# 			embed.set_image(url=image)
+	# 			embed.add_field(name='Name', value=name)
+	# 			embed.add_field(name='Description', value=description)
+	#
+	# 		await context.send(embed=embed)
+	# 	except Exception as e:
+	# 		logger.info(f"Exception {type(e)}: ", e)
+	# 		# error, ship name not understood
+	# 		map_name_list = [map_list[i]['name'] for i in map_list]
+	# 		closest_match = difflib.get_close_matches(map, map_name_list)
+	# 		closest_match_string = ""
+	# 		if len(closest_match) > 0:
+	# 			closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
+	#
+	# 		await context.send(f"Map **{map}** is not understood.")
 
 @mackbot.command()
 async def doubloons(context, *args):
