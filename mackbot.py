@@ -81,7 +81,7 @@ class LogFilterBlacklist(logging.Filter):
 
 # log settings
 if not os.path.exists(os.path.join(os.getcwd(), "logs")):
-	os.mkdir(os.getcwd(), "logs")
+	os.mkdir(os.path.join(os.getcwd(), "logs"))
 
 LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
