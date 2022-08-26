@@ -230,7 +230,7 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
-player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--ships (.*))')
+player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--tier (.*))')
 
 good_bot_messages = (
 	'Thank you!',
@@ -1246,11 +1246,10 @@ async def ship(context, *args):
 		Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 
 		Discord usage:
-			mackbot ship [ship_name] (parameters)
+			mackbot ship [ship_name] [-p/--parameters parameters]
 				ship_name 		- name of requested warship
-				(parameters)	- Optional. Must include pair of parenthesis when used.
-								  Filters only specific warship parameters
-								  Parameters may include, but not limited to: guns, secondary, torpedoes, hull
+				-p/--parameters - Optional. Filters only specific warship parameters
+									Parameters may include, but not limited to: guns, secondary, torpedoes, hull
 	"""
 
 	# message parse
@@ -1261,13 +1260,12 @@ async def ship(context, *args):
 		if send_compact:
 			args = args[1:]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
-		has_filter = '(' in args and ')' in args  # find a better check
-		param_filter = ''
+
+		split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
+		has_filter = len(split_opt_args) > 1
 		if has_filter:
-			param_filter = args[args.find('(') + 1: args.rfind(')')]
-			args = args[:args.find('(') - 1]
-		args = args.split(' ')
-		ship = ' '.join(i for i in args)  # grab ship name
+			param_filter = split_opt_args[1]
+		ship = split_opt_args[0]
 		try:
 			async with context.typing():
 				ship_data = get_ship_data(ship)
@@ -1859,166 +1857,6 @@ async def ship(context, *args):
 				# we dun goofed
 				await context.send(f"An internal error has occured.")
 				traceback.print_exc()
-
-# async def ship_compact(context, ship_data):
-# 	"""
-# 	Send a compact version of the build command.
-#
-# 	Args:
-# 		context: A discord.ext.commands.Context object
-# 		ship_data: ship data gathered from the get_ship_data() function
-#
-# 	Returns: None
-#
-# 	"""
-# 	name = ship_data['name']
-# 	nation = ship_data['nation']
-# 	images = ship_data['images']
-# 	ship_type = ship_data['type']
-# 	tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-# 	modules = ship_data['modules']
-# 	is_prem = ship_data['is_premium']
-# 	is_test_ship = ship_data['is_test_ship']
-# 	logger.info(f"returning ship information for <{name}> in embeded format")
-# 	ship_type = ship_types[ship_type]
-# 	ship_type_emoji = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
-#
-# 	embed = discord.Embed(title=f"{ship_type_emoji} {tier} {name} {'' if not is_test_ship else '[TEST SHIP]'}", description="")
-# 	embed.set_thumbnail(url=images['small'])
-#
-# 	# hull info
-# 	if len(modules['hull']):
-# 		m = ""
-# 		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-# 			hull = module_list[str(h)]['profile']['hull']
-# 			hull_name = module_list[str(h)]['name']
-# 			aa = module_list[str(h)]['profile']['anti_air']
-# 			rating_descriptor = ""
-# 			for d in AA_RATING_DESCRIPTOR:
-# 				low, high = AA_RATING_DESCRIPTOR[d]
-# 				if low <= aa['rating'] <= high:
-# 					rating_descriptor = d
-# 					break
-#
-# 			m += f"{ship_type_emoji} __**{hull_name}**__ \n"
-# 			m += f"{hull['health']:1.0f} HP\n"
-# 			m += f"{icons_emoji['aa']} {aa['max_range']/1000:0.1f} km | {rating_descriptor} AA\n"
-# 		m += "\n"
-# 		embed.add_field(name="\u200b", value=m, inline=False)
-# 	# gun info
-# 	if len(modules['artillery']):
-# 		m = ""
-# 		for mb in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['profile']['artillery']['caliber'], reverse=True):
-# 			mb_name = module_list[str(mb)]['name']
-# 			mb_range = ""
-# 			for fc in sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance']):
-# 				mb_range += f"{module_list[str(fc)]['profile']['fire_control']['distance']} - "
-# 			mb_range = mb_range[:-2]
-# 			mb = module_list[str(mb)]['profile']['artillery']
-# 			m += f"{icons_emoji['gun']} __**{mb_name}**__\n"
-# 			m += f"{icons_emoji['reload']} {mb['shotDelay']:0.1f}s | {icons_emoji['range']} {mb_range} km\n"
-# 			if mb['max_damage_he']:
-# 				m += f"{icons_emoji['he']} {mb['max_damage_he']} :boom: | :fire: {mb['burn_probability']:2.0f}% | {icons_emoji['penetration']} {mb['pen_HE']:2.0f} mm\n"
-# 			if mb['max_damage_sap']:
-# 				m += f"{icons_emoji['sap']} {mb['max_damage_sap']} :boom: | {icons_emoji['penetration']} {mb['pen_SAP']:2.0f} mm\n"
-# 			if mb['max_damage_ap']:
-# 				m += f"{icons_emoji['ap']} {mb['max_damage_ap']} :boom:\n"
-# 			m += '\n'
-#
-# 		embed.add_field(name="\u200b", value=m, inline=False)
-# 	# torp info
-# 	if len(modules['torpedoes']):
-# 		m = ""
-# 		for t in sorted(modules['torpedoes'], key=lambda x: module_list[str(x)]['name']):
-# 			torps = module_list[str(t)]['profile']['torpedoes']
-# 			torps_name = module_list[str(t)]['name'].replace(chr(10), ' ')
-# 			reload_minute = int(torps['shotDelay'] // 60)
-# 			reload_second = int(torps['shotDelay'] % 60)
-#
-# 			m += f"{icons_emoji['torp']} __**{torps_name}**__\n"
-# 			m += f"{icons_emoji['reload']} {'' if reload_minute == 0 else str(reload_minute) + 'm'} {reload_second}s | {icons_emoji['range']} {torps['range']:0.1f} km\n"
-# 			m += f"{icons_emoji['plane_torp']} {torps['max_damage']:2.0f} :boom: | {icons_emoji['plane_torp']} x {torps['numBarrels']} | {torps['torpedo_speed']:0.1f} kts.\n"
-# 			m += '\n'
-# 		embed.add_field(name="\u200b", value=m, inline=False)
-# 	# rockets
-# 	if len(modules['fighter']):
-# 		m = ""
-# 		for h in sorted(modules['fighter'], key=lambda x: module_list.keys()):
-# 			for p in module_list[str(h)]:
-# 				fighter_module = module_list[str(h)][p]
-# 				fighter = module_list[str(h)][p]['profile']['fighter']
-# 				fighter_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-#
-# 				m += f"{icons_emoji['plane_rocket']} __**{fighter_name}**__\n"
-# 				m += f"{icons_emoji['plane']} x {fighter_module['squad_size']} | {fighter['cruise_speed']} kts.\n"
-# 				m += f":boom: {fighter['max_damage']:1.0f} x {fighter['payload']} {icons_emoji['plane_rocket']} x {fighter_module['attack_size']} {icons_emoji['plane']}\n"
-# 				m += f"{icons_emoji['reload']} {fighter_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-#
-# 		embed.add_field(name="\u200b", value=m, inline=True)
-#
-# 	# torp bomber
-# 	if len(modules['torpedo_bomber']):
-# 		m = ""
-# 		for h in sorted(modules['torpedo_bomber'], key=lambda x: module_list.keys()):
-# 			for p in module_list[str(h)]:
-# 				torpedo_bomber_module = module_list[str(h)][p]
-# 				torpedo_bomber = module_list[str(h)][p]['profile']['torpedo_bomber']
-# 				torpedo_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-#
-# 				m += f"{icons_emoji['plane_torp']} __**{torpedo_bomber_name}**__\n"
-# 				m += f"{icons_emoji['plane']} x {torpedo_bomber_module['squad_size']} | {torpedo_bomber['cruise_speed']} kts.\n"
-# 				m += f":boom: {torpedo_bomber['max_damage']:1.0f} x {torpedo_bomber['payload']} {icons_emoji['plane_torp']} x {torpedo_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-# 				m += f"{icons_emoji['reload']} {torpedo_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-#
-# 		embed.add_field(name="\u200b", value=m, inline=True)
-# 	# bomber
-# 	if len(modules['dive_bomber']):
-# 		m = ""
-# 		for h in sorted(modules['dive_bomber'], key=lambda x: module_list.keys()):
-# 			for p in module_list[str(h)]:
-# 				dive_bomber_module = module_list[str(h)][p]
-# 				dive_bomber = module_list[str(h)][p]['profile']['dive_bomber']
-# 				dive_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-#
-# 				m += f"{icons_emoji['plane_bomb']} __**{dive_bomber_name}**__\n"
-# 				m += f"{icons_emoji['plane']} x {dive_bomber_module['squad_size']} | {dive_bomber['cruise_speed']} kts.\n"
-# 				m += f":boom: {dive_bomber['max_damage']:1.0f} x {dive_bomber['payload']} {icons_emoji['plane_bomb']} x {dive_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-# 				m += f"{icons_emoji['reload']} {dive_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-#
-# 		embed.add_field(name="\u200b", value=m, inline=True)
-# 	# skip
-# 	if len(modules['skip_bomber']):
-# 		m = ""
-# 		for h in sorted(modules['skip_bomber'], key=lambda x: module_list.keys()):
-# 			for p in module_list[str(h)]:
-# 				skip_bomber_module = module_list[str(h)][p]
-# 				skip_bomber = module_list[str(h)][p]['profile']['skip_bomber']
-# 				skip_bomber_name = module_list[str(h)][p]['name'].replace(chr(10), ' ')
-#
-# 				m += f"{icons_emoji['plane_bomb']} __**{skip_bomber_name}**__\n"
-# 				m += f"{icons_emoji['plane']} x {skip_bomber_module['squad_size']} | {skip_bomber['cruise_speed']} kts.\n"
-# 				m += f":boom: {skip_bomber['max_damage']:1.0f} x {skip_bomber['payload']} {icons_emoji['plane_torp']} x {skip_bomber_module['attack_size']} {icons_emoji['plane']}\n"
-# 				m += f"{icons_emoji['reload']} {skip_bomber_module['hangarSettings']['timeToRestore']:1.0f}s\n"
-#
-# 		embed.add_field(name="\u200b", value=m, inline=True)
-# 	# concealment
-# 	if len(modules['hull']):
-# 		m = ""
-# 		for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-# 			hull = module_list[str(h)]['profile']['hull']
-# 			m += f"**{module_list[str(h)]['name']}**\n"
-# 			m += f"{icons_emoji['concealment']}{ship_type_emoji}: {hull['detect_distance_by_ship']:0.1f} km\n"
-# 			m += f"{icons_emoji['concealment']}{icons_emoji['plane']}: {hull['detect_distance_by_plane']:0.1f} km\n"
-# 		embed.add_field(name="\u200b", value=m, inline=False)
-#
-# 	footer_message = "Parameters does not take into account upgrades or commander skills\n"
-# 	footer_message += f"For details specific parameters, use [mackbot ship {name} (parameters)]\n"
-# 	footer_message += f"For {name.title()} builds, use [mackbot build {name}]\n"
-# 	if is_test_ship:
-# 		footer_message += f"*Test ship is subject to change before her release\n"
-# 	embed.set_footer(text=footer_message)
-# 	await context.send(embed=embed)
-
 
 @mackbot.command(help="")
 async def compare(context, *args):
@@ -2870,7 +2708,7 @@ async def player(context, *args):
 					m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
 					m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
 					m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
-					m += f"**Highest kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
+					m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
 					m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
 					embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
@@ -2909,7 +2747,7 @@ async def player(context, *args):
 					for i in range(10):
 						try:
 							s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-							m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} / {s['wr']:0.2%} WR)\n"
+							m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} | {s['wr']:0.2%} WR)\n"
 						except IndexError:
 							pass
 					embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -2929,7 +2767,7 @@ async def player(context, *args):
 									for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
 										ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
 										m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
-										m += f"({ship['battles']} battles / {ship['wr']:0.2%} WR / {ship['sr']:2.2%} SR)\n"
+										m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
 										m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
 										r += 1
 									embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
@@ -2946,7 +2784,7 @@ async def player(context, *args):
 							ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
 							m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
 							m += f"**{player_ship_stats_df['battles']} Battles**\n"
-							m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W / {player_ship_stats_df['losses']} L / {ship_battles_draw} D)\n"
+							m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 							m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
 							m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
 							m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"

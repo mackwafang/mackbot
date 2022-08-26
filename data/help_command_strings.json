@@ -12,23 +12,20 @@
 	},
 	"ship": {
 		"brief": "Get detailed information about a ship",
-		"usage": "[options] ship_name (parameters)",
+		"usage": "ship_name [-p/--parameters ship_parameters]",
 		"description": [
 			"Display characteristics of a requested warship.",
 			"",
 			"For more detailed information of a specific parameter, enclose the parameter names in a pair of parenthesis after the ship name.",
 			"Example:",
 			"\tmackbot ship midway (Return information about US CV Midway)",
-			"\tmackbot ship midway (bombers) (Return detailed information about Midway's dive bombers)",
-			"\tmackbot ship --compact midway (Return information about Midway in compact format)",
-			"\tmackbot ship -c midway (Return information about Midway in compact format)",
+			"\tmackbot ship midway -p bombers (Return detailed information about Midway's dive bombers)",
 			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		],
 		"options": {
-			"-c, --compact": "Provide a compact version of the requested item instead.",
-			"parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers). Parameters must be enclosed in a pair of parenthesis."
+			"-p/--parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
 		}
 	},
 	"compare": {
@@ -166,7 +163,7 @@
 		"options": {
 			"battle_type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
 			"--ship <ship_name>": "Display which ship to display.",
-			"--ships <tier>": "Display the top 10 ships that this player owns in descending battle count."
+			"--tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
 		}
 	},
 	"clan": {

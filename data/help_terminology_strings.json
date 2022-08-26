@@ -333,14 +333,29 @@
   "attack aircraft": {
     "description": [
       "Attack aircraft are aircraft that carry rockets, either **high-explosive (HE)** or **armor-piercing (AP)**. Most rocket payloads are usually high in rocket count, with low damage and penetration.",
-      "At the beginning of an attack"
+      "At the beginning of an attack, the attacking flight will start their machine gun strafe before firing rockets.",
+      "This machine gun strafe time depends on nationality of the aircraft and type of rocket the squadron is carrying."
     ],
     "related_terms": [
       "Rocket planes"
     ],
     "related_commands": [
-      "ship <ship_name> (rockets)"
+      "ship <ship_name> -p/--parameters rockets"
     ],
     "title": "Attack Aircraft"
+  },
+
+  "reaction time": {
+    "description": [
+      "From the WoWS official wiki: https://wiki.wargaming.net/en/Ship:Torpedoes#Reaction_Time",
+      "Refers to the time of which it takes the torpedo to travel across its **detection range**.",
+      "Or in other words, the time from which the torpedo is spotted to when it hit its intended target."
+    ],
+    "related_terms": [
+    ],
+    "related_commands": [
+      "ship <ship_name> -p/--parameters torpedoes"
+    ],
+    "title": "Torpedo Reaction Time"
   }
 }
