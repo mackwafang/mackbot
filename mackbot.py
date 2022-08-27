@@ -1632,8 +1632,8 @@ async def ship(context, *args):
 							m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
 								m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
-								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']})\n"
-								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']}s)\n"
+								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {fighter['max_health'] * squadron['squad_size']} HP\n"
+								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
 								m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
 								m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
 								m += f"**Firing Delay:** {squadron['profile']['fighter']['aiming_time']:0.1f}s\n"
@@ -1660,8 +1660,8 @@ async def ship(context, *args):
 							m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']} aircraft)\n"
-								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']}s)\n"
+								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']} aircraft), {bomber['max_health'] * squadron['squad_size']} HP\n"
+								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
 								m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
 								m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
 								m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
@@ -1688,8 +1688,8 @@ async def ship(context, *args):
 							m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']})\n"
-								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']}s)\n"
+								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {bomber['max_health'] * squadron['squad_size']} HP\n"
+								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
 								m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
 								m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 								m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
@@ -1714,8 +1714,8 @@ async def ship(context, *args):
 							m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 								m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']})\n"
-								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']}s)\n"
+								m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {bomber['max_health'] * squadron['squad_size']} HP\n"
+								m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
 								m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
 								m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 								m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
@@ -1930,9 +1930,9 @@ async def compare(context, *args):
 
 		# compile info
 		if user_selection != -1:
-			embed = discord.Embed(title=f"Comparing the {user_options[user_selection - 1].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			embed = discord.Embed(title=f"Comparing the {user_options[user_selection].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
-			logger.info(f"returning comparison for {user_options[user_selection - 1]}")
+			logger.info(f"returning comparison for {user_options[user_selection]}")
 			m = "**Tier**\n"
 			m += "**Type**\n"
 			m += "**Nation**\n"
@@ -1943,7 +1943,7 @@ async def compare(context, *args):
 				m += f"{nation_dictionary[ships_to_compare[i]['nation']]}\n"
 				embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m)
 
-			if user_selection == 1:
+			if user_selection == 0:
 				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
 				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
 				l = zip_longest(ship_module[0]['artillery'], ship_module[1]['artillery'])
@@ -1980,7 +1980,8 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
-			if user_selection == 2:
+
+			if user_selection == 1:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
@@ -2004,7 +2005,8 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
-			if user_selection == 3:
+
+			if user_selection == 2:
 				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
 				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
 				l = zip_longest(ship_module[0]['torpedo'], ship_module[1]['torpedo'])
@@ -2037,7 +2039,7 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection == 4:
+			if user_selection == 3:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
@@ -2065,7 +2067,7 @@ async def compare(context, *args):
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
-			if user_selection == 5:
+			if user_selection == 4:
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
@@ -2094,18 +2096,18 @@ async def compare(context, *args):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
-			if user_selection in [6, 7, 8, 9]:
+			if user_selection in [5, 6, 7, 8]:
 				module_name = {
-					6: 'fighter',
-					7: 'torpedo_bomber',
-					8: 'dive_bomber',
-					9: 'skip_bomber',
+					5: 'fighter',
+					6: 'torpedo_bomber',
+					7: 'dive_bomber',
+					8: 'skip_bomber',
 				}[user_selection]
 				projectile_type = {
-					6: 'rocket(s)',
-					7: 'torpedo(es)',
+					5: 'rocket(s)',
+					6: 'torpedo(es)',
+					7: 'bomb(s)',
 					8: 'bomb(s)',
-					9: 'bomb(s)',
 				}[user_selection]
 				for i in range(2):
 					mid = ships_to_compare[i]['modules'][module_name]
@@ -2124,9 +2126,9 @@ async def compare(context, *args):
 						m += "**Speed**\n"
 						m += "**Max Speed**\n"
 						m += "**Health**\n"
+						m += "**Payload/Flight**\n"
 						m += "**DMG/Projectile**\n"
 						m += "**Max DMG/Flight**\n"
-						m += "**Payload/Flight**\n"
 						m += "**Flight Count**\n"
 						m += "**Attacking Flight**\n"
 						if user_selection == 6:
@@ -2144,9 +2146,9 @@ async def compare(context, *args):
 								m += f"{plane['cruise_speed']} kts.\n"
 								m += f"{plane['max_speed']} kts.\n"
 								m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
+								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
 								m += f"{plane['max_damage']:1.0f}\n"
 								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
-								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
 								m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
 								m += f"{module['attack_size']:1.0f} aircraft\n"
 								if user_selection == 6:
