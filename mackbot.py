@@ -1260,6 +1260,7 @@ async def ship(context, *args):
 		if send_compact:
 			args = args[1:]
 		args = ' '.join(i for i in args)  # fuse back together to check filter
+		param_filter = ""
 
 		split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
 		has_filter = len(split_opt_args) > 1
@@ -1361,6 +1362,7 @@ async def ship(context, *args):
 						query_result = database_client.mackbot_db.module_list.find({
 							"module_id": {"$in": modules['hull']}
 						}).sort("name", 1)
+						query_result = list(query_result)
 					else:
 						query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
 
@@ -1386,14 +1388,12 @@ async def ship(context, *args):
 						m += '\n'
 						embed.add_field(name="__**Hull**__", value=m, inline=True)
 
-					if 'airSupport' in query_result:
-						# air support info
-						m = ''
-						for module in query_result:
-							hull = module['profile']['hull']
-							m += f"**{module['name']}**\n"
+					# air support info
+					m = ''
+					for module in query_result:
+						if 'airSupport' in module['profile']:
 							airsup_info = module['profile']['airSupport']
-
+							m += f"**{module['name']}**\n"
 							airsup_reload_m = int(airsup_info['reloadTime'] // 60)
 							airsup_reload_s = int(airsup_info['reloadTime'] % 60)
 
@@ -1410,16 +1410,14 @@ async def ship(context, *args):
 									m += f"**Squadron**: 2 aircraft\n"
 									m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
 							m += '\n'
-
+					if m:
 						embed.add_field(name="__**Air Support**__", value=m, inline=True)
-					if 'asw' in query_result:
-						# depth charges info
-						m = ''
-						for module in query_result:
-							hull = module['profile']['hull']
-							m += f"**{module['name']}**\n"
-							asw_info = module['profile']['asw']
 
+					m = ''
+					for module in query_result:
+						if 'asw' in module['profile']:
+							asw_info = module['profile']['asw']
+							m += f"**{module['name']}**\n"
 							asw_reload_m = int(asw_info['reloadTime'] // 60)
 							asw_reload_s = int(asw_info['reloadTime'] % 60)
 
@@ -1432,6 +1430,7 @@ async def ship(context, *args):
 								m += f"**Depth charge**: :boom: {asw_info['max_damage']}\n"
 
 							m += '\n'
+					if m:
 						embed.add_field(name="__**ASW**__", value=m, inline=True)
 
 				# guns info
@@ -1828,7 +1827,7 @@ async def ship(context, *args):
 
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 				footer_message = "Parameters does not take into account upgrades or commander skills\n"
-				footer_message += f"For details specific parameters, use [mackbot ship {ship} (parameters)]\n"
+				footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
 				footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
 				if is_test_ship:
 					footer_message += f"*Test ship is subject to change before her release\n"
@@ -1849,7 +1848,7 @@ async def ship(context, *args):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
 					await context.send(embed=embed)
-					await correct_user_misspell(context, 'ship', closest_match[0])
+					await correct_user_misspell(context, 'ship', closest_match[0], '-p' if param_filter else '', param_filter)
 				else:
 					await context.send(embed=embed)
 

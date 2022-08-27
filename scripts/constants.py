@@ -101,3 +101,25 @@ MM_WITH_CV_TIER = (
 	[8,10],
 	[10],
 )
+
+# defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
+ship_group_dict = {
+	'disabled':             "Unavailable",
+	'ultimate':             "Armory", # ship available via the armory
+	'special':              "Premium",
+	'specialUnsellable':    "Premium (Unsellable)",
+	'demoWithStats':        "",
+	'clan':                 "Clan Battle",
+	'coopOnly':             "Co-Op Only",
+	'upgradeableExclusive': "Free XP",
+	'preserved':            "",
+	'demoWithoutStats':     "Test",
+	'upgradeableUltimate':  "Free XP",
+	'upgradeable':          "Researchable", # tech line ship
+	'unavailable':          "Unavailable",
+	'earlyAccess':          "Early Access",
+	'superShip':            "Super",
+	'start':                "Starting"
+}
+
+COAL_TO_GOLD = 80/11
