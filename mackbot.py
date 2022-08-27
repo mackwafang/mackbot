@@ -988,7 +988,7 @@ def to_plural(str: str, count: int) -> str:
 		return f"{count} {str + 's'}"
 
 def find_aa_descriptor(rating: int) -> str:
-	return [AA_RATING_DESCRIPTOR[descriptor] for descriptor in AA_RATING_DESCRIPTOR if descriptor[0] < rating <= descriptor[1]][0]
+	return [AA_RATING_DESCRIPTOR[descriptor] for descriptor in AA_RATING_DESCRIPTOR if descriptor[0] <= rating < descriptor[1]][0]
 
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
@@ -1835,6 +1835,7 @@ async def ship(context, *args):
 			await context.send(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
+			traceback.print_exc()
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
