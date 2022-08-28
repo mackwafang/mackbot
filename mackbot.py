@@ -397,10 +397,14 @@ def create_ship_build_images(
 	draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
 
 	# get skills from this ship's tree
-	skill_list_filtererd_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+	if database_client is not None:
+		query_result = database_client.mackbot_db.skill_list.find({"tree": ship['type']}, {"_id": 0})
+		skill_list_filtered_by_ship_type = {i['skill_id']: i for i in query_result}
+	else:
+		skill_list_filtered_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
 	# draw skills
-	for skill_id in skill_list_filtererd_by_ship_type:
-		skill = skill_list_filtererd_by_ship_type[skill_id]
+	for skill_id in skill_list_filtered_by_ship_type:
+		skill = skill_list_filtered_by_ship_type[skill_id]
 		skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
 		if os.path.isfile(skill_image_filename):
 			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
@@ -1226,10 +1230,11 @@ async def build(context, *args):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					await correct_user_misspell(context, 'build', closest_match[0])
+					await correct_user_misspell(context, 'build', '-i' if send_image_build else '', closest_match[0])
 				else:
 					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:
+				# no build for this ship is found
 				embed = discord.Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
@@ -1238,8 +1243,7 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				logger.error(f"{type(e)}")
-
-			traceback.print_exc()
+				traceback.print_exc()
 
 @mackbot.command(help="")
 async def ship(context, *args):
