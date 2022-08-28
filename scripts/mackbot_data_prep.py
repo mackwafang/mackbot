@@ -258,7 +258,7 @@ def load_upgrade_list():
 					upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
 				upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
 				upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
-				upgrade_list[uid]['tier_restriction'] = [str(t) for t in upgrade['shiplevel']]
+				upgrade_list[uid]['tier_restriction'] = sorted([t for t in upgrade['shiplevel']])
 
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']
@@ -319,6 +319,8 @@ def update_ship_modules():
 			# get credit and xp cost for ship research
 			ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
 			ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
+			ship_list[s]['price_special'] = ship_upgrade_info['costGold']
+			ship_list[s]['price_special_type'] = ""
 
 			# is this a test boat?
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
