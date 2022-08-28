@@ -258,7 +258,7 @@ def load_upgrade_list():
 					upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
 				upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
 				upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
-				upgrade_list[uid]['tier_restriction'] = [str(t) for t in upgrade['shiplevel']]
+				upgrade_list[uid]['tier_restriction'] = sorted([t for t in upgrade['shiplevel']])
 
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']

@@ -366,7 +366,7 @@ def create_ship_build_images(
 		upgrade_index = file.split("_")[2] # get index
 		image_file_dict[upgrade_index] = image_file
 
-	font = ImageFont.truetype("./arialbd.ttf", encoding='unic', size=20)
+	font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
 
 	# create build image
 	image_size = (400, 400)
@@ -1238,7 +1238,8 @@ async def build(context, *args):
 				await context.send(embed=embed)
 			else:
 				logger.error(f"{type(e)}")
-				traceback.print_exc()
+
+			traceback.print_exc()
 
 @mackbot.command(help="")
 async def ship(context, *args):
@@ -2556,7 +2557,7 @@ async def upgrade(context, *args):
 				embed.add_field(name="Ship Type", value=m)
 
 				if len(tier_restriction) > 0:
-					m = ''.join([str(i) + ', ' for i in sorted(tier_restriction)])[:-2]
+					m = ''.join([str(i) + ', ' for i in tier_restriction])[:-2]
 				else:
 					m = "All tiers"
 				embed.add_field(name="Tier", value=m)
