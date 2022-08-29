@@ -114,7 +114,6 @@ upgrade_list = {}
 camo_list = {}
 cmdr_list = {}
 flag_list = {}
-legendary_upgrades = {}
 upgrade_abbr_list = {}
 ship_build = {}
 help_dictionary = {}
@@ -565,13 +564,18 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 		ValueError
 		IndexError
 	"""
-	# convert ship names with utf-8 chars to ascii
-	if ship in ship_name_to_ascii:
-		ship = ship_name_to_ascii[ship]
-	for u in legendary_upgrades:
-		upgrade = legendary_upgrades[u]
-		if upgrade['ship_restriction']['name'].lower() == ship:
-			return upgrade
+	try:
+		ship = get_ship_data(ship)
+	except NoShipFound:
+		return None
+
+	if database_client is not None:
+		query_result = database_client.mackbot_db.upgrade_list.find_one({
+			"is_special": "Unique",
+			"ship_restriction": {"$in": [ship['name']]}
+		}, {"_id": 0})
+		if query_result:
+			return query_result
 	return None
 
 def get_skill_data(tree: str, skill: str) -> dict:
@@ -736,7 +740,7 @@ def get_upgrade_data(upgrade: str) -> dict:
 				'price_gold': 0,
 				'profile': {}
 			}
-		logger.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: {e}")
 		raise e
 
 def get_module_data(module_id: int) -> dict:
@@ -782,7 +786,6 @@ def get_commander_data(cmdr: str) -> tuple:
 		ValueError
 		IndexError
 	"""
-	# TODO: rewrite
 	cmdr = cmdr.lower()
 	try:
 		cmdr_found = False
@@ -2229,7 +2232,6 @@ async def show(context, *args):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'show')
-	# TODO: send help command if subcommand is wrong
 
 @show.command()
 async def skills(context, *args):
@@ -2866,7 +2868,6 @@ async def player(context: commands.Context, player_name: str, args: Optional[str
 	args="Name or tag of clan"
 )
 async def clan(context: commands.Context, args: str):
-	# TODO: Issue raise when responding to multiple clan listings with slash command
 	if args:
 		user_input = args
 		clan_search = WG.clans.list(search=user_input)
@@ -2874,31 +2875,23 @@ async def clan(context: commands.Context, args: str):
 			# check for multiple clan
 			selected_clan = None
 			if len(clan_search) > 1:
+				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_discord_format(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
+				view = UserSelection(context.author, 15, "Select a clan", clan_options)
+
 				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
-				embed.description += '\n'.join(f"[{i+1}] [{escape_discord_format(c['tag'])}] {c['name']}" for i, c in enumerate(clan_search))
-				embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
-
-				await context.send(embed=embed)
-
-				user_reply = ''
-				try:
-					user_reply = await mackbot.wait_for('message', check=lambda m: context.author == m.author, timeout=10)
-					user_reply = user_reply.content
-				except asyncio.TimeoutError:
-					# time expired, do nothing
-					pass
-
-				if user_reply:
-					# parse
-					try:
-						user_reply = int(user_reply) - 1
-						if 0 <= user_reply < len(clan_search):
-							selected_clan = clan_search[user_reply]
-						else:
-							await context.send(f"Input **{user_reply}** is out of range")
-					except ValueError:
-						await context.send(f"Input **{user_reply}** is not a number")
-
+				embed.description += "mackbot found the following clans"
+				embed.description += '\n'.join(i.label for i in clan_options)
+				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
+				                      "Response expires in 15 seconds")
+				view.message = await context.send(embed=embed, view=view)
+				await view.wait()
+				selected_clan_index = await get_user_response_with_drop_down(view)
+				if selected_clan_index != -1:
+					# user responded
+					selected_clan = clan_search[selected_clan_index]
+				else:
+					# no response
+					return
 			else:
 				selected_clan = clan_search[0]
 			# output clan information
@@ -2954,7 +2947,7 @@ async def clan(context: commands.Context, args: str):
 					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
 
 				if history_output:
-					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
+					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
 
 				# output members
 				members_per_column = 10
