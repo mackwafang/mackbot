@@ -2,7 +2,7 @@ import wargaming, os, re, sys, pickle, json, discord, logging, difflib, tracebac
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
-from typing import Union
+from typing import Union, Optional
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from math import ceil
@@ -11,6 +11,7 @@ from random import randint
 from discord.ext import commands
 from discord import Interaction, SelectOption
 from discord.ui import View, Select
+from discord import app_commands
 # from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
@@ -70,6 +71,13 @@ class UserSelection(View):
 			await interaction.response.defer()
 			await self.view.disable_component()
 			self.view.stop()
+
+class Mackbot(commands.Bot):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+	async def setup_hook(self) -> None:
+		await self.tree.sync()
 
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
@@ -148,7 +156,7 @@ bot_intents.typing = True
 bot_intents.message_content = True
 # bot_intents.value=378880
 
-mackbot = commands.Bot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
+mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
 # define database stuff
 database_client = None
@@ -1004,7 +1012,7 @@ def check_command(context):
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
-	logger.info("Logged on")
+	logger.info(f"Logged on as {mackbot.user} (ID: {mackbot.user.id})")
 
 @mackbot.event
 async def on_command(context):
@@ -2270,7 +2278,7 @@ async def skills(context, *args):
 	items_per_page = 24
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
-	
+
 	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
 	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
@@ -2473,13 +2481,13 @@ async def ships(context, *args):
 		embed.description = "**No ships found**"
 	await context.send(embed=embed)
 
-@mackbot.command()
-async def upgrade(context, *args):
+@mackbot.hybrid_command(name='upgrade', description="Get information on an upgrade")
+@app_commands.describe(
+	upgrade_name="Upgrade name, upgrade abbreviation, or ship name (applicable to ships with unique upgrades)."
+)
+async def upgrade(context: commands.Context, upgrade_name: str):
 	# get information on requested upgrade
-	upgrade_found = False
-	# message parse
-	upgrade = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if not args:
+	if not upgrade_name:
 		# argument is empty, send help message
 		await help(context, "upgrade")
 	else:
@@ -2489,19 +2497,19 @@ async def upgrade(context, *args):
 		# getting appropriate search function
 		try:
 			# does user provide upgrade name?
-			get_upgrade_data(upgrade)
+			get_upgrade_data(upgrade_name)
 			search_func = get_upgrade_data
 			logger.info("user requested an upgrade name")
-		except:
+		except NoUpgradeFound:
 			# does user provide ship name, probably?
-			get_legendary_upgrade_by_ship_name(upgrade)
+			get_legendary_upgrade_by_ship_name(upgrade_name)
 			search_func = get_legendary_upgrade_by_ship_name
 			logger.info("user requested an legendary upgrade")
 
 		try:
 			# assuming that user provided the correct upgrade
-			logger.info(f'sending message for upgrade <{upgrade}>')
-			output = search_func(upgrade)
+			logger.info(f'sending message for upgrade <{upgrade_name}>')
+			output = search_func(upgrade_name)
 			profile = output['profile']
 			name = output['name']
 			image = output['image']
@@ -2596,21 +2604,25 @@ async def upgrade(context, *args):
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
-			closest_match = find_close_match_item(upgrade.lower(), "upgrade_list")
+			closest_match = find_close_match_item(upgrade_name.lower(), "upgrade_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
-			embed = discord.Embed(title=f"Upgrade **{upgrade}** is not understood.\n", description=closest_match_string)
+			embed = discord.Embed(title=f"Upgrade **{upgrade_name}** is not understood.\n", description=closest_match_string)
 			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 			embed.set_footer(text="Response expires in 10 seconds")
 			await context.send(embed=embed)
 			await correct_user_misspell(context, 'upgrade', closest_match[0])
 
-@mackbot.command()
-async def player(context, *args):
+@mackbot.hybrid_command(name='player', description="Get information about a player")
+@app_commands.describe(
+	player_name="Name of player",
+	args="Filter ship, battle types. See mackbot help player or /player help"
+)
+async def player(context: commands.Context, player_name: str, args: Optional[str]):
 	if args:
-		user_input = args[0][:24]
+		user_input = player_name[:24]
 		async with context.typing():
 			player_id_results = WG.account.list(search=user_input, type='exact', language='en')
 			player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
@@ -2618,7 +2630,7 @@ async def player(context, *args):
 			battle_type_string = 'Random'
 
 			# grab optional args
-			optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
+			optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args.split()[1:]]))
 			battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
 			ship_filter = ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
 			ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
@@ -2848,10 +2860,15 @@ async def player(context, *args):
 	else:
 		await help(context, "player")
 
-@mackbot.command()
-async def clan(context, *args):
+@mackbot.hybrid_command(name='clan', description="Get some basic information about a clan")
+@app_commands.rename(args="clan")
+@app_commands.describe(
+	args="Name or tag of clan"
+)
+async def clan(context: commands.Context, args: str):
+	# TODO: Issue raise when responding to multiple clan listings with slash command
 	if args:
-		user_input = ' '.join(args)
+		user_input = args
 		clan_search = WG.clans.list(search=user_input)
 		if clan_search:
 			# check for multiple clan
@@ -3059,55 +3076,58 @@ async def map(context, *args):
 	#
 	# 		await context.send(f"Map **{map}** is not understood.")
 
-@mackbot.command()
-async def doubloons(context, *args):
+@mackbot.hybrid_command(name='doubloons', description="Converts doubloons to USD, vice versa.")
+@app_commands.describe(
+	value="The doubloon value for conversion to dollars. If is_dollar is filled, this value is converted to USD instead.",
+	is_dollar="Add the word \"dollar\" or \"$\" to convert value into dollar value"
+)
+async def doubloons(context: commands.Context, value: int, is_dollar: Optional[str] = ""):
 	# get conversion between doubloons and usd and vice versa
-	if len(args) == 0:
-		await help(context, "doubloons")
-	else:
-		# user provided an argument
-		doub = 0
-		try:
-			# message parse
-			doub = args[0]  # message_string[message_string.rfind('-')+1:]
-			if len(args) == 2:
-				# check reverse conversion
-				# dollars to doubloons
-				if args[1].lower() in ['dollars', '$']:
-					dollar = float(doub)
+	doub = 0
+	try:
+		if is_dollar:
+			# check reverse conversion
+			# dollars to doubloons
+			if is_dollar.lower() in ['dollars', '$']:
+				dollar = float(value)
 
-					def dollar_formula(x):
-						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
+				def dollar_formula(x):
+					return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-					logger.info(f"converting {dollar} dollars -> doubloons")
-					embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
-					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
-					embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
-
+				logger.info(f"converting {dollar} dollars -> doubloons")
+				embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
+				embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
+				embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
 			else:
-				# doubloon to dollars
-				doub = int(doub)
-				value_exceed = not (500 <= doub <= 100000)
+				embed = discord.Embed(
+					title="Doubloon Conversion Error",
+					description=f"Value {is_dollar} is not a value optional argument"
+				)
+		else:
+			# doubloon to dollars
+			doub = int(value)
+			value_exceed = not (500 <= doub <= 100000)
 
-				def doub_formula(x):
-					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
+			def doub_formula(x):
+				return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-				logger.info(f"converting {doub} doubloons -> dollars")
-				embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
-				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
-				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
-				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
-				if value_exceed:
-					footer_message += "\n:warning: You cannot buy the requested doubloons."
-				embed.set_footer(text=footer_message)
+			logger.info(f"converting {doub} doubloons -> dollars")
+			embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
+			embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
+			embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
+			footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
+			if value_exceed:
+				footer_message += "\n:warning: You cannot buy the requested doubloons."
+			embed.set_footer(text=footer_message)
 
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)} {e}")
-			if type(e) == TypeError:
-				await context.send(f"Value **{doub}** is not a number.")
-			else:
-				await context.send(f"An internal error has occured.")
+		await context.send(embed=embed)
+	except Exception as e:
+		logger.info(f"Exception {type(e)} {e}")
+		if type(e) == TypeError:
+			await context.send(f"Value **{doub}** is not a number.")
+		else:
+			await context.send(f"An internal error has occured.")
+			traceback.print_exc()
 
 @mackbot.command()
 async def code(context, *args):
