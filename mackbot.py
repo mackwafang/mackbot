@@ -2,7 +2,7 @@ import wargaming, os, re, sys, pickle, json, discord, logging, difflib, tracebac
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
-from typing import Union
+from typing import Union, Optional
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from math import ceil
@@ -11,6 +11,7 @@ from random import randint
 from discord.ext import commands
 from discord import Interaction, SelectOption
 from discord.ui import View, Select
+from discord import app_commands
 # from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
@@ -71,6 +72,13 @@ class UserSelection(View):
 			await self.view.disable_component()
 			self.view.stop()
 
+class Mackbot(commands.Bot):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+	async def setup_hook(self) -> None:
+		await self.tree.sync()
+
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
 	def __init__(self, *blacklist):
@@ -106,7 +114,6 @@ upgrade_list = {}
 camo_list = {}
 cmdr_list = {}
 flag_list = {}
-legendary_upgrades = {}
 upgrade_abbr_list = {}
 ship_build = {}
 help_dictionary = {}
@@ -148,7 +155,7 @@ bot_intents.typing = True
 bot_intents.message_content = True
 # bot_intents.value=378880
 
-mackbot = commands.Bot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
+mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
 # define database stuff
 database_client = None
@@ -557,13 +564,18 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 		ValueError
 		IndexError
 	"""
-	# convert ship names with utf-8 chars to ascii
-	if ship in ship_name_to_ascii:
-		ship = ship_name_to_ascii[ship]
-	for u in legendary_upgrades:
-		upgrade = legendary_upgrades[u]
-		if upgrade['ship_restriction']['name'].lower() == ship:
-			return upgrade
+	try:
+		ship = get_ship_data(ship)
+	except NoShipFound:
+		return None
+
+	if database_client is not None:
+		query_result = database_client.mackbot_db.upgrade_list.find_one({
+			"is_special": "Unique",
+			"ship_restriction": {"$in": [ship['name']]}
+		}, {"_id": 0})
+		if query_result:
+			return query_result
 	return None
 
 def get_skill_data(tree: str, skill: str) -> dict:
@@ -728,7 +740,7 @@ def get_upgrade_data(upgrade: str) -> dict:
 				'price_gold': 0,
 				'profile': {}
 			}
-		logger.info(f"Exception {type(e)}: ", e)
+		logger.info(f"Exception {type(e)}: {e}")
 		raise e
 
 def get_module_data(module_id: int) -> dict:
@@ -774,7 +786,6 @@ def get_commander_data(cmdr: str) -> tuple:
 		ValueError
 		IndexError
 	"""
-	# TODO: rewrite
 	cmdr = cmdr.lower()
 	try:
 		cmdr_found = False
@@ -1004,7 +1015,7 @@ def check_command(context):
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
-	logger.info("Logged on")
+	logger.info(f"Logged on as {mackbot.user} (ID: {mackbot.user.id})")
 
 @mackbot.event
 async def on_command(context):
@@ -1014,32 +1025,48 @@ async def on_command(context):
 		from_server = context.guild if context.guild else "DM"
 		logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
 
-@mackbot.command()
-async def whoami(context):
+@mackbot.event
+async def on_command_error(context: commands.Context, error: commands.errors):
+	if type(error) == commands.errors.MissingRequiredArgument:
+		# send help message when missing required argument
+		await help(context, context.invoked_with)
+	elif type(error) == commands.errors.CommandNotFound:
+		await context.send(f"Command is not understood.\n")
+	else:
+		await context.send("An internal error as occurred.")
+
+@mackbot.hybrid_command(name="whoami", description="What is a mackbot?")
+async def whoami(context: commands.Context):
 	async with context.typing():
-		m = "I'm a bot made by mackwafang#2071 to help players with clan build. I also includes the WoWS Encyclopedia!"
+		m = "Mackbot is a Discord bot for sharing warship configuration and showing ship details for the game World of Warships.\n"
+		m += "Originally built for as a clan specific tool to share builds and set base builds for ships, now it is a bot that contains basic warships build information, and a warships encyclopedia.\n"
+		m += "\nQnA\n"
+		m += "**[Who created mackbot?]** mackbot is created by mackwafang#2071, he plays way too much CV.\n"
+		m += "**[Why is it *mackbot* called *mackbot*?]** Originally, mackbot was called buildbot. Until a clan member suggested that I (mackwafang#2071) should name it mackbot because I was its sole creator."
 	await context.send(m)
 
-@mackbot.command()
-async def goodbot(context):
+@mackbot.hybrid_command(name="goodbot", description="Compliment mackbot")
+async def goodbot(context: commands.Context):
 	# good bot
 	r = randint(0, len(good_bot_messages) - 1)
 	logger.info(f"send reply message for goodbot")
 	await context.send(good_bot_messages[r])  # block until message is sent
 
-@mackbot.command()
-async def feedback(context):
+@mackbot.hybrid_command(name="feedback", description="Provide feedback to the developer")
+async def feedback(context: commands.Context):
 	logger.info("send feedback link")
 	await context.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
-@mackbot.command()
-async def build(context, *args):
-	# get voted ship build
-	# message parse
-	ship_found = False
+@mackbot.hybrid_command(name='build', description='Get a basic warship build')
+@app_commands.rename(args="value")
+@app_commands.describe(
+	args="Ship name. Adds -i before ship name to get image variation",
+)
+async def build(context: commands.Context, args: str):
 	if len(args) == 0:
 		await help(context, "build")
 	else:
+		args = args.split()
 		send_image_build = args[0] in ["--image", "-i"]
 		if send_image_build:
 			args = args[1:]
@@ -1245,8 +1272,12 @@ async def build(context, *args):
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
 
-@mackbot.command(help="")
-async def ship(context, *args):
+@mackbot.hybrid_command(name='ship', description='Get combat parameters of a warship')
+@app_commands.rename(args="value")
+@app_commands.describe(
+	args="Ship name. Add -p to filter combat parameters.",
+)
+async def ship(context: commands.Context, args: str):
 	"""
 		Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 
@@ -1261,6 +1292,7 @@ async def ship(context, *args):
 	if len(args) == 0:
 		await help(context, "ship")
 	else:
+		args = args.split()
 		send_compact = args[0] in ['--compact', '-c']
 		if send_compact:
 			args = args[1:]
@@ -1863,12 +1895,16 @@ async def ship(context, *args):
 				await context.send(f"An internal error has occured.")
 				traceback.print_exc()
 
-@mackbot.command(help="")
-async def compare(context, *args):
+@mackbot.hybrid_command(name='compare', description='Compare combat parameters of two warships')
+@app_commands.rename(args="value")
+@app_commands.describe(
+	args="Two ships to compare. Add the word \"and\" between ship names",
+)
+async def compare(context: commands.Context, args: str):
 	if len(args) == 0:
 		await help(context, "compare")
 	else:
-		args = ' '.join(args) # join arguments to split token
+		# args = ' '.join(args) # join arguments to split token
 		# user_input_ships = args.replace("and", "&").split("&")
 		user_input_ships = re.sub("\\sand\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
@@ -2172,63 +2208,68 @@ async def compare(context, *args):
 			logging.info("Response expired")
 		del user_correction_check
 
-@mackbot.command()
-async def skill(context, *args):
+@mackbot.hybrid_command(name="skill", description="Get information on a commander skill")
+@app_commands.describe(
+	skill_tree="Skill tree query. Accepts ship hull classification or ship type",
+	skill_name="Skill name"
+)
+async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 	# get information on requested skill
 	# message parse
-	if len(args) == 0:
-		await help(context, "skill")
-	else:
-		skill = ''
-		try:
-			ship_class = args[0].lower()
-			skill = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
+	try:
+		# ship_class = args[0].lower()
+		# skill_name = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
 
-			logger.info(f'sending message for skill <{skill}>')
-			async with context.typing():
-				skill_data = get_skill_data(ship_class, skill)
-				name = skill_data['name']
-				tree = skill_data['tree']
-				description = skill_data['description']
-				effect = skill_data['effect']
-				column = skill_data['x'] + 1
-				tier = skill_data['y']
-				category = skill_data['category']
-				embed = discord.Embed(title=f"{name}", description="")
-				# embed.set_thumbnail(url=icon)
-				embed.description += f"**{tree} Skill**\n"
-				embed.description += f"**Tier {tier} {category} Skill**, "
-				embed.description += f"**Column {column}**"
-				embed.add_field(name='Description', value=description, inline=False)
-				embed.add_field(name='Effect', value=effect, inline=False)
-			await context.send(embed=embed)
+		logger.info(f'sending message for skill <{skill}>')
+		async with context.typing():
+			skill_data = get_skill_data(skill_tree, skill_name)
+			name = skill_data['name']
+			tree = skill_data['tree']
+			description = skill_data['description']
+			effect = skill_data['effect']
+			column = skill_data['x'] + 1
+			tier = skill_data['y']
+			category = skill_data['category']
+			embed = discord.Embed(title=f"{name}", description="")
+			# embed.set_thumbnail(url=icon)
+			embed.description += f"**{tree} Skill**\n"
+			embed.description += f"**Tier {tier} {category} Skill**, "
+			embed.description += f"**Column {column}**"
+			embed.add_field(name='Description', value=description, inline=False)
+			embed.add_field(name='Effect', value=effect, inline=False)
+		await context.send(embed=embed)
 
-		except Exception as e:
-			logger.info(f"Exception {type(e)}: {e}")
-			# error, skill name not understood
-			closest_match = find_close_match_item(skill, "skill_list")
-			closest_match_string = ""
-			if len(closest_match) > 0:
-				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
-			embed = discord.Embed(title=f"Skill {skill} is not understood.\n", description=closest_match_string)
-			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-			embed.set_footer(text="Response expires in 10 seconds")
-			await context.send(embed=embed)
-			await correct_user_misspell(context, 'skill', ship_class, closest_match[0])
+	except Exception as e:
+		logger.info(f"Exception {type(e)}: {e}")
+		# error, skill name not understood
+		closest_match = find_close_match_item(skill_name, "skill_list")
+		closest_match_string = ""
+		if len(closest_match) > 0:
+			closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
+		embed = discord.Embed(title=f"Skill {skill_name} is not understood.\n", description=closest_match_string)
+		embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+		embed.set_footer(text="Response expires in 10 seconds")
+		await context.send(embed=embed)
+		await correct_user_misspell(context, 'skill', skill_tree, closest_match[0])
 
+#TODO: Find way to fix check function for show's subcommands
+
+# @mackbot.group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
 @mackbot.group(pass_context=True, invoke_without_command=True)
-async def show(context, *args):
+async def show(context: commands.Context):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'show')
-	# TODO: send help command if subcommand is wrong
 
+# @show.command()
+# @app_commands.rename(args="query")
+# @app_commands.describe(args="Query to list items")
 @show.command()
-async def skills(context, *args):
+async def skills(context: commands.Context, args: str):
 	# list all skills
 	embed = discord.Embed(name="Commander Skill")
 
-	search_param = args
+	search_param = args.split()
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
 	if database_client is not None:
@@ -2270,7 +2311,7 @@ async def skills(context, *args):
 	items_per_page = 24
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
-	
+
 	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
 	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
@@ -2282,14 +2323,17 @@ async def skills(context, *args):
 
 	await context.send(embed=embed)
 
+# @show.command()
+# @app_commands.rename(args="query")
+# @app_commands.describe(args="Query to list items")
 @show.command()
-async def upgrades(context, *args):
+async def upgrades(context: commands.Context, args: str):
 	# list upgrades
 	embed = None
 	try:
 		# parsing search parameters
 		logger.info("starting parameters parsing")
-		search_param = args
+		search_param = args.split()
 		s = equip_regex.findall(''.join([i + ' ' for i in search_param]))
 
 		slot = ''.join([i[1] for i in s])
@@ -2396,10 +2440,13 @@ async def upgrades(context, *args):
 # 			logger.info(f"Exception {type(e)} {e}")
 # 	await context.send(embed=embed)
 
+# @show.command(name="ships", description="Show all ships in a query.")
+# @app_commands.rename(args="query")
+# @app_commands.describe(args="Query to list items")
 @show.command()
-async def ships(context, *args):
+async def ships(context: commands.Context, args: str):
 	# parsing search parameters
-	search_param = args
+	search_param = args.split()
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 
 	tier = ''.join([i[2] for i in s])
@@ -2473,13 +2520,13 @@ async def ships(context, *args):
 		embed.description = "**No ships found**"
 	await context.send(embed=embed)
 
-@mackbot.command()
-async def upgrade(context, *args):
+@mackbot.hybrid_command(name="upgrade", description="Get information on an upgrade")
+@app_commands.describe(
+	upgrade_name="Upgrade name, upgrade abbreviation, or ship name (applicable to ships with unique upgrades)."
+)
+async def upgrade(context: commands.Context, upgrade_name: str):
 	# get information on requested upgrade
-	upgrade_found = False
-	# message parse
-	upgrade = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
-	if not args:
+	if not upgrade_name:
 		# argument is empty, send help message
 		await help(context, "upgrade")
 	else:
@@ -2489,19 +2536,19 @@ async def upgrade(context, *args):
 		# getting appropriate search function
 		try:
 			# does user provide upgrade name?
-			get_upgrade_data(upgrade)
+			get_upgrade_data(upgrade_name)
 			search_func = get_upgrade_data
 			logger.info("user requested an upgrade name")
-		except:
+		except NoUpgradeFound:
 			# does user provide ship name, probably?
-			get_legendary_upgrade_by_ship_name(upgrade)
+			get_legendary_upgrade_by_ship_name(upgrade_name)
 			search_func = get_legendary_upgrade_by_ship_name
 			logger.info("user requested an legendary upgrade")
 
 		try:
 			# assuming that user provided the correct upgrade
-			logger.info(f'sending message for upgrade <{upgrade}>')
-			output = search_func(upgrade)
+			logger.info(f'sending message for upgrade <{upgrade_name}>')
+			output = search_func(upgrade_name)
 			profile = output['profile']
 			name = output['name']
 			image = output['image']
@@ -2596,21 +2643,25 @@ async def upgrade(context, *args):
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			# error, ship name not understood
-			closest_match = find_close_match_item(upgrade.lower(), "upgrade_list")
+			closest_match = find_close_match_item(upgrade_name.lower(), "upgrade_list")
 			closest_match_string = ""
 			if len(closest_match) > 0:
 				closest_match_string = f'\nDid you mean **{closest_match[0]}**?'
 
-			embed = discord.Embed(title=f"Upgrade **{upgrade}** is not understood.\n", description=closest_match_string)
+			embed = discord.Embed(title=f"Upgrade **{upgrade_name}** is not understood.\n", description=closest_match_string)
 			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 			embed.set_footer(text="Response expires in 10 seconds")
 			await context.send(embed=embed)
 			await correct_user_misspell(context, 'upgrade', closest_match[0])
 
-@mackbot.command()
-async def player(context, *args):
+@mackbot.hybrid_command(name="player", description="Get information about a player")
+@app_commands.describe(
+	player_name="Name of player",
+	args="Filter ship, battle types. See mackbot help player or /player help"
+)
+async def player(context: commands.Context, player_name: str, args: Optional[str]):
 	if args:
-		user_input = args[0][:24]
+		user_input = player_name[:24]
 		async with context.typing():
 			player_id_results = WG.account.list(search=user_input, type='exact', language='en')
 			player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
@@ -2618,7 +2669,7 @@ async def player(context, *args):
 			battle_type_string = 'Random'
 
 			# grab optional args
-			optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]]))
+			optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args.split()[1:]]))
 			battle_type = [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
 			ship_filter = ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
 			ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
@@ -2848,40 +2899,36 @@ async def player(context, *args):
 	else:
 		await help(context, "player")
 
-@mackbot.command()
-async def clan(context, *args):
+@mackbot.hybrid_command(name="clan", description="Get some basic information about a clan")
+@app_commands.rename(args="clan")
+@app_commands.describe(
+	args="Name or tag of clan"
+)
+async def clan(context: commands.Context, args: str):
 	if args:
-		user_input = ' '.join(args)
+		user_input = args
 		clan_search = WG.clans.list(search=user_input)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
 			if len(clan_search) > 1:
+				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_discord_format(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
+				view = UserSelection(context.author, 15, "Select a clan", clan_options)
+
 				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
-				embed.description += '\n'.join(f"[{i+1}] [{escape_discord_format(c['tag'])}] {c['name']}" for i, c in enumerate(clan_search))
-				embed.set_footer(text="Please reply with the number indicating the clan you would like to search")
-
-				await context.send(embed=embed)
-
-				user_reply = ''
-				try:
-					user_reply = await mackbot.wait_for('message', check=lambda m: context.author == m.author, timeout=10)
-					user_reply = user_reply.content
-				except asyncio.TimeoutError:
-					# time expired, do nothing
-					pass
-
-				if user_reply:
-					# parse
-					try:
-						user_reply = int(user_reply) - 1
-						if 0 <= user_reply < len(clan_search):
-							selected_clan = clan_search[user_reply]
-						else:
-							await context.send(f"Input **{user_reply}** is out of range")
-					except ValueError:
-						await context.send(f"Input **{user_reply}** is not a number")
-
+				embed.description += "mackbot found the following clans"
+				embed.description += '\n'.join(i.label for i in clan_options)
+				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
+				                      "Response expires in 15 seconds")
+				view.message = await context.send(embed=embed, view=view)
+				await view.wait()
+				selected_clan_index = await get_user_response_with_drop_down(view)
+				if selected_clan_index != -1:
+					# user responded
+					selected_clan = clan_search[selected_clan_index]
+				else:
+					# no response
+					return
 			else:
 				selected_clan = clan_search[0]
 			# output clan information
@@ -2937,7 +2984,7 @@ async def clan(context, *args):
 					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
 
 				if history_output:
-					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=True)
+					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
 
 				# output members
 				members_per_column = 10
@@ -3059,75 +3106,80 @@ async def map(context, *args):
 	#
 	# 		await context.send(f"Map **{map}** is not understood.")
 
-@mackbot.command()
-async def doubloons(context, *args):
+@mackbot.hybrid_command(name="doubloons", description="Converts doubloons to USD, vice versa.")
+@app_commands.describe(
+	value="The doubloon value for conversion to dollars. If is_dollar is filled, this value is converted to USD instead.",
+	is_dollar="Add the word \"dollar\" or \"$\" to convert value into dollar value"
+)
+async def doubloons(context: commands.Context, value: int, is_dollar: Optional[str] = ""):
 	# get conversion between doubloons and usd and vice versa
-	if len(args) == 0:
-		await help(context, "doubloons")
-	else:
-		# user provided an argument
-		doub = 0
-		try:
-			# message parse
-			doub = args[0]  # message_string[message_string.rfind('-')+1:]
-			if len(args) == 2:
-				# check reverse conversion
-				# dollars to doubloons
-				if args[1].lower() in ['dollars', '$']:
-					dollar = float(doub)
+	doub = 0
+	try:
+		if is_dollar:
+			# check reverse conversion
+			# dollars to doubloons
+			if is_dollar.lower() in ['dollars', '$']:
+				dollar = float(value)
 
-					def dollar_formula(x):
-						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
+				def dollar_formula(x):
+					return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-					logger.info(f"converting {dollar} dollars -> doubloons")
-					embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
-					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
-					embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
-
+				logger.info(f"converting {dollar} dollars -> doubloons")
+				embed = discord.Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
+				embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
+				embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
 			else:
-				# doubloon to dollars
-				doub = int(doub)
-				value_exceed = not (500 <= doub <= 100000)
+				embed = discord.Embed(
+					title="Doubloon Conversion Error",
+					description=f"Value {is_dollar} is not a value optional argument"
+				)
+		else:
+			# doubloon to dollars
+			doub = int(value)
+			value_exceed = not (500 <= doub <= 100000)
 
-				def doub_formula(x):
-					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
+			def doub_formula(x):
+				return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-				logger.info(f"converting {doub} doubloons -> dollars")
-				embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
-				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
-				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
-				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
-				if value_exceed:
-					footer_message += "\n:warning: You cannot buy the requested doubloons."
-				embed.set_footer(text=footer_message)
+			logger.info(f"converting {doub} doubloons -> dollars")
+			embed = discord.Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
+			embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
+			embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
+			footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
+			if value_exceed:
+				footer_message += "\n:warning: You cannot buy the requested doubloons."
+			embed.set_footer(text=footer_message)
 
-			await context.send(embed=embed)
-		except Exception as e:
-			logger.info(f"Exception {type(e)} {e}")
-			if type(e) == TypeError:
-				await context.send(f"Value **{doub}** is not a number.")
-			else:
-				await context.send(f"An internal error has occured.")
+		await context.send(embed=embed)
+	except Exception as e:
+		logger.info(f"Exception {type(e)} {e}")
+		if type(e) == TypeError:
+			await context.send(f"Value **{doub}** is not a number.")
+		else:
+			await context.send(f"An internal error has occured.")
+			traceback.print_exc()
 
-@mackbot.command()
-async def code(context, *args):
+@mackbot.hybrid_command(name="code", description="Generate WoWS bonus code links")
+@app_commands.rename(args="codes")
+@app_commands.describe(args="WoWS codes to generate link")
+async def code(context, args: str):
 	if len(args) == 0:
 		await help(context, "code")
 	else:
-		for c in args:
+		for c in args.split:
 			s = f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}"
 			logger.info(f"returned a wargaming bonus code link with code {c}")
 			await context.send(s)
 
-@mackbot.command()
-async def hottake(context):
+@mackbot.hybrid_command(name="hottake", description="Give a WoWS hottake")
+async def hottake(context: commands.Context):
 	logger.info("sending a hottake")
 	await context.send('I tell people that ' + hottake_strings[randint(0, len(hottake_strings)-1)])
 	if randint(0, 9) == 0:
 		await asyncio.sleep(2)
 		await purpose(context)
 
-async def purpose(context):
+async def purpose(context: commands.Context):
 	author = context.author
 	await context.send(f"{author.mention}, what is my purpose?")
 	def check(message):
@@ -3136,17 +3188,18 @@ async def purpose(context):
 	message = await mackbot.wait_for('message', timeout=30, check=check)
 	await context.send("Oh my god...")
 
-@mackbot.command()
-async def web(context):
+@mackbot.hybrid_command(name="web", description="Get the link to mackbot's web application")
+async def web(context: commands.Context):
 	await context.send("**mackbot's web application URL:\nhttps://mackbot-web.herokuapp.com/**")
 
-@mackbot.command()
-async def invite(context):
+@mackbot.hybrid_command(name="invite", description="Get a Discord invite link to get mackbot to your server.")
+async def invite(context: commands.Context):
 	await context.send(bot_invite_url)
 
-@mackbot.command()
-async def help(context, *help_key):
-	help_key = ' '.join(help_key).lower()
+@mackbot.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
+@app_commands.describe(help_key="Command or WoWS terminology")
+async def help(context, help_key: str):
+	help_key = help_key.lower()
 	logger.info(f"can i haz halp for {help_key}")
 	if len(help_key):
 		if help_key in help_dictionary_index:

@@ -14,6 +14,7 @@ upgrade_list = {}
 camo_list = {}
 cmdr_list = {}
 flag_list = {}
+legendary_upgrade_list = {}
 upgrade_abbr_list = {}
 
 class SHIP_TAG(IntEnum):
@@ -252,16 +253,19 @@ def load_upgrade_list():
 				}[upgrade['type']]
 				upgrade_list[uid]['slot'] = int(upgrade['slot']) + 1
 				upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
-				if upgrade['type'] == 3:
-					# add ship specific restriction if upgrade is unique
-					ship_id = str(game_data[upgrade['ships'][0]]['id'])
-					upgrade_list[uid]['ship_restriction'] = ship_list[ship_id]
+
 				upgrade_list[uid]['type_restriction'] = ['Aircraft Carrier' if t == 'AirCarrier' else t for t in upgrade['shiptype']]
 				upgrade_list[uid]['nation_restriction'] = [t for t in upgrade['nation']]
 				upgrade_list[uid]['tier_restriction'] = sorted([t for t in upgrade['shiplevel']])
 
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['type_restriction']
 				upgrade_list[uid]['tags'] += upgrade_list[uid]['tier_restriction']
+
+				if upgrade['type'] == 3:
+					# add ship specific restriction if upgrade is unique
+					ship_id = str(game_data[upgrade['ships'][0]]['id'])
+					upgrade_list[uid]['ship_restriction'] = [ship_list[ship_id]['name']]
+					legendary_upgrade_list[uid] = upgrade_list[uid].copy()
 
 	legendary_upgrades = {u: upgrade_list[u] for u in upgrade_list if upgrade_list[u]['is_special'] == 'Unique'}
 
