@@ -3,7 +3,7 @@
 	"goodbot" : true,
 	"build" : true,
 	"skill" : true,
-	"whoami" : true,
+	"whoareyou" : true,
 	"show" : true,
 	"upgrade" : true,
 	"commander" : true,
