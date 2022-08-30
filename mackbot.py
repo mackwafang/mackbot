@@ -605,7 +605,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 
 		if tree not in ship_class_lookup:
 			# requested type is not in
-			raise ValueError(f"Expected {[i for i in ship_class_lookup]}. Got {tree}.")
+			raise SkillTreeInvalid(f"Expected {', '.join(i for i in ship_class_lookup)}. Got {tree}.")
 		else:
 			# convert from hull classification to word
 
@@ -1919,6 +1919,8 @@ async def compare(context: commands.Context, value: str):
 	# check if *not* slash command,
 	if context.clean_prefix != '/':
 		args = ' '.join(context.message.content.split()[2:])
+	else:
+		args = value
 
 	if len(args) == 0:
 		await help(context, "compare")
@@ -2264,16 +2266,20 @@ async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 	except Exception as e:
 		logger.info(f"Exception in skill {type(e)}: {e}")
 		traceback.print_exc()
+		if type(e) == NoSkillFound:
+			closest_match = find_close_match_item(skill_name, "skill_list")
 
-		closest_match = find_close_match_item(skill_name, "skill_list")
-
-		embed = discord.Embed(title=f"Skill {skill_name} is not understood.\n", description="")
-		if len(closest_match) > 0:
-			embed.description += f'\nDid you mean **{closest_match[0]}**?'
-			embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-			embed.set_footer(text="Response expires in 10 seconds")
-		await context.reply(embed=embed)
-		await correct_user_misspell(context, 'skill', skill_tree, closest_match[0])
+			embed = discord.Embed(title=f"Skill {skill_name} is not understood.\n", description="")
+			if len(closest_match) > 0:
+				embed.description += f'\nDid you mean **{closest_match[0]}**?'
+				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+				embed.set_footer(text="Response expires in 10 seconds")
+			await context.reply(embed=embed)
+			await correct_user_misspell(context, 'skill', skill_tree, closest_match[0])
+		if type(e) == SkillTreeInvalid:
+			embed = discord.Embed(title=f"Skill tree is not understood.\n", description="")
+			embed.description += f'\n{e}'
+			await context.send(embed=embed)
 
 #TODO: Find way to fix check function for show's subcommands
 
