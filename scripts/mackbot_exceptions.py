@@ -12,6 +12,9 @@ class NoUpgradeFound(Exception):
 class NoSkillFound(Exception):
 	pass
 
+class SkillTreeInvalid(Exception):
+	pass
+
 class BuildError(IntEnum):
 	NONE = 0
 	SKILL_POINTS_EXCEED = auto()
