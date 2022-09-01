@@ -15,6 +15,12 @@ class NoSkillFound(Exception):
 class SkillTreeInvalid(Exception):
 	pass
 
+class ConsumableNotFound(Exception):
+	pass
+
+class ConsumableVariationNotFound(Exception):
+	pass
+
 class BuildError(IntEnum):
 	NONE = 0
 	SKILL_POINTS_EXCEED = auto()

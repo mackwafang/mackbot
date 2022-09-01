@@ -16,6 +16,7 @@ cmdr_list = {}
 flag_list = {}
 legendary_upgrade_list = {}
 upgrade_abbr_list = {}
+consumable_list = {}
 
 class SHIP_TAG(IntEnum):
 	SLOW_SPD = auto()
@@ -189,16 +190,16 @@ def load_upgrade_list():
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		try:
-			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+			misc_list = wows_encyclopedia.consumables(page_no=page_num)
 			# consumables of some page page_num
-			for consumable in consumable_list:
-				c_type = consumable_list[consumable]['type']
+			for consumable in misc_list:
+				c_type = misc_list[consumable]['type']
 				if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
 					# grab camouflages and stores
-					camo_list[consumable] = consumable_list[consumable]
+					camo_list[consumable] = misc_list[consumable]
 				if c_type == 'Modernization':
 					# grab upgrades and store
-					upgrade_list[consumable] = consumable_list[consumable]
+					upgrade_list[consumable] = misc_list[consumable]
 
 					url = upgrade_list[consumable]['image']
 					url = url[:url.rfind('_')]
@@ -217,7 +218,7 @@ def load_upgrade_list():
 
 				if c_type == 'Flags':
 					# grab flags
-					flag_list[consumable] = consumable_list[consumable]
+					flag_list[consumable] = misc_list[consumable]
 		except Exception as e:
 			if type(e) == wargaming.exceptions.RequestError:
 				if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -910,8 +911,19 @@ def create_upgrade_abbr():
 
 def load_cmdr_list():
 	global cmdr_list
+
 	logger.info("Fetching Commander List")
-	cmdr_list = wows_encyclopedia.crews()
+	cmdr_list.update(wows_encyclopedia.crews())
+
+def load_consumable_list():
+	global consumable_list
+
+	logger.info("Creating consumable list")
+	consumable_list.update(dict((i, game_data[i]) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
+	for consumable in consumable_list:
+		consumable_list[consumable]['index'] = consumable
+		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
+		del consumable_list[consumable]['id']
 
 def load():
 	load_game_params()
@@ -919,6 +931,7 @@ def load():
 	load_module_list()
 	load_ship_list()
 	load_upgrade_list()
+	load_consumable_list()
 	update_ship_modules()
 	create_ship_tags()
 

@@ -1,4 +1,4 @@
-import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
+import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
@@ -6,13 +6,12 @@ from typing import Union, Optional
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from math import ceil
-from itertools import count, zip_longest
+from itertools import zip_longest
 from random import randint
 from discord.ext import commands
 from discord import Interaction, SelectOption
 from discord.ui import View, Select
 from discord import app_commands
-# from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
@@ -117,6 +116,7 @@ flag_list = {}
 upgrade_abbr_list = {}
 ship_build = {}
 help_dictionary = {}
+consumable_list = {}
 help_dictionary_index = {}
 ship_build_competitive = None
 ship_build_casual = None
@@ -177,6 +177,7 @@ except ConnectionError:
 	cmdr_list = data_loader.cmdr_list.copy()
 	flag_list = data_loader.flag_list.copy()
 	upgrade_abbr_list = data_loader.upgrade_abbr_list.copy()
+	consumable_list = data_loader.consumable_list.copy()
 	game_data = data_loader.game_data.copy()
 del data_loader
 
@@ -248,71 +249,6 @@ good_bot_messages = (
 
 with open(os.path.join(os.getcwd(), "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
-
-consumable_descriptor = {
-	'airDefenseDisp': {
-		'name': 'Defensive Anti-Air Fire',
-		'description': 'Increase continuous AA damage and damage from flak bursts.',
-	},
-	'artilleryBoosters': {
-		'name': 'Main Battery Reload Booster',
-		'description': 'Greatly decreases the reload time of main battery guns',
-	},
-	'callFighters': {
-		'name': '',
-		'description': ''
-	},
-	'crashCrew': {
-		'name': 'Damage Control Party',
-		'description': 'Immediately extinguish fires, stops flooding, and repair incapacitated modules. Also provides the ship with immunity to fires, floodings, and modules incapacitation for the active duration.',
-	},
-	'depthCharges': {},
-	'fighter': {
-		'name': 'Fighters',
-		'description': 'Deploy fighters to protect your ship from enemy aircraft.'
-	},
-	'healForsage': {
-		'name': '',
-		'description': ''
-	},
-	'invulnerable': {
-		'name': '',
-		'description': ''
-	},
-	'regenCrew': {
-		'name': 'Repair Party',
-		'description': 'Restore ship\'s HP.'
-	},
-	'regenerateHealth': {
-		'name': '',
-		'description': ''
-	},
-	'rls': {
-		'name': 'Surveillance Radar',
-		'description': 'Automatically detects any ships within the radar\'s range. Have longer range but lower duration than Hydroacoustic Search.',
-	},
-	'scout': {
-		'name': 'Spotting Aircraft',
-		'description': 'Deploy spotter plane to increase firing range.',
-	},
-	'smokeGenerator': {
-		'name': 'Smoke Generator',
-		'description': 'Deploys a smoke screen to obsure enemy\'s vision.',
-	},
-	'sonar': {
-		'name': 'Hydroacoustic Search',
-		'description': 'Automatically detects any ships and torpedoes within certain range with shorter range but higher duration than Surveillance Radar',
-	},
-	'speedBoosters': {
-		'name': 'Engine Boost',
-		'description': 'Temporary increase ship\'s maximum speed and engine power.',
-	},
-	'subsFourthState': {},
-	'torpedoReloader': {
-		'name': 'Torpedo Reload Booster',
-		'description': 'Significantly reduces the reload time of torpedoes.',
-	},
-}
 
 # find game data items by tags
 def find_game_data_item(item: str) -> list:
@@ -767,6 +703,43 @@ def get_module_data(module_id: int) -> dict:
 			return query_result.copy()
 	else:
 		return module_list[str(module_id)]
+
+def get_consumable_data(consumable_index: str, consumable_variation: str) -> dict:
+	"""
+	returns information about a ship/aircraft consumable.
+
+	Args:
+		consumable_index (int): consumable index
+		consumable_variation (str): variation of the consumable
+
+	Returns:
+		dict
+
+	Raises:
+		ConsumableNotFound
+	"""
+	if database_client is not None:
+		query_result = database_client.mackbot_db.consumable_list.find_one({
+			"index": consumable_index
+		})
+		if query_result is None:
+			raise ConsumableNotFound
+		else:
+			del query_result['_id']
+			d = {
+				"name": query_result['name'],
+				"description": query_result['description']
+			}
+			d.update(query_result[consumable_variation])
+			return d
+	else:
+		consumable = consumable_list[consumable_index]
+		d = {
+			"name": consumable['name'],
+			"description": consumable['description']
+		}
+		d.update(consumable[consumable_variation])
+		return d
 
 def get_commander_data(cmdr: str) -> tuple:
 	"""
@@ -1830,28 +1803,39 @@ async def ship(context: commands.Context, args: str):
 						if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 							m += '\n'
 						for c_index, c in enumerate(consumables[consumable_slot]['abils']):
-							consumable_id, consumable_type = c
-							consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
-							consumable_name = consumable_descriptor[consumable['consumableType']]['name']
-							# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
+							consumable_index, consumable_type = c
+							consumable = get_consumable_data(consumable_index, consumable_type)
+							consumable_name = consumable['name']
+							consumable_description = consumable['description']
 							consumable_type = consumable["consumableType"]
 
 							charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
 							action_time = consumable['workTime']
 							cd_time = consumable['reloadTime']
 
-							m += f"**{consumable_name}** "
+							m += f"**{consumable_name}**"
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
+								# m += f"\n{consumable_description}\n\n"
+								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
 									consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
 								if consumable_type == 'artilleryBoosters':
 									consumable_detail = f'Reload Time: -50%'
+								if consumable_type == 'fighter':
+									consumable_detail = f'{to_plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
 								if consumable_type == 'regenCrew':
 									consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
-									for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-										hull = module_list[str(h)]['profile']['hull']
-										consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
+									if database_client is not None:
+										query_result = database_client.mackbot_db.module_list.find({
+											"module_id": {"$in": modules['hull']}
+										}).sort("name", 1)
+									else:
+										query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+
+									for module in query_result:
+										hull = module['profile']['hull']
+										consumable_detail += f"{module['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
 									consumable_detail = consumable_detail[:-1]
 								if consumable_type == 'rls':
 									consumable_detail = f'Range: {round(consumable["distShip"] * 30) / 1000:0.1f} km'
@@ -1866,7 +1850,6 @@ async def ship(context: commands.Context, args: str):
 								if consumable_type == 'torpedoReloader':
 									consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
 
-								m += '\n'
 								m += f"{charges} charge{'s' if charges != 1 else ''}, "
 								m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
 								m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
