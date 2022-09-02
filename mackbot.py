@@ -587,7 +587,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception {type(e)}: {e}")
+		logger.info(f"Exception in get_skill_data {type(e)}: {e}")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
@@ -676,7 +676,7 @@ def get_upgrade_data(upgrade: str) -> dict:
 				'price_gold': 0,
 				'profile': {}
 			}
-		logger.info(f"Exception {type(e)}: {e}")
+		logger.info(f"Exception in get_upgrade_data {type(e)}: {e}")
 		raise e
 
 def get_module_data(module_id: int) -> dict:
@@ -983,10 +983,6 @@ def find_aa_descriptor(rating: int) -> str:
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
 
-@mackbot.check
-def check_command(context):
-	return context.command.qualified_name in command_list
-
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -994,7 +990,6 @@ async def on_ready():
 
 @mackbot.event
 async def on_command(context):
-	logger.info(f"Received message [{context.message.content}] from [{context.author}, id: {context.author.id}]")
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
@@ -1002,6 +997,7 @@ async def on_command(context):
 
 @mackbot.event
 async def on_command_error(context: commands.Context, error: commands.errors):
+	logger.warning(f"Command failed: {error}")
 	if type(error) == commands.errors.MissingRequiredArgument:
 		# send help message when missing required argument
 		await help(context, context.invoked_with)
@@ -2273,18 +2269,17 @@ async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 
 #TODO: Find way to fix check function for show's subcommands
 
-# @mackbot.group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
-@mackbot.group(pass_context=True, invoke_without_command=True)
+@mackbot.hybrid_group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
+# @mackbot.group(pass_context=True, invoke_without_command=True)
 async def show(context: commands.Context):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'show')
 
-# @show.command()
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def skills(context: commands.Context, args: str):
+@show.command(name="skills", description="Show all ships in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+async def skills(context: commands.Context, args: Optional[str]=""):
 	# list all skills
 	embed = discord.Embed(name="Commander Skill")
 
@@ -2342,11 +2337,10 @@ async def skills(context: commands.Context, args: str):
 
 	await context.send(embed=embed)
 
-# @show.command()
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def upgrades(context: commands.Context, args: str):
+@show.command(name="upgrades", description="Show all upgrades in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+async def upgrades(context: commands.Context, args: Optional[str]=""):
 	# list upgrades
 	embed = None
 	try:
@@ -2459,11 +2453,11 @@ async def upgrades(context: commands.Context, args: str):
 # 			logger.info(f"Exception {type(e)} {e}")
 # 	await context.send(embed=embed)
 
-# @show.command(name="ships", description="Show all ships in a query.")
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def ships(context: commands.Context, args: str):
+@show.command(name="ships", description="Show all ships in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+# @show.command()
+async def ships(context: commands.Context, args: Optional[str]=""):
 	# parsing search parameters
 	search_param = args.split()
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
@@ -2471,7 +2465,6 @@ async def ships(context: commands.Context, args: str):
 	tier = ''.join([i[2] for i in s])
 	key = [i[7] for i in s if len(i[7]) > 1]
 	page = [i[6] for i in s if len(i[6]) > 0]
-	embed_title = "Search result for: "
 
 	# select page
 	page = int(page[0]) if len(page) > 0 else 1
@@ -2482,14 +2475,12 @@ async def ships(context: commands.Context, args: str):
 		tier = f't{tier}'
 		key += [tier]
 	key = [i.lower() for i in key if not 'page' in i]
-	embed_title += f"{''.join([i.title() + ' ' for i in key])}"
+	embed_title = f"Search result for {''.join([i.title() + ' ' for i in key])}"
 
 	# look up
 	result = []
 	if database_client is not None:
-		query_result = database_client.mackbot_db.ship_list.find({
-			"tags": {"$all": [re.compile(i, re.I) for i in key]}
-		})
+		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
 		if query_result is not None:
 			result = dict((str(i["ship_id"]), i) for i in query_result)
 	else:
@@ -2931,7 +2922,7 @@ async def player(context: commands.Context, value: str):
 					embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(username)}", inline=True)
 			except Exception as e:
 				await context.send("An internal error as occurred.")
-				logger.warning(f"Exception {type(e)}: {e}")
+				logger.warning(f"Exception in player {type(e)}: {e}")
 				traceback.print_exc()
 		await context.send(embed=embed)
 	else:
@@ -3114,9 +3105,9 @@ async def commander(context, *args):
 	#
 	# 		await context.send(f"Commander **{cmdr}** is not understood.")
 
-@mackbot.command()
-async def map(context, *args):
-	pass
+# @mackbot.command()
+# async def map(context, *args):
+# 	pass
 	# # get information on requested map
 	# # message parse
 	# map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]
