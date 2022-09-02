@@ -85,21 +85,22 @@ AA_RATING_DESCRIPTOR = {
 	(40, 50): "Moderate",
 	(50, 70): "High",
 	(70, 90): "Dangerous",
-	(90, inf): "Very Dangerous",
+	(90, 175): "Very Dangerous",
+	(175, inf): "Do Not Approach",
 }
 
 MM_WITH_CV_TIER = (
-	[],
-	[],
-	[],
-	[4,6],
-	[4,6],
-	[4,6,8],
-	[6,8,10],
-	[6,8,10],
-	[8,10],
-	[8,10],
-	[10],
+	(),
+	(),
+	(),
+	(4,6),
+	(4,6),
+	(4,6,8),
+	(6,8,10),
+	(6,8,10),
+	(8,10),
+	(8,10),
+	(10),
 )
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)

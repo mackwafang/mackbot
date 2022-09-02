@@ -1,4 +1,4 @@
-import wargaming, os, re, sys, pickle, json, discord, logging, difflib, traceback, asyncio, time
+import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
@@ -6,13 +6,12 @@ from typing import Union, Optional
 from logging.handlers import RotatingFileHandler
 from pymongo import MongoClient
 from math import ceil
-from itertools import count, zip_longest
+from itertools import zip_longest
 from random import randint
 from discord.ext import commands
 from discord import Interaction, SelectOption
 from discord.ui import View, Select
 from discord import app_commands
-# from discord_components import DiscordComponents, Select, SelectOption
 from datetime import date
 from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
@@ -117,6 +116,7 @@ flag_list = {}
 upgrade_abbr_list = {}
 ship_build = {}
 help_dictionary = {}
+consumable_list = {}
 help_dictionary_index = {}
 ship_build_competitive = None
 ship_build_casual = None
@@ -177,6 +177,7 @@ except ConnectionError:
 	cmdr_list = data_loader.cmdr_list.copy()
 	flag_list = data_loader.flag_list.copy()
 	upgrade_abbr_list = data_loader.upgrade_abbr_list.copy()
+	consumable_list = data_loader.consumable_list.copy()
 	game_data = data_loader.game_data.copy()
 del data_loader
 
@@ -248,71 +249,6 @@ good_bot_messages = (
 
 with open(os.path.join(os.getcwd(), "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
-
-consumable_descriptor = {
-	'airDefenseDisp': {
-		'name': 'Defensive Anti-Air Fire',
-		'description': 'Increase continuous AA damage and damage from flak bursts.',
-	},
-	'artilleryBoosters': {
-		'name': 'Main Battery Reload Booster',
-		'description': 'Greatly decreases the reload time of main battery guns',
-	},
-	'callFighters': {
-		'name': '',
-		'description': ''
-	},
-	'crashCrew': {
-		'name': 'Damage Control Party',
-		'description': 'Immediately extinguish fires, stops flooding, and repair incapacitated modules. Also provides the ship with immunity to fires, floodings, and modules incapacitation for the active duration.',
-	},
-	'depthCharges': {},
-	'fighter': {
-		'name': 'Fighters',
-		'description': 'Deploy fighters to protect your ship from enemy aircraft.'
-	},
-	'healForsage': {
-		'name': '',
-		'description': ''
-	},
-	'invulnerable': {
-		'name': '',
-		'description': ''
-	},
-	'regenCrew': {
-		'name': 'Repair Party',
-		'description': 'Restore ship\'s HP.'
-	},
-	'regenerateHealth': {
-		'name': '',
-		'description': ''
-	},
-	'rls': {
-		'name': 'Surveillance Radar',
-		'description': 'Automatically detects any ships within the radar\'s range. Have longer range but lower duration than Hydroacoustic Search.',
-	},
-	'scout': {
-		'name': 'Spotting Aircraft',
-		'description': 'Deploy spotter plane to increase firing range.',
-	},
-	'smokeGenerator': {
-		'name': 'Smoke Generator',
-		'description': 'Deploys a smoke screen to obsure enemy\'s vision.',
-	},
-	'sonar': {
-		'name': 'Hydroacoustic Search',
-		'description': 'Automatically detects any ships and torpedoes within certain range with shorter range but higher duration than Surveillance Radar',
-	},
-	'speedBoosters': {
-		'name': 'Engine Boost',
-		'description': 'Temporary increase ship\'s maximum speed and engine power.',
-	},
-	'subsFourthState': {},
-	'torpedoReloader': {
-		'name': 'Torpedo Reload Booster',
-		'description': 'Significantly reduces the reload time of torpedoes.',
-	},
-}
 
 # find game data items by tags
 def find_game_data_item(item: str) -> list:
@@ -651,7 +587,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception {type(e)}: {e}")
+		logger.info(f"Exception in get_skill_data {type(e)}: {e}")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
@@ -740,7 +676,7 @@ def get_upgrade_data(upgrade: str) -> dict:
 				'price_gold': 0,
 				'profile': {}
 			}
-		logger.info(f"Exception {type(e)}: {e}")
+		logger.info(f"Exception in get_upgrade_data {type(e)}: {e}")
 		raise e
 
 def get_module_data(module_id: int) -> dict:
@@ -767,6 +703,43 @@ def get_module_data(module_id: int) -> dict:
 			return query_result.copy()
 	else:
 		return module_list[str(module_id)]
+
+def get_consumable_data(consumable_index: str, consumable_variation: str) -> dict:
+	"""
+	returns information about a ship/aircraft consumable.
+
+	Args:
+		consumable_index (int): consumable index
+		consumable_variation (str): variation of the consumable
+
+	Returns:
+		dict
+
+	Raises:
+		ConsumableNotFound
+	"""
+	if database_client is not None:
+		query_result = database_client.mackbot_db.consumable_list.find_one({
+			"index": consumable_index
+		})
+		if query_result is None:
+			raise ConsumableNotFound
+		else:
+			del query_result['_id']
+			d = {
+				"name": query_result['name'],
+				"description": query_result['description']
+			}
+			d.update(query_result[consumable_variation])
+			return d
+	else:
+		consumable = consumable_list[consumable_index]
+		d = {
+			"name": consumable['name'],
+			"description": consumable['description']
+		}
+		d.update(consumable[consumable_variation])
+		return d
 
 def get_commander_data(cmdr: str) -> tuple:
 	"""
@@ -862,7 +835,10 @@ async def correct_user_misspell(context: discord.ext.commands.Context, command: 
 		context.message.content = f"{prefix_and_invoke} {' '.join(args)}"
 		await globals()[command](context, *args)
 	except Exception as e:
-		traceback.print_exc()
+		if type(e) in (asyncio.exceptions.TimeoutError, asyncio.exceptions.CancelledError):
+			pass
+		else:
+			traceback.print_exc()
 
 def get_ship_data_by_id(ship_id: int) -> dict:
 	"""
@@ -1010,10 +986,6 @@ def find_aa_descriptor(rating: int) -> str:
 # *** END OF NON-COMMAND METHODS ***
 # *** START OF BOT COMMANDS METHODS ***
 
-@mackbot.check
-def check_command(context):
-	return context.command.qualified_name in command_list
-
 @mackbot.event
 async def on_ready():
 	await mackbot.change_presence(activity=discord.Game(command_prefix + cmd_sep + 'help'))
@@ -1021,7 +993,6 @@ async def on_ready():
 
 @mackbot.event
 async def on_command(context):
-	logger.info(f"Received message [{context.message.content}] from [{context.author}, id: {context.author.id}]")
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 		from_server = context.guild if context.guild else "DM"
@@ -1029,6 +1000,7 @@ async def on_command(context):
 
 @mackbot.event
 async def on_command_error(context: commands.Context, error: commands.errors):
+	logger.warning(f"Command failed: {error}")
 	if type(error) == commands.errors.MissingRequiredArgument:
 		# send help message when missing required argument
 		await help(context, context.invoked_with)
@@ -1257,7 +1229,6 @@ async def build(context: commands.Context, args: str):
 					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
 				except discord.errors.Forbidden:
 					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
-
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -1284,6 +1255,7 @@ async def build(context: commands.Context, args: str):
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
+		del skills # DO NOT REMOVE OR SHOW SKILLS WILL BREAK
 
 @mackbot.hybrid_command(name='ship', description='Get combat parameters of a warship')
 @app_commands.rename(args="value")
@@ -1509,7 +1481,6 @@ async def ship(context: commands.Context, args: str):
 
 				for module in query_result:
 					m = ""
-
 					guns = module['profile']['artillery']
 					turret_data = module['profile']['artillery']['turrets']
 					for turret_name in turret_data:
@@ -1605,19 +1576,30 @@ async def ship(context: commands.Context, args: str):
 						aa = hull['profile']['anti_air']
 						m += f"**{name} ({aa['hull']}) Hull**\n"
 
-						for tier_range in MM_WITH_CV_TIER[tier - 1]:
+						cv_mm_tier = MM_WITH_CV_TIER[tier - 1]
+						if tier >= 10 and ship_type == 'Aircraft Carrier':
+							cv_mm_tier = [10]
+						elif tier == 8 and ship_type == 'Aircraft Carrier':
+							cv_mm_tier = [6, 8]
+
+						for tier_range in cv_mm_tier:
 							if 0 < tier_range <= 10:
 								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
 								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
+								if 'dfaa_stat' in aa:
+									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor})\n"
 
-						m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
 						# provide more AA detail
 						flak = aa['flak']
 						near = aa['near']
 						medium = aa['medium']
 						far = aa['far']
 						if flak['damage'] > 0:
-							m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', int(flak['count']))}, {flak['damage']}:boom:\n"
+							m += f" (Flak {flak['min_range'] / 1000: 0.1f}-{flak['max_range'] / 1000: 0.1f} km)\n"
+							m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
+						m += "\n"
+
 						if near['damage'] > 0:
 							m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 						if medium['damage'] > 0:
@@ -1772,6 +1754,12 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
 							m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
+
+							for slot in squadron['consumables']:
+								for consumable_index, consumable_type in squadron['consumables'][s]['abils']:
+									plane_consumable = get_consumable_data(consumable_index, consumable_type)
+
+
 							m += '\n'
 				embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
@@ -1830,10 +1818,10 @@ async def ship(context: commands.Context, args: str):
 						if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 							m += '\n'
 						for c_index, c in enumerate(consumables[consumable_slot]['abils']):
-							consumable_id, consumable_type = c
-							consumable = game_data[find_game_data_item(consumable_id)[0]][consumable_type]
-							consumable_name = consumable_descriptor[consumable['consumableType']]['name']
-							# consumable_description = consumable_descriptor[consumable['consumableType']]['description']
+							consumable_index, consumable_type = c
+							consumable = get_consumable_data(consumable_index, consumable_type)
+							consumable_name = consumable['name']
+							consumable_description = consumable['description']
 							consumable_type = consumable["consumableType"]
 
 							charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
@@ -1842,16 +1830,27 @@ async def ship(context: commands.Context, args: str):
 
 							m += f"**{consumable_name}** "
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
+								# m += f"\n{consumable_description}\n\n"
+								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
 									consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
 								if consumable_type == 'artilleryBoosters':
 									consumable_detail = f'Reload Time: -50%'
+								if consumable_type == 'fighter':
+									consumable_detail = f'{to_plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
 								if consumable_type == 'regenCrew':
 									consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
-									for h in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name']):
-										hull = module_list[str(h)]['profile']['hull']
-										consumable_detail += f"{module_list[str(h)]['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
+									if database_client is not None:
+										query_result = database_client.mackbot_db.module_list.find({
+											"module_id": {"$in": modules['hull']}
+										}).sort("name", 1)
+									else:
+										query_result = sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])
+
+									for module in query_result:
+										hull = module['profile']['hull']
+										consumable_detail += f"{module['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
 									consumable_detail = consumable_detail[:-1]
 								if consumable_type == 'rls':
 									consumable_detail = f'Range: {round(consumable["distShip"] * 30) / 1000:0.1f} km'
@@ -1866,7 +1865,6 @@ async def ship(context: commands.Context, args: str):
 								if consumable_type == 'torpedoReloader':
 									consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
 
-								m += '\n'
 								m += f"{charges} charge{'s' if charges != 1 else ''}, "
 								m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
 								m += f"{f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''} cooldown.\n"
@@ -2283,21 +2281,18 @@ async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 
 #TODO: Find way to fix check function for show's subcommands
 
-# @mackbot.group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
-@mackbot.group(pass_context=True, invoke_without_command=True)
+@mackbot.hybrid_group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
+# @mackbot.group(pass_context=True, invoke_without_command=True)
 async def show(context: commands.Context):
 	# list command
 	if context.invoked_subcommand is None:
 		await context.invoke(mackbot.get_command('help'), 'show')
 
-# @show.command()
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def skills(context: commands.Context, args: str):
+@show.command(name="skills", description="Show all ships in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+async def skills(context: commands.Context, args: Optional[str]=""):
 	# list all skills
-	embed = discord.Embed(name="Commander Skill")
-
 	search_param = args.split()
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
@@ -2341,7 +2336,7 @@ async def skills(context: commands.Context, args: str):
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
+	logger.info(f"found {num_items} items matching criteria: {args}")
 	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
 	# spliting selected page into columns
@@ -2352,11 +2347,10 @@ async def skills(context: commands.Context, args: str):
 
 	await context.send(embed=embed)
 
-# @show.command()
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def upgrades(context: commands.Context, args: str):
+@show.command(name="upgrades", description="Show all upgrades in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+async def upgrades(context: commands.Context, args: Optional[str]=""):
 	# list upgrades
 	embed = None
 	try:
@@ -2390,9 +2384,7 @@ async def upgrades(context: commands.Context, args: str):
 
 		if database_client is not None:
 			u_abbr_list = database_client.mackbot_db.upgrade_abbr_list.find({})
-			query_result = database_client.mackbot_db.upgrade_list.find({
-				"tags": {"$all": [re.compile(i, re.I) for i in key]}
-			})
+			query_result = database_client.mackbot_db.upgrade_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
 			result = dict((i['consumable_id'], i) for i in query_result)
 			u_abbr_list = dict((i['abbr'], i['upgrade']) for i in u_abbr_list)
 		else:
@@ -2469,11 +2461,11 @@ async def upgrades(context: commands.Context, args: str):
 # 			logger.info(f"Exception {type(e)} {e}")
 # 	await context.send(embed=embed)
 
-# @show.command(name="ships", description="Show all ships in a query.")
-# @app_commands.rename(args="query")
-# @app_commands.describe(args="Query to list items")
-@show.command()
-async def ships(context: commands.Context, args: str):
+@show.command(name="ships", description="Show all ships in a query.")
+@app_commands.rename(args="query")
+@app_commands.describe(args="Query to list items")
+# @show.command()
+async def ships(context: commands.Context, args: Optional[str]=""):
 	# parsing search parameters
 	search_param = args.split()
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
@@ -2481,7 +2473,6 @@ async def ships(context: commands.Context, args: str):
 	tier = ''.join([i[2] for i in s])
 	key = [i[7] for i in s if len(i[7]) > 1]
 	page = [i[6] for i in s if len(i[6]) > 0]
-	embed_title = "Search result for: "
 
 	# select page
 	page = int(page[0]) if len(page) > 0 else 1
@@ -2492,14 +2483,12 @@ async def ships(context: commands.Context, args: str):
 		tier = f't{tier}'
 		key += [tier]
 	key = [i.lower() for i in key if not 'page' in i]
-	embed_title += f"{''.join([i.title() + ' ' for i in key])}"
+	embed_title = f"Search result for {''.join([i.title() + ' ' for i in key])}"
 
 	# look up
 	result = []
 	if database_client is not None:
-		query_result = database_client.mackbot_db.ship_list.find({
-			"tags": {"$all": [re.compile(i, re.I) for i in key]}
-		})
+		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
 		if query_result is not None:
 			result = dict((str(i["ship_id"]), i) for i in query_result)
 	else:
@@ -2941,7 +2930,7 @@ async def player(context: commands.Context, value: str):
 					embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(username)}", inline=True)
 			except Exception as e:
 				await context.send("An internal error as occurred.")
-				logger.warning(f"Exception {type(e)}: {e}")
+				logger.warning(f"Exception in player {type(e)}: {e}")
 				traceback.print_exc()
 		await context.send(embed=embed)
 	else:
@@ -3124,9 +3113,9 @@ async def commander(context, *args):
 	#
 	# 		await context.send(f"Commander **{cmdr}** is not understood.")
 
-@mackbot.command()
-async def map(context, *args):
-	pass
+# @mackbot.command()
+# async def map(context, *args):
+# 	pass
 	# # get information on requested map
 	# # message parse
 	# map = ''.join([i + ' ' for i in args])[:-1]  # message_string[message_string.rfind('-')+1:]

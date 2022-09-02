@@ -16,6 +16,7 @@ cmdr_list = {}
 flag_list = {}
 legendary_upgrade_list = {}
 upgrade_abbr_list = {}
+consumable_list = {}
 
 class SHIP_TAG(IntEnum):
 	SLOW_SPD = auto()
@@ -189,16 +190,16 @@ def load_upgrade_list():
 	global camo_list, flag_list, upgrade_list, legendary_upgrades
 	for page_num in count(1):
 		try:
-			consumable_list = wows_encyclopedia.consumables(page_no=page_num)
+			misc_list = wows_encyclopedia.consumables(page_no=page_num)
 			# consumables of some page page_num
-			for consumable in consumable_list:
-				c_type = consumable_list[consumable]['type']
+			for consumable in misc_list:
+				c_type = misc_list[consumable]['type']
 				if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
 					# grab camouflages and stores
-					camo_list[consumable] = consumable_list[consumable]
+					camo_list[consumable] = misc_list[consumable]
 				if c_type == 'Modernization':
 					# grab upgrades and store
-					upgrade_list[consumable] = consumable_list[consumable]
+					upgrade_list[consumable] = misc_list[consumable]
 
 					url = upgrade_list[consumable]['image']
 					url = url[:url.rfind('_')]
@@ -217,7 +218,7 @@ def load_upgrade_list():
 
 				if c_type == 'Flags':
 					# grab flags
-					flag_list[consumable] = consumable_list[consumable]
+					flag_list[consumable] = misc_list[consumable]
 		except Exception as e:
 			if type(e) == wargaming.exceptions.RequestError:
 				if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -396,10 +397,10 @@ def update_ship_modules():
 						if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
 							module_list[module_id]['profile']['anti_air'] = {
 								'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
-								'near': {'damage': 0, 'hitChance': 0},
-								'medium': {'damage': 0, 'hitChance': 0},
-								'far': {'damage': 0, 'hitChance': 0},
-								'flak': {'damage': 0, },
+								'near': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+								'medium': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+								'far': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+								'flak': {'damage': 0, 'damage_with_dfaa': 0, },
 							}
 
 							min_aa_range = inf
@@ -409,6 +410,18 @@ def update_ship_modules():
 							aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
 							aa_defense = module_data[aa_defense]
 
+							has_dfaa = False
+							dfaa_stats = {}
+							for c in ship_list[s]['consumables']:
+								for c_index, c_type in ship_list[s]['consumables'][c]['abils']:
+									if "AirDefenseDisp" in c_index:
+										has_dfaa = True
+										dfaa_stats = game_data[c_index][c_type]
+										break
+
+							if has_dfaa:
+								module_list[module_id]['profile']['anti_air']['dfaa_stat'] = dfaa_stats.copy()
+
 							# finding details of passive AA
 							for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
 								aa_data = aa_defense[a]
@@ -416,10 +429,14 @@ def update_ship_modules():
 									module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
 									module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
 									module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+									if has_dfaa:
+										module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['near']['damage'] * dfaa_stats['areaDamageMultiplier']
 								if aa_data['type'] == 'medium':
 									module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
 									module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
 									module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
+									if has_dfaa:
+										module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['medium']['damage'] * dfaa_stats['areaDamageMultiplier']
 								min_aa_range = min(min_aa_range, aa_data['minDistance'])
 								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 							# getting flak guns info
@@ -437,13 +454,17 @@ def update_ship_modules():
 										# long range passive AA
 										module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
 										module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
+										if has_dfaa:
+											module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['far']['damage'] * dfaa_stats['areaDamageMultiplier']
 									else:
 										# flaks
 										module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
 										module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
 										module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
 										module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = int(aa_data['hitChance'])
+										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
+										if has_dfaa:
+											module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['bubbleDamageMultiplier']
 
 									min_aa_range = min(min_aa_range, aa_data['minDistance'])
 									max_aa_range = max(max_aa_range, aa_data['maxDistance'])
@@ -456,22 +477,32 @@ def update_ship_modules():
 							mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
 							far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
 							combined_aa_damage = near_damage + mid_damage + far_damage
-							aa_rating = 0
 
+
+							near_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
+							mid_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
+							far_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
+							combined_aa_damage_with_dfaa = near_damage_with_dfaa + mid_damage_with_dfaa + far_damage_with_dfaa
+
+							aa_rating = 0
+							aa_rating_with_dfaa = 0
 							# aa rating scaling with range
 							if combined_aa_damage > 0:
 								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)  # why 5800m? because thats the range of most ships' aa
 								if aa_range_scaling > 1:
-									aa_range_scaling = aa_range_scaling ** 3
-								aa_rating += (combined_aa_damage / (int(ship['tier']) * 9)) * aa_range_scaling
+									aa_range_scaling = aa_range_scaling ** 2
+								aa_rating += combined_aa_damage * aa_range_scaling
+								aa_rating_with_dfaa += combined_aa_damage_with_dfaa * aa_range_scaling
 
 							# aa rating scaling with flak
 							if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
 								flak_data = module_list[module_id]['profile']['anti_air']['flak']
-								aa_rating += flak_data['count'] * flak_data['hitChance'] * 2
+								aa_rating += (flak_data['count'] * flak_data['hitChance']) * 5
+								aa_rating_with_dfaa += (flak_data['count'] * flak_data['hitChance']) * 5
 
 							# aa rating scaling with tier
-							module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(combined_aa_damage / int(min(10, tier))) for tier in range(1, 12))
+							module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(aa_rating / int(min(10, tier))) for tier in range(1, 12))
+							module_list[module_id]['profile']['anti_air']['rating_with_dfaa'] = tuple(int(aa_rating_with_dfaa / int(min(10, tier))) for tier in range(1, 12))
 
 						# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
 						if 'airSupport' in ship_upgrade_info[_info]['components']:
@@ -645,6 +676,7 @@ def update_ship_modules():
 								'attack_cooldown': plane['attackCooldown'],
 								'spotting_range': plane['visibilityFactor'],
 								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'consumables': plane['PlaneAbilities'],
 								'profile': {
 									"fighter": {
 										'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
@@ -683,6 +715,7 @@ def update_ship_modules():
 								'attack_cooldown': plane['attackCooldown'],
 								'spotting_range': plane['visibilityFactor'],
 								'spotting_range_plane': plane['visibilityFactorByPlane'],
+								'consumables': plane['PlaneAbilities'],
 								'profile': {
 									"torpedo_bomber": {
 										'cruise_speed': int(plane['speedMoveWithBomb']),
@@ -726,6 +759,7 @@ def update_ship_modules():
 								'spotting_range_plane': plane['visibilityFactorByPlane'],
 								'bomb_type': projectile['ammoType'],
 								'bomb_pen': int(projectile['alphaPiercingHE']),
+								'consumables': plane['PlaneAbilities'],
 								'profile': {
 									"dive_bomber": {
 										'cruise_speed': int(plane['speedMoveWithBomb']),
@@ -768,6 +802,7 @@ def update_ship_modules():
 								'bomb_pen': int(projectile['alphaPiercingHE']),
 								'module_id': module_id,
 								'module_id_str': plane['index'],
+								'consumables': plane['PlaneAbilities'],
 								'profile': {
 									"skip_bomber": {
 										'cruise_speed': int(plane['speedMoveWithBomb']),
@@ -910,8 +945,22 @@ def create_upgrade_abbr():
 
 def load_cmdr_list():
 	global cmdr_list
+
 	logger.info("Fetching Commander List")
-	cmdr_list = wows_encyclopedia.crews()
+	cmdr_list.update(wows_encyclopedia.crews())
+
+def load_consumable_list():
+	global consumable_list
+
+	logger.info("Creating consumable list")
+	consumable_list.update(dict((i, game_data[i]) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
+	for consumable in consumable_list:
+		consumable_list[consumable]['index'] = consumable
+		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
+		del consumable_list[consumable]['id']
+
+def get_ship_by_id(value: int) -> dict:
+	return [game_data[i] for i in game_data if 'id' in game_data[i] and game_data[i]['id'] == value][0]
 
 def load():
 	load_game_params()
@@ -919,6 +968,7 @@ def load():
 	load_module_list()
 	load_ship_list()
 	load_upgrade_list()
+	load_consumable_list()
 	update_ship_modules()
 	create_ship_tags()
 

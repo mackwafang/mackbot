@@ -107,7 +107,7 @@
       "mackbot's AA rating (mbAA or mAAr) is a value to rate a warship's anti-air custom to mackbot, separately from what the in-game value dictates. mbAA rating assumes the attacking squadron is of the same tier.",
       "mbAA is calculation is as follows:",
       "",
-      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (longDamage * longHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 3\nflak = flakExplosionCount * flakHitChance * 2\naa_rating = ((continuous / (shipTier * 9)) * rangeScaling) + flak```",
+      "```continuous = ((shortDamage * shortHitChance) + (midDamage * midHitChance * 1.5) + (longDamage * longHitChance * 2))\nrangeScaling = (aaMaxRange / 5800) ^ 2\nflak = (flakExplosionCount * flakHitChance) * 5\naa_rating = (continuous * rangeScaling) + flak```",
       "",
       "mbAA has the following ratings:",
       "**Non-Existence**: less than **1**",
@@ -116,7 +116,8 @@
       "**Moderate**: between **40** and **50**",
       "**High**: between **50** and **70**",
       "**Dangerous**: between **70** and **90**",
-      "**Very Dangerous**: higher than **90**"
+      "**Very Dangerous**: between **90** and **175**",
+      "**Do Not Approach**: higher than **175**"
     ],
     "related_terms": [
       "mbAA", "mAAr"
