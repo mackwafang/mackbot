@@ -1587,7 +1587,8 @@ async def ship(context: commands.Context, args: str):
 								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
 								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
 								if 'dfaa_stat' in aa:
-									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor})\n"
+									rating_descriptor_with_dfaa = find_aa_descriptor(aa['rating_with_dfaa'][tier_range - 1])
+									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor_with_dfaa})\n"
 
 						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
 						# provide more AA detail
@@ -1731,6 +1732,7 @@ async def ship(context: commands.Context, args: str):
 							m += '\n'
 				embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
 
+			# skip bomber
 			if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
 				m = ""
 				if database_client is not None:
@@ -1834,9 +1836,9 @@ async def ship(context: commands.Context, args: str):
 								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
-									consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
+									consumable_detail = f'Continuous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
 								if consumable_type == 'artilleryBoosters':
-									consumable_detail = f'Reload Time: -50%'
+									consumable_detail = f'Reload Time: -{consumable["boostCoeff"]:2.0f}'
 								if consumable_type == 'fighter':
 									consumable_detail = f'{to_plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
 								if consumable_type == 'regenCrew':
