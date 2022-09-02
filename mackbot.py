@@ -1482,7 +1482,6 @@ async def ship(context: commands.Context, args: str):
 
 				for module in query_result:
 					m = ""
-
 					guns = module['profile']['artillery']
 					turret_data = module['profile']['artillery']['turrets']
 					for turret_name in turret_data:
@@ -1578,10 +1577,12 @@ async def ship(context: commands.Context, args: str):
 						aa = hull['profile']['anti_air']
 						m += f"**{name} ({aa['hull']}) Hull**\n"
 
-						for tier_range in MM_WITH_CV_TIER[tier - 1]:
+						for tier_range in MM_WITH_CV_TIER[tier - 1] if tier <= 8 else [10]:
 							if 0 < tier_range <= 10:
 								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
 								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
+								if 'dfaa_stat' in aa:
+									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor})\n"
 
 						m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
 						# provide more AA detail
@@ -1745,6 +1746,12 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
 							m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
+
+							for slot in squadron['consumables']:
+								for consumable_index, consumable_type in squadron['consumables'][s]['abils']:
+									plane_consumable = get_consumable_data(consumable_index, consumable_type)
+
+
 							m += '\n'
 				embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
@@ -1813,7 +1820,7 @@ async def ship(context: commands.Context, args: str):
 							action_time = consumable['workTime']
 							cd_time = consumable['reloadTime']
 
-							m += f"**{consumable_name}**"
+							m += f"**{consumable_name}** "
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
 								# m += f"\n{consumable_description}\n\n"
 								m += "\n"

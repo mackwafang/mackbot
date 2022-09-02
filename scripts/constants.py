@@ -85,7 +85,8 @@ AA_RATING_DESCRIPTOR = {
 	(40, 50): "Moderate",
 	(50, 70): "High",
 	(70, 90): "Dangerous",
-	(90, inf): "Very Dangerous",
+	(90, 150): "Very Dangerous",
+	(150, inf): "Do Not Approach",
 }
 
 MM_WITH_CV_TIER = (
