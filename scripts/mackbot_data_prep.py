@@ -462,7 +462,7 @@ def update_ship_modules():
 										module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
 										module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
 										module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = int(aa_data['hitChance'])
+										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
 										if has_dfaa:
 											module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['bubbleDamageMultiplier']
 
@@ -490,15 +490,15 @@ def update_ship_modules():
 							if combined_aa_damage > 0:
 								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)  # why 5800m? because thats the range of most ships' aa
 								if aa_range_scaling > 1:
-									aa_range_scaling = aa_range_scaling ** 3
+									aa_range_scaling = aa_range_scaling ** 2
 								aa_rating += combined_aa_damage * aa_range_scaling
 								aa_rating_with_dfaa += combined_aa_damage_with_dfaa * aa_range_scaling
 
 							# aa rating scaling with flak
 							if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
 								flak_data = module_list[module_id]['profile']['anti_air']['flak']
-								aa_rating += flak_data['count'] * flak_data['hitChance'] * 2
-								aa_rating_with_dfaa += flak_data['count'] * flak_data['hitChance'] * 2
+								aa_rating += (flak_data['count'] * flak_data['hitChance']) * 5
+								aa_rating_with_dfaa += (flak_data['count'] * flak_data['hitChance']) * 5
 
 							# aa rating scaling with tier
 							module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(aa_rating / int(min(10, tier))) for tier in range(1, 12))

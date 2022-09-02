@@ -835,7 +835,10 @@ async def correct_user_misspell(context: discord.ext.commands.Context, command: 
 		context.message.content = f"{prefix_and_invoke} {' '.join(args)}"
 		await globals()[command](context, *args)
 	except Exception as e:
-		traceback.print_exc()
+		if type(e) in (asyncio.exceptions.TimeoutError, asyncio.exceptions.CancelledError):
+			pass
+		else:
+			traceback.print_exc()
 
 def get_ship_data_by_id(ship_id: int) -> dict:
 	"""
@@ -1226,7 +1229,6 @@ async def build(context: commands.Context, args: str):
 					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
 				except discord.errors.Forbidden:
 					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
-
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -1253,6 +1255,7 @@ async def build(context: commands.Context, args: str):
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
+		del skills # DO NOT REMOVE OR SHOW SKILLS WILL BREAK
 
 @mackbot.hybrid_command(name='ship', description='Get combat parameters of a warship')
 @app_commands.rename(args="value")
@@ -1573,21 +1576,30 @@ async def ship(context: commands.Context, args: str):
 						aa = hull['profile']['anti_air']
 						m += f"**{name} ({aa['hull']}) Hull**\n"
 
-						for tier_range in MM_WITH_CV_TIER[tier - 1] if tier <= 8 else [10]:
+						cv_mm_tier = MM_WITH_CV_TIER[tier - 1]
+						if tier >= 10 and ship_type == 'Aircraft Carrier':
+							cv_mm_tier = [10]
+						elif tier == 8 and ship_type == 'Aircraft Carrier':
+							cv_mm_tier = [6, 8]
+
+						for tier_range in cv_mm_tier:
 							if 0 < tier_range <= 10:
 								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
 								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
 								if 'dfaa_stat' in aa:
 									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor})\n"
 
-						m += f"**Range:** {aa['min_range'] / 1000:0.1f}-{aa['max_range'] / 1000:0.1f} km\n"
+						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
 						# provide more AA detail
 						flak = aa['flak']
 						near = aa['near']
 						medium = aa['medium']
 						far = aa['far']
 						if flak['damage'] > 0:
-							m += f"**Flak:** {flak['min_range'] / 1000:0.1f}-{flak['max_range'] / 1000:0.1f} km, {to_plural('burst', int(flak['count']))}, {flak['damage']}:boom:\n"
+							m += f" (Flak {flak['min_range'] / 1000: 0.1f}-{flak['max_range'] / 1000: 0.1f} km)\n"
+							m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
+						m += "\n"
+
 						if near['damage'] > 0:
 							m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
 						if medium['damage'] > 0:
@@ -2281,8 +2293,6 @@ async def show(context: commands.Context):
 @app_commands.describe(args="Query to list items")
 async def skills(context: commands.Context, args: Optional[str]=""):
 	# list all skills
-	embed = discord.Embed(name="Commander Skill")
-
 	search_param = args.split()
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
 
@@ -2326,7 +2336,7 @@ async def skills(context: commands.Context, args: Optional[str]=""):
 	num_pages = ceil(len(m) / items_per_page)
 	m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
-	logger.info(f"found {num_items} items matching criteria: {' '.join(args)}")
+	logger.info(f"found {num_items} items matching criteria: {args}")
 	embed = discord.Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 	m = m[page]  # select page
 	# spliting selected page into columns
@@ -2374,9 +2384,7 @@ async def upgrades(context: commands.Context, args: Optional[str]=""):
 
 		if database_client is not None:
 			u_abbr_list = database_client.mackbot_db.upgrade_abbr_list.find({})
-			query_result = database_client.mackbot_db.upgrade_list.find({
-				"tags": {"$all": [re.compile(i, re.I) for i in key]}
-			})
+			query_result = database_client.mackbot_db.upgrade_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
 			result = dict((i['consumable_id'], i) for i in query_result)
 			u_abbr_list = dict((i['abbr'], i['upgrade']) for i in u_abbr_list)
 		else:
