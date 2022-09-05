@@ -1379,6 +1379,14 @@ async def ship(context: commands.Context, args: str):
 			if price_gold > 0 and is_prem:
 				embed.description += '\n{:,} Doubloons'.format(price_gold)
 
+			aircraft_modules = ['fighter', 'torpedo_bomber', 'dive_bomber', 'skip_bomber']
+			aircraft_modules_str = ['Fighters', 'Torpedo Bombers', 'Bombers', 'Skip Bombers']
+			any_aircraft_module_filtered = any([
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS),
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER),
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER),
+			])
+
 			# General hull info
 			if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 				m = ""
@@ -1648,6 +1656,10 @@ async def ship(context: commands.Context, args: str):
 						m += '-------------------\n'
 				embed.add_field(name="__**Torpedoes**__", value=m)
 
+			if any_aircraft_module_filtered:
+				# one or more aircraft module is requested
+
+
 			# attackers
 			if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
 				m = ""
@@ -1685,7 +1697,7 @@ async def ship(context: commands.Context, args: str):
 					}).sort("squadron.profile.torpedo_bomber.max_health", 1)
 					query_result = [(document['module_id'], document) for document in query_result]
 				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
+					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['torpedo_bomber']]
 
 				for _, module in query_result:
 					bomber_module = module["squadron"]
@@ -1713,7 +1725,7 @@ async def ship(context: commands.Context, args: str):
 					}).sort("squadron.profile.dive_bomber.max_health", 1)
 					query_result = [(document['module_id'], document) for document in query_result]
 				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
+					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['dive_bomber']]
 
 				for _, module in query_result:
 					bomber_module = module["squadron"]
@@ -1740,7 +1752,7 @@ async def ship(context: commands.Context, args: str):
 					}).sort("squadron.profile.skip_bomber.max_health", 1)
 					query_result = [(document['module_id'], document) for document in query_result]
 				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
+					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['skip_bomber']]
 
 				for _, module in query_result:
 					bomber_module = module["squadron"]
@@ -1755,12 +1767,6 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
 							m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
 							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
-
-							for slot in squadron['consumables']:
-								for consumable_index, consumable_type in squadron['consumables'][s]['abils']:
-									plane_consumable = get_consumable_data(consumable_index, consumable_type)
-
-
 							m += '\n'
 				embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
 
