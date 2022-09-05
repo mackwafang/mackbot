@@ -153,7 +153,6 @@ bot_intents = discord.Intents().default()
 bot_intents.members = True
 bot_intents.typing = True
 bot_intents.message_content = True
-# bot_intents.value=378880
 
 mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
@@ -977,6 +976,8 @@ def load_data() -> None:
 def to_plural(str: str, count: int) -> str:
 	if str[-1].lower() == 'y':
 		return f"{count} {str[:-1] + 'ies'}"
+	elif str[-1].lower() == 'o':
+		return f"{count} {str[:-1] + 'es'}"
 	else:
 		return f"{count} {str + 's'}"
 
@@ -1380,6 +1381,19 @@ async def ship(context: commands.Context, args: str):
 			if price_gold > 0 and is_prem:
 				embed.description += '\n{:,} Doubloons'.format(price_gold)
 
+			aircraft_modules = {
+				'fighter': "Fighters",
+				'torpedo_bomber': "Torpedo Bombers",
+				'dive_bomber': "Bombers",
+				'skip_bomber': "Skip Bombers"
+			}
+			aircraft_module_filtered = [
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS),
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER),
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER),
+				is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER),
+			]
+
 			# General hull info
 			if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.HULL):
 				m = ""
@@ -1587,7 +1601,8 @@ async def ship(context: commands.Context, args: str):
 								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
 								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
 								if 'dfaa_stat' in aa:
-									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor})\n"
+									rating_descriptor_with_dfaa = find_aa_descriptor(aa['rating_with_dfaa'][tier_range - 1])
+									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor_with_dfaa})\n"
 
 						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
 						# provide more AA detail
@@ -1596,7 +1611,7 @@ async def ship(context: commands.Context, args: str):
 						medium = aa['medium']
 						far = aa['far']
 						if flak['damage'] > 0:
-							m += f" (Flak {flak['min_range'] / 1000: 0.1f}-{flak['max_range'] / 1000: 0.1f} km)\n"
+							m += f" (Flak from {flak['min_range'] / 1000: 0.1f} km)\n"
 							m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
 						m += "\n"
 
@@ -1648,120 +1663,71 @@ async def ship(context: commands.Context, args: str):
 						m += '-------------------\n'
 				embed.add_field(name="__**Torpedoes**__", value=m)
 
-			# attackers
-			if len(modules['fighter']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS):
-				m = ""
-				if database_client is not None:
-					query_result = database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['fighter']}
-					}).sort("squadron.profile.fighter.max_health", 1)
-					query_result = [(document['module_id'], document) for document in query_result]
-				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['fighter']['max_health']) for i in modules['fighter']]
+			# aircraft squadrons
+			if any(aircraft_module_filtered):
+				# one or more aircraft module is requested
+				selected_modules = [list(aircraft_modules.keys())[i] for i, filtered in enumerate(aircraft_module_filtered) if filtered]
+				detailed_filter = ship_filter in [2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS, 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER, 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER]
 
-				for _, module in query_result:
-					fighter_module = module["squadron"]
-					for squadron in fighter_module:
-						fighter = squadron['profile']['fighter']
-						n_attacks = squadron['squad_size'] // squadron['attack_size']
-						m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
-							m += f"**Aircraft:** {fighter['cruise_speed']} kts. (up to {fighter['max_speed']} kts), {fighter['max_health']} HP\n"
-							m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {fighter['max_health'] * squadron['squad_size']} HP\n"
-							m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-							m += f"**Payload:** {fighter['payload']} x {fighter['payload_name']}\n"
-							m += f"**{fighter['rocket_type']} Rocket:** :boom:{fighter['max_damage']} {'(:fire:' + str(fighter['burn_probability']) + '%, Pen. ' + str(fighter['rocket_pen']) + 'mm)' if fighter['burn_probability'] > 0 else ''}\n"
-							m += f"**Firing Delay:** {squadron['profile']['fighter']['aiming_time']:0.1f}s\n"
-							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
-							m += '\n'
-				embed.add_field(name="__**Attackers**__", value=m, inline=False)
+				for module_type in selected_modules:
+					if len(modules[module_type]):
+						if database_client is not None:
+							query_result = database_client.mackbot_db.module_list.find({
+								"module_id": {"$in": modules[module_type]}
+							}).sort(f"squadron.profile.{module_type}.max_health", 1)
+							query_result = [(document['module_id'], document) for document in query_result]
+						else:
+							query_result = [(i, list(module_list[str(i)].values())[0]['profile'][module_type]['max_health']) for i in modules[module_type]]
 
-			# torpedo bomber
-			if len(modules['torpedo_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER):
-				m = ""
-				if database_client is not None:
-					query_result = database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['torpedo_bomber']}
-					}).sort("squadron.profile.torpedo_bomber.max_health", 1)
-					query_result = [(document['module_id'], document) for document in query_result]
-				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['torpedo_bomber']['max_health']) for i in modules['fighter']]
+						m = ""
+						for _, module in query_result:
+							aircraft_module = module["squadron"]
+							for squadron in aircraft_module:
+								aircraft = squadron['profile'][module_type]
+								n_attacks = squadron['squad_size'] // squadron['attack_size']
+								m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
+								if detailed_filter:
+									m = ""
+									m += f"**Aircraft:** {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts), {aircraft['max_health']} HP\n"
+									m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {aircraft['max_health'] * squadron['squad_size']} HP\n"
+									m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
+									m += f"**Payload:** {aircraft['payload']} x {aircraft['payload_name']} "
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
+										m += "rocket\n"
+										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
+										m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
+										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, Pen. ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
+										m += f"torpedo\n"
+										m += f"**Torpedo:** :boom:{aircraft['max_damage']:0.0f}, {aircraft['torpedo_speed']} kts\n"
+										m += f"**Arming Range:** {aircraft['arming_range']:0.1f}m\n"
+									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
+										m += f"bomb\n"
+										m += f"**{squadron['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
-				for _, module in query_result:
-					bomber_module = module["squadron"]
-					for squadron in bomber_module:
-						bomber = squadron['profile']['torpedo_bomber']
-						n_attacks = squadron['squad_size'] // squadron['attack_size']
-						m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
-							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-							m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']} aircraft), {bomber['max_health'] * squadron['squad_size']} HP\n"
-							m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-							m += f"**Torpedo:** :boom:{bomber['max_damage']:0.0f}, {bomber['torpedo_speed']} kts\n"
-							m += f"**Arming Range:** {bomber['arming_range']:0.1f}m\n"
-							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
-							m += '\n'
-				embed.add_field(name="__**Torpedo Bomber**__", value=m, inline=len(modules['fighter']) > 0)
+									squadron_consumables = squadron['consumables']
+									for slot_index, slot in enumerate(squadron_consumables):
+										for consumable_index, consumable_type in squadron_consumables[slot]['abils']:
+											consumable_data = get_consumable_data(consumable_index, consumable_type)
+											consumable_type = consumable_data['consumableType']
 
-			# dive bombers
-			if len(modules['dive_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
-				m = ""
-				if database_client is not None:
-					query_result = database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['dive_bomber']}
-					}).sort("squadron.profile.dive_bomber.max_health", 1)
-					query_result = [(document['module_id'], document) for document in query_result]
-				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['dive_bomber']['max_health']) for i in modules['fighter']]
-
-				for _, module in query_result:
-					bomber_module = module["squadron"]
-					for squadron in bomber_module:
-						bomber = squadron['profile']['dive_bomber']
-						n_attacks = squadron['squad_size'] // squadron['attack_size']
-						m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-							m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {bomber['max_health'] * squadron['squad_size']} HP\n"
-							m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']}\n"
-							m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
-							m += '\n'
-				embed.add_field(name="__**Bombers**__", value=m, inline=len(modules['torpedo_bomber']) > 0)
-
-			if len(modules['skip_bomber']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER):
-				m = ""
-				if database_client is not None:
-					query_result = database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['skip_bomber']}
-					}).sort("squadron.profile.skip_bomber.max_health", 1)
-					query_result = [(document['module_id'], document) for document in query_result]
-				else:
-					query_result = [(i, list(module_list[str(i)].values())[0]['profile']['skip_bomber']['max_health']) for i in modules['fighter']]
-
-				for _, module in query_result:
-					bomber_module = module["squadron"]
-					for squadron in bomber_module:
-						bomber = squadron['profile']['skip_bomber']
-						n_attacks = squadron['squad_size'] // squadron['attack_size']
-						m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
-						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-							m += f"**Aircraft:** {bomber['cruise_speed']} kts. (up to {bomber['max_speed']} kts), {bomber['max_health']} HP\n"
-							m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {bomber['max_health'] * squadron['squad_size']} HP\n"
-							m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-							m += f"**Projectile:** {bomber['payload']} x {bomber['payload_name']})\n"
-							m += f"**{squadron['bomb_type']} Bomb:** :boom:{bomber['max_damage']:0.0f} {'(:fire:' + str(bomber['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if bomber['burn_probability'] > 0 else ''}\n"
-							m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
-
-							for slot in squadron['consumables']:
-								for consumable_index, consumable_type in squadron['consumables'][s]['abils']:
-									plane_consumable = get_consumable_data(consumable_index, consumable_type)
-
-
-							m += '\n'
-				embed.add_field(name="__**Skip Bombers**__", value=m, inline=len(modules['skip_bomber']) > 0)
+											m += f"**Consumable {slot_index+1}:** {consumable_data['name']} ("
+											m += f"{consumable_data['numConsumables']} charges, "
+											m += f"{consumable_data['workTime']:1.0f}s duration, "
+											# if consumable_type == "healForsage":
+											if consumable_type == "callFighters":
+												m += f"{to_plural('fighter', consumable_data['fightersNum'])}, "
+											if consumable_type == "regenerateHealth":
+												m += f"{consumable_data['regenerationRate']:1.0%}/s, "
+											m += f"{consumable_data['reloadTime']:1.0f}s reload"
+											m += ")\n"
+									m += '\n'
+									embed.add_field(name=f"__**{squadron['name'].replace(chr(10), ' ')}**__", value=m, inline=False)
+						if not detailed_filter:
+							embed.add_field(name=f"__**{aircraft_modules[module_type]}**__", value=m, inline=True)
 
 			# engine
 			if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
@@ -1834,9 +1800,9 @@ async def ship(context: commands.Context, args: str):
 								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
-									consumable_detail = f'Continous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
+									consumable_detail = f'Continuous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
 								if consumable_type == 'artilleryBoosters':
-									consumable_detail = f'Reload Time: -50%'
+									consumable_detail = f'Reload Time: -{consumable["boostCoeff"]:2.0f}'
 								if consumable_type == 'fighter':
 									consumable_detail = f'{to_plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
 								if consumable_type == 'regenCrew':
@@ -2189,9 +2155,9 @@ async def compare(context: commands.Context, value: str):
 						m += "**Health**\n"
 						m += "**Payload/Flight**\n"
 						m += "**DMG/Projectile**\n"
-						m += "**Max DMG/Flight**\n"
 						m += "**Flight Count**\n"
 						m += "**Attacking Flight**\n"
+						m += "**Max DMG/Flight**\n"
 						if user_selection == 5:
 							m += "**Attack Delay**\n"
 						if user_selection == 6:
@@ -2209,9 +2175,9 @@ async def compare(context: commands.Context, value: str):
 								m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
 								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
 								m += f"{plane['max_damage']:1.0f}\n"
-								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
 								m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
 								m += f"{module['attack_size']:1.0f} aircraft\n"
+								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
 								if user_selection == 5:
 									m += f"{plane['aiming_time']:0.1f}s\n"
 								if user_selection == 6:
@@ -2697,12 +2663,10 @@ async def player(context: commands.Context, value: str):
 					battle_type = optional_args[0] # [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
 					ship_filter = optional_args[2] # ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
 					# ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
-					ship_type_filter = ship_list_regex.findall(optional_args[2])
 				else:
 					optional_args = [''] * 5
 					battle_type = ''
 					ship_filter = ''
-					ship_type_filter = ''
 
 				try:
 					ship_tier_filter = int(optional_args[4])# int(''.join([i[2] for i in ship_type_filter]))
@@ -2744,8 +2708,6 @@ async def player(context: commands.Context, value: str):
 						player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 						player_last_battle_months = int(player_last_battle_days // 30)
 						player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
-						player_clan = None
-						player_clan_str = ""
 						player_clan_tag = ""
 						if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
 							player_clan_id = player_clan_id[player_id]['clan_id']
@@ -2779,23 +2741,26 @@ async def player(context: commands.Context, value: str):
 							ship_stat = s[battle_type]
 							ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
 							stats = {
-								"name"      : ship_name.lower(),
-								"tier"      : ship_tier,
-								"emoji"     : emoji,
-								"nation"    : ship_nation,
-								"type"      : ship_type,
-								"battles"   : ship_stat['battles'],
-								'wins'      : ship_stat['wins'],
-								'losses'    : ship_stat['losses'],
-								'kills'     : ship_stat['frags'],
-								'damage'    : ship_stat['damage_dealt'],
-								"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
-								"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
-								"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
-								"avg_kills" : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
-								"avg_xp"    : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
-								"max_kills" : ship_stat['max_frags_battle'],
-								"max_dmg"   : ship_stat['max_damage_dealt']
+								"name"          : ship_name.lower(),
+								"tier"          : ship_tier,
+								"emoji"         : emoji,
+								"nation"        : ship_nation,
+								"type"          : ship_type,
+								"battles"       : ship_stat['battles'],
+								'wins'          : ship_stat['wins'],
+								'losses'        : ship_stat['losses'],
+								'kills'         : ship_stat['frags'],
+								'damage'        : ship_stat['damage_dealt'],
+								"wr"            : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
+								"sr"            : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
+								"avg_dmg"       : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
+								"avg_spot_dmg"  : 0 if ship_stat['battles'] == 0 else ship_stat['damage_scouting'] / ship_stat['battles'],
+								"avg_kills"     : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
+								"avg_xp"        : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
+								"max_kills"     : ship_stat['max_frags_battle'],
+								"max_dmg"       : ship_stat['max_damage_dealt'],
+								"max_spot_dmg"  : ship_stat['max_damage_scouting'],
+								"max_xp"        : ship_stat['max_xp'],
 							}
 							player_ship_stats[ship_id] = stats.copy()
 						# sort player owned ships by battle count
@@ -2808,30 +2773,39 @@ async def player(context: commands.Context, value: str):
 							player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
 							player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
 							player_stat_max_kills = player_battle_stat['max_frags_battle']
+							player_stat_max_damage = player_battle_stat['max_damage_dealt']
+							player_stat_max_spot_dmg = player_battle_stat['max_damage_scouting']
 
 							ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
 							player_stat_max_kills_ship = ship_data['name']
 							player_stat_max_kills_ship_type = ship_data['emoji']
 							player_stat_max_kills_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-							player_stat_max_damage = player_battle_stat['max_damage_dealt']
 
 							ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
 							player_stat_max_damage_ship = ship_data['name']
 							player_stat_max_damage_ship_type = ship_data['emoji']
 							player_stat_max_damage_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
 
+							ship_data = get_ship_data_by_id(player_battle_stat['max_scouting_damage_ship_id'])
+							player_stat_max_spot_dmg_ship = ship_data['name']
+							player_stat_max_spot_dmg_ship_type = ship_data['emoji']
+							player_stat_max_spot_dmg_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
+
 							player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 							player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
 							player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
+							player_stat_avg_spot_dmg = player_battle_stat['damage_scouting'] / player_battle_stat['battles']
 
 							m = f"**{player_battle_stat['battles']:,} battles**\n"
 							m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
 							m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
 							m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
-							m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
-							m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
+							m += f"**Average Damage**: {player_stat_avg_dmg:,.0f}\n"
+							m += f"**Average Spotting**: {player_stat_avg_spot_dmg:,.0f}\n"
+							m += f"**Average XP**: {player_stat_avg_xp:,.0f} XP\n"
 							m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
-							m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+							m += f"**Highest Damage**: {player_stat_max_damage:,.0f} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+							m += f"**Highest Spotting Damage**: {player_stat_max_spot_dmg:,.0f} with {player_stat_max_spot_dmg_ship_type} **{player_stat_max_spot_dmg_ship_tier} {player_stat_max_spot_dmg_ship}**\n"
 							embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 							# top 10 ships by battle count
@@ -2859,7 +2833,7 @@ async def player(context: commands.Context, value: str):
 											ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
 											m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
 											m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
-											m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
+											m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:,.0f}\n\n"
 											r += 1
 										embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 							else:
@@ -2873,14 +2847,17 @@ async def player(context: commands.Context, value: str):
 								ship_id = ship_data['ship_id']
 								player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 								ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-								m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
+								m += f"**{player_ship_stats_df['emoji']} {list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
 								m += f"**{player_ship_stats_df['battles']} Battles**\n"
 								m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 								m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
-								m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
 								m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-								m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
-								m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
+								m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:,.0f}\n"
+								m += f"**Average Spotting Damage: ** {player_ship_stats_df['avg_spot_dmg']:,.0f}\n"
+								m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:,.0f}\n"
+								m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']:,.0f}\n"
+								m += f"**Max Spotting Damage: ** {player_ship_stats_df['max_spot_dmg']:,.0f}\n"
+								m += f"**Max XP: ** {player_ship_stats_df['max_xp']:,.0f}\n"
 							except Exception as e:
 								if type(e) == NoShipFound:
 									m += f"Ship with name {ship_filter} is not found\n"
@@ -2903,7 +2880,7 @@ async def player(context: commands.Context, value: str):
 										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
 										type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
 										m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
 								except KeyError:
 									pass
 							embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
@@ -2920,7 +2897,7 @@ async def player(context: commands.Context, value: str):
 									tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
 									m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
-									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:,.0f} DMG\n"
 								except KeyError:
 									m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
 							embed.add_field(name=f"__**Average by Tier**__", value=m)
