@@ -153,7 +153,6 @@ bot_intents = discord.Intents().default()
 bot_intents.members = True
 bot_intents.typing = True
 bot_intents.message_content = True
-# bot_intents.value=378880
 
 mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
@@ -1597,7 +1596,7 @@ async def ship(context: commands.Context, args: str):
 						medium = aa['medium']
 						far = aa['far']
 						if flak['damage'] > 0:
-							m += f" (Flak {flak['min_range'] / 1000: 0.1f}-{flak['max_range'] / 1000: 0.1f} km)\n"
+							m += f" (Flak from {flak['min_range'] / 1000: 0.1f} km)\n"
 							m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
 						m += "\n"
 
@@ -2191,9 +2190,9 @@ async def compare(context: commands.Context, value: str):
 						m += "**Health**\n"
 						m += "**Payload/Flight**\n"
 						m += "**DMG/Projectile**\n"
-						m += "**Max DMG/Flight**\n"
 						m += "**Flight Count**\n"
 						m += "**Attacking Flight**\n"
+						m += "**Max DMG/Flight**\n"
 						if user_selection == 5:
 							m += "**Attack Delay**\n"
 						if user_selection == 6:
@@ -2211,9 +2210,9 @@ async def compare(context: commands.Context, value: str):
 								m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
 								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
 								m += f"{plane['max_damage']:1.0f}\n"
-								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
 								m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
 								m += f"{module['attack_size']:1.0f} aircraft\n"
+								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
 								if user_selection == 5:
 									m += f"{plane['aiming_time']:0.1f}s\n"
 								if user_selection == 6:
@@ -2699,12 +2698,10 @@ async def player(context: commands.Context, value: str):
 					battle_type = optional_args[0] # [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
 					ship_filter = optional_args[2] # ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
 					# ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
-					ship_type_filter = ship_list_regex.findall(optional_args[2])
 				else:
 					optional_args = [''] * 5
 					battle_type = ''
 					ship_filter = ''
-					ship_type_filter = ''
 
 				try:
 					ship_tier_filter = int(optional_args[4])# int(''.join([i[2] for i in ship_type_filter]))
@@ -2746,8 +2743,6 @@ async def player(context: commands.Context, value: str):
 						player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 						player_last_battle_months = int(player_last_battle_days // 30)
 						player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
-						player_clan = None
-						player_clan_str = ""
 						player_clan_tag = ""
 						if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
 							player_clan_id = player_clan_id[player_id]['clan_id']
@@ -2781,23 +2776,26 @@ async def player(context: commands.Context, value: str):
 							ship_stat = s[battle_type]
 							ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
 							stats = {
-								"name"      : ship_name.lower(),
-								"tier"      : ship_tier,
-								"emoji"     : emoji,
-								"nation"    : ship_nation,
-								"type"      : ship_type,
-								"battles"   : ship_stat['battles'],
-								'wins'      : ship_stat['wins'],
-								'losses'    : ship_stat['losses'],
-								'kills'     : ship_stat['frags'],
-								'damage'    : ship_stat['damage_dealt'],
-								"wr"        : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
-								"sr"        : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
-								"avg_dmg"   : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
-								"avg_kills" : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
-								"avg_xp"    : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
-								"max_kills" : ship_stat['max_frags_battle'],
-								"max_dmg"   : ship_stat['max_damage_dealt']
+								"name"          : ship_name.lower(),
+								"tier"          : ship_tier,
+								"emoji"         : emoji,
+								"nation"        : ship_nation,
+								"type"          : ship_type,
+								"battles"       : ship_stat['battles'],
+								'wins'          : ship_stat['wins'],
+								'losses'        : ship_stat['losses'],
+								'kills'         : ship_stat['frags'],
+								'damage'        : ship_stat['damage_dealt'],
+								"wr"            : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
+								"sr"            : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
+								"avg_dmg"       : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
+								"avg_spot_dmg"  : 0 if ship_stat['battles'] == 0 else ship_stat['damage_scouting'] / ship_stat['battles'],
+								"avg_kills"     : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
+								"avg_xp"        : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
+								"max_kills"     : ship_stat['max_frags_battle'],
+								"max_dmg"       : ship_stat['max_damage_dealt'],
+								"max_spot_dmg"  : ship_stat['max_damage_scouting'],
+								"max_xp"        : ship_stat['max_xp'],
 							}
 							player_ship_stats[ship_id] = stats.copy()
 						# sort player owned ships by battle count
@@ -2810,30 +2808,39 @@ async def player(context: commands.Context, value: str):
 							player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
 							player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
 							player_stat_max_kills = player_battle_stat['max_frags_battle']
+							player_stat_max_damage = player_battle_stat['max_damage_dealt']
+							player_stat_max_spot_dmg = player_battle_stat['max_damage_scouting']
 
 							ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
 							player_stat_max_kills_ship = ship_data['name']
 							player_stat_max_kills_ship_type = ship_data['emoji']
 							player_stat_max_kills_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
-							player_stat_max_damage = player_battle_stat['max_damage_dealt']
 
 							ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
 							player_stat_max_damage_ship = ship_data['name']
 							player_stat_max_damage_ship_type = ship_data['emoji']
 							player_stat_max_damage_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
 
+							ship_data = get_ship_data_by_id(player_battle_stat['max_scouting_damage_ship_id'])
+							player_stat_max_spot_dmg_ship = ship_data['name']
+							player_stat_max_spot_dmg_ship_type = ship_data['emoji']
+							player_stat_max_spot_dmg_ship_tier = list(roman_numeral.keys())[ship_data['tier'] - 1]
+
 							player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 							player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
 							player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
+							player_stat_avg_spot_dmg = player_battle_stat['damage_scouting'] / player_battle_stat['battles']
 
 							m = f"**{player_battle_stat['battles']:,} battles**\n"
 							m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
 							m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
 							m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
-							m += f"**Average Damage**: {player_stat_avg_dmg:2.0f}\n"
-							m += f"**Average XP**: {player_stat_avg_xp:0.0f} XP\n"
+							m += f"**Average Damage**: {player_stat_avg_dmg:,.0f}\n"
+							m += f"**Average Spotting**: {player_stat_avg_spot_dmg:,.0f}\n"
+							m += f"**Average XP**: {player_stat_avg_xp:,.0f} XP\n"
 							m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
-							m += f"**Highest Damage**: {player_stat_max_damage} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+							m += f"**Highest Damage**: {player_stat_max_damage:,.0f} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+							m += f"**Highest Spotting Damage**: {player_stat_max_spot_dmg:,.0f} with {player_stat_max_spot_dmg_ship_type} **{player_stat_max_spot_dmg_ship_tier} {player_stat_max_spot_dmg_ship}**\n"
 							embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 							# top 10 ships by battle count
@@ -2861,7 +2868,7 @@ async def player(context: commands.Context, value: str):
 											ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
 											m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
 											m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
-											m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:2.0f}\n\n"
+											m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:,.0f}\n\n"
 											r += 1
 										embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 							else:
@@ -2875,14 +2882,17 @@ async def player(context: commands.Context, value: str):
 								ship_id = ship_data['ship_id']
 								player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 								ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-								m += f"**{list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['emoji']} {player_ship_stats_df['name'].title()}**\n"
+								m += f"**{player_ship_stats_df['emoji']} {list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
 								m += f"**{player_ship_stats_df['battles']} Battles**\n"
 								m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 								m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
-								m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:1.0f}\n"
 								m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-								m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:1.0f}\n"
-								m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']}\n"
+								m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:,.0f}\n"
+								m += f"**Average Spotting Damage: ** {player_ship_stats_df['avg_spot_dmg']:,.0f}\n"
+								m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:,.0f}\n"
+								m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']:,.0f}\n"
+								m += f"**Max Spotting Damage: ** {player_ship_stats_df['max_spot_dmg']:,.0f}\n"
+								m += f"**Max XP: ** {player_ship_stats_df['max_xp']:,.0f}\n"
 							except Exception as e:
 								if type(e) == NoShipFound:
 									m += f"Ship with name {ship_filter} is not found\n"
@@ -2905,7 +2915,7 @@ async def player(context: commands.Context, value: str):
 										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
 										type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
 										m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:2.0f} DMG\n\n"
+										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
 								except KeyError:
 									pass
 							embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
@@ -2922,7 +2932,7 @@ async def player(context: commands.Context, value: str):
 									tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
 									m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
-									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:2.0f} DMG\n"
+									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:,.0f} DMG\n"
 								except KeyError:
 									m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
 							embed.add_field(name=f"__**Average by Tier**__", value=m)
