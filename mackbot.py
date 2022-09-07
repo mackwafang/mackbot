@@ -1695,7 +1695,6 @@ async def ship(context: commands.Context, args: str):
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
 										m += "rocket\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
-										m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
 										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, Pen. ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
@@ -3183,10 +3182,11 @@ async def code(context, args: str):
 	if len(args) == 0:
 		await help(context, "code")
 	else:
-		for c in args.split:
-			s = f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}"
+		s = ""
+		for c in args.split():
+			s += f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
 			logger.info(f"returned a wargaming bonus code link with code {c}")
-			await context.send(s)
+		await context.send(s)
 
 @mackbot.hybrid_command(name="hottake", description="Give a WoWS hottake")
 async def hottake(context: commands.Context):
