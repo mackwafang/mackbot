@@ -1,10 +1,12 @@
-import wargaming, sys, traceback, time, json, logging, os, pickle
+import wargaming, sys, traceback, time, json, logging, os, pickle, io
 
+from hashlib import sha256
 from pymongo import MongoClient
 from itertools import count
 from math import inf
 from enum import IntEnum, auto
 from scripts.constants import nation_dictionary, hull_classification_converter
+from tqdm import tqdm
 
 game_data = {}
 ship_list = {}
@@ -31,6 +33,23 @@ class LogFilterBlacklist(logging.Filter):
 
 	def filter(self, record):
 		return not any(f in record.getMessage() for f in self.blacklist)
+
+class TqdmToLogger(io.StringIO):
+	"""
+	Output stream for TQDM which will output to logger module instead of
+	the StdOut.
+	"""
+	logger = None
+	level = None
+	buf = ''
+	def __init__(self,logger,level=None):
+		super(TqdmToLogger, self).__init__()
+		self.logger = logger
+		self.level = level or logging.INFO
+	def write(self,buf):
+		self.buf = buf.strip('\r\n\t ')
+	def flush(self):
+		self.logger.log(self.level, self.buf)
 
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
@@ -83,7 +102,7 @@ def load_skill_list():
 	logger.info("Fetching Skill List")
 	try:
 		with open(os.path.join("./data", "skill_list.json")) as f:
-			skill_list = json.load(f)
+			skill_list.update(json.load(f))
 
 		# dictionary that stores skill abbreviation
 		for skill in skill_list:
@@ -138,7 +157,7 @@ def load_ship_list():
 	# fetching from local
 	if os.path.isfile(ship_list_file_dir):
 		with open(ship_list_file_dir, 'rb') as f:
-			ship_list = pickle.load(f)
+			ship_list.update(pickle.load(f))
 
 		# check to see if it is out of date
 		if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
@@ -173,11 +192,13 @@ def load_ship_list():
 		with open(ship_list_file_dir, 'wb') as f:
 			ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
 			pickle.dump(ship_list, f)
-		print("Cache complete")
+		logger.info("Cache complete")
 	del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
 
 
 def load_upgrade_list():
+	global ship_list, game_data, camo_list, flag_list, upgrade_list
+
 	logger.info("Fetching Camo, Flags and Modification List")
 	if len(ship_list) == 0:
 		logger.info("Ship list is empty.")
@@ -187,7 +208,7 @@ def load_upgrade_list():
 		logger.info("No game data")
 		load_game_params()
 
-	global camo_list, flag_list, upgrade_list, legendary_upgrades
+
 	for page_num in count(1):
 		try:
 			misc_list = wows_encyclopedia.consumables(page_no=page_num)
@@ -306,12 +327,9 @@ def update_ship_modules():
 		logger.info("Module list is empty.")
 		load_module_list()
 
-	ship_count = 0
-	for s in ship_list:
+	for s in tqdm(ship_list):
 		ship = ship_list[s]
-		ship_count += 1
-		if (ship_count % 50 == 0 and ship_count > 0) or (ship_count == len(ship_list)):
-			logger.info(f"	{ship_count}/{len(ship_list)} ships")
+
 		try:
 			module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 			module_data = game_data[module_full_id_str]
@@ -822,10 +840,10 @@ def update_ship_modules():
 				logger.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logger.error("Update your GameParams JSON file(s)")
 			traceback.print_exc()
-	del ship_count
 
 
 def create_ship_tags():
+	global ship_list
 	# generate ship tags for searching purpose via the "show ships" command
 	logger.info("Generating ship search tags")
 
@@ -930,18 +948,20 @@ def create_upgrade_abbr():
 		logger.info("Upgrade list is empty.")
 		load_upgrade_list()
 
+	abbr_added = []
 	for u in upgrade_list:
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
 		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
-		if key in upgrade_abbr_list:  # if the abbreviation of this upgrade is in the list already
+		if key in abbr_added:  # if the abbreviation of this upgrade is in the list already
 			key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
 	# add this abbreviation
-		upgrade_abbr_list[key] = {
+		upgrade_abbr_list[u] = {
 			"upgrade": upgrade_list[u]['name'].lower(),
 			"abbr": key,
 			"upgrade_id": int(u)
 		}
+		abbr_added.append(key)
 
 def load_cmdr_list():
 	global cmdr_list
@@ -953,11 +973,17 @@ def load_consumable_list():
 	global consumable_list
 
 	logger.info("Creating consumable list")
-	consumable_list.update(dict((i, game_data[i]) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
+	consumable_list.update(dict((str(game_data[i]['id']), game_data[i]) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
 	for consumable in consumable_list:
-		consumable_list[consumable]['index'] = consumable
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']
+
+def post_process():
+	logger.info("Creating hash digest")
+	dictionaries = (ship_list, skill_list, module_list, upgrade_list, camo_list, cmdr_list, flag_list, legendary_upgrade_list, upgrade_list, consumable_list, upgrade_abbr_list)
+	for d in dictionaries:
+		for k, v in d.items():
+			d[k]['hash'] = sha256(str(d[k]).encode()).hexdigest()
 
 def get_ship_by_id(value: int) -> dict:
 	return [game_data[i] for i in game_data if 'id' in game_data[i] and game_data[i]['id'] == value][0]
@@ -971,6 +997,7 @@ def load():
 	load_consumable_list()
 	update_ship_modules()
 	create_ship_tags()
+	post_process()
 
 if __name__ == "__main__":
 	load()

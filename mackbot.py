@@ -996,6 +996,8 @@ async def on_ready():
 async def on_command(context):
 	if context.author != mackbot.user:  # this prevent bot from responding to itself
 		query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
+		if context.clean_prefix == "/":
+			query = f"/{context.command} {' '.join(v for k, v in context.kwargs.items())}"
 		from_server = context.guild if context.guild else "DM"
 		logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
 
@@ -1710,7 +1712,7 @@ async def ship(context: commands.Context, args: str):
 									squadron_consumables = squadron['consumables']
 									for slot_index, slot in enumerate(squadron_consumables):
 										for consumable_index, consumable_type in squadron_consumables[slot]['abils']:
-											consumable_data = get_consumable_data(consumable_index, consumable_type)
+											consumable_data = get_consumable_data(consumable_index.split("_")[0], consumable_type)
 											consumable_type = consumable_data['consumableType']
 
 											m += f"**Consumable {slot_index+1}:** {consumable_data['name']} ("
@@ -1784,7 +1786,7 @@ async def ship(context: commands.Context, args: str):
 							m += '\n'
 						for c_index, c in enumerate(consumables[consumable_slot]['abils']):
 							consumable_index, consumable_type = c
-							consumable = get_consumable_data(consumable_index, consumable_type)
+							consumable = get_consumable_data(consumable_index.split("_")[0], consumable_type)
 							consumable_name = consumable['name']
 							consumable_description = consumable['description']
 							consumable_type = consumable["consumableType"]
