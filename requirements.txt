@@ -7,3 +7,4 @@ numpy~=1.21
 pymongo~=4.0.1
 dnspython==2.1.0
 deprecation~=2.1.0
+tqdm
