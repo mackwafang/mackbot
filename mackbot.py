@@ -2,22 +2,22 @@ import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, as
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
-from typing import Union, Optional
-from logging.handlers import RotatingFileHandler
-from pymongo import MongoClient
-from math import ceil
-from itertools import zip_longest
-from random import randint
-from discord.ext import commands
-from discord import Interaction, SelectOption
-from discord.ui import View, Select
-from discord import app_commands
-from datetime import date
-from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
+from datetime import date
+from discord import Interaction, SelectOption
+from discord import app_commands
+from discord.ext import commands
+from discord.ui import View, Select
+from itertools import zip_longest
+from logging.handlers import RotatingFileHandler
+from math import ceil
+from pymongo import MongoClient
+from random import randint
 from scripts.constants import *
 from scripts.mackbot_exceptions import *
-from deprecation import deprecated
+from scripts.misc_commands.wtn import cook as make_wonton, wonton_count
+from string import ascii_letters
+from typing import Union, Optional
 
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
@@ -146,16 +146,6 @@ else:
 with open(os.path.join(os.getcwd(), "data", "command_list.json")) as f:
 	command_list = json.load(f)
 
-# define bot stuff
-cmd_sep = ' '
-command_prefix += cmd_sep
-bot_intents = discord.Intents().default()
-bot_intents.members = True
-bot_intents.typing = True
-bot_intents.message_content = True
-
-mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
-
 # define database stuff
 database_client = None
 try:
@@ -179,6 +169,17 @@ except ConnectionError:
 	consumable_list = data_loader.consumable_list.copy()
 	game_data = data_loader.game_data.copy()
 del data_loader
+
+# define bot stuff
+cmd_sep = ' '
+command_prefix += cmd_sep
+bot_intents = discord.Intents().default()
+bot_intents.members = True
+bot_intents.typing = True
+bot_intents.message_content = True
+
+mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
+# nfw = nfw.NonFungibleWarships(mackbot)
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(wg_token, region='na', language='en')
@@ -970,7 +971,7 @@ def compile_help_strings() -> None:
 
 	del data
 
-def load_data() -> None:
+def post_process() -> None:
 	compile_help_strings()
 
 def to_plural(str: str, count: int) -> str:
@@ -3231,9 +3232,17 @@ async def cmd(context: commands.Context):
 
 	await context.send(embed=embed)
 
+@mackbot.hybrid_command(name="cook", description="Make wonton")
+async def cook(context: commands.Context):
+	await make_wonton(context, database_client.mackbot_fun)
+
+@mackbot.hybrid_command(name="wontons", description="Check wontons inventory")
+async def wontons(context: commands.Context):
+	await wonton_count(context, database_client.mackbot_fun)
+
 @mackbot.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
 @app_commands.describe(help_key="Command or WoWS terminology")
-async def help(context, help_key: str):
+async def help(context: commands.Context, help_key: str):
 	help_key = help_key.lower()
 	logger.info(f"can i haz halp for {help_key}")
 	if len(help_key):
@@ -3281,13 +3290,8 @@ async def help(context, help_key: str):
 
 
 if __name__ == '__main__':
-	import argparse
-	arg_parser = argparse.ArgumentParser()
-	args = arg_parser.parse_args()
-
 	# load some stuff
-	load_data()
-
+	post_process()
 	if not os.path.isdir("logs"):
 		os.mkdir("logs")
 
