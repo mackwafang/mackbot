@@ -187,5 +187,25 @@
 		"brief": "Get help on a command or a terminology",
 		"usage": "command/terminology",
 		"description": ["Get help on a command or a terminology"]
+	},
+	"commands": {
+		"brief": "Get list of commands",
+		"usage": "",
+		"description": ["Get list of commands"]
+	},
+	"goodbot": {
+		"brief": "Pat pat",
+		"usage": "",
+		"description": ["Pat pat"]
+	},
+	"whoareyou": {
+		"brief": "Let mackbot introduce itself",
+		"usage": "",
+		"description": ["Let mackbot introduce itself"]
+	},
+	"feedback": {
+		"brief": "Provide feedback to the developer",
+		"usage": "",
+		"description": ["Provide feedback to the developer"]
 	}
 }

@@ -13,10 +13,10 @@
 	"doubloons" : true,
 	"code" : true,
 	"hottake": true,
-	"purpose": true,
 	"player": true,
 	"invite": true,
 	"clan": true,
 	"web": true,
-	"compare": true
+	"compare": true,
+	"commands": true
 }
