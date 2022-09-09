@@ -17,7 +17,6 @@ from string import ascii_letters
 from PIL import Image, ImageDraw, ImageFont
 from scripts.constants import *
 from scripts.mackbot_exceptions import *
-from deprecation import deprecated
 
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
