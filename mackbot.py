@@ -90,7 +90,7 @@ class LogFilterBlacklist(logging.Filter):
 if not os.path.exists(os.path.join(os.getcwd(), "logs")):
 	os.mkdir(os.path.join(os.getcwd(), "logs"))
 
-LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%Y_%b_%d", time.localtime())}.log')
+LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%m_%d_%Y", time.localtime())}.log')
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(levelname)-5s] %(message)s')
@@ -1014,14 +1014,18 @@ async def on_command_error(context: commands.Context, error: commands.errors):
 		await context.send("An internal error as occurred.")
 		traceback.print_exc()
 
-@mackbot.hybrid_command(name="whoami", description="What is a mackbot?")
+@mackbot.hybrid_command(name="whoareyou", description="What is a mackbot?")
 async def whoareyou(context: commands.Context):
 	async with context.typing():
-		m = "Mackbot is a Discord bot for sharing warship configuration and showing ship details for the game World of Warships.\n"
-		m += "Originally built for as a clan specific tool to share builds and set base builds for ships, now it is a bot that contains basic warships build information, and a warships encyclopedia.\n"
+		m = ""
+
+		m += "**mackbot**, a WoWS encyclopedia and basic warship build bot.\n"
+		m += f"Currently deployed in {to_plural('server', len(mackbot.guilds))}.\n\n"
+		m += "mackbot is a Discord bot for sharing warship configuration and showing ship details for the game World of Warships.\n"
+		m += "Originally built for as a clan specific tool to share builds and set base builds for ships, now it is a bot that contains basic warships build information and a warships encyclopedia.\n"
 		m += "\nQnA\n"
 		m += "**[Who created mackbot?]** mackbot is created by mackwafang#2071, he plays way too much CV.\n"
-		m += "**[Why is it *mackbot* called *mackbot*?]** Originally, mackbot was called buildbot. Until a clan member suggested that I (mackwafang#2071) should name it mackbot because I was its sole creator."
+		m += "**[Why is it *mackbot* called *mackbot*?]** Originally, mackbot was called buildbot. Until a clan member suggested that I (mackwafang#2071) should name it mackbot because I was its sole creator.\n"
 		m += "**[What can mackbot do?]** Mackbot can:\n"
 		m += "\t\t- Gives basic warship builds (via the **build** command)\n"
 		m += "\t\t- Gives warship information (via the **ship** command)\n"
@@ -3214,6 +3218,18 @@ async def web(context: commands.Context):
 @mackbot.hybrid_command(name="invite", description="Get a Discord invite link to get mackbot to your server.")
 async def invite(context: commands.Context):
 	await context.send(bot_invite_url)
+
+@mackbot.hybrid_command(name="commands", description="Get list of commands")
+async def cmd(context: commands.Context):
+	embed = discord.Embed(title="mackbot commands")
+
+	m = ""
+	for command in sorted([c.name for c in mackbot.commands]):
+		m += f"**{command}:** {help_dictionary[command]['brief']}\n"
+	embed.add_field(name="Command (Description)", value=m)
+	embed.set_footer(text="For usage on any commands, use mackbot help <command>")
+
+	await context.send(embed=embed)
 
 @mackbot.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
 @app_commands.describe(help_key="Command or WoWS terminology")
