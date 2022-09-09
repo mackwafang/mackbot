@@ -130,7 +130,7 @@ async def cook(context: commands.Context, db):
 					embed.title = "**You can't cook yet!**\n"
 					m += f"Time left: " \
 					     f"{time_left // 3600:1.0f}h " \
-					     f"{time_left % 60:2.0f}m " \
+					     f"{(time_left % 3600) // 60:2.0f}m " \
 					     f"{time_left % 60:02.0f}s"
 
 			embed.add_field(name=EMPTY_LENGTH_CHAR, value=m)
