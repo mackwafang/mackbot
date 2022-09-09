@@ -32,7 +32,7 @@ logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
-NEXT_MINE_TIME_DELAY = 5# 5 * 60
+NEXT_MINE_TIME_DELAY = 12 * 60 * 60
 WONTON_CAP = 500000
 WONTON_GIF_URL = (
 	"https://c.tenor.com/opiDAQ_TFrsAAAAC/dip%E6%B2%BE%E9%86%AC.gif",
@@ -70,7 +70,6 @@ async def cook(context: commands.Context, db):
 			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)
 
 			current_time = time.time()
-
 			embed = discord.Embed()
 			m = ""
 
@@ -116,6 +115,9 @@ async def cook(context: commands.Context, db):
 								embed.set_image(url="attachment://image.png")
 								embed.title = "You have found the accursed wantan!"
 								embed.description = "Your wonton gain quadrupled!"
+								logger.info("Cursed wantan found")
+							else:
+								logger.info("Blessed wonton found")
 						else:
 							embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 					else:
