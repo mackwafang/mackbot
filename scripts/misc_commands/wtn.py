@@ -32,7 +32,7 @@ logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
-NEXT_MINE_TIME_DELAY = 30# 5 * 60
+NEXT_MINE_TIME_DELAY = 5# 5 * 60
 WONTON_CAP = 500000
 WONTON_GIF_URL = (
 	"https://c.tenor.com/opiDAQ_TFrsAAAAC/dip%E6%B2%BE%E9%86%AC.gif",
@@ -64,7 +64,11 @@ async def cook(context: commands.Context, db):
 			author = context.author
 			query_result = db.wtn_wallet.find_one({"user": author.id})
 
-			coins_gained = 5 + randint(1, 5)
+			wonton_image_file = None
+			add_wonton = randint(0, 100) < 5
+			add_wantan = (randint(0, 100) < 5) and add_wonton
+			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)
+
 			current_time = time.time()
 
 			embed = discord.Embed()
@@ -101,7 +105,19 @@ async def cook(context: commands.Context, db):
 						m += f"**{author.mention} cooked {to_plural('wonton', coins_gained)}**\n"
 						m += f"**You have {to_plural('wonton', query_result['coins'] + coins_gained)}**\n"
 
-						embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
+						if add_wonton:
+							wonton_image_file = discord.File(os.path.join(os.getcwd(), "data", "wonton", "wonton.png"), filename="image.png")
+							embed.set_image(url="attachment://image.png")
+							embed.title = "You have found the blessed wonton!"
+							embed.description = "Your wonton gain doubled!"
+
+							if add_wantan:
+								wonton_image_file = discord.File(os.path.join(os.getcwd(), "data", "wonton", "wantan.png"), filename="image.png")
+								embed.set_image(url="attachment://image.png")
+								embed.title = "You have found the accursed wantan!"
+								embed.description = "Your wonton gain quadrupled!"
+						else:
+							embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 					else:
 						embed.title = "**Wontons full!**\n"
 						m += f"**You have {to_plural('wonton', WONTON_CAP)}**\n"
@@ -116,7 +132,7 @@ async def cook(context: commands.Context, db):
 					     f"{time_left % 60:02.0f}s"
 
 			embed.add_field(name=EMPTY_LENGTH_CHAR, value=m)
-			await context.send(embed=embed)
+			await context.send(file=wonton_image_file, embed=embed)
 		except Exception as e:
 			traceback.print_exc()
 
