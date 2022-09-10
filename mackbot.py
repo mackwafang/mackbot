@@ -420,7 +420,7 @@ def get_ship_data(ship: str) -> dict:
 		if database_client is not None:
 			# connection to db
 			query_result = database_client.mackbot_db.ship_list.find_one({
-				"name": {"$regex": f"^{ship.lower()}$", "$options": "i"}
+				"name": {"$regex": f"{ship.lower()}", "$options": "i"}
 			})
 			if query_result is None:
 				# query returns no result
