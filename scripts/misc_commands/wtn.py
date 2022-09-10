@@ -151,14 +151,13 @@ async def wonton_count(context: commands.Context, db):
 			author = context.author
 			query_result = db.wtn_wallet.find_one({"user": author.id})
 
-			embed = discord.Embed(title="Wonton Count")
-			m = ""
+			embed = discord.Embed(title="Wonton Count", description="")
 			if query_result is None:
-				m += f"{author.mention}, you have no wontons!\n"
-				m += "use **/cook** or **mackbot cook** to start making wontons!"
+				embed.description += f"{author.mention}, you have no wontons!\n"
+				embed.description += "use **/cook** or **mackbot cook** to start making wontons!"
 			else:
-				m += f"{author.mention}, you have {to_plural('wonton', query_result['coins'])}!\n"
+				embed.description += f"{author.mention}, you have {to_plural('wonton', query_result['coins'])}!\n"
 
-			context.send(embed=embed)
+			await context.send(embed=embed)
 		except Exception as e:
 			traceback.print_exc()
