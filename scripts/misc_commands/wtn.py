@@ -32,12 +32,13 @@ logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
-NEXT_MINE_TIME_DELAY = 12 * 60 * 60
+NEXT_MINE_TIME_DELAY = 3 * 60 * 60
 WONTON_CAP = 500000
 WONTON_GIF_URL = (
-	"https://c.tenor.com/opiDAQ_TFrsAAAAC/dip%E6%B2%BE%E9%86%AC.gif",
+	"https://c.tenor.com/bj5iZ-5GelIAAAAj/angry.gif",
 	"https://c.tenor.com/wn_cso2tCq8AAAAd/eating-dumplings.gif",
-	"https://c.tenor.com/rye5tgag5PwAAAAC/dumpling-food-porn.gif"
+	"https://c.tenor.com/rye5tgag5PwAAAAC/dumpling-food-porn.gif",
+	"https://c.tenor.com/Jyp_uEjCh5QAAAAC/nepali-food.gif",
 )
 
 def to_plural(str: str, count: int) -> str:
