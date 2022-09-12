@@ -68,7 +68,8 @@ async def cook(context: commands.Context, db):
 			wonton_image_file = None
 			add_wonton = randint(0, 100) < 5
 			add_wantan = (randint(0, 100) < 5) and add_wonton
-			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)
+			add_wuntun = (randint(0, 100) < 5) and add_wantan
+			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)  * (2 if add_wuntun else 1)
 
 			current_time = time.time()
 			embed = discord.Embed()
@@ -117,6 +118,12 @@ async def cook(context: commands.Context, db):
 								embed.title = "You have found the accursed wantan!"
 								embed.description = "Your wonton gain quadrupled!"
 								logger.info("Cursed wantan found")
+								if add_wantan:
+									wonton_image_file = discord.File(os.path.join(os.getcwd(), "data", "wonton", "wuntun.png"), filename="image.png")
+									embed.set_image(url="attachment://image.png")
+									embed.title = "You have found the accursed wuntun!"
+									embed.description = "Your wonton gain increases eight-folds!"
+									logger.info("Cursed wuntun found")
 							else:
 								logger.info("Blessed wonton found")
 						else:

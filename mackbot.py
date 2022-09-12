@@ -1923,9 +1923,12 @@ async def compare(context: commands.Context, value: str):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
-					if msg:
-						ships_to_compare += [get_ship_data(closest_match_string)]
+					try:
+						msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+						if msg:
+							ships_to_compare += [get_ship_data(closest_match_string)]
+					except asyncio.TimeoutError:
+						pass
 				else:
 					await context.send(embed=embed)
 					return
