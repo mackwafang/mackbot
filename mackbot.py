@@ -1451,7 +1451,7 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
 							if nation == 'netherlands':
 								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
-								m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, Pen. {airsup_info['bomb_pen']}mm)\n"
+								m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, {icons_emoji['penetration']} {airsup_info['bomb_pen']}mm)\n"
 							else:
 								m += f"**Squadron**: 2 aircraft\n"
 								m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
@@ -1511,10 +1511,10 @@ async def ship(context: commands.Context, args: str):
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 						m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
 						m += '-------------------\n'
-					if guns['max_damage_he']:
-						m += f"**HE:** {guns['max_damage_he']} (:fire: {guns['burn_probability']}%"
-						if guns['pen_HE'] > 0:
-							m += f", Pen. {guns['pen_HE']} mm)\n"
+					if guns['max_damage']['he']:
+						m += f"**HE:** {guns['max_damage']['he']} (:fire: {guns['burn_probability']}%"
+						if guns['pen']['he'] > 0:
+							m += f", {icons_emoji['penetration']} {guns['pen']['he']} mm)\n"
 						else:
 							m += f")\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
@@ -1522,14 +1522,14 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
 							m += '-------------------\n'
 
-					if guns['max_damage_sap']:
-						m += f"**SAP:** {guns['max_damage_sap']} (Pen. {guns['pen_SAP']} mm)\n"
+					if guns['max_damage']['cs']:
+						m += f"**SAP:** {guns['max_damage']['cs']} ({icons_emoji['penetration']} {guns['pen']['cs']} mm)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 							m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
 							m += '-------------------\n'
-					if guns['max_damage_ap']:
-						m += f"**AP:** {guns['max_damage_ap']}\n"
+					if guns['max_damage']['ap']:
+						m += f"**AP:** {guns['max_damage']['ap']}\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 							m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
@@ -1573,7 +1573,7 @@ async def ship(context: commands.Context, args: str):
 									m += ' ('
 									if turret['burn_probability'] > 0:
 										m += f":fire: {turret['burn_probability'] * 100}%, "
-									m += f"Pen. {turret['pen']}mm"
+									m += f"{icons_emoji['penetration']} {turret['pen']}mm"
 									m += ')\n'
 									m += f"**Reload**: {turret['shotDelay']}s\n"
 						# if len(modules['hull']) > 1:
@@ -1703,7 +1703,7 @@ async def ship(context: commands.Context, args: str):
 										m += "rocket\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, Pen. ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 										m += f"torpedo\n"
 										m += f"**Torpedo:** :boom:{aircraft['max_damage']:0.0f}, {aircraft['torpedo_speed']} kts\n"
@@ -1711,7 +1711,7 @@ async def ship(context: commands.Context, args: str):
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 										m += f"bomb\n"
 										m += f"**{squadron['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, Pen. ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
 									squadron_consumables = squadron['consumables']
@@ -1989,25 +1989,32 @@ async def compare(context: commands.Context, value: str):
 						m += "**Reload**\n"
 						m += "**Transverse**\n"
 						m += "**Precision**\n"
+						m += "**HE Shell**\n"
 						m += "**HE DPM**\n"
+						m += "**AP Shell**\n"
 						m += "**AP DPM**\n"
+						m += "**SAP Shell**\n"
 						m += "**SAP DPM**\n"
 						m += "**Salvo\n**"
 						embed.add_field(name="__Artillery__", value=m, inline=True)
 						for i, mid in enumerate(pair):
 							if mid is not None:
 								module = get_module_data(mid)
+								artillery = module['profile']['artillery']
 								m = ""
 								m += f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								m += f"{module['profile']['artillery']['caliber'] * 1000:1.0f}mm\n"
-								m += f"{module['profile']['artillery']['range'] / 1000:1.1f}km\n"
-								m += f"{module['profile']['artillery']['shotDelay']}s\n"
-								m += f"{module['profile']['artillery']['transverse_speed']}{DEGREE_SYMBOL}/s\n"
-								m += f"{module['profile']['artillery']['sigma']}{SIGMA_SYMBOL}\n"
-								m += f"{module['profile']['artillery']['gun_dpm']['he']}\n"
-								m += f"{module['profile']['artillery']['gun_dpm']['ap']}\n"
-								m += f"{module['profile']['artillery']['gun_dpm']['cs']}\n"
-								m += f"{sum(v['numBarrels'] * v['count'] for k, v in module['profile']['artillery']['turrets'].items()):1.0f} shells\n"
+								m += f"{artillery['caliber'] * 1000:1.0f}mm\n"
+								m += f"{artillery['range'] / 1000:1.1f}km\n"
+								m += f"{artillery['shotDelay']}s\n"
+								m += f"{artillery['transverse_speed']}{DEGREE_SYMBOL}/s\n"
+								m += f"{artillery['sigma']}{SIGMA_SYMBOL}\n"
+								m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
+								m += f"{artillery['gun_dpm']['he']}\n"
+								m += f"{artillery['max_damage']['ap']}\n"
+								m += f"{artillery['gun_dpm']['ap']}\n"
+								m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
+								m += f"{artillery['gun_dpm']['cs']}\n"
+								m += f"{sum(v['numBarrels'] * v['count'] for k, v in artillery['turrets'].items()):1.0f} shells\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
@@ -2059,14 +2066,15 @@ async def compare(context: commands.Context, value: str):
 						for i, mid in enumerate(pair):
 							if mid is not None:
 								module = get_module_data(mid)
+								torp = module['profile']['torpedoes']
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								m += f"{module['profile']['torpedoes']['range']} km\n"
-								m += f"{module['profile']['torpedoes']['spotting_range']} km\n"
-								m += f"{module['profile']['torpedoes']['max_damage']:1.0f}\n"
-								m += f"{module['profile']['torpedoes']['shotDelay']:1.1f}s\n"
-								m += f"{module['profile']['torpedoes']['torpedo_speed']:1.0f} kts.\n"
-								m += f"{module['profile']['torpedoes']['numBarrels']} torpedoes\n"
-								m += f"{'Yes' if module['profile']['torpedoes']['is_deep_water'] else 'No'}\n"
+								m += f"{torp['range']} km\n"
+								m += f"{torp['spotting_range']} km\n"
+								m += f"{torp['max_damage']:1.0f}\n"
+								m += f"{torp['shotDelay']:1.1f}s\n"
+								m += f"{torp['torpedo_speed']:1.0f} kts.\n"
+								m += f"{torp['numBarrels']} torpedoes\n"
+								m += f"{'Yes' if torp['is_deep_water'] else 'No'}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)

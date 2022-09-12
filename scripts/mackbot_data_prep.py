@@ -567,16 +567,13 @@ def update_ship_modules():
 							'caliber': 0,
 							'numBarrels': 0,
 							'burn_probability': 0,
-							'pen_HE': 0,
-							'pen_SAP': 0,
-							'max_damage_he': 0,
-							'max_damage_ap': 0,
-							'max_damage_sap': 0,
 							'sigma': 0,
 							'range': 0,
 							'dispersion_h': 0,
 							'dispersion_v': 0,
 							'transverse_speed': 0,
+							'pen': {'he': 0, 'ap': 0, 'cs': 0},
+							'max_damage': {'he': 0, 'ap': 0, 'cs': 0},
 							'gun_dpm': {'he': 0, 'ap': 0, 'cs': 0},
 							'speed': {'he': 0, 'ap': 0, 'cs': 0},
 							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
@@ -611,23 +608,23 @@ def update_ship_modules():
 								ammo = game_data[a]
 								if ammo['ammoType'] == 'HE':
 									new_turret_data['burn_probability'] = int(ammo['burnProb'] * 100)
-									new_turret_data['pen_HE'] = int(ammo['alphaPiercingHE'])
-									new_turret_data['max_damage_he'] = int(ammo['alphaDamage'])
+									new_turret_data['pen']['he'] = int(ammo['alphaPiercingHE'])
+									new_turret_data['max_damage']['he'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['he'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['he'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['he'] = ammo['bulletKrupp']
 									new_turret_data['mass']['he'] = ammo['bulletMass']
 									new_turret_data['drag']['he'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'CS':  # SAP rounds
-									new_turret_data['pen_SAP'] = int(ammo['alphaPiercingCS'])
-									new_turret_data['max_damage_sap'] = int(ammo['alphaDamage'])
+									new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
+									new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['cs'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['cs'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
 									new_turret_data['mass']['cs'] = ammo['bulletMass']
 									new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'AP':
-									new_turret_data['max_damage_ap'] = int(ammo['alphaDamage'])
+									new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['ap'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
