@@ -420,7 +420,7 @@ def get_ship_data(ship: str) -> dict:
 		if database_client is not None:
 			# connection to db
 			query_result = database_client.mackbot_db.ship_list.find_one({
-				"name": {"$regex": f"{ship.lower()}", "$options": "i"}
+				"name": {"$regex": f"^{ship.lower()}$", "$options": "i"}
 			})
 			if query_result is None:
 				# query returns no result
@@ -1445,6 +1445,7 @@ async def ship(context: commands.Context, args: str):
 
 						m += f"**Has {airsup_info['chargesNum']} charge(s)**\n"
 						m += f"**Reload**: {str(airsup_reload_m) + 'm' if airsup_reload_m > 0 else ''} {str(airsup_reload_s) + 's' if airsup_reload_s > 0 else ''}\n"
+						m += f"**Range**: {airsup_info['range']/1000:1.1f} km\n"
 
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
 							# detailed air support filter
@@ -1508,9 +1509,20 @@ async def ship(context: commands.Context, args: str):
 						turret = turret_data[turret_name]
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
+					m += f"**Range: ** {guns['range'] / 1000:1.0f} km\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-						m += f"**Precision:** {guns['sigma']:1.1f}{SIGMA_SYMBOL}\n"
+						m += f"**Precision:** {guns['sigma']:1.2f}{SIGMA_SYMBOL}\n"
 						m += '-------------------\n'
+						m += "**Dispersion at:**\n"
+						ranges = tuple(guns['dispersion_h'].keys())
+						h_dispersions = tuple(guns['dispersion_h'].values())
+						v_dispersions = tuple(guns['dispersion_v'].values())
+						for r, h, v in zip(ranges, h_dispersions, v_dispersions):
+							m += f"**{float(r)/1000:1.1f} km :** {h:1.0f}m x {v:1.0f}m\n"
+					else:
+						m += f"**Dispersion @ Max Range:** {guns['dispersion_h'][str(int(guns['range']))]:1.0f}m x {guns['dispersion_v'][str(int(guns['range']))]:1.0f}m\n"
+					m += '-------------------\n'
+
 					if guns['max_damage']['he']:
 						m += f"**HE:** {guns['max_damage']['he']} (:fire: {guns['burn_probability']}%"
 						if guns['pen']['he'] > 0:
@@ -1923,9 +1935,12 @@ async def compare(context: commands.Context, value: str):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
-					if msg:
-						ships_to_compare += [get_ship_data(closest_match_string)]
+					try:
+						msg = await mackbot.wait_for("message", timeout=10, check=user_correction_check)
+						if msg:
+							ships_to_compare += [get_ship_data(closest_match_string)]
+					except asyncio.TimeoutError:
+						pass
 				else:
 					await context.send(embed=embed)
 					return
@@ -1989,6 +2004,8 @@ async def compare(context: commands.Context, value: str):
 						m += "**Reload**\n"
 						m += "**Transverse**\n"
 						m += "**Precision**\n"
+						m += "**Dispersion @ 10 km**\n"
+						m += "**Dispersion @ max range**\n"
 						m += "**HE Shell**\n"
 						m += "**HE DPM**\n"
 						m += "**AP Shell**\n"
@@ -2008,12 +2025,28 @@ async def compare(context: commands.Context, value: str):
 								m += f"{artillery['shotDelay']}s\n"
 								m += f"{artillery['transverse_speed']}{DEGREE_SYMBOL}/s\n"
 								m += f"{artillery['sigma']}{SIGMA_SYMBOL}\n"
-								m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
-								m += f"{artillery['gun_dpm']['he']}\n"
-								m += f"{artillery['max_damage']['ap']}\n"
-								m += f"{artillery['gun_dpm']['ap']}\n"
-								m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
-								m += f"{artillery['gun_dpm']['cs']}\n"
+								m += f"{artillery['dispersion_h']['10000']:1.0f}m x {artillery['dispersion_v']['10000']:1.0f}m\n"
+								m += f"{artillery['dispersion_h'][str(int(artillery['range']))]:1.0f}m x {artillery['dispersion_v'][str(int(artillery['range']))]:1.0f}m\n"
+								if artillery['max_damage']['he']:
+									m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
+									m += f"{artillery['gun_dpm']['he']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
+
+								if artillery['max_damage']['ap']:
+									m += f"{artillery['max_damage']['ap']}\n"
+									m += f"{artillery['gun_dpm']['ap']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
+
+								if artillery['max_damage']['cs']:
+									m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
+									m += f"{artillery['gun_dpm']['cs']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
 								m += f"{sum(v['numBarrels'] * v['count'] for k, v in artillery['turrets'].items()):1.0f} shells\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
