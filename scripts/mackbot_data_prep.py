@@ -618,8 +618,8 @@ def update_ship_modules():
 
 							h_disp_at_ideal = turret_data['idealRadius'] * 30
 							range_for_ideal = turret_data['idealDistance'] * 30
-							for r_i in range(5, 30, 5):
-								r = min(r_i * 1000, new_turret_data['range'])
+							for r_i in range(5, 35, 5):
+								r = min(r_i * 1000, int(new_turret_data['range']))
 
 								if r > new_turret_data['taperDist']:
 									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)

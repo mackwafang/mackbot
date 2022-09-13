@@ -1520,7 +1520,7 @@ async def ship(context: commands.Context, args: str):
 						for r, h, v in zip(ranges, h_dispersions, v_dispersions):
 							m += f"**{float(r)/1000:1.1f} km :** {h:1.0f}m x {v:1.0f}m\n"
 					else:
-						m += f"**Dispersion @ Max Range:** {guns['dispersion_h'][str(guns['range'])]:1.0f}m x {guns['dispersion_v'][str(guns['range'])]:1.0f}m\n"
+						m += f"**Dispersion @ Max Range:** {guns['dispersion_h'][str(int(guns['range']))]:1.0f}m x {guns['dispersion_v'][str(int(guns['range']))]:1.0f}m\n"
 					m += '-------------------\n'
 
 					if guns['max_damage']['he']:
@@ -2004,7 +2004,8 @@ async def compare(context: commands.Context, value: str):
 						m += "**Reload**\n"
 						m += "**Transverse**\n"
 						m += "**Precision**\n"
-						m += "**Dispersion**\n"
+						m += "**Dispersion @ 10 km**\n"
+						m += "**Dispersion @ max range**\n"
 						m += "**HE Shell**\n"
 						m += "**HE DPM**\n"
 						m += "**AP Shell**\n"
@@ -2024,13 +2025,28 @@ async def compare(context: commands.Context, value: str):
 								m += f"{artillery['shotDelay']}s\n"
 								m += f"{artillery['transverse_speed']}{DEGREE_SYMBOL}/s\n"
 								m += f"{artillery['sigma']}{SIGMA_SYMBOL}\n"
-								m += f"{artillery['dispersion_h'][str(artillery['range'])]:1.0f}m x {artillery['dispersion_v'][str(artillery['range'])]:1.0f}m\n"
-								m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
-								m += f"{artillery['gun_dpm']['he']}\n"
-								m += f"{artillery['max_damage']['ap']}\n"
-								m += f"{artillery['gun_dpm']['ap']}\n"
-								m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
-								m += f"{artillery['gun_dpm']['cs']}\n"
+								m += f"{artillery['dispersion_h']['10000']:1.0f}m x {artillery['dispersion_v']['10000']:1.0f}m\n"
+								m += f"{artillery['dispersion_h'][str(int(artillery['range']))]:1.0f}m x {artillery['dispersion_v'][str(int(artillery['range']))]:1.0f}m\n"
+								if artillery['max_damage']['he']:
+									m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
+									m += f"{artillery['gun_dpm']['he']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
+
+								if artillery['max_damage']['ap']:
+									m += f"{artillery['max_damage']['ap']}\n"
+									m += f"{artillery['gun_dpm']['ap']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
+
+								if artillery['max_damage']['cs']:
+									m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
+									m += f"{artillery['gun_dpm']['cs']}\n"
+								else:
+									m += "-\n"
+									m += "-\n"
 								m += f"{sum(v['numBarrels'] * v['count'] for k, v in artillery['turrets'].items()):1.0f} shells\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
