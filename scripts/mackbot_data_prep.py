@@ -81,6 +81,19 @@ try:
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected.")
 
+def lerp(a, b, t):
+	"""
+	Returns the linear interpolation between a and b given t
+	Args:
+		a ():
+		b ():
+		t ():
+
+	Returns:
+
+	"""
+	return ((1 - t) * a) + (t * b)
+
 
 def load_game_params():
 	global game_data
@@ -537,6 +550,7 @@ def update_ship_modules():
 									'bomb_pen': int(projectile['alphaPiercingHE']),
 									'squad_size': int(plane['numPlanesInSquadron']),
 									'payload': int(plane['attackCount']),
+									'range': airsup_info['maxDist'],
 								}
 
 						# depth charges armaments
@@ -569,8 +583,8 @@ def update_ship_modules():
 							'burn_probability': 0,
 							'sigma': 0,
 							'range': 0,
-							'dispersion_h': 0,
-							'dispersion_v': 0,
+							'dispersion_h': {},
+							'dispersion_v': {},
 							'transverse_speed': 0,
 							'pen': {'he': 0, 'ap': 0, 'cs': 0},
 							'max_damage': {'he': 0, 'ap': 0, 'cs': 0},
@@ -585,11 +599,15 @@ def update_ship_modules():
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
 						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
 						new_turret_data['range'] = module_data[gun]['maxDist']
+						new_turret_data['taperDist'] = module_data[gun]['taperDist']
 
 						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						for turret_data in gun:  # for each turret
 							# add turret type and count
+							# find dispersion
+							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/
 							turret_name = game_data[turret_data['name']]['name']
+
 							if turret_name not in new_turret_data['turrets']:
 								new_turret_data['turrets'][turret_name] = {
 									'numBarrels': int(turret_data['numBarrels']),
@@ -598,11 +616,26 @@ def update_ship_modules():
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1
 
+							h_disp_at_ideal = turret_data['idealRadius'] * 30
+							range_for_ideal = turret_data['idealDistance'] * 30
+							for r_i in range(5, 30, 5):
+								r = min(r_i * 1000, new_turret_data['range'])
+
+								if r > new_turret_data['taperDist']:
+									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)
+								else:
+									h_disp = lerp(0, h_disp_at_ideal, r / range_for_ideal)
+								v_disp = h_disp * turret_data['radiusOnMax']
+
+								new_turret_data['dispersion_h'][str(r)] = round(h_disp)
+								new_turret_data['dispersion_v'][str(r)] = round(v_disp)
+
 							# get caliber, reload, and number of guns per turret
 							new_turret_data['caliber'] = turret_data['barrelDiameter']
 							new_turret_data['shotDelay'] = turret_data['shotDelay']
 							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
 							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
+
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:
 								ammo = game_data[a]
@@ -979,7 +1012,7 @@ def post_process():
 	logger.info("Creating hash digest")
 	dictionaries = (ship_list, skill_list, module_list, upgrade_list, camo_list, cmdr_list, flag_list, legendary_upgrade_list, upgrade_list, consumable_list, upgrade_abbr_list)
 	for d in dictionaries:
-		for k, v in d.items():
+		for k in d:
 			d[k]['hash'] = sha256(str(d[k]).encode()).hexdigest()
 
 def get_ship_by_id(value: int) -> dict:
