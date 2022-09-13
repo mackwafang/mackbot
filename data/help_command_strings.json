@@ -207,5 +207,15 @@
 		"brief": "Provide feedback to the developer",
 		"usage": "",
 		"description": ["Provide feedback to the developer"]
+	},
+	"cook": {
+		"brief": "Make wontons",
+		"usage": "",
+		"description": ["Make wonton"]
+	},
+	"wontons": {
+		"brief": "Check your wonton count",
+		"usage": "",
+		"description": ["Check your wonton count"]
 	}
 }

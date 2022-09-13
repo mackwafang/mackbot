@@ -2305,6 +2305,10 @@ async def show(context: commands.Context):
 @app_commands.rename(args="query")
 @app_commands.describe(args="Query to list items")
 async def skills(context: commands.Context, args: Optional[str]=""):
+	# check if *not* slash command,
+	if context.clean_prefix != '/':
+		args = ' '.join(context.message.content.split()[3:])
+
 	# list all skills
 	search_param = args.split()
 	search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
@@ -2365,6 +2369,11 @@ async def skills(context: commands.Context, args: Optional[str]=""):
 @app_commands.describe(args="Query to list items")
 async def upgrades(context: commands.Context, args: Optional[str]=""):
 	# list upgrades
+
+	# check if *not* slash command,
+	if context.clean_prefix != '/':
+		args = ' '.join(context.message.content.split()[3:])
+
 	embed = None
 	try:
 		# parsing search parameters
@@ -2480,6 +2489,10 @@ async def upgrades(context: commands.Context, args: Optional[str]=""):
 # @show.command()
 async def ships(context: commands.Context, args: Optional[str]=""):
 	# parsing search parameters
+	# check if *not* slash command,
+	if context.clean_prefix != '/':
+		args = ' '.join(context.message.content.split()[3:])
+
 	search_param = args.split()
 	s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
 
