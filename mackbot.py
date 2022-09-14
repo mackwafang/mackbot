@@ -1061,7 +1061,7 @@ async def build(context: commands.Context, args: str):
 		args = ' '.join(context.message.content.split()[2:])
 
 	if len(args) == 0:
-		await help(context, "build")
+		await bot_help(context, "build")
 	else:
 		args = args.split()
 		send_image_build = args[0] in ["--image", "-i"]
@@ -1290,7 +1290,7 @@ async def ship(context: commands.Context, args: str):
 
 	# message parse
 	if len(args) == 0:
-		await help(context, "ship")
+		await bot_help(context, "ship")
 	else:
 		args = args.split()
 		send_compact = args[0] in ['--compact', '-c']
@@ -1908,14 +1908,14 @@ async def compare(context: commands.Context, value: str):
 		args = value
 
 	if len(args) == 0:
-		await help(context, "compare")
+		await bot_help(context, "compare")
 	else:
 		# args = ' '.join(args) # join arguments to split token
 		# user_input_ships = args.replace("and", "&").split("&")
 		compare_separator = ("and", "vs", "v")
 		user_input_ships = re.sub(f"\\s{compare_separator}\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
-			await help(context, "compare")
+			await bot_help(context, "compare")
 			return
 		# parse whitespace
 		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
@@ -2580,7 +2580,7 @@ async def upgrade(context: commands.Context, upgrade_name: str):
 	# get information on requested upgrade
 	if not upgrade_name:
 		# argument is empty, send help message
-		await help(context, "upgrade")
+		await bot_help(context, "upgrade")
 	else:
 		# getting appropriate search function
 		try:
@@ -2977,7 +2977,7 @@ async def player(context: commands.Context, value: str):
 				traceback.print_exc()
 		await context.send(embed=embed)
 	else:
-		await help(context, "player")
+		await bot_help(context, "player")
 
 @mackbot.hybrid_command(name="clan", description="Get some basic information about a clan")
 @app_commands.rename(args="clan")
@@ -3081,7 +3081,7 @@ async def clan(context: commands.Context, args: str):
 
 			await context.send(embed=embed)
 	else:
-		await help(context, "clan")
+		await bot_help(context, "clan")
 
 @mackbot.command()
 async def commander(context, *args):
@@ -3247,7 +3247,7 @@ async def code(context, args: str):
 		args = ' '.join(context.message.content.split()[2:])
 
 	if len(args) == 0:
-		await help(context, "code")
+		await bot_help(context, "code")
 	else:
 		s = ""
 		# find region
@@ -3308,7 +3308,7 @@ async def cook(context: commands.Context):
 async def wontons(context: commands.Context):
 	await wonton_count(context, database_client.mackbot_fun)
 
-@mackbot.hybrid_command(name="support", description="Check wontons inventory")
+@mackbot.hybrid_command(name="support", description="Get mackbot's support Discord server")
 async def support(context: commands.Context):
 	await context.send(discord_invite_url)
 
