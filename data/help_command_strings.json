@@ -25,7 +25,7 @@
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		],
 		"options": {
-			"-p/--parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
+			"<-p, --parameters> parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
 		}
 	},
 	"compare": {
@@ -137,11 +137,14 @@
 	},
 	"code": {
 		"brief": "Generate a WoWS bonus code link",
-		"usage": "wows_code...",
+		"usage": "[region] wows_code...",
 		"description": [
 			"Generate a WoWS bonus code link.",
 			"For multiple links, separate the codes with spaces."
-		]
+		],
+		"options": {
+			"[region]": "Optional. Switch to different regions. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**."
+		}
 	},
 	"hottake": {
 		"brief": "Give a WoWS hot take",
@@ -155,6 +158,7 @@
 		"usage": "player_name [options]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
+			"Please note that this command currently works for the **NA region**.",
 			"",
 			"Usage example:",
 			"\tmackbot player username (Get information about your account)",
@@ -217,5 +221,10 @@
 		"brief": "Check your wonton count",
 		"usage": "",
 		"description": ["Check your wonton count"]
+	},
+	"support": {
+		"brief": "Get mackbot's support Discord server",
+		"usage": "",
+		"description": ["Get mackbot's support Discord server"]
 	}
 }
