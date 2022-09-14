@@ -155,6 +155,7 @@
 		"usage": "player_name [options]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
+			"Please note that this command currently works for the **NA region**.",
 			"",
 			"Usage example:",
 			"\tmackbot player username (Get information about your account)",

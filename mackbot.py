@@ -234,11 +234,13 @@ DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
 EMPTY_LENGTH_CHAR = '\u200b'
 
+WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
+
 ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|((page )(\d{1,2}))|(([aA]ircraft [cC]arrier[sS]?)|((\w|-)*))')
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
-player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--tier (.*))')
+player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--tier (.*))|(--region (.*))')
 
 good_bot_messages = (
 	'Thank you!',
@@ -1909,7 +1911,8 @@ async def compare(context: commands.Context, value: str):
 	else:
 		# args = ' '.join(args) # join arguments to split token
 		# user_input_ships = args.replace("and", "&").split("&")
-		user_input_ships = re.sub("\\sand\s", " & ", args, flags=re.I).split("&")
+		compare_separator = ("and", "vs", "v")
+		user_input_ships = re.sub(f"\\s{compare_separator}\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
 			await help(context, "compare")
 			return
@@ -2101,8 +2104,8 @@ async def compare(context: commands.Context, value: str):
 								module = get_module_data(mid)
 								torp = module['profile']['torpedoes']
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
-								m += f"{torp['range']} km\n"
-								m += f"{torp['spotting_range']} km\n"
+								m += f"{torp['range']:1.1f} km\n"
+								m += f"{torp['spotting_range']:1.1f} km\n"
 								m += f"{torp['max_damage']:1.0f}\n"
 								m += f"{torp['shotDelay']:1.1f}s\n"
 								m += f"{torp['torpedo_speed']:1.0f} kts.\n"
@@ -2697,7 +2700,7 @@ async def upgrade(context: commands.Context, upgrade_name: str):
 			await context.send(embed=embed)
 			await correct_user_misspell(context, 'upgrade', closest_match[0])
 
-@mackbot.hybrid_command(name="player", description="Get information about a player")
+@mackbot.hybrid_command(name="player", description="Get information about a player.")
 @app_commands.describe(
 	value="Player name. For optional arguments, see mackbot help player or /player help"
 )
@@ -2722,7 +2725,9 @@ async def player(context: commands.Context, value: str):
 					optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]])[:-1])[0]
 					battle_type = optional_args[0] # [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
 					ship_filter = optional_args[2] # ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
-					# ship_type_filter = [option[4] for option in optional_args if len(option[4])] # filter ship listing, same rule as list ships
+					player_region = optional_args[4] # filter ship listing, same rule as list ships
+					if player_region not in WOWS_REALMS:
+						player_region = 'na'
 				else:
 					optional_args = [''] * 5
 					battle_type = ''
@@ -2753,9 +2758,9 @@ async def player(context: commands.Context, value: str):
 				if player_id:
 					player_name = player_id_results[0]['nickname']
 					if battle_type == 'pvp':
-						player_general_stats = WG.account.info(account_id=player_id, language='en')[player_id]
+						player_general_stats = WG.account.info(account_id=player_id, region=player_region, language='en')[player_id]
 					else:
-						player_general_stats = WG.account.info(account_id=player_id, extra="statistics."+battle_type, language='en')[player_id]
+						player_general_stats = WG.account.info(account_id=player_id, region=player_region, language='en', extra="statistics."+battle_type, )[player_id]
 					player_account_hidden = player_general_stats['hidden_profile']
 
 					if player_account_hidden:
@@ -3009,7 +3014,7 @@ async def clan(context: commands.Context, args: str):
 			# get clan information
 
 			async with context.typing():
-				clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+				clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], region='na', extra='members')[str(selected_clan['clan_id'])]
 				clan_id = clan_detail['clan_id']
 				embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
 				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
