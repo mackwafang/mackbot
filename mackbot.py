@@ -1010,7 +1010,7 @@ async def on_command_error(context: commands.Context, error: commands.errors):
 	logger.warning(f"Command failed: {error}")
 	if type(error) == commands.errors.MissingRequiredArgument:
 		# send help message when missing required argument
-		await help(context, context.invoked_with)
+		await bot_help(context, context.invoked_with)
 	elif type(error) == commands.errors.CommandNotFound:
 		await context.send(f"Command is not understood.\n")
 		logger.warning(f"{context.command} is not a command")

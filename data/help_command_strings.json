@@ -25,7 +25,7 @@
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		],
 		"options": {
-			"-p/--parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
+			"<-p, --parameters> parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
 		}
 	},
 	"compare": {
@@ -143,7 +143,7 @@
 			"For multiple links, separate the codes with spaces."
 		],
 		"options": {
-			"[region]": "Optional. Switch to different regions. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**.",
+			"[region]": "Optional. Switch to different regions. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**."
 		}
 	},
 	"hottake": {
