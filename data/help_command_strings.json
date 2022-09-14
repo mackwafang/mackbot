@@ -137,11 +137,14 @@
 	},
 	"code": {
 		"brief": "Generate a WoWS bonus code link",
-		"usage": "wows_code...",
+		"usage": "[region] wows_code...",
 		"description": [
 			"Generate a WoWS bonus code link.",
 			"For multiple links, separate the codes with spaces."
-		]
+		],
+		"options": {
+			"[region]": "Optional. Switch to different regions. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**.",
+		}
 	},
 	"hottake": {
 		"brief": "Give a WoWS hot take",
@@ -218,5 +221,10 @@
 		"brief": "Check your wonton count",
 		"usage": "",
 		"description": ["Check your wonton count"]
+	},
+	"support": {
+		"brief": "Get mackbot's support Discord server",
+		"usage": "",
+		"description": ["Get mackbot's support Discord server"]
 	}
 }

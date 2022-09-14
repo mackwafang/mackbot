@@ -19,5 +19,6 @@
 	"web": true,
 	"compare": true,
 	"commands": true,
-	"cook": true
+	"cook": true,
+	"support": true
 }

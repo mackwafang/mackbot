@@ -141,6 +141,7 @@ else:
 		sheet_id = data['sheet_id']
 		bot_invite_url = data['bot_invite_url']
 		mongodb_host = data['mongodb_host']
+		discord_invite_url = data['discord_invite_url']
 		command_prefix = data['command_prefix'] if 'command_prefix' in data else 'mackbot'
 
 with open(os.path.join(os.getcwd(), "data", "command_list.json")) as f:
@@ -3249,8 +3250,16 @@ async def code(context, args: str):
 		await help(context, "code")
 	else:
 		s = ""
-		for c in args.split():
-			s += f"**{c.upper()}** https://na.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
+		# find region
+		if args.split()[0].lower() in WOWS_REALMS:
+			region = args.split()[0].lower()
+			has_region_option = True
+		else:
+			region = 'na'
+			has_region_option = False
+
+		for c in args.split()[1:] if has_region_option else args.split():
+			s += f"**{c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
 			logger.info(f"returned a wargaming bonus code link with code {c}")
 		await context.send(s)
 
@@ -3298,6 +3307,10 @@ async def cook(context: commands.Context):
 @mackbot.hybrid_command(name="wontons", description="Check wontons inventory")
 async def wontons(context: commands.Context):
 	await wonton_count(context, database_client.mackbot_fun)
+
+@mackbot.hybrid_command(name="support", description="Check wontons inventory")
+async def support(context: commands.Context):
+	await context.send(discord_invite_url)
 
 @mackbot.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
 @app_commands.describe(help_key="Command or WoWS terminology")
