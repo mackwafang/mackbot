@@ -1913,7 +1913,7 @@ async def compare(context: commands.Context, value: str):
 		# args = ' '.join(args) # join arguments to split token
 		# user_input_ships = args.replace("and", "&").split("&")
 		compare_separator = ("and", "vs", "v")
-		user_input_ships = re.sub(f"\\s{compare_separator}\s", " & ", args, flags=re.I).split("&")
+		user_input_ships = re.sub(f"\\s{'|'.join(compare_separator)}\s", " & ", args, flags=re.I).split("&")
 		if len(user_input_ships) != 2:
 			await bot_help(context, "compare")
 			return
