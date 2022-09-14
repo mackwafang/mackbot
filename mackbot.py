@@ -3296,7 +3296,7 @@ async def wontons(context: commands.Context):
 
 @mackbot.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
 @app_commands.describe(help_key="Command or WoWS terminology")
-async def help(context: commands.Context, help_key: str):
+async def bot_help(context: commands.Context, help_key: Optional[str]=""):
 	help_key = help_key.lower()
 	logger.info(f"can i haz halp for {help_key}")
 	if len(help_key):
