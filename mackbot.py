@@ -269,7 +269,7 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
-player_arg_filter_regex = re.compile('(?:--type (solo|div2|div3))|(?:--ship (.+?(?= -)))|(?:--tier (\d+))|(?:--region (na|eu|ru|asia))')
+player_arg_filter_regex = re.compile('(?:--type (solo|div2|div3))|(?:--ship (.+?(?= -|$)))|(?:--tier (\d+))|(?:--region (na|eu|ru|asia))')
 
 good_bot_messages = (
 	'Thank you!',
@@ -2757,10 +2757,11 @@ async def player(context: commands.Context, value: str):
 					if '-' in ship_filter:
 						# if some how user adds a --tier, remove this (i sucks at regex)
 						ship_filter = ship_filter.split("-")[0][:-1]
-					player_region = [i[3] for i in optional_args if len(i[3])][0].lower() # filter ship listing, same rule as list ships
+					player_region = [i[3] for i in optional_args if len(i[3])]# filter ship listing, same rule as list ships
 
 					battle_type = battle_type[0] if len(battle_type) else ''
 					ship_filter = ship_filter[0] if len(ship_filter) else ''
+					player_region = player_region[0] if len(player_region) else ''
 					if player_region not in WOWS_REALMS:
 						player_region = 'na'
 				else:
