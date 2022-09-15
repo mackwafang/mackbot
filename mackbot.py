@@ -270,6 +270,7 @@ skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:c
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
 player_arg_filter_regex = re.compile('(?:--type (solo|div2|div3))|(?:--ship (.+?(?= -|$)))|(?:--tier (\d+))|(?:--region (na|eu|ru|asia))')
+clan_filter_regex = re.compile('(.+?(?= -|$))(?: --region (na|eu|ru|asia))?')
 
 good_bot_messages = (
 	'Thank you!',
@@ -3034,17 +3035,19 @@ async def clan(context: commands.Context, args: str):
 
 	if args:
 		# grab optional args
-		optional_args = player_arg_filter_regex.findall(' '.join(args))
-		if optional_args:
-			clan_region = optional_args[4] # filter ship listing, same rule as list ships
-			if clan_region not in WOWS_REALMS:
-				clan_region = 'na'
-		else:
+		optional_args = clan_filter_regex.findall(' '.join(args))[0]
+
+		search_term = optional_args[0]
+		clan_region = optional_args[1] # filter ship listing, same rule as list ships
+
+		if clan_region not in WOWS_REALMS:
 			clan_region = 'na'
 
+		if not search_term:
+			await bot_help(context, "clan")
+			return
 
-		user_input = args
-		clan_search = WG[clan_region].clans.list(search=user_input)
+		clan_search = WG[clan_region].clans.list(search=search_term)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
@@ -3052,7 +3055,7 @@ async def clan(context: commands.Context, args: str):
 				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_discord_format(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
 				view = UserSelection(context.author, 15, "Select a clan", clan_options)
 
-				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
+				embed = discord.Embed(title=f"Search result for clan {search_term}", description="")
 				embed.description += "**mackbot found the following clans**\n"
 				embed.description += '\n'.join(i.label for i in clan_options)
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
@@ -3071,69 +3074,69 @@ async def clan(context: commands.Context, args: str):
 			# output clan information
 			# get clan information
 
-			async with context.typing():
-				clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
-				clan_id = clan_detail['clan_id']
-				embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
-				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
+			clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+			clan_id = clan_detail['clan_id']
+			embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
+			embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
-				clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
-				clan_age_day = clan_age % 30
-				clan_age_month = (clan_age // 30) % 12
-				clan_age_year = clan_age // (12 * 30)
-				clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
-				m = f"**Leader: **{clan_detail['leader_name']}\n"
-				m += f"**Created at: **{clan_created_at_str} ("
-				if clan_age_year:
-					m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
-				if clan_age_month:
-					m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
-				if clan_age_day:
-					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
-				m += ')\n'
-				if clan_detail['old_tag'] and clan_detail['old_name']:
-					m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
-				m += f"**Members: ** {clan_detail['members_count']}\n"
-				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+			clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
+			clan_age_day = clan_age % 30
+			clan_age_month = (clan_age // 30) % 12
+			clan_age_year = clan_age // (12 * 30)
+			clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
+			m = f"**Leader: **{clan_detail['leader_name']}\n"
+			m += f"**Created at: **{clan_created_at_str} ("
+			if clan_age_year:
+				m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
+			if clan_age_month:
+				m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
+			if clan_age_day:
+				m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
+			m += ')\n'
+			if clan_detail['old_tag'] and clan_detail['old_name']:
+				m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
+			m += f"**Members: ** {clan_detail['members_count']}\n"
+			m += f"**Region: ** {clan_region}\n"
+			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
 
-				if clan_detail['description']:
-					embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
-				# update clan history for member transfer feature
-				# check clan in data
-				history_output = []
-				if clan_id in clan_history:
-					# check differences
-					new_member_list = clan_detail['members']
-					previous_member_list = clan_history[clan_id]['members']
-					members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
-					members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
-					for m in members_out:
-						history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
-					for m in members_in:
-						history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
+			if clan_detail['description']:
+				embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
+			# update clan history for member transfer feature
+			# check clan in data
+			history_output = []
+			if clan_id in clan_history:
+				# check differences
+				new_member_list = clan_detail['members']
+				previous_member_list = clan_history[clan_id]['members']
+				members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
+				members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
+				for m in members_out:
+					history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
+				for m in members_in:
+					history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
 
-					# check if last update was at least a week ago
-					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
-						# update history
-						clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
-				else:
-					# not in history, add to history
+				# check if last update was at least a week ago
+				if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
+					# update history
 					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+			else:
+				# not in history, add to history
+				clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
 
-				if history_output:
-					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
+			if history_output:
+				embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
 
-				# output members
-				members_per_column = 10
-				clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
-				for i in range(0, 50, members_per_column):
-					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
-					if sliced_member_list:
-						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
+			# output members
+			members_per_column = 10
+			clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
+			for i in range(0, 50, members_per_column):
+				sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
+				if sliced_member_list:
+					embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
 			await context.send(embed=embed)
 		else:
 			# no clan matches search
-			embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
+			embed = discord.Embed(title=f"Search result for clan {search_term}", description="")
 			embed.description += "Clan not found"
 
 			await context.send(embed=embed)
