@@ -158,7 +158,6 @@
 		"usage": "player_name [options]",
 		"description": [
 			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
-			"Please note that this command currently works for the **NA region**.",
 			"",
 			"Usage example:",
 			"\tmackbot player username (Get information about your account)",
@@ -166,19 +165,19 @@
 		],
 		"options": {
 			"--type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
-			"--region <type>": "Select region where player is located. Acceptable values: \"**na**, **eu**, **asia**, **ru**\"",
+			"--region <type>": "Select region where player is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**",
 			"--ship <ship_name>": "Display which ship to display.",
 			"--tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
 		}
 	},
 	"clan": {
 		"brief": "Provide general information about a WoWS clan",
-		"usage": "clan_name/clan_tag",
+		"usage": "clan_name/clan_tag [options]",
 		"description": [
 			"Show clan information"
 		],
 		"options": {
-			"--region <type>": "Select region where clan is located. Acceptable values: \"**na**, **eu**, **asia**, **ru**\""
+			"--region <type>": "Select region where clan is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**"
 		}
 	},
 	"invite": {

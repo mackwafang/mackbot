@@ -3096,8 +3096,8 @@ async def clan(context: commands.Context, args: str):
 			if clan_detail['old_tag'] and clan_detail['old_name']:
 				m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
 			m += f"**Members: ** {clan_detail['members_count']}\n"
-			m += f"**Region: ** {clan_region}\n"
-			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+			m += f"**Region: ** {clan_region.upper()}\n"
+			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
 
 			if clan_detail['description']:
 				embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
