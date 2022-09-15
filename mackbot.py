@@ -3246,17 +3246,18 @@ async def code(context, args: str):
 	if context.clean_prefix != '/':
 		args = ' '.join(context.message.content.split()[2:])
 
-	if len(args) == 0:
+	# find region
+	if args.split()[0].lower() in WOWS_REALMS:
+		region = args.split()[0].lower()
+		has_region_option = True
+	else:
+		region = 'na'
+		has_region_option = False
+
+	if len(args) == 0 or (has_region_option and len(args) == 1):
 		await bot_help(context, "code")
 	else:
 		s = ""
-		# find region
-		if args.split()[0].lower() in WOWS_REALMS:
-			region = args.split()[0].lower()
-			has_region_option = True
-		else:
-			region = 'na'
-			has_region_option = False
 
 		for c in args.split()[1:] if has_region_option else args.split():
 			s += f"**{c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
