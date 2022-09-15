@@ -1,3 +1,5 @@
+import pprint
+
 import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
@@ -118,8 +120,39 @@ ship_build = {}
 help_dictionary = {}
 consumable_list = {}
 help_dictionary_index = {}
-ship_build_competitive = None
-ship_build_casual = None
+ship_list_simple = {}
+
+# icons for prettifying outputs
+icons_emoji = {
+	"torp": "<:torp:917573129579151392>",
+	"dd": "<:destroyer:917573129658859573>",
+	"gun": "<:gun:917573129730146325>",
+	"bb_prem": "<:battleship_premium:917573129801449563>",
+	"plane_torp": "<:plane_torpedo:917573129847590993>",
+	"ss_prem": "<:submarine_premium:917573129851764776>",
+	"ss": "<:submarine:917573129876955147>",
+	"bb": "<:battleship:917573129876959232>",
+	"cv": "<:carrier:917573129931477053>",
+	"c": "<:cruiser:917573129885323374>",
+	"dd_prem": "<:destroyer_premium:917573129944059965>",
+	"plane_rocket": "<:plane_projectile:917573129956638750>",
+	"c_prem": "<:cruiser_premium:917573129965027398>",
+	"cv_prem": "<:carrier_premium:917573130019557416>",
+	"plane_bomb": "<:plane_bomb:917573130023759893>",
+	"penetration": "<:penetration:917583397122084864>",
+	"ap": "<:ap:917585790765252608>",
+	"he": "<:he:917585790773653536>",
+	"sap": "<:sap:917585790811402270>",
+	"reload": "<:reload:917585790815584326>",
+	"range": "<:range:917589573415088178>",
+	"aa": "<:aa:917590394806599780>",
+	"plane": "<:plane:917601379235815524>",
+	"concealment": "<:concealment:917605435278782474>",
+	"clan_in": "<:clan_in:952757125225021450>",
+	"clan_out": "<:clan_out:952757125237575690>",
+	"green_plus": "<:green_plus:979497350869450812>",
+	"red_dash": "<:red_dash:979497350911385620>",
+}
 
 # dictionary to convert user inputted ship name to non-ascii ship name
 with open(os.path.join(os.getcwd(), "data", "ship_name_dict.json"), 'r', encoding='utf-8') as f:
@@ -155,6 +188,16 @@ try:
 
 	data_loader.load_game_params()
 	game_data = data_loader.game_data.copy()
+	# this exists because of the player function to quickly fetch some ship data
+	db_ship_list = database_client.mackbot_db.ship_list.find({}, {"_id": 0})
+	for ship in db_ship_list:
+		ship_list_simple[str(ship['ship_id'])] = {
+			"name": ship['name'],
+			"tier": ship['tier'],
+			"nation": ship['nation'],
+			"type": ship['type'],
+			"emoji": icons_emoji[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
+		}
 
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected. Loading data from local")
@@ -169,6 +212,18 @@ except ConnectionError:
 	upgrade_abbr_list = data_loader.upgrade_abbr_list.copy()
 	consumable_list = data_loader.consumable_list.copy()
 	game_data = data_loader.game_data.copy()
+
+	# this exists because of the player function to quickly fetch some ship data
+	for i in ship_list:
+		ship = ship_list[i]
+		ship_list_simple[i] = {
+			"name": ship['name'],
+			"tier": ship['tier'],
+			"nation": ship['nation'],
+			"type": ship['type'],
+			"emoji": icons_emoji[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
+		}
+
 del data_loader
 
 # define bot stuff
@@ -183,49 +238,22 @@ mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_comma
 # nfw = nfw.NonFungibleWarships(mackbot)
 
 # get weegee's wows encyclopedia
-WG = wargaming.WoWS(wg_token, region='na', language='en')
-wows_encyclopedia = WG.encyclopedia
+WG = {
+	'na': wargaming.WoWS(wg_token, region='na', language='en'),
+	'asia': wargaming.WoWS(wg_token, region='asia', language='en'),
+	'eu': wargaming.WoWS(wg_token, region='eu', language='en'),
+	'ru': wargaming.WoWS(wg_token, region='ru', language='en'),
+}
+wows_encyclopedia = WG['na'].encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 
-clan_roles = WG.clans.glossary()['clans_roles']
+clan_roles = WG['na'].clans.glossary()['clans_roles']
 clan_history = {}
 clan_history_file_path = os.path.join(os.getcwd(), "data", "clan_history")
 if os.path.exists(clan_history_file_path):
 	with open(clan_history_file_path, 'rb') as f:
 		clan_history = pickle.load(f)
-
-# icons for prettifying outputs
-icons_emoji = {
-	"torp": "<:torp:917573129579151392>",
-	"dd": "<:destroyer:917573129658859573>",
-	"gun": "<:gun:917573129730146325>",
-	"bb_prem": "<:battleship_premium:917573129801449563>",
-	"plane_torp": "<:plane_torpedo:917573129847590993>",
-	"ss_prem": "<:submarine_premium:917573129851764776>",
-	"ss": "<:submarine:917573129876955147>",
-	"bb": "<:battleship:917573129876959232>",
-	"cv": "<:carrier:917573129931477053>",
-	"c": "<:cruiser:917573129885323374>",
-	"dd_prem": "<:destroyer_premium:917573129944059965>",
-	"plane_rocket": "<:plane_projectile:917573129956638750>",
-	"c_prem": "<:cruiser_premium:917573129965027398>",
-	"cv_prem": "<:carrier_premium:917573130019557416>",
-	"plane_bomb": "<:plane_bomb:917573130023759893>",
-	"penetration": "<:penetration:917583397122084864>",
-	"ap": "<:ap:917585790765252608>",
-	"he": "<:he:917585790773653536>",
-	"sap": "<:sap:917585790811402270>",
-	"reload": "<:reload:917585790815584326>",
-	"range": "<:range:917589573415088178>",
-	"aa": "<:aa:917590394806599780>",
-	"plane": "<:plane:917601379235815524>",
-	"concealment": "<:concealment:917605435278782474>",
-	"clan_in": "<:clan_in:952757125225021450>",
-	"clan_out": "<:clan_out:952757125237575690>",
-	"green_plus": "<:green_plus:979497350869450812>",
-	"red_dash": "<:red_dash:979497350911385620>",
-}
 
 logger.info("Fetching Maps")
 map_list = wows_encyclopedia.battlearenas()
@@ -241,7 +269,8 @@ ship_list_regex = re.compile('((tier )(\d{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))
 skill_list_regex = re.compile('((?:battleship|[bB]{2})|(?:carrier|[cC][vV])|(?:cruiser|[cC][aAlL]?)|(?:destroyer|[dD]{2})|(?:submarine|[sS]{2}))|page (\d{1,2})|tier (\d{1,2})')
 equip_regex = re.compile('(slot (\d))|(tier ([0-9]{1,2}|([iI][vV|xX]|[vV|xX]?[iI]{0,3})))|(page (\d{1,2}))|((defensive aa fire)|(main battery)|(aircraft carrier[sS]?)|(\w|-)*)')
 ship_param_filter_regex = re.compile('((hull|health|hp)|(guns?|artiller(?:y|ies))|(secondar(?:y|ies))|(torp(?:s|edo)? bombers?)|(torp(?:s|edo(?:es)?)?)|((?:dive )?bombers?)|(rockets?|attackers?)|(speed)|(aa|anti-air)|(concealment|dectection)|(consumables?)|(upgrades?))*')
-player_arg_filter_regex = re.compile('(solo|div2|div3)|(--ship (.*))|(--tier (.*))|(--region (.*))')
+player_arg_filter_regex = re.compile('(?:--type (solo|div2|div3))|(?:--ship (.+?(?= -|$)))|(?:--tier (\d+))|(?:--region (na|eu|ru|asia))')
+clan_filter_regex = re.compile('(.+?(?= -|$))(?: --region (na|eu|ru|asia))?')
 
 good_bot_messages = (
 	'Thank you!',
@@ -2324,7 +2353,7 @@ async def skills(context: commands.Context, args: Optional[str]=""):
 		filtered_skill_list = skill_list.copy()
 
 	# filter by ship class
-	ship_class = [i[0] for i in search_param if len(i[0]) > 0]
+	ship_class = [i[0] for i in search_param if len(i[0])]
 	# convert hull classification to ship type full name
 	ship_class = ship_class[0] if len(ship_class) >= 1 else ''
 	if len(ship_class) > 0:
@@ -2716,52 +2745,62 @@ async def player(context: commands.Context, value: str):
 		username = args[0][:24]
 		async with context.typing():
 			try:
-				player_id_results = WG.account.list(search=username, type='exact', language='en')
-				player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 				battle_type = 'pvp'
 				battle_type_string = 'Random'
+				player_region = 'na'
 
 				# grab optional args
 				if len(args) > 1:
-					optional_args = player_arg_filter_regex.findall(''.join([i + ' ' for i in args[1:]])[:-1])[0]
-					battle_type = optional_args[0] # [option[0] for option in optional_args if len(option[0])] # get stats by battle division/solo
-					ship_filter = optional_args[2] # ''.join(option[2] for option in optional_args if len(option[2]))[:-1] # get filter type by ship name
-					player_region = optional_args[4] # filter ship listing, same rule as list ships
+					optional_args = player_arg_filter_regex.findall(' '.join(args[1:]))
+
+					battle_type = [i[0] for i in optional_args if len(i[0])]
+					ship_filter = [i[1] for i in optional_args if len(i[1])]
+					if '-' in ship_filter:
+						# if some how user adds a --tier, remove this (i sucks at regex)
+						ship_filter = ship_filter.split("-")[0][:-1]
+					player_region = [i[3] for i in optional_args if len(i[3])]# filter ship listing, same rule as list ships
+
+					battle_type = battle_type[0] if len(battle_type) else ''
+					ship_filter = ship_filter[0] if len(ship_filter) else ''
+					player_region = player_region[0] if len(player_region) else ''
 					if player_region not in WOWS_REALMS:
 						player_region = 'na'
 				else:
 					optional_args = [''] * 5
-					battle_type = ''
 					ship_filter = ''
 
+				player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
+				player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
+
 				try:
-					ship_tier_filter = int(optional_args[4])# int(''.join([i[2] for i in ship_type_filter]))
-				except ValueError:
-					ship_tier_filter = ''
-				# ship_search_key = [i[7] for i in ship_type_filter if len(i[7]) > 1]
+					ship_tier_filter = int([i[2] for i in optional_args if len(i[2])][0])
+				except (ValueError, IndexError):
+					ship_tier_filter = 0
 				try:
 					# convert user specified specific stat to wg values
 					battle_type = {
+						"pvp": "pvp",
 						"solo": "pvp_solo",
 						"div2": "pvp_div2",
 						"div3": "pvp_div3",
-					}[battle_type[0]]
+					}[battle_type]
 
 					battle_type_string = {
+						"pvp": "Random",
 						"pvp_solo": "Solo Random",
-						"pvp_div2": "2-man Division",
-						"pvp_div3": "3-man Division",
+						"pvp_div2": "2-man Random Division",
+						"pvp_div3": "3-man Random Division",
 					}[battle_type]
-				except IndexError:
+				except (IndexError, KeyError):
 					battle_type = 'pvp'
 
 				embed = discord.Embed(title=f"Search result for player {escape_discord_format(username)}", description='')
 				if player_id:
 					player_name = player_id_results[0]['nickname']
 					if battle_type == 'pvp':
-						player_general_stats = WG.account.info(account_id=player_id, region=player_region, language='en')[player_id]
+						player_general_stats = WG[player_region].account.info(account_id=player_id, language='en')[player_id]
 					else:
-						player_general_stats = WG.account.info(account_id=player_id, region=player_region, language='en', extra="statistics."+battle_type, )[player_id]
+						player_general_stats = WG[player_region].account.info(account_id=player_id, language='en', extra="statistics."+battle_type, )[player_id]
 					player_account_hidden = player_general_stats['hidden_profile']
 
 					if player_account_hidden:
@@ -2773,12 +2812,12 @@ async def player(context: commands.Context, value: str):
 						player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 						player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 						player_last_battle_months = int(player_last_battle_days // 30)
-						player_clan_id = WG.clans.accountinfo(account_id=player_id, language='en')
+						player_clan_id = WG[player_region].clans.accountinfo(account_id=player_id, language='en')
 						player_clan_tag = ""
 						if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
 							player_clan_id = player_clan_id[player_id]['clan_id']
 							if player_clan_id is not None: # check if player is in a clan
-								player_clan = WG.clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+								player_clan = WG[player_region].clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
 								player_clan_str = f"**[{player_clan['tag']}]** {player_clan['name']}"
 								player_clan_tag = f"[{player_clan['tag']}]"
 							else:
@@ -2795,17 +2834,21 @@ async def player(context: commands.Context, value: str):
 								m += f"({player_last_battle_days} day{'s' if player_last_battle_days > 1 else ''} ago)\n"
 						else:
 							m += " (Today)\n"
-						m += f"**Clan**: {player_clan_str}"
+						m += f"**Clan**: {player_clan_str}\n"
+						m += f"**Region**: {player_region.upper()}"
 						embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
 
 						# add listing for player owned ships and of requested battle type
-						player_ships = WG.ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
+						player_ships = WG[player_region].ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
 						player_ship_stats = {}
 						# calculate stats for each ships
 						for s in player_ships:
 							ship_id = s['ship_id']
 							ship_stat = s[battle_type]
-							ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
+							try:
+								ship_name, ship_tier, ship_nation, ship_type, emoji = ship_list_simple[str(ship_id)].values()
+							except KeyError:
+								ship_name, ship_tier, ship_nation, ship_type, _, emoji = get_ship_data_by_id(ship_id).values()
 							stats = {
 								"name"          : ship_name.lower(),
 								"tier"          : ship_tier,
@@ -2834,7 +2877,7 @@ async def player(context: commands.Context, value: str):
 						player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
 						player_battle_stat = player_general_stats['statistics'][battle_type]
 
-						if all(len(i) == 0 for i in optional_args):
+						if not ship_filter and not ship_tier_filter:
 							# general information
 							player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
 							player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
@@ -2885,7 +2928,41 @@ async def player(context: commands.Context, value: str):
 							embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 
 							embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
-						if ship_tier_filter:
+							# battle distribution by ship types
+							player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+							m = ""
+							for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
+								try:
+									type_stat = player_ship_stats_df.loc[s_t]
+									if type_stat['battles'] > 0:
+										m += f"**{ship_types[s_t]}s**\n"
+
+										type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
+										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
+										type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
+										m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
+								except KeyError:
+									pass
+							embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
+
+							# average stats by tier
+							player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
+							player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
+							m = ""
+							for tier in range(1, 11):
+								try:
+									tier_stat = player_ship_stats_df.loc[tier]
+									tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])
+									tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
+									tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
+
+									m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
+									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:,.0f} DMG\n"
+								except KeyError:
+									m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
+							embed.add_field(name=f"__**Average by Tier**__", value=m)
+						elif ship_tier_filter:
 							# list ships that the player has at this tier
 							player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['tier'] == ship_tier_filter]
 							top_n = 10
@@ -2927,52 +3004,17 @@ async def player(context: commands.Context, value: str):
 							except Exception as e:
 								if type(e) == NoShipFound:
 									m += f"Ship with name {ship_filter} is not found\n"
+								if type(e) == KeyError:
+									m += f"This player has never played {ship_filter.title()}\n"
 								else:
 									m += "An internal error has occurred.\n"
 									traceback.print_exc()
 							embed.add_field(name="__Ship Specific Stat__", value=m)
 
-						else:
-							# battle distribution by ship types
-							player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
-							m = ""
-							for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
-								try:
-									type_stat = player_ship_stats_df.loc[s_t]
-									if type_stat['battles'] > 0:
-										m += f"**{ship_types[s_t]}s**\n"
-
-										type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
-										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
-										type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
-										m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
-								except KeyError:
-									pass
-							embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
-
-							# average stats by tier
-							player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-							player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
-							m = ""
-							for tier in range(1, 11):
-								try:
-									tier_stat = player_ship_stats_df.loc[tier]
-									tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])
-									tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
-									tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
-
-									m += f"**{list(roman_numeral.keys())[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
-									m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:,.0f} DMG\n"
-								except KeyError:
-									m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
-							embed.add_field(name=f"__**Average by Tier**__", value=m)
-
 						embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 				else:
-					embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(username)}", inline=True)
+					embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_discord_format(username)} in the {player_region.upper()} region", inline=True)
 			except Exception as e:
-				await context.send("An internal error as occurred.")
 				logger.warning(f"Exception in player {type(e)}: {e}")
 				traceback.print_exc()
 		await context.send(embed=embed)
@@ -2985,9 +3027,27 @@ async def player(context: commands.Context, value: str):
 	args="Name or tag of clan"
 )
 async def clan(context: commands.Context, args: str):
+	# check if *not* slash command,
+	if context.clean_prefix != '/':
+		args = context.message.content.split()[2:]
+	else:
+		args = args.split()
+
 	if args:
-		user_input = args
-		clan_search = WG.clans.list(search=user_input)
+		# grab optional args
+		optional_args = clan_filter_regex.findall(' '.join(args))[0]
+
+		search_term = optional_args[0]
+		clan_region = optional_args[1] # filter ship listing, same rule as list ships
+
+		if clan_region not in WOWS_REALMS:
+			clan_region = 'na'
+
+		if not search_term:
+			await bot_help(context, "clan")
+			return
+
+		clan_search = WG[clan_region].clans.list(search=search_term)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
@@ -2995,8 +3055,8 @@ async def clan(context: commands.Context, args: str):
 				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_discord_format(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
 				view = UserSelection(context.author, 15, "Select a clan", clan_options)
 
-				embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
-				embed.description += "mackbot found the following clans"
+				embed = discord.Embed(title=f"Search result for clan {search_term}", description="")
+				embed.description += "**mackbot found the following clans**\n"
 				embed.description += '\n'.join(i.label for i in clan_options)
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
 				                      "Response expires in 15 seconds")
@@ -3014,69 +3074,69 @@ async def clan(context: commands.Context, args: str):
 			# output clan information
 			# get clan information
 
-			async with context.typing():
-				clan_detail = WG.clans.info(clan_id=selected_clan['clan_id'], region='na', extra='members')[str(selected_clan['clan_id'])]
-				clan_id = clan_detail['clan_id']
-				embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
-				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
+			clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+			clan_id = clan_detail['clan_id']
+			embed = discord.Embed(title=f"Search result for clan {clan_detail['name']}", description="")
+			embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
-				clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
-				clan_age_day = clan_age % 30
-				clan_age_month = (clan_age // 30) % 12
-				clan_age_year = clan_age // (12 * 30)
-				clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
-				m = f"**Leader: **{clan_detail['leader_name']}\n"
-				m += f"**Created at: **{clan_created_at_str} ("
-				if clan_age_year:
-					m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
-				if clan_age_month:
-					m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
-				if clan_age_day:
-					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
-				m += ')\n'
-				if clan_detail['old_tag'] and clan_detail['old_name']:
-					m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
-				m += f"**Members: ** {clan_detail['members_count']}\n"
-				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=True)
+			clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
+			clan_age_day = clan_age % 30
+			clan_age_month = (clan_age // 30) % 12
+			clan_age_year = clan_age // (12 * 30)
+			clan_created_at_str = date.fromtimestamp(clan_detail['created_at']).strftime("%b %d, %Y")
+			m = f"**Leader: **{clan_detail['leader_name']}\n"
+			m += f"**Created at: **{clan_created_at_str} ("
+			if clan_age_year:
+				m += f"{clan_age_year} year{'' if clan_age_year == 1 else 's'} "
+			if clan_age_month:
+				m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
+			if clan_age_day:
+				m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
+			m += ')\n'
+			if clan_detail['old_tag'] and clan_detail['old_name']:
+				m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
+			m += f"**Members: ** {clan_detail['members_count']}\n"
+			m += f"**Region: ** {clan_region.upper()}\n"
+			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
 
-				if clan_detail['description']:
-					embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
-				# update clan history for member transfer feature
-				# check clan in data
-				history_output = []
-				if clan_id in clan_history:
-					# check differences
-					new_member_list = clan_detail['members']
-					previous_member_list = clan_history[clan_id]['members']
-					members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
-					members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
-					for m in members_out:
-						history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
-					for m in members_in:
-						history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
+			if clan_detail['description']:
+				embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
+			# update clan history for member transfer feature
+			# check clan in data
+			history_output = []
+			if clan_id in clan_history:
+				# check differences
+				new_member_list = clan_detail['members']
+				previous_member_list = clan_history[clan_id]['members']
+				members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
+				members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
+				for m in members_out:
+					history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
+				for m in members_in:
+					history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
 
-					# check if last update was at least a week ago
-					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
-						# update history
-						clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
-				else:
-					# not in history, add to history
+				# check if last update was at least a week ago
+				if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:
+					# update history
 					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
+			else:
+				# not in history, add to history
+				clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
 
-				if history_output:
-					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
+			if history_output:
+				embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
 
-				# output members
-				members_per_column = 10
-				clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
-				for i in range(0, 50, members_per_column):
-					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
-					if sliced_member_list:
-						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
+			# output members
+			members_per_column = 10
+			clan_members_sort_by_alpha = sorted(list([escape_discord_format(clan_detail['members'][m]['account_name']) for m in clan_detail['members']]))
+			for i in range(0, 50, members_per_column):
+				sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
+				if sliced_member_list:
+					embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
 			await context.send(embed=embed)
 		else:
 			# no clan matches search
-			embed = discord.Embed(title=f"Search result for clan {user_input}", description="")
+			embed = discord.Embed(title=f"Search result for clan {search_term}", description="")
 			embed.description += "Clan not found"
 
 			await context.send(embed=embed)
