@@ -1635,54 +1635,57 @@ async def ship(context: commands.Context, args: str):
 				else:
 					query_result = [module_list[str(i)] for i in modules["hull"]]
 
-				if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
-					# detailed aa
-					for hull in query_result:
-						aa = hull['profile']['anti_air']
-						m += f"**{name} ({aa['hull']}) Hull**\n"
+				if query_result:
+					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.AA:
+						# detailed aa
+						for hull in query_result:
+							if "anti_air" in hull['profile']:
+								aa = hull['profile']['anti_air']
+								m += f"**{name} ({aa['hull']}) Hull**\n"
 
-						cv_mm_tier = MM_WITH_CV_TIER[tier - 1]
-						if tier >= 10 and ship_type == 'Aircraft Carrier':
-							cv_mm_tier = [10]
-						elif tier == 8 and ship_type == 'Aircraft Carrier':
-							cv_mm_tier = [6, 8]
+								cv_mm_tier = MM_WITH_CV_TIER[tier - 1]
+								if tier >= 10 and ship_type == 'Aircraft Carrier':
+									cv_mm_tier = [10]
+								elif tier == 8 and ship_type == 'Aircraft Carrier':
+									cv_mm_tier = [6, 8]
 
-						for tier_range in cv_mm_tier:
-							if 0 < tier_range <= 10:
-								rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
-								m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
-								if 'dfaa_stat' in aa:
-									rating_descriptor_with_dfaa = find_aa_descriptor(aa['rating_with_dfaa'][tier_range - 1])
-									m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor_with_dfaa})\n"
+								for tier_range in cv_mm_tier:
+									if 0 < tier_range <= 10:
+										rating_descriptor = find_aa_descriptor(aa['rating'][tier_range - 1])
+										m += f"**AA Rating vs. T{tier_range}:** {int(aa['rating'][tier_range - 1])} ({rating_descriptor})\n"
+										if 'dfaa_stat' in aa:
+											rating_descriptor_with_dfaa = find_aa_descriptor(aa['rating_with_dfaa'][tier_range - 1])
+											m += f"**AA Rating vs. T{tier_range} with DFAA:** {int(aa['rating_with_dfaa'][tier_range - 1])} ({rating_descriptor_with_dfaa})\n"
 
-						m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
-						# provide more AA detail
-						flak = aa['flak']
-						near = aa['near']
-						medium = aa['medium']
-						far = aa['far']
-						if flak['damage'] > 0:
-							m += f" (Flak from {flak['min_range'] / 1000: 0.1f} km)\n"
-							m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
-						m += "\n"
+								m += f"**Range:** {aa['max_range'] / 1000:0.1f} km"
+								# provide more AA detail
+								flak = aa['flak']
+								near = aa['near']
+								medium = aa['medium']
+								far = aa['far']
+								if flak['damage'] > 0:
+									m += f" (Flak from {flak['min_range'] / 1000: 0.1f} km)\n"
+									m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
+								m += "\n"
 
-						if near['damage'] > 0:
-							m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
-						if medium['damage'] > 0:
-							m += f"**Mid Range:** {medium['damage']:0.1f} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance'] * 100)}%)\n"
-						if far['damage'] > 0:
-							m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance'] * 100)}%)\n"
-						m += '\n'
-				else:
-					# compact detail
-					aa = query_result[0]['profile']['anti_air']
-					average_rating = sum([hull['profile']['anti_air']['rating'][tier - 1] for hull in query_result]) / len(modules['hull'])
+								if near['damage'] > 0:
+									m += f"**Short Range:** {near['damage']:0.1f} (up to {near['range'] / 1000:0.1f} km, {int(near['hitChance'] * 100)}%)\n"
+								if medium['damage'] > 0:
+									m += f"**Mid Range:** {medium['damage']:0.1f} (up to {medium['range'] / 1000:0.1f} km, {int(medium['hitChance'] * 100)}%)\n"
+								if far['damage'] > 0:
+									m += f"**Long Range:** {far['damage']:0.1f} (up to {aa['max_range'] / 1000:0.1f} km, {int(far['hitChance'] * 100)}%)\n"
+								m += '\n'
+					else:
+						# compact detail
+						if "anti_air" in query_result[0]['profile']:
+							aa = query_result[0]['profile']['anti_air']
+							average_rating = sum([hull['profile']['anti_air']['rating'][tier - 1] for hull in query_result]) / len(modules['hull'])
 
-					rating_descriptor = find_aa_descriptor(aa['rating'][tier - 1])
-					m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
-					m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
-
-				embed.add_field(name="__**Anti-Air**__", value=m)
+							rating_descriptor = find_aa_descriptor(aa['rating'][tier - 1])
+							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
+							m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
+					if "anti_air" in query_result[0]['profile']:
+						embed.add_field(name="__**Anti-Air**__", value=m)
 
 			# torpedoes
 			if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
