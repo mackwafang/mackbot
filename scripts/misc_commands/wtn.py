@@ -1,8 +1,9 @@
-import traceback, discord, logging, os, time
+import traceback, discord, logging, os, time, json
 
 from logging.handlers import RotatingFileHandler
 from discord.ext import commands
 from random import randint, sample
+from pymongo import MongoClient
 
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
@@ -13,22 +14,8 @@ class LogFilterBlacklist(logging.Filter):
 		return not any(i in record.getMessage() for i in self.blacklist)
 
 # log settings
-if not os.path.exists(os.path.join(os.getcwd(), "logs")):
-	os.mkdir(os.path.join(os.getcwd(), "logs"))
 
-LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%m_%d_%Y", time.localtime())}.log')
-handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
-stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(levelname)-5s] %(message)s')
-
-handler.setFormatter(formatter)
-handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
-stream_handler.setFormatter(formatter)
-stream_handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
-
-logger = logging.getLogger("Wontonlogy")
-logger.addHandler(handler)
-logger.addHandler(stream_handler)
+logger = logging.getLogger("mackbot")
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
@@ -41,6 +28,17 @@ WONTON_GIF_URL = (
 	"https://c.tenor.com/Jyp_uEjCh5QAAAAC/nepali-food.gif",
 )
 
+db = None
+try:
+	with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
+		mongodb_host = json.load(f)['mongodb_host']
+
+	logger.info("Wontology MongoDB connection successful.")
+	db = MongoClient(mongodb_host).mackbot_fun
+	del mongodb_host
+except (ConnectionError, KeyError):
+	logger.warning("Cannot connect to database")
+
 def to_plural(str: str, count: int) -> str:
 	if str[-1].lower() == 'y':
 		return f"{count} {str[:-1] + 'ies'}"
@@ -52,7 +50,8 @@ def to_plural(str: str, count: int) -> str:
 def to_minutes(seconds):
 	return seconds * 60
 
-async def cook(context: commands.Context, db):
+@commands.hybrid_command(name="cook", description="Make wonton")
+async def cook(context: commands.Context):
 	if db is None:
 		# can't connect to db, can't use
 		embed = discord.Embed(
@@ -146,7 +145,8 @@ async def cook(context: commands.Context, db):
 		except Exception as e:
 			traceback.print_exc()
 
-async def wonton_count(context: commands.Context, db):
+@commands.hybrid_command(name="wontons", description="Check wontons inventory")
+async def wonton_count(context: commands.Context):
 	if db is None:
 		# can't connect to db, can't use
 		embed = discord.Embed(
@@ -169,3 +169,7 @@ async def wonton_count(context: commands.Context, db):
 			await context.send(embed=embed)
 		except Exception as e:
 			traceback.print_exc()
+
+async def setup(bot):
+	bot.add_command(cook)
+	bot.add_command(wonton_count)
