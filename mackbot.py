@@ -3364,14 +3364,6 @@ async def cmd(context: commands.Context):
 
 	await context.send(embed=embed)
 
-@mackbot.hybrid_command(name="cook", description="Make wonton")
-async def cook(context: commands.Context):
-	await make_wonton(context, database_client.mackbot_fun)
-
-@mackbot.hybrid_command(name="wontons", description="Check wontons inventory")
-async def wontons(context: commands.Context):
-	await wonton_count(context, database_client.mackbot_fun)
-
 @mackbot.hybrid_command(name="support", description="Get mackbot's support Discord server")
 async def support(context: commands.Context):
 	await context.send(discord_invite_url)
@@ -3425,7 +3417,7 @@ async def bot_help(context: commands.Context, help_key: Optional[str]=""):
 		await context.send(embed=embed)
 
 
-if __name__ == '__main__':
+def main():
 	# load some stuff
 	post_process()
 	if not os.path.isdir("logs"):
@@ -3438,6 +3430,8 @@ if __name__ == '__main__':
 	if database_client is None:
 		load_ship_builds()
 
+	asyncio.run(mackbot.load_extension("scripts.misc_commands.wtn"))
+
 	mackbot.run(bot_token)
 
 	logger.info("kill switch detected")
@@ -3445,3 +3439,6 @@ if __name__ == '__main__':
 	with open(clan_history_file_path, 'wb') as f:
 		pickle.dump(clan_history, f)
 	logger.info(f"Wrote {clan_history_file_path}")
+
+if __name__ == '__main__':
+	main()
