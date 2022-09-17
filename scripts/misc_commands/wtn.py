@@ -32,12 +32,13 @@ logger.addHandler(stream_handler)
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
-NEXT_MINE_TIME_DELAY = 5# 5 * 60
+NEXT_MINE_TIME_DELAY = 3 * 60 * 60
 WONTON_CAP = 500000
 WONTON_GIF_URL = (
-	"https://c.tenor.com/opiDAQ_TFrsAAAAC/dip%E6%B2%BE%E9%86%AC.gif",
+	"https://c.tenor.com/bj5iZ-5GelIAAAAj/angry.gif",
 	"https://c.tenor.com/wn_cso2tCq8AAAAd/eating-dumplings.gif",
-	"https://c.tenor.com/rye5tgag5PwAAAAC/dumpling-food-porn.gif"
+	"https://c.tenor.com/rye5tgag5PwAAAAC/dumpling-food-porn.gif",
+	"https://c.tenor.com/Jyp_uEjCh5QAAAAC/nepali-food.gif",
 )
 
 def to_plural(str: str, count: int) -> str:
@@ -67,10 +68,10 @@ async def cook(context: commands.Context, db):
 			wonton_image_file = None
 			add_wonton = randint(0, 100) < 5
 			add_wantan = (randint(0, 100) < 5) and add_wonton
-			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)
+			add_wuntun = (randint(0, 100) < 5) and add_wantan
+			coins_gained = (5 + randint(1, 5)) * (2 if add_wonton else 1) * (2 if add_wantan else 1)  * (2 if add_wuntun else 1)
 
 			current_time = time.time()
-
 			embed = discord.Embed()
 			m = ""
 
@@ -116,6 +117,15 @@ async def cook(context: commands.Context, db):
 								embed.set_image(url="attachment://image.png")
 								embed.title = "You have found the accursed wantan!"
 								embed.description = "Your wonton gain quadrupled!"
+								logger.info("Cursed wantan found")
+								if add_wantan:
+									wonton_image_file = discord.File(os.path.join(os.getcwd(), "data", "wonton", "wuntun.png"), filename="image.png")
+									embed.set_image(url="attachment://image.png")
+									embed.title = "You have found the accursed wuntun!"
+									embed.description = "Your wonton gain increases eight-folds!"
+									logger.info("Cursed wuntun found")
+							else:
+								logger.info("Blessed wonton found")
 						else:
 							embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 					else:
@@ -128,7 +138,7 @@ async def cook(context: commands.Context, db):
 					embed.title = "**You can't cook yet!**\n"
 					m += f"Time left: " \
 					     f"{time_left // 3600:1.0f}h " \
-					     f"{time_left // 60:2.0f}m " \
+					     f"{(time_left % 3600) // 60:2.0f}m " \
 					     f"{time_left % 60:02.0f}s"
 
 			embed.add_field(name=EMPTY_LENGTH_CHAR, value=m)
@@ -149,14 +159,13 @@ async def wonton_count(context: commands.Context, db):
 			author = context.author
 			query_result = db.wtn_wallet.find_one({"user": author.id})
 
-			embed = discord.Embed(title="Wonton Count")
-			m = ""
+			embed = discord.Embed(title="Wonton Count", description="")
 			if query_result is None:
-				m += f"{author.mention}, you have no wontons!\n"
-				m += "use **/cook** or **mackbot cook** to start making wontons!"
+				embed.description += f"{author.mention}, you have no wontons!\n"
+				embed.description += "use **/cook** or **mackbot cook** to start making wontons!"
 			else:
-				m += f"{author.mention}, you have {to_plural('wonton', query_result['coins'])}!\n"
+				embed.description += f"{author.mention}, you have {to_plural('wonton', query_result['coins'])}!\n"
 
-			context.send(embed=embed)
+			await context.send(embed=embed)
 		except Exception as e:
 			traceback.print_exc()

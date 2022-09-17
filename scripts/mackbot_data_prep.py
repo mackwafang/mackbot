@@ -81,6 +81,19 @@ try:
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected.")
 
+def lerp(a, b, t):
+	"""
+	Returns the linear interpolation between a and b given t
+	Args:
+		a ():
+		b ():
+		t ():
+
+	Returns:
+
+	"""
+	return ((1 - t) * a) + (t * b)
+
 
 def load_game_params():
 	global game_data
@@ -537,6 +550,7 @@ def update_ship_modules():
 									'bomb_pen': int(projectile['alphaPiercingHE']),
 									'squad_size': int(plane['numPlanesInSquadron']),
 									'payload': int(plane['attackCount']),
+									'range': airsup_info['maxDist'],
 								}
 
 						# depth charges armaments
@@ -567,16 +581,13 @@ def update_ship_modules():
 							'caliber': 0,
 							'numBarrels': 0,
 							'burn_probability': 0,
-							'pen_HE': 0,
-							'pen_SAP': 0,
-							'max_damage_he': 0,
-							'max_damage_ap': 0,
-							'max_damage_sap': 0,
 							'sigma': 0,
 							'range': 0,
-							'dispersion_h': 0,
-							'dispersion_v': 0,
+							'dispersion_h': {},
+							'dispersion_v': {},
 							'transverse_speed': 0,
+							'pen': {'he': 0, 'ap': 0, 'cs': 0},
+							'max_damage': {'he': 0, 'ap': 0, 'cs': 0},
 							'gun_dpm': {'he': 0, 'ap': 0, 'cs': 0},
 							'speed': {'he': 0, 'ap': 0, 'cs': 0},
 							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
@@ -588,11 +599,15 @@ def update_ship_modules():
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
 						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
 						new_turret_data['range'] = module_data[gun]['maxDist']
+						new_turret_data['taperDist'] = module_data[gun]['taperDist']
 
 						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
 						for turret_data in gun:  # for each turret
 							# add turret type and count
+							# find dispersion
+							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/
 							turret_name = game_data[turret_data['name']]['name']
+
 							if turret_name not in new_turret_data['turrets']:
 								new_turret_data['turrets'][turret_name] = {
 									'numBarrels': int(turret_data['numBarrels']),
@@ -601,33 +616,48 @@ def update_ship_modules():
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1
 
+							h_disp_at_ideal = turret_data['idealRadius'] * 30
+							range_for_ideal = turret_data['idealDistance'] * 30
+							for r_i in range(5, 35, 5):
+								r = min(r_i * 1000, int(new_turret_data['range']))
+
+								if r > new_turret_data['taperDist']:
+									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)
+								else:
+									h_disp = lerp(0, h_disp_at_ideal, r / range_for_ideal)
+								v_disp = h_disp * turret_data['radiusOnMax']
+
+								new_turret_data['dispersion_h'][str(r)] = round(h_disp)
+								new_turret_data['dispersion_v'][str(r)] = round(v_disp)
+
 							# get caliber, reload, and number of guns per turret
 							new_turret_data['caliber'] = turret_data['barrelDiameter']
 							new_turret_data['shotDelay'] = turret_data['shotDelay']
 							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
 							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
+
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:
 								ammo = game_data[a]
 								if ammo['ammoType'] == 'HE':
 									new_turret_data['burn_probability'] = int(ammo['burnProb'] * 100)
-									new_turret_data['pen_HE'] = int(ammo['alphaPiercingHE'])
-									new_turret_data['max_damage_he'] = int(ammo['alphaDamage'])
+									new_turret_data['pen']['he'] = int(ammo['alphaPiercingHE'])
+									new_turret_data['max_damage']['he'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['he'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['he'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['he'] = ammo['bulletKrupp']
 									new_turret_data['mass']['he'] = ammo['bulletMass']
 									new_turret_data['drag']['he'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'CS':  # SAP rounds
-									new_turret_data['pen_SAP'] = int(ammo['alphaPiercingCS'])
-									new_turret_data['max_damage_sap'] = int(ammo['alphaDamage'])
+									new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
+									new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['cs'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['cs'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
 									new_turret_data['mass']['cs'] = ammo['bulletMass']
 									new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
 								if ammo['ammoType'] == 'AP':
-									new_turret_data['max_damage_ap'] = int(ammo['alphaDamage'])
+									new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
 									new_turret_data['speed']['ap'] = ammo['bulletSpeed']
 									new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
@@ -982,7 +1012,7 @@ def post_process():
 	logger.info("Creating hash digest")
 	dictionaries = (ship_list, skill_list, module_list, upgrade_list, camo_list, cmdr_list, flag_list, legendary_upgrade_list, upgrade_list, consumable_list, upgrade_abbr_list)
 	for d in dictionaries:
-		for k, v in d.items():
+		for k in d:
 			d[k]['hash'] = sha256(str(d[k]).encode()).hexdigest()
 
 def get_ship_by_id(value: int) -> dict:

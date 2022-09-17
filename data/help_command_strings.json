@@ -25,7 +25,7 @@
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		],
 		"options": {
-			"-p/--parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
+			"<-p, --parameters> parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
 		}
 	},
 	"compare": {
@@ -137,11 +137,14 @@
 	},
 	"code": {
 		"brief": "Generate a WoWS bonus code link",
-		"usage": "wows_code...",
+		"usage": "[region] wows_code...",
 		"description": [
 			"Generate a WoWS bonus code link.",
 			"For multiple links, separate the codes with spaces."
-		]
+		],
+		"options": {
+			"[region]": "Optional. Switch to different regions. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**."
+		}
 	},
 	"hottake": {
 		"brief": "Give a WoWS hot take",
@@ -161,17 +164,21 @@
 			"\tmackbot player username div2 (Get information about your 2-man division)"
 		],
 		"options": {
-			"battle_type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
+			"--type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
+			"--region <type>": "Select region where player is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**",
 			"--ship <ship_name>": "Display which ship to display.",
 			"--tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
 		}
 	},
 	"clan": {
 		"brief": "Provide general information about a WoWS clan",
-		"usage": "clan_name/clan_tag",
+		"usage": "clan_name/clan_tag [options]",
 		"description": [
 			"Show clan information"
-		]
+		],
+		"options": {
+			"--region <type>": "Select region where clan is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**"
+		}
 	},
 	"invite": {
 		"brief": "Invite mackbot to your server(s)",
@@ -207,5 +214,20 @@
 		"brief": "Provide feedback to the developer",
 		"usage": "",
 		"description": ["Provide feedback to the developer"]
+	},
+	"cook": {
+		"brief": "Make wontons",
+		"usage": "",
+		"description": ["Make wonton"]
+	},
+	"wontons": {
+		"brief": "Check your wonton count",
+		"usage": "",
+		"description": ["Check your wonton count"]
+	},
+	"support": {
+		"brief": "Get mackbot's support Discord server",
+		"usage": "",
+		"description": ["Get mackbot's support Discord server"]
 	}
 }
