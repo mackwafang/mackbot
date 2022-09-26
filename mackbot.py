@@ -17,7 +17,6 @@ from pymongo import MongoClient
 from random import randint
 from scripts.constants import *
 from scripts.mackbot_exceptions import *
-from scripts.misc_commands.wtn import cook as make_wonton, wonton_count
 from string import ascii_letters
 from typing import Union, Optional
 
@@ -3323,7 +3322,7 @@ async def code(context, args: str):
 		s = ""
 
 		for c in args.split()[1:] if has_region_option else args.split():
-			s += f"**{c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
+			s += f"**({region.upper()}) {c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
 			logger.info(f"returned a wargaming bonus code link with code {c}")
 		await context.send(s)
 
