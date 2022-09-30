@@ -1,4 +1,9 @@
 .env
+.idea
+.ipynb_checkpoints
+.vs
+__pycache__
+content
 data/ship_list
 data/ship_param
 icons/aa.png
@@ -15,3 +20,5 @@ icons/range.png
 icons/reload.png
 icons/sap.png
 icons/torp.png
+ship_build_*.png
+logs

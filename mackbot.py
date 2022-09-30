@@ -6,8 +6,7 @@ import scripts.mackbot_data_prep as data_loader
 
 from PIL import Image, ImageDraw, ImageFont
 from datetime import date
-from discord import Interaction, SelectOption
-from discord import app_commands
+from discord import Interaction, SelectOption, app_commands
 from discord.ext import commands
 from discord.ui import View, Select
 from itertools import zip_longest
