@@ -1748,7 +1748,7 @@ async def ship(context: commands.Context, args: str):
 										m += "rocket\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 										m += f"torpedo\n"
 										m += f"**Torpedo:** :boom:{aircraft['max_damage']:0.0f}, {aircraft['torpedo_speed']} kts\n"
@@ -1756,7 +1756,7 @@ async def ship(context: commands.Context, args: str):
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 										m += f"bomb\n"
 										m += f"**{squadron['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
 									squadron_consumables = squadron['consumables']

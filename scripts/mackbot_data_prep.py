@@ -7,6 +7,7 @@ from math import inf
 from enum import IntEnum, auto
 from scripts.constants import nation_dictionary, hull_classification_converter
 from tqdm import tqdm
+from scripts.mackbot_exceptions import BuildError
 
 game_data = {}
 ship_list = {}
@@ -19,6 +20,7 @@ flag_list = {}
 legendary_upgrade_list = {}
 upgrade_abbr_list = {}
 consumable_list = {}
+ship_build = {}
 
 class SHIP_TAG(IntEnum):
 	SLOW_SPD = auto()
@@ -55,7 +57,6 @@ stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
 
 stream_handler.setFormatter(formatter)
-stream_handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))
 
 logger = logging.getLogger("mackbot_data_loader")
 logger.addHandler(stream_handler)
@@ -67,6 +68,7 @@ with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
 	data = json.load(f)
 
 mongodb_host = data['mongodb_host']
+sheet_id = data['sheet_id']
 
 # get weegee's wows encyclopedia
 WG = wargaming.WoWS(data['wg_token'], region='na', language='en')
@@ -1008,9 +1010,118 @@ def load_consumable_list():
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']
 
+
+def load_ship_builds():
+	global ship_build
+	assert sheet_id is not None
+
+	from google.auth.transport.requests import Request
+	from google.oauth2.credentials import Credentials
+	from google_auth_oauthlib.flow import InstalledAppFlow
+	from googleapiclient.discovery import build
+	from googleapiclient.errors import HttpError
+
+	# If modifying these scopes, delete the file token.json.
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+
+	creds = None
+	# The file token.json stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('token.json'):
+		creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+	# If there are no (valid) credentials available, let the user log in.
+	if not creds or not creds.valid:
+		if creds and creds.expired and creds.refresh_token:
+			creds.refresh(Request())
+		else:
+			flow = InstalledAppFlow.from_client_secrets_file(
+				'credentials.json', SCOPES)
+			creds = flow.run_local_server(port=0)
+		# Save the credentials for the next run
+		with open('token.json', 'w') as token:
+			token.write(creds.to_json())
+
+	try:
+		service = build('sheets', 'v4', credentials=creds)
+
+		# Call the Sheets API
+		sheet = service.spreadsheets()
+		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:Z').execute()
+		values = result.get('values', [])
+
+		if not values:
+			print('No data found.')
+			return
+
+		for row in values[1:]:
+			build_ship_name = row[0]
+			build_name = row[1]
+			build_upgrades = row[2:8]
+			build_skills = row[8:-1]
+			build_cmdr = row[-1]
+			data = {
+				"name": build_name,
+				"ship": build_ship_name,
+				"build_id": "",
+				"upgrades": [],
+				"skills": [],
+				"cmdr": build_cmdr,
+				"errors": [],
+			}
+			# converting upgrades
+			for u in build_upgrades:
+				try:
+					if u == '*':
+						data['upgrades'].append(-1)
+						continue
+
+					for k, v in upgrade_abbr_list.items():
+						if u.lower() in [v['abbr'].lower(), v['upgrade'].lower()]:
+							data['upgrades'].append(v['upgrade_id'])
+							break
+				except IndexError:
+					logger.warning(f"Upgrade [{u}] is not an upgrade!")
+					data['errors'].append(BuildError.UPGRADE_INCORRECT)
+
+			# converting skills
+			total_skill_pts = 0
+			for s in build_skills:
+				try:
+					if s == '*':
+						data['skills'].append(-1)
+						continue
+
+					for k, v in skill_list.items():
+						if s.lower() == v['name'].lower():
+							data['skills'].append(v['skill_id'])
+							total_skill_pts += v['y'] + 1
+							break
+				except IndexError:
+					logger.warning(f"skill [{s}] is not an skill!")
+					data['errors'].append(BuildError.SKILL_INCORRECT)
+			if total_skill_pts > 21:
+				data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
+			elif total_skill_pts < 21:
+				data['errors'].append(BuildError.SKILL_POTENTIALLY_MISSING)
+			data['errors'] = tuple(set(data['errors']))
+			if data['errors']:
+				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
+				logger.warning(f"Build for ship {build_ship_name} has the following errors: {build_error_strings}")
+
+			build_id = sha256(str(data).encode()).hexdigest()
+			data['build_id'] = build_id
+			if build_id not in ship_build:
+				ship_build[build_id] = data.copy()
+			else:
+				logger.warning(f"Build for ship {build_ship_name} with id {build_id} exists!")
+	except HttpError as err:
+		print(err)
+
+
 def post_process():
 	logger.info("Creating hash digest")
-	dictionaries = (ship_list, skill_list, module_list, upgrade_list, camo_list, cmdr_list, flag_list, legendary_upgrade_list, upgrade_list, consumable_list, upgrade_abbr_list)
+	dictionaries = (ship_list, skill_list, module_list, upgrade_list, camo_list, cmdr_list, flag_list, legendary_upgrade_list, upgrade_list, consumable_list, upgrade_abbr_list, ship_build)
 	for d in dictionaries:
 		for k in d:
 			d[k]['hash'] = sha256(str(d[k]).encode()).hexdigest()
@@ -1027,6 +1138,7 @@ def load():
 	load_consumable_list()
 	update_ship_modules()
 	create_ship_tags()
+	load_ship_builds()
 	post_process()
 
 if __name__ == "__main__":
