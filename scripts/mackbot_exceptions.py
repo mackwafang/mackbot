@@ -24,7 +24,9 @@ class ConsumableVariationNotFound(Exception):
 class BuildError(IntEnum):
 	NONE = 0
 	SKILL_POINTS_EXCEED = auto()
-	SKILL_INCORRECT = auto()
+	SKILLS_POTENTIALLY_MISSING = auto()
+	SKILLS_INCORRECT = auto()
+	SKILLS_ORDER_INVALID = auto()
 	UPGRADE_INCORRECT = auto()
 	UPGRADE_NOT_FOUND = auto()
 	SHIP_NOT_FOUND = auto()

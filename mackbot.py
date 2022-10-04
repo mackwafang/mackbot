@@ -1,13 +1,10 @@
-import pprint
-
 import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
 
 from PIL import Image, ImageDraw, ImageFont
 from datetime import date
-from discord import Interaction, SelectOption
-from discord import app_commands
+from discord import Interaction, SelectOption, app_commands
 from discord.ext import commands
 from discord.ui import View, Select
 from itertools import zip_longest
@@ -15,9 +12,8 @@ from logging.handlers import RotatingFileHandler
 from math import ceil
 from pymongo import MongoClient
 from random import randint
-from scripts.constants import *
+from scripts.mackbot_constants import *
 from scripts.mackbot_exceptions import *
-from scripts.misc_commands.wtn import cook as make_wonton, wonton_count
 from string import ascii_letters
 from typing import Union, Optional
 
@@ -493,12 +489,12 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 
 	try:
 		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
-			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship.lower()]
+			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship]
 			if not result:
 				raise NoBuildFound
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
-			return list(database_client.mackbot_db.ship_build.find({"ship": ship.lower()}))
+			return list(database_client.mackbot_db.ship_build.find({"ship": ship}))
 	except Exception as e:
 		raise e
 
@@ -1235,8 +1231,18 @@ async def build(context: commands.Context, args: str):
 					else:
 						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 
+					# show user error if there is any that is missed by data prepper
+					if build_errors:
+						m = "This build has the following errors:\n"
+						for error in build_errors:
+							error_string = ' '.join(BuildError(error).name.split("_")).title()
+							m += f"{error_string}\n"
+						embed.add_field(name=":warning: Warning! :warning: ", value=m, inline=False)
+
 					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
 					footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
+					if build_errors:
+						footer_message += f"This build has error that may affect this ship's performance. Please contact a mackbot developer.\n"
 				else:
 					m = "mackbot does not know any build for this ship :("
 					embed.add_field(name=f'No known build', value=m, inline=False)
@@ -1750,7 +1756,7 @@ async def ship(context: commands.Context, args: str):
 										m += "rocket\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 										m += f"torpedo\n"
 										m += f"**Torpedo:** :boom:{aircraft['max_damage']:0.0f}, {aircraft['torpedo_speed']} kts\n"
@@ -1758,7 +1764,7 @@ async def ship(context: commands.Context, args: str):
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 										m += f"bomb\n"
 										m += f"**{squadron['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(squadron['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
 									squadron_consumables = squadron['consumables']
@@ -3323,7 +3329,7 @@ async def code(context, args: str):
 		s = ""
 
 		for c in args.split()[1:] if has_region_option else args.split():
-			s += f"**{c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
+			s += f"**({region.upper()}) {c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
 			logger.info(f"returned a wargaming bonus code link with code {c}")
 		await context.send(s)
 
@@ -3363,14 +3369,6 @@ async def cmd(context: commands.Context):
 	embed.set_footer(text="For usage on any commands, use mackbot help <command>")
 
 	await context.send(embed=embed)
-
-@mackbot.hybrid_command(name="cook", description="Make wonton")
-async def cook(context: commands.Context):
-	await make_wonton(context, database_client.mackbot_fun)
-
-@mackbot.hybrid_command(name="wontons", description="Check wontons inventory")
-async def wontons(context: commands.Context):
-	await wonton_count(context, database_client.mackbot_fun)
 
 @mackbot.hybrid_command(name="support", description="Get mackbot's support Discord server")
 async def support(context: commands.Context):
@@ -3425,7 +3423,7 @@ async def bot_help(context: commands.Context, help_key: Optional[str]=""):
 		await context.send(embed=embed)
 
 
-if __name__ == '__main__':
+def main():
 	# load some stuff
 	post_process()
 	if not os.path.isdir("logs"):
@@ -3438,6 +3436,8 @@ if __name__ == '__main__':
 	if database_client is None:
 		load_ship_builds()
 
+	asyncio.run(mackbot.load_extension("scripts.misc_commands.wtn"))
+
 	mackbot.run(bot_token)
 
 	logger.info("kill switch detected")
@@ -3445,3 +3445,6 @@ if __name__ == '__main__':
 	with open(clan_history_file_path, 'wb') as f:
 		pickle.dump(clan_history, f)
 	logger.info(f"Wrote {clan_history_file_path}")
+
+if __name__ == '__main__':
+	main()
