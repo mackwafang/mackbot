@@ -11,25 +11,13 @@ FOR /F %%A in ('dir E:\Games\World_of_Warships\bin /O:-D /B') DO (
     goto :loop_end
 )
 :loop_end
+
+
 xcopy /Y %WoWS_path%\bin\%latest%\res\texts\en\LC_MESSAGES\global.mo %mb_dir%\scripts\language\en\LC_MESSAGES\global.mo
 
 echo Grabbing GameParams.data
 %WoWS_path%\wowsunpack.exe -x %WoWS_path%\bin\%latest%\idx -p %WoWS_path%\res_packages -I content/GameParams.data -o %WoWS_path%\res_unpack
 move /Y %WoWS_path%\res_unpack\content\GameParams.data %mb_gameparams_dir%\GameParams.data
-
-echo Extracting GameParams and translator file
-cd ../WoWS-GameParams
-python OneFileToRuleThemAll.py
-move GameParams-0.json ../data/
-cd ..
-
-cd scripts
-python extractingGlobalMO.py
-rmdir /S /Q language
-
-echo Splitting and translating...
-python GameParamsSplitter.py
-cd ..
 
 echo Done
 

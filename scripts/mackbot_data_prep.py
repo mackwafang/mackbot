@@ -1,12 +1,14 @@
-import wargaming, sys, traceback, time, json, logging, os, pickle, io
+import wargaming, traceback, json, logging, os, pickle, io
+
 
 from hashlib import sha256
 from pymongo import MongoClient
 from itertools import count
 from math import inf
 from enum import IntEnum, auto
-from scripts.constants import nation_dictionary, hull_classification_converter
 from tqdm import tqdm
+
+from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
 from scripts.mackbot_exceptions import BuildError
 
 game_data = {}
@@ -64,7 +66,7 @@ logger.setLevel(logging.INFO)
 
 
 # load config
-with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
+with open(os.path.join("data", "config.json")) as f:
 	data = json.load(f)
 
 mongodb_host = data['mongodb_host']
@@ -75,6 +77,10 @@ WG = wargaming.WoWS(data['wg_token'], region='na', language='en')
 wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
+
+# dictionary to convert user inputted ship name to non-ascii ship name
+with open(os.path.join("data", "ship_name_dict.json"), 'r', encoding='utf-8') as f:
+	ship_name_to_ascii = json.load(f)
 
 # define database stuff
 database_client = None
@@ -96,6 +102,30 @@ def lerp(a, b, t):
 	"""
 	return ((1 - t) * a) + (t * b)
 
+def check_skill_order_valid(skills: list) -> bool:
+	"""
+	Check to see if order of skills are valid (i.e., difference between skills are no greater than 1 tier)
+	Also, first skill must be a tier 1 skill
+	Args:
+		skills (list): list of skill id
+
+	Returns:
+		bool
+	"""
+	if not skills:
+		# no skills is a valid configuration
+		return True
+	is_first_skill_valid = skill_list[str(skills[0])]['y'] == 0
+	if not is_first_skill_valid:
+		return False
+
+	max_tier_so_far = -1
+	for s in skills:
+		skill_data = skill_list[str(s)]
+		if skill_data['y'] > max_tier_so_far + 1:
+			return False
+		max_tier_so_far = max(max_tier_so_far, skill_data['y'])
+	return True
 
 def load_game_params():
 	global game_data
@@ -116,7 +146,7 @@ def load_skill_list():
 	# loading skills list
 	logger.info("Fetching Skill List")
 	try:
-		with open(os.path.join("./data", "skill_list.json")) as f:
+		with open(os.path.join("data", "skill_list.json")) as f:
 			skill_list.update(json.load(f))
 
 		# dictionary that stores skill abbreviation
@@ -166,7 +196,7 @@ def load_ship_list():
 	logger.info("Fetching Ship List")
 	global ship_list
 	ship_list_file_name = 'ship_list'
-	ship_list_file_dir = os.path.join(os.getcwd(), "data", ship_list_file_name)
+	ship_list_file_dir = os.path.join("data", ship_list_file_name)
 
 	fetch_ship_list_from_wg = False
 	# fetching from local
@@ -216,11 +246,11 @@ def load_upgrade_list():
 
 	logger.info("Fetching Camo, Flags and Modification List")
 	if len(ship_list) == 0:
-		logger.info("Ship list is empty.")
+		logger.warning("Ship list is empty.")
 		load_ship_list()
 
 	if len(game_data) == 0:
-		logger.info("No game data")
+		logger.warning("No game data")
 		load_game_params()
 
 
@@ -332,14 +362,14 @@ def update_ship_modules():
 
 	logger.info("Generating information about modules")
 	if len(game_data) == 0:
-		logger.info("Game data is empty.")
+		logger.warning("Game data is empty.")
 		load_game_params()
 	if len(ship_list) == 0:
-		logger.info("Ship list is empty.")
+		logger.warning("Ship list is empty.")
 		load_ship_list()
 	# load_ship_params()
 	if len(module_list) == 0:
-		logger.info("Module list is empty.")
+		logger.warning("Module list is empty.")
 		load_module_list()
 
 	for s in tqdm(ship_list):
@@ -977,7 +1007,7 @@ def create_upgrade_abbr():
 	global upgrade_abbr_list
 
 	if len(upgrade_list) == 0:
-		logger.info("Upgrade list is empty.")
+		logger.warning("Upgrade list is empty.")
 		load_upgrade_list()
 
 	abbr_added = []
@@ -1012,7 +1042,7 @@ def load_consumable_list():
 
 
 def load_ship_builds():
-	global ship_build
+	global ship_build, ship_list, skill_list
 	assert sheet_id is not None
 
 	from google.auth.transport.requests import Request
@@ -1060,6 +1090,14 @@ def load_ship_builds():
 			build_upgrades = row[2:8]
 			build_skills = row[8:-1]
 			build_cmdr = row[-1]
+
+			# convert user name to utf8 ship name
+			if build_ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable ?
+				build_ship_name = ship_name_to_ascii[build_ship_name.lower()]  # convert to the appropriate name
+
+			ship_data = ship_list[[s for s in ship_list if ship_list[s]['name'].lower() == build_ship_name.lower()][0]]
+			build_ship_name = ship_data['name']
+
 			data = {
 				"name": build_name,
 				"ship": build_ship_name,
@@ -1086,24 +1124,27 @@ def load_ship_builds():
 
 			# converting skills
 			total_skill_pts = 0
+			skill_list_filtered = dict((s, skill_list[s]) for s in skill_list if skill_list[s]['tree'] == ship_data['type'])
 			for s in build_skills:
 				try:
 					if s == '*':
 						data['skills'].append(-1)
 						continue
 
-					for k, v in skill_list.items():
+					for k, v in skill_list_filtered.items():
 						if s.lower() == v['name'].lower():
 							data['skills'].append(v['skill_id'])
 							total_skill_pts += v['y'] + 1
 							break
 				except IndexError:
 					logger.warning(f"skill [{s}] is not an skill!")
-					data['errors'].append(BuildError.SKILL_INCORRECT)
+					data['errors'].append(BuildError.SKILLS_INCORRECT)
+			if not check_skill_order_valid(data['skills']):
+				data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
 			if total_skill_pts > 21:
 				data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
 			elif total_skill_pts < 21:
-				data['errors'].append(BuildError.SKILL_POTENTIALLY_MISSING)
+				data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
 			data['errors'] = tuple(set(data['errors']))
 			if data['errors']:
 				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])

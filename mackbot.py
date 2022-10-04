@@ -1,5 +1,3 @@
-import pprint
-
 import wargaming, os, re, pickle, json, discord, logging, difflib, traceback, asyncio, time
 import pandas as pd
 import scripts.mackbot_data_prep as data_loader
@@ -14,7 +12,7 @@ from logging.handlers import RotatingFileHandler
 from math import ceil
 from pymongo import MongoClient
 from random import randint
-from scripts.constants import *
+from scripts.mackbot_constants import *
 from scripts.mackbot_exceptions import *
 from string import ascii_letters
 from typing import Union, Optional
@@ -491,12 +489,12 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 
 	try:
 		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
-			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship.lower()]
+			result = [ship_build[b] for b in ship_build if ship_build[b]['ship'] == ship]
 			if not result:
 				raise NoBuildFound
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
-			return list(database_client.mackbot_db.ship_build.find({"ship": ship.lower()}))
+			return list(database_client.mackbot_db.ship_build.find({"ship": ship}))
 	except Exception as e:
 		raise e
 
@@ -1233,8 +1231,18 @@ async def build(context: commands.Context, args: str):
 					else:
 						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
 
+					# show user error if there is any that is missed by data prepper
+					if build_errors:
+						m = "This build has the following errors:\n"
+						for error in build_errors:
+							error_string = ' '.join(BuildError(error).name.split("_")).title()
+							m += f"{error_string}\n"
+						embed.add_field(name=":warning: Warning! :warning: ", value=m, inline=False)
+
 					footer_message += "mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.\n"
 					footer_message += f"For image variant of this message, use [mackbot build [-i/--image] {user_ship_name}]\n"
+					if build_errors:
+						footer_message += f"This build has error that may affect this ship's performance. Please contact a mackbot developer.\n"
 				else:
 					m = "mackbot does not know any build for this ship :("
 					embed.add_field(name=f'No known build', value=m, inline=False)

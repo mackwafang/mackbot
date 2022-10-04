@@ -1,4 +1,5 @@
 import json, os, logging, traceback, argparse
+
 import scripts.mackbot_data_prep as data_loader
 
 from getpass import getpass
@@ -9,7 +10,7 @@ from enum import IntEnum, auto
 
 class UploaderError(IntEnum):
 	NONE = 0
-	CONNECTION_ERROR = 1
+	CONNECTION_ERROR = auto()
 
 _allowed_collections = (
 	'ship_list',
@@ -39,7 +40,7 @@ db, pw = "", ""
 def db_login(config_file_name="config"):
 	global mackbot_db, db, pw, sheet_id
 	try:
-		with open(os.path.join("../data", f"{config_file_name}.json")) as f:
+		with open(os.path.join("", "data", f"{config_file_name}.json")) as f:
 			data = json.load(f)
 			mongodb_host = data['mongodb_host']
 			sheet_id = data['sheet_id']
