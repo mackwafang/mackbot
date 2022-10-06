@@ -310,9 +310,15 @@ def load_upgrade_list():
 				obsolete_upgrade += [str(upgrade['id'])]
 				pass
 			else:
-				# upgrade usable
 				uid = str(upgrade['id'])
 
+				# upgrade usable
+				try:
+					upgrade_list[uid]
+				except KeyError:
+					upgrade_name = [game_data[i] for i in game_data if game_data[i]['id'] == int(uid)][0]
+					logger.warning(f"Upgrade with id {uid} (name: {upgrade_name['name']})is not known via WG API")
+					continue
 				upgrade_list[uid]['is_special'] = {
 					0: '',
 					1: 'Coal',
