@@ -1492,7 +1492,7 @@ async def ship(context: commands.Context, args: str):
 								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 								m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, {icons_emoji['penetration']} {airsup_info['bomb_pen']}mm)\n"
 							else:
-								m += f"**Squadron**: 2 aircraft\n"
+								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 								m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
 						m += '\n'
 				if m:
@@ -1587,7 +1587,7 @@ async def ship(context: commands.Context, args: str):
 					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 					m += '\n'
-					embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
 
 			# secondary armaments
 			if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
@@ -1629,7 +1629,7 @@ async def ship(context: commands.Context, args: str):
 						# if len(modules['hull']) > 1:
 						# 	m += '-------------------\n'
 
-						embed.add_field(name="__**Secondary Battery**__", value=m)
+						embed.add_field(name=f"{icons_emoji['gun']} __**Secondary Battery**__", value=m, inline=True)
 
 			# anti air
 			if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
@@ -1691,7 +1691,7 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
 							m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 					if "anti_air" in query_result[0]['profile']:
-						embed.add_field(name="__**Anti-Air**__", value=m)
+						embed.add_field(name=f"{icons_emoji['aa']} __**Anti-Air**__", value=m, inline=False)
 
 			# torpedoes
 			if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
@@ -1721,7 +1721,7 @@ async def ship(context: commands.Context, args: str):
 						m += f"**Spotting Range:** {torps['spotting_range']} km\n"
 						m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
 						m += '-------------------\n'
-				embed.add_field(name="__**Torpedoes**__", value=m)
+				embed.add_field(name=f"{icons_emoji['torp']} __**Torpedoes**__", value=m)
 
 			# aircraft squadrons
 			if any(aircraft_module_filtered):
@@ -1746,6 +1746,14 @@ async def ship(context: commands.Context, args: str):
 								aircraft = squadron['profile'][module_type]
 								n_attacks = squadron['squad_size'] // squadron['attack_size']
 								m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
+								aircraft_icon_emoji = None
+								if module_type == 'fighter':
+									aircraft_icon_emoji = icons_emoji['plane_rocket']
+								if module_type == 'torpedo_bomber':
+									aircraft_icon_emoji = icons_emoji['plane_torp']
+								if module_type == 'dive_bomber' or module_type == 'skip_bomber':
+									aircraft_icon_emoji = icons_emoji['plane_bomb']
+
 								if detailed_filter:
 									m = ""
 									m += f"**Aircraft:** {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts), {aircraft['max_health']} HP\n"
@@ -1786,7 +1794,7 @@ async def ship(context: commands.Context, args: str):
 									m += '\n'
 									embed.add_field(name=f"__**{squadron['name'].replace(chr(10), ' ')}**__", value=m, inline=False)
 						if not detailed_filter:
-							embed.add_field(name=f"__**{aircraft_modules[module_type]}**__", value=m, inline=True)
+							embed.add_field(name=f"{aircraft_icon_emoji} __**{aircraft_modules[module_type]}**__", value=m, inline=True)
 
 			# engine
 			if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
@@ -1820,7 +1828,7 @@ async def ship(context: commands.Context, args: str):
 					m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
 					m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
 					m += "\n"
-				embed.add_field(name="__**Concealment**__", value=m, inline=True)
+				embed.add_field(name=f"{icons_emoji['concealment']} __**Concealment**__", value=m, inline=True)
 
 			# upgrades
 			if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
