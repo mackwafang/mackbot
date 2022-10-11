@@ -1301,7 +1301,6 @@ async def build(context: commands.Context, args: str):
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
-		del skills # DO NOT REMOVE OR SHOW SKILLS WILL BREAK
 
 @mackbot.hybrid_command(name='ship', description='Get combat parameters of a warship')
 @app_commands.rename(args="value")
