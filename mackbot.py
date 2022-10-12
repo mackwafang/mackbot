@@ -2312,7 +2312,7 @@ async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 		description = skill_data['description']
 		effect = skill_data['effect']
 		column = skill_data['x'] + 1
-		tier = skill_data['y']
+		tier = skill_data['y'] + 1
 		category = skill_data['category']
 		embed = discord.Embed(title=f"{name}", description="")
 		# embed.set_thumbnail(url=icon)
