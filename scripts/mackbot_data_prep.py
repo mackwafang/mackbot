@@ -1149,15 +1149,23 @@ def load_ship_builds():
 			skill_list_filtered = dict((s, skill_list[s]) for s in skill_list if skill_list[s]['tree'] == ship_data['type'])
 			for s in build_skills:
 				try:
+					if not s:
+						continue
+
 					if s == '*':
 						data['skills'].append(-1)
 						continue
 
+					has_no_match = True
 					for k, v in skill_list_filtered.items():
 						if s.lower() == v['name'].lower():
 							data['skills'].append(v['skill_id'])
 							total_skill_pts += v['y'] + 1
+							has_no_match = False
 							break
+
+					if has_no_match:
+						raise IndexError
 				except IndexError:
 					logger.warning(f"skill [{s}] is not an skill!")
 					data['errors'].append(BuildError.SKILLS_INCORRECT)
