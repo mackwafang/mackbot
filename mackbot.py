@@ -2563,7 +2563,7 @@ async def ships(context: commands.Context, args: Optional[str]=""):
 	# look up
 	result = []
 	if database_client is not None:
-		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
+		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(f"^{i}$", re.I) for i in key]}} if key else {})
 		if query_result is not None:
 			result = dict((str(i["ship_id"]), i) for i in query_result)
 	else:

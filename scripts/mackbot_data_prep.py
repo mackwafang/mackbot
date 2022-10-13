@@ -1,3 +1,4 @@
+import requests
 import wargaming, traceback, json, logging, os, pickle, io
 
 
@@ -188,6 +189,9 @@ def load_module_list():
 					break
 				else:
 					logger.info(type(e), e)
+			elif type(e) == requests.exceptions.ConnectionError:
+				logger.info(type(e), e)
+				exit(type(e))
 			else:
 				logger.info(type(e), e)
 			break
@@ -225,6 +229,10 @@ def load_ship_list():
 					ship_list[i] = l[i]
 					# add skip bomber field to list's modules listing
 					ship_list[i]['modules']['skip_bomber'] = []
+					if "\xa0" in ship_list[i]['name']:
+						ship_list[i]['name'] = ship_list[i]['name'].replace("\xa0", " ")
+					if ship_list[i]['ship_id'] == 3741235152:
+						ship_list[i]['name'] = "Belfast '43"
 			except Exception as e:
 				if type(e) == wargaming.exceptions.RequestError:
 					if e.args[0] == "PAGE_NO_NOT_FOUND":
@@ -1101,8 +1109,16 @@ def load_ship_builds():
 			if build_ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable ?
 				build_ship_name = ship_name_to_ascii[build_ship_name.lower()]  # convert to the appropriate name
 
-			ship_data = ship_list[[s for s in ship_list if ship_list[s]['name'].lower() == build_ship_name.lower()][0]]
-			build_ship_name = ship_data['name']
+			try:
+				for i in ship_name_to_ascii:
+					if build_ship_name in i:
+						build_ship_name = ship_name_to_ascii[i]
+						break
+				ship_data = ship_list[[s for s in ship_list if ship_list[s]['name'].lower() == build_ship_name.lower()][0]]
+				build_ship_name = ship_data['name']
+			except IndexError:
+				logger.warning(f"ship with name {build_ship_name} is not found in database. Skip for now.")
+				continue
 
 			data = {
 				"name": build_name,
@@ -1145,6 +1161,7 @@ def load_ship_builds():
 				except IndexError:
 					logger.warning(f"skill [{s}] is not an skill!")
 					data['errors'].append(BuildError.SKILLS_INCORRECT)
+
 			if not check_skill_order_valid(data['skills']):
 				data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
 			if total_skill_pts > 21:
@@ -1154,7 +1171,13 @@ def load_ship_builds():
 			data['errors'] = tuple(set(data['errors']))
 			if data['errors']:
 				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
-				logger.warning(f"Build for ship {build_ship_name} has the following errors: {build_error_strings}")
+				logger.warning(f"Build for ship [{build_ship_name}] has the following errors: {build_error_strings}")
+				for e in data['errors']:
+					print(f"Skill orders are:")
+					for skill in data["skills"]:
+						print(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+					if e == BuildError.SKILLS_POTENTIALLY_MISSING:
+						print(f"Total skill points in this build: {total_skill_pts}")
 
 			build_id = sha256(str(data).encode()).hexdigest()
 			data['build_id'] = build_id
