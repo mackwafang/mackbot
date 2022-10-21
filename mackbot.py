@@ -231,7 +231,6 @@ bot_intents.typing = True
 bot_intents.message_content = True
 
 mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
-# nfw = nfw.NonFungibleWarships(mackbot)
 
 # get weegee's wows encyclopedia
 WG = {
