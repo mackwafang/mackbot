@@ -1147,6 +1147,7 @@ async def build(context: commands.Context, args: str):
 
 			if not send_image_build:
 				embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
+
 				embed.set_thumbnail(url=images['small'])
 
 				logger.info(f"returning build information for <{name}> in embeded format")
@@ -1292,6 +1293,7 @@ async def build(context: commands.Context, args: str):
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = discord.Embed(title=f"Build for {name}", description='')
+				embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
