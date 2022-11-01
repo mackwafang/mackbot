@@ -1042,8 +1042,24 @@ async def on_command_error(context: commands.Context, error: commands.errors):
 		await context.send("An internal error as occurred.")
 		traceback.print_exc()
 
-@mackbot.hybrid_command(name="whoareyou", description="What is a mackbot?")
-async def whoareyou(context: commands.Context):
+@mackbot.hybrid_command(name="about", description="About mackbot")
+async def about_bot(context: commands.Context):
+	query = list(database_client.mackbot_db.mackbot_info.find({}).sort("VERSION_TIME", -1))
+	embed = discord.Embed(title="About mackbot")
+	if query:
+		m = ""
+		m += f"mackbot v{query[0]['MACKBOT_VERSION']}\n"
+		m += f"mackbot web v{query[0]['MACKBOT_WEB_VERSION']}\n"
+		embed.add_field(name="Version", value=m, inline=False)
+
+	m = ""
+	m += "All copyrighted materials owned by Wargaming.net. All rights reserved.\n"
+	m += "All other contents are available under the MIT license.\n"
+	embed.add_field(name="Legal", value=m, inline=False)
+	await context.send(embed=embed)
+
+@mackbot.hybrid_command(name="faq", description="What is a mackbot?")
+async def faq(context: commands.Context):
 	async with context.typing():
 		m = ""
 

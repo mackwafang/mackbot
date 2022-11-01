@@ -3,11 +3,11 @@
 	"goodbot" : true,
 	"build" : true,
 	"skill" : true,
-	"whoareyou" : true,
+	"about" : true,
 	"show" : true,
 	"upgrade" : true,
 	"commander" : true,
-	"feedback" : false,
+	"feedback" : true,
 	"map" : true,
 	"ship" : true,
 	"doubloons" : true,
@@ -20,5 +20,6 @@
 	"compare": true,
 	"commands": true,
 	"cook": true,
-	"support": true
+	"support": true,
+	"faq": true
 }
