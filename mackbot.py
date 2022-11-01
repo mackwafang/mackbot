@@ -231,7 +231,6 @@ bot_intents.typing = True
 bot_intents.message_content = True
 
 mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
-# nfw = nfw.NonFungibleWarships(mackbot)
 
 # get weegee's wows encyclopedia
 WG = {
@@ -1148,6 +1147,7 @@ async def build(context: commands.Context, args: str):
 
 			if not send_image_build:
 				embed = discord.Embed(title=f"{build_name.title()} Build for {name}", description='')
+
 				embed.set_thumbnail(url=images['small'])
 
 				logger.info(f"returning build information for <{name}> in embeded format")
@@ -1293,6 +1293,7 @@ async def build(context: commands.Context, args: str):
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = discord.Embed(title=f"Build for {name}", description='')
+				embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
@@ -1301,7 +1302,6 @@ async def build(context: commands.Context, args: str):
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
-		del skills # DO NOT REMOVE OR SHOW SKILLS WILL BREAK
 
 @mackbot.hybrid_command(name='ship', description='Get combat parameters of a warship')
 @app_commands.rename(args="value")
@@ -1492,7 +1492,7 @@ async def ship(context: commands.Context, args: str):
 								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 								m += f"**HE Bomb**: :boom:{airsup_info['max_damage']} (:fire:{airsup_info['burn_probability']}%, {icons_emoji['penetration']} {airsup_info['bomb_pen']}mm)\n"
 							else:
-								m += f"**Squadron**: 2 aircraft\n"
+								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 								m += f"**Depth Charge**: :boom:{airsup_info['max_damage']}\n"
 						m += '\n'
 				if m:
@@ -1587,7 +1587,7 @@ async def ship(context: commands.Context, args: str):
 					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 					m += '\n'
-					embed.add_field(name="__**Main Battery**__", value=m, inline=False)
+					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
 
 			# secondary armaments
 			if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
@@ -1629,7 +1629,7 @@ async def ship(context: commands.Context, args: str):
 						# if len(modules['hull']) > 1:
 						# 	m += '-------------------\n'
 
-						embed.add_field(name="__**Secondary Battery**__", value=m)
+						embed.add_field(name=f"{icons_emoji['gun']} __**Secondary Battery**__", value=m, inline=True)
 
 			# anti air
 			if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
@@ -1691,7 +1691,7 @@ async def ship(context: commands.Context, args: str):
 							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
 							m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 					if "anti_air" in query_result[0]['profile']:
-						embed.add_field(name="__**Anti-Air**__", value=m)
+						embed.add_field(name=f"{icons_emoji['aa']} __**Anti-Air**__", value=m, inline=False)
 
 			# torpedoes
 			if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
@@ -1721,7 +1721,7 @@ async def ship(context: commands.Context, args: str):
 						m += f"**Spotting Range:** {torps['spotting_range']} km\n"
 						m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
 						m += '-------------------\n'
-				embed.add_field(name="__**Torpedoes**__", value=m)
+				embed.add_field(name=f"{icons_emoji['torp']} __**Torpedoes**__", value=m)
 
 			# aircraft squadrons
 			if any(aircraft_module_filtered):
@@ -1746,6 +1746,14 @@ async def ship(context: commands.Context, args: str):
 								aircraft = squadron['profile'][module_type]
 								n_attacks = squadron['squad_size'] // squadron['attack_size']
 								m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
+								aircraft_icon_emoji = None
+								if module_type == 'fighter':
+									aircraft_icon_emoji = icons_emoji['plane_rocket']
+								if module_type == 'torpedo_bomber':
+									aircraft_icon_emoji = icons_emoji['plane_torp']
+								if module_type == 'dive_bomber' or module_type == 'skip_bomber':
+									aircraft_icon_emoji = icons_emoji['plane_bomb']
+
 								if detailed_filter:
 									m = ""
 									m += f"**Aircraft:** {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts), {aircraft['max_health']} HP\n"
@@ -1786,7 +1794,7 @@ async def ship(context: commands.Context, args: str):
 									m += '\n'
 									embed.add_field(name=f"__**{squadron['name'].replace(chr(10), ' ')}**__", value=m, inline=False)
 						if not detailed_filter:
-							embed.add_field(name=f"__**{aircraft_modules[module_type]}**__", value=m, inline=True)
+							embed.add_field(name=f"{aircraft_icon_emoji} __**{aircraft_modules[module_type]}**__", value=m, inline=True)
 
 			# engine
 			if len(modules['engine']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.ENGINE):
@@ -1820,7 +1828,7 @@ async def ship(context: commands.Context, args: str):
 					m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
 					m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
 					m += "\n"
-				embed.add_field(name="__**Concealment**__", value=m, inline=True)
+				embed.add_field(name=f"{icons_emoji['concealment']} __**Concealment**__", value=m, inline=True)
 
 			# upgrades
 			if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
@@ -2305,7 +2313,7 @@ async def skill(context: commands.Context, skill_tree: str, skill_name: str):
 		description = skill_data['description']
 		effect = skill_data['effect']
 		column = skill_data['x'] + 1
-		tier = skill_data['y']
+		tier = skill_data['y'] + 1
 		category = skill_data['category']
 		embed = discord.Embed(title=f"{name}", description="")
 		# embed.set_thumbnail(url=icon)
@@ -2556,7 +2564,7 @@ async def ships(context: commands.Context, args: Optional[str]=""):
 	# look up
 	result = []
 	if database_client is not None:
-		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(i, re.I) for i in key]}} if key else {})
+		query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(f"^{i}$", re.I) for i in key]}} if key else {})
 		if query_result is not None:
 			result = dict((str(i["ship_id"]), i) for i in query_result)
 	else:

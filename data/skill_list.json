@@ -103,7 +103,7 @@
     "tree": "AirCarrier",
     "name": "Secondary Armament Expert",
     "description": "Improves secondary battery reload time, continuous AA damage, and flak AA damage.",
-    "effect": "Secondary battery reload time: -10%\nContinuous AA damage: +10%\nFlak AA damage: +10%",
+    "effect": "Secondary battery reload time: -10%\nContinuous AA damage: +10%\nFlak AA damage: +10%\nDepth charges damage: +10%",
     "x": 4,
     "y": 1,
     "category": "Defense",
@@ -243,7 +243,7 @@
     "tree": "Battleship",
     "name": "Gun Feeder",
     "description": "Accelerate shell type switching if all main battery guns are reloaded.",
-    "effect": "-50% to reload time when shell type is switched",
+    "effect": "-40% to reload time when shell type is switched",
     "x": 0,
     "y": 0,
     "category": "Attack",
@@ -311,7 +311,7 @@
   },
   "31": {
     "tree": "Battleship",
-    "name": "Inertia Fused for HE Shells",
+    "name": "Inertia Fuse for HE Shells",
     "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
     "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
     "x": 1,
@@ -353,7 +353,7 @@
     "tree": "Battleship",
     "name": "AA Defense and ASW Expert",
     "description": "Increase AA and depth charges damage.",
-    "effect": "Continuous AA damage: +10%\nAA flak damage: +10%\nDepth charges damage: +10%",
+    "effect": "Continuous AA damage: +10%\nAA flak damage: +10%\nDepth charges damage: +10%\nWhile AA is operating: consumables cooldown -15%",
     "x": 5,
     "y": 1,
     "category": "Defense",
@@ -413,7 +413,7 @@
     "tree": "Battleship",
     "name": "Focus Fire Training",
     "description": "More flak bursts and improve AA damage on a priority sector.",
-    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%\nAirstrike reload time: -10%",
+    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%\nAirstrike reload time: -10%\nSquadron cooldown time: -5%",
     "x": 5,
     "y": 2,
     "category": "Defense",
@@ -493,7 +493,7 @@
     "tree": "Cruiser",
     "name": "Swift Fish",
     "description": "Increase torpedo speed.",
-    "effect": "Torpedo speed: +5%",
+    "effect": "Torpedo speed: +5%\nAirborne torpedo speed: +5%",
     "x": 1,
     "y": 0,
     "category": "Attack",
@@ -513,7 +513,7 @@
     "tree": "Cruiser",
     "name": "Gun Feeder",
     "description": "Accelerate shell type switching if all main battery guns are reloaded.",
-    "effect": "-50% to reload time when shell type is switched",
+    "effect": "-40% to reload time when shell type is switched",
     "x": 3,
     "y": 0,
     "category": "Attack",
@@ -593,7 +593,7 @@
     "tree": "Cruiser",
     "name": "Focus Fire Training",
     "description": "More flak bursts and improve AA damage on a priority sector.",
-    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%\nAirstrike reload time: -10%",
+    "effect": "AA flak burst per salvo: +1\nContinuous AA with active priority sector: +25%\nAirstrike reload time: -10%\nSquadron cooldown time: -5%",
     "x": 5,
     "y": 1,
     "category": "Defense",
@@ -691,6 +691,16 @@
   },
   "69": {
     "tree": "Cruiser",
+    "name": "Inertia Fuse for HE Shells",
+    "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
+    "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
+    "x": 3,
+    "y": 3,
+    "category": "Attack",
+    "image": "he_penetration"
+  },
+  "70": {
+    "tree": "Cruiser",
     "name": "Concealment Expert",
     "description": "Reduced the detectability range.",
     "effect": "Detection range: -10%",
@@ -699,17 +709,17 @@
     "category": "Defense",
     "image": "detection_visibility_range"
   },
-  "70": {
+  "71": {
     "tree": "Cruiser",
     "name": "AA Defense and ASW Expert",
     "description": "Increase AA and depth charges damage.",
-    "effect": "Continuous AA damage: +20%\nAA flak damage: +20%\nDepth charges damage: +15%",
+    "effect": "Continuous AA damage: +20%\nAA flak damage: +20%\nDepth charges damage: +15%\nWhile AA is operating: consumables cooldown -20%",
     "x": 5,
     "y": 3,
     "category": "Defense",
     "image": "aa_damage_constant_bubbles"
   },
-  "71": {
+  "72": {
     "tree": "Destroyer",
     "name": "Grease The Gears",
     "description": "Faster turret rotation to help turrets keep up with maneuvers.",
@@ -719,7 +729,7 @@
     "category": "Attack",
     "image": "gm_turn"
   },
-  "72": {
+  "73": {
     "tree": "Destroyer",
     "name": "Liquidator",
     "description": "Increase chanced to cause flooding on a torpedo strike.",
@@ -729,7 +739,7 @@
     "category": "Attack",
     "image": "torpedo_flooding_probability"
   },
-  "73": {
+  "74": {
     "tree": "Destroyer",
     "name": "Consumables Specialist",
     "description": "Reduces consumable cooldown time.",
@@ -739,17 +749,17 @@
     "category": "Attack",
     "image": "consumables_reload"
   },
-  "74": {
+  "75": {
     "tree": "Destroyer",
     "name": "Gun Feeder",
     "description": "Accelerate shell type switching if all main battery guns are reloaded.",
-    "effect": "-50% to reload time when shell type is switched",
+    "effect": "-40% to reload time when shell type is switched",
     "x": 3,
     "y": 0,
     "category": "Attack",
     "image": "gm_shell_reload"
   },
-  "75": {
+  "76": {
     "tree": "Destroyer",
     "name": "Incoming Fire Alert",
     "description": "Warns of long-range main battery shells.",
@@ -759,7 +769,7 @@
     "category": "Defense",
     "image": "detection_alert"
   },
-  "76": {
+  "77": {
     "tree": "Destroyer",
     "name": "Preventive Maintenance",
     "description": "Reduces the risk of main turrets, torpedo tubes, steering gear, and engine becoming incapacitated.",
@@ -769,7 +779,7 @@
     "category": "Defense",
     "image": "defense_crit_probability"
   },
-  "77": {
+  "78": {
     "tree": "Destroyer",
     "name": "Demolition Expert",
     "description": "Increase chance of causing fires on enemy ships.",
@@ -779,17 +789,17 @@
     "category": "Attack",
     "image": "he_fire_probability"
   },
-  "78": {
+  "79": {
     "tree": "Destroyer",
     "name": "Swift Fish",
     "description": "Faster Torpedoes.",
-    "effect": "Torpedo Speed: +5%",
+    "effect": "Torpedo speed: +5%\nAirborne torpedo speed: +5%",
     "x": 1,
     "y": 1,
     "category": "Attack",
     "image": "torpedo_speed"
   },
-  "79": {
+  "80": {
     "tree": "Destroyer",
     "name": "Consumables Enhancements",
     "description": "Longer lasting consumables.",
@@ -799,7 +809,7 @@
     "category": "Attack",
     "image": "consumables_duration"
   },
-  "80": {
+  "81": {
     "tree": "Destroyer",
     "name": "Extra-Heavy Ammunition",
     "description": "Increase AP shell and depth charges damage.",
@@ -809,7 +819,7 @@
     "category": "Attack",
     "image": "ap_damage_dd"
   },
-  "81": {
+  "82": {
     "tree": "Destroyer",
     "name": "Priority Target",
     "description": "Display the number of enemies aiming at your ship.",
@@ -819,7 +829,7 @@
     "category": "Defense",
     "image": "detection_aiming"
   },
-  "82": {
+  "83": {
     "tree": "Destroyer",
     "name": "Last Stand",
     "description": "Engine and steering gears continue to operate when it is incapacitated with a penalty.",
@@ -829,7 +839,7 @@
     "category": "Defense",
     "image": "maneuverability"
   },
-  "83": {
+  "84": {
     "tree": "Destroyer",
     "name": "Main Battery and AA Specialist",
     "description": "Improved firepower.",
@@ -839,7 +849,7 @@
     "category": "Attack",
     "image": "gm_reload_aa_damage_constant"
   },
-  "84": {
+  "85": {
     "tree": "Destroyer",
     "name": "Fill the Tubes",
     "description": "Reduces torpedo reduce time.",
@@ -849,7 +859,7 @@
     "category": "Attack",
     "image": "torpedo_reload"
   },
-  "85": {
+  "86": {
     "tree": "Destroyer",
     "name": "Adrenaline Rush",
     "description": "Increase reload speed of all armaments as the ship's health decrease.",
@@ -859,7 +869,7 @@
     "category": "Attack",
     "image": "armament_reload_aa_damage"
   },
-  "86": {
+  "87": {
     "tree": "Destroyer",
     "name": "heavy he and sap shells",
     "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
@@ -869,7 +879,7 @@
     "category": "Attack",
     "image": "he_penetration"
   },
-  "87": {
+  "88": {
     "tree": "Destroyer",
     "name": "Superintendent",
     "description": "Provide an additional charge for all consumables onboard.",
@@ -879,7 +889,7 @@
     "category": "Defense",
     "image": "consumables_additional"
   },
-  "88": {
+  "89": {
     "tree": "Destroyer",
     "name": "Survivability Expert",
     "description": "Increase ship's hit points.",
@@ -889,7 +899,7 @@
     "category": "Defense",
     "image": "defense_hp"
   },
-  "89": {
+  "90": {
     "tree": "Destroyer",
     "name": "Main battery and AA Expert",
     "description": "Even more firepower.",
@@ -899,7 +909,7 @@
     "category": "Attack",
     "image": "gm_range_aa_damage_bubbles"
   },
-  "90": {
+  "91": {
     "tree": "Destroyer",
     "name": "Swift in Silence",
     "description": "Speed bonus while ship is undetected.",
@@ -909,7 +919,7 @@
     "category": "Attack",
     "image": "trigger_speed"
   },
-  "91": {
+  "92": {
     "tree": "Destroyer",
     "name": "Radio Location",
     "description": "Show the direction of the nearest enemy.",
@@ -919,7 +929,7 @@
     "category": "Attack",
     "image": "detection_direction"
   },
-  "92": {
+  "93": {
     "tree": "Destroyer",
     "name": "Fearless Brawler",
     "description": "Decreased main battery reload time while ship is detected.",
@@ -929,7 +939,7 @@
     "category": "Attack",
     "image": "trigger_gm_reload"
   },
-  "93": {
+  "94": {
     "tree": "Destroyer",
     "name": "Concealment Expert",
     "description": "Reduced the detectability range.",
@@ -939,7 +949,7 @@
     "category": "Defense",
     "image": "detection_visibility_range"
   },
-  "94": {
+  "95": {
     "tree": "Destroyer",
     "name": "Dazzle",
     "description": "When ship is spotted, accuracy of enemy shells fired at you is decreased.",
@@ -949,7 +959,7 @@
     "category": "Defense",
     "image": "trigger_spreading"
   },
-  "95": {
+  "96": {
     "tree": "Submarine",
     "name": "Enhanced Sonar",
     "description": "Reduces sonar reload time if you are spotted.",
@@ -959,7 +969,7 @@
     "category": "Attack",
     "image": ""
   },
-  "96": {
+  "97": {
     "tree": "Submarine",
     "name": "Liquidator",
     "description": "Increase chanced to cause flooding on a torpedo strike.",
@@ -969,57 +979,7 @@
     "category": "Attack",
     "image": ""
   },
-  "97": {
-    "tree": "Submarine",
-    "name": "Consumables Specialist",
-    "description": "Reduces consumable cooldown time.",
-    "effect": "Ship's consumable reload time: -5%",
-    "x": 2,
-    "y": 0,
-    "category": "Attack",
-    "image": "consumables_reload"
-  },
   "98": {
-    "tree": "Submarine",
-    "name": "Priority Target",
-    "description": "Display the number of enemies aiming at your ship.",
-    "effect": "Display the number of enemies aiming at your ship",
-    "x": 3,
-    "y": 0,
-    "category": "Defense",
-    "image": "detection_aiming"
-  },
-  "99": {
-    "tree": "Submarine",
-    "name": "Incoming Fire Alert",
-    "description": "Warns of long-range main battery shells.",
-    "effect": "Receives a warning of a salvo fired at your ship from a distance longer than 4.5km",
-    "x": 4,
-    "y": 0,
-    "category": "Defense",
-    "image": "detection_alert"
-  },
-  "100": {
-    "tree": "Submarine",
-    "name": "Improved Battery Capacity",
-    "description": "Increase dive capacity but increase battery depletion when spotted.",
-    "effect": "Battery capacity: +10%\nBattery capacity depletion when spotted: +20%",
-    "x": 0,
-    "y": 1,
-    "category": "Attack",
-    "image": ""
-  },
-  "101": {
-    "tree": "Submarine",
-    "name": "Torpedo Crew Training",
-    "description": "Reduce torpedo reload time while you are spotted.",
-    "effect": "Torpedo tube reload time: -5%",
-    "x": 1,
-    "y": 1,
-    "category": "Attack",
-    "image": ""
-  },
-  "102": {
     "tree": "Submarine",
     "name": "Helmsman",
     "description": "Reduces rudder shift time within 15 seconds of activation of the Hydrophone consumable.",
@@ -1029,7 +989,57 @@
     "category": "Attack",
     "image": ""
   },
+  "99": {
+    "tree": "Submarine",
+    "name": "Priority Target",
+    "description": "Display the number of enemies aiming at your ship.",
+    "effect": "Display the number of enemies aiming at your ship",
+    "x": 3,
+    "y": 0,
+    "category": "Defense",
+    "image": "detection_aiming"
+  },
+  "100": {
+    "tree": "Submarine",
+    "name": "Incoming Fire Alert",
+    "description": "Warns of long-range main battery shells.",
+    "effect": "Receives a warning of a salvo fired at your ship from a distance longer than 4.5km",
+    "x": 4,
+    "y": 0,
+    "category": "Defense",
+    "image": "detection_alert"
+  },
+  "101": {
+    "tree": "Submarine",
+    "name": "Improved Battery Capacity",
+    "description": "Increase dive capacity but increase battery depletion when spotted.",
+    "effect": "Battery capacity: +10%\nBattery capacity recharge when spotted: -20%",
+    "x": 0,
+    "y": 1,
+    "category": "Attack",
+    "image": ""
+  },
+  "102": {
+    "tree": "Submarine",
+    "name": "Torpedo Crew Training",
+    "description": "Reduce torpedo reload time while you are spotted.",
+    "effect": "Torpedo tube reload time: -5%",
+    "x": 1,
+    "y": 1,
+    "category": "Attack",
+    "image": ""
+  },
   "103": {
+    "tree": "Submarine",
+    "name": "Consumables Enhancements",
+    "description": "Increase ship's consumable action time.",
+    "effect": "Ship's consumable action time: +5%",
+    "x": 2,
+    "y": 2,
+    "category": "Attack",
+    "image": "consumables_duration"
+  },
+  "104": {
     "tree": "Submarine",
     "name": "Preventive Maintenance",
     "description": "Reduces the risk of main turrets, torpedo tubes, steering gear, and engine becoming incapacitated.",
@@ -1039,7 +1049,7 @@
     "category": "Defense",
     "image": "defense_crit_probability"
   },
-  "104": {
+  "105": {
     "tree": "Submarine",
     "name": "Last Stand",
     "description": "Engine and steering gears continue to operate when it is incapacitated with a penalty.",
@@ -1049,47 +1059,47 @@
     "category": "Defense",
     "image": "maneuverability"
   },
-  "105": {
-    "tree": "Submarine",
-    "name": "Enhanced Impulse Generator",
-    "description": "Increase ping velocity if dive capacity is at 25% or less.",
-    "effect": "Sonar ping velocity: +10%",
-    "x": 0,
-    "y": 2,
-    "category": "Attack",
-    "image": ""
-  },
   "106": {
     "tree": "Submarine",
-    "name": "Sonarman",
-    "description": "Increase duration on an affected sector when it is pinged twice, but reduce duration when it is pinged once.",
-    "effect": "Ping duration on sector highlighted twice: +20%\nPing duration on sector highlighted once: -10%",
-    "x": 1,
+    "name": "Enhanced Impulse Generator",
+    "description": "Increase ping velocity if dive capacity is at 33% or less.",
+    "effect": "Sonar ping velocity: +15%",
+    "x": 0,
     "y": 2,
     "category": "Attack",
     "image": ""
   },
   "107": {
     "tree": "Submarine",
-    "name": "Consumables Enhancements",
-    "description": "Increase ship's consumable action time.",
-    "effect": "Ship's consumable action time: +7.5%",
-    "x": 2,
+    "name": "Sonarman",
+    "description": "Increase duration on an affected sector when it is pinged once, but reduce duration when a sector is pinged twice.",
+    "effect": "Ping duration on sector highlighted once: +25%\nPing duration on sector highlighted twice: -15%",
+    "x": 1,
     "y": 2,
     "category": "Attack",
-    "image": "consumables_duration"
+    "image": ""
   },
   "108": {
     "tree": "Submarine",
+    "name": "Consumables Specialist",
+    "description": "Reduces consumable cooldown time.",
+    "effect": "Ship's consumable reload time: -5%",
+    "x": 2,
+    "y": 0,
+    "category": "Attack",
+    "image": "consumables_reload"
+  },
+  "109": {
+    "tree": "Submarine",
     "name": "Watchful",
-    "description": "Display a detection marker if the submarine is within an enemy's active Hydroaccoustic Search or Surveillance Radar while at maximum depths.",
+    "description": "Display a detection marker if the submarine is within an enemy's active Hydroaccoustic Search or Surveillance Radar while remain undetected. The submarine may be detected if it's depth changes.",
     "effect": "As stated in description.",
     "x": 3,
     "y": 2,
     "category": "Defense",
     "image": ""
   },
-  "109": {
+  "110": {
     "tree": "Submarine",
     "name": "Superintendent",
     "description": "Provide an additional charge for all consumables onboard.",
@@ -1099,7 +1109,7 @@
     "category": "Defense",
     "image": "consumables_additional"
   },
-  "110": {
+  "111": {
     "tree": "Submarine",
     "name": "Adrenaline Rush",
     "description": "Increase reload speed of all armaments as the ship's health decrease.",
@@ -1109,7 +1119,7 @@
     "category": "Attack",
     "image": "armament_reload_aa_damage"
   },
-  "111": {
+  "112": {
     "tree": "Submarine",
     "name": "Torpedo Aiming Master",
     "description": "Increase torpedo damage against twice highlighted sector.",
@@ -1119,31 +1129,31 @@
     "category": "Attack",
     "image": ""
   },
-  "112": {
+  "113": {
     "tree": "Submarine",
     "name": "Sonarman Expert",
-    "description": "Increase ping effect after usage of the Hydrophone consumable.",
+    "description": "Increase ping effect within 30 seconds of usage of the Hydrophone consumable.",
     "effect": "Ping duration on sector highlighted once: +25%\nPing duration on sector highlighted twice: +25%",
     "x": 2,
     "y": 3,
     "category": "Attack",
     "image": ""
   },
-  "113": {
+  "114": {
     "tree": "Submarine",
     "name": "Improved Battery Capacity",
-    "description": "Decrease dive capacity consumption when detected and with less than 25% dive capacity.",
-    "effect": "Dive capacity consumption: -25%",
+    "description": "Increase the dive capacity recharge rate while surface and with less than 50% dive capacity.",
+    "effect": "Dive capacity recharge rate: +25%",
     "x": 3,
     "y": 3,
     "category": "Defense",
     "image": ""
   },
-  "114": {
+  "115": {
     "tree": "Submarine",
     "name": "Enlarged Propeller Shaft",
-    "description": "Increase submerged speed while at less than 25% dive capacity.",
-    "effect": "Submerged speed: +15%",
+    "description": "Increase speed while surfaced or at periscope depth while at less than 50% dive capacity.",
+    "effect": "Speed while surfaced or at periscope depth: +15%",
     "x": 4,
     "y": 3,
     "category": "Defense",
