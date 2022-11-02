@@ -141,7 +141,7 @@
   },
   "14": {
     "tree": "AirCarrier",
-    "name": "Pryotechnician",
+    "name": "Pyrotechnician",
     "description": "Increase chance of causing fire with aerial bombs and rockets.",
     "effect": "HE rockets fire chance: +1%\nHE bombs fire chance: +5%",
     "x": 2,
@@ -604,7 +604,7 @@
     "name": "Heavy HE and SAP shells",
     "description": "Increase damage for HE and SAP shells but increase the detectability range of ships that have guns above a certain caliber.",
     "effect": "Main battery HE damage: +15%\nMain battery SAP damage: +15%\nDetectability of ships with main battery larger than 149mm: +15%",
-    "x": 3,
+    "x": 0,
     "y": 2,
     "category": "Attack",
     "image": "he_sap_damage"
@@ -871,7 +871,7 @@
   },
   "87": {
     "tree": "Destroyer",
-    "name": "heavy he and sap shells",
+    "name": "Inertia Fuse for HE Shells",
     "description": "Increases HE penetration of main battery and secondary shells, while decreasing its fire chance.",
     "effect": "HE penetration: +25%\nBase fire chance: 0.5x",
     "x": 3,
