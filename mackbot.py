@@ -1053,6 +1053,10 @@ async def about_bot(context: commands.Context):
 		embed.add_field(name="Version", value=m, inline=False)
 
 	m = ""
+	m += f"Please visit the **mackbot's testing ground** server {discord_invite_url}"
+	embed.add_field(name="Support", value=m, inline=False)
+
+	m = ""
 	m += "All copyrighted materials owned by Wargaming.net. All rights reserved.\n"
 	m += "All other contents are available under the MIT license.\n"
 	embed.add_field(name="Legal", value=m, inline=False)

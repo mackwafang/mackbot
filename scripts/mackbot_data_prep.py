@@ -8,6 +8,7 @@ from itertools import count
 from math import inf
 from enum import IntEnum, auto
 from tqdm import tqdm
+from pprint import pprint
 
 from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
 from scripts.mackbot_exceptions import BuildError
@@ -74,7 +75,11 @@ mongodb_host = data['mongodb_host']
 sheet_id = data['sheet_id']
 
 # get weegee's wows encyclopedia
-WG = wargaming.WoWS(data['wg_token'], region='na', language='en')
+try:
+	WG = wargaming.WoWS(data['wg_token'], region='na', language='en')
+except Exception as e:
+	logger.error("Cannot connect to WG servers")
+	exit(1)
 wows_encyclopedia = WG.encyclopedia
 ship_types = wows_encyclopedia.info()['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
@@ -1099,6 +1104,9 @@ def load_ship_builds():
 			return
 
 		for row in values[1:]:
+			if len(row) == 0:
+				break
+
 			build_ship_name = row[0]
 			build_name = row[1]
 			build_upgrades = row[2:8]
@@ -1111,7 +1119,7 @@ def load_ship_builds():
 
 			try:
 				for i in ship_name_to_ascii:
-					if build_ship_name in i:
+					if build_ship_name == i:
 						build_ship_name = ship_name_to_ascii[i]
 						break
 				ship_data = ship_list[[s for s in ship_list if ship_list[s]['name'].lower() == build_ship_name.lower()][0]]
@@ -1119,7 +1127,6 @@ def load_ship_builds():
 			except IndexError:
 				logger.warning(f"ship with name {build_ship_name} is not found in database. Skip for now.")
 				continue
-
 			data = {
 				"name": build_name,
 				"ship": build_ship_name,
@@ -1179,7 +1186,7 @@ def load_ship_builds():
 			data['errors'] = tuple(set(data['errors']))
 			if data['errors']:
 				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
-				logger.warning(f"Build for ship [{build_ship_name}] has the following errors: {build_error_strings}")
+				logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
 				for e in data['errors']:
 					print(f"Skill orders are:")
 					for skill in data["skills"]:
