@@ -1,7 +1,7 @@
 
 from pymongo import MongoClient
 
-from scripts.utilities.utils import mongodb_host
+from scripts.utilities.bot_data import mongodb_host
 from scripts.utilities.logger import logger
 
 from scripts.mackbot_constants import icons_emoji, hull_classification_converter
@@ -16,7 +16,6 @@ cmdr_list = {}
 flag_list = {}
 upgrade_abbr_list = {}
 consumable_list = {}
-game_data = {}
 ship_list_simple = {}
 
 # define database stuff

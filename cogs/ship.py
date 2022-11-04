@@ -1,6 +1,6 @@
-import re, inflect, discord, traceback
+import re, traceback
 
-from discord import app_commands
+from discord import app_commands, Embed
 from discord.ext import commands
 from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
 from scripts.mackbot_exceptions import *
@@ -11,6 +11,7 @@ from scripts.utilities.game_data.warships_data import database_client, module_li
 from scripts.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
 from scripts.utilities.correct_user_mispell import correct_user_misspell
 from scripts.utilities.find_close_match_item import find_close_match_item
+from scripts.utilities.to_plural import to_plural
 
 class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	HULL = 0
@@ -25,8 +26,6 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	CONCEAL = auto()
 	CONSUMABLE = auto()
 	UPGRADES = auto()
-
-grammar = inflect.engine()
 
 class Ship(commands.Cog):
 	def __init__(self, client):
@@ -109,9 +108,9 @@ class Ship(commands.Cog):
 				else:
 					ship_type = "Battlecruiser"
 			test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
-			embed = discord.Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
+			embed = Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
 
-			tier_string = [i for i in roman_numeral if roman_numeral[i] == tier][0]
+			tier_string = roman_numeral[tier - 1]
 			if tier < 11:
 				tier_string = tier_string.upper()
 			embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
@@ -270,7 +269,7 @@ class Ship(commands.Cog):
 					turret_data = module['profile']['artillery']['turrets']
 					for turret_name in turret_data:
 						turret = turret_data[turret_name]
-						m += f"**{turret['count']} x {turret_name} ({grammar.plural('barrel', turret['numBarrels'])})**\n"
+						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 					m += f"**Range: ** {guns['range'] / 1000:1.0f} km\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
@@ -396,7 +395,7 @@ class Ship(commands.Cog):
 								far = aa['far']
 								if flak['damage'] > 0:
 									m += f" (Flak from {flak['min_range'] / 1000: 0.1f} km)\n"
-									m += f"**Flak:** {flak['damage']}:boom:, {grammar.plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
+									m += f"**Flak:** {flak['damage']}:boom:, {to_plural('burst', int(flak['count']))}, {flak['hitChance']:2.0%}"
 								m += "\n"
 
 								if near['damage'] > 0:
@@ -432,7 +431,7 @@ class Ship(commands.Cog):
 					torps = module['profile']['torpedoes']
 					projectile_name = module['name'].replace(chr(10), ' ')
 					turret_name = list(torps['turrets'].keys())[0]
-					m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {grammar.plural('barrel', torps['numBarrels'])})"
+					m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
 					if torps['is_deep_water']:
 						m += " [DW]"
 					m += '**\n'
@@ -511,7 +510,7 @@ class Ship(commands.Cog):
 											m += f"{consumable_data['workTime']:1.0f}s duration, "
 											# if consumable_type == "healForsage":
 											if consumable_type == "callFighters":
-												m += f"{grammar.plural('fighter', consumable_data['fightersNum'])}, "
+												m += f"{to_plural('fighter', consumable_data['fightersNum'])}, "
 											if consumable_type == "regenerateHealth":
 												m += f"{consumable_data['regenerationRate']:1.0%}/s, "
 											m += f"{consumable_data['reloadTime']:1.0f}s reload"
@@ -596,7 +595,7 @@ class Ship(commands.Cog):
 								if consumable_type == 'artilleryBoosters':
 									consumable_detail = f'Reload Time: -{consumable["boostCoeff"]:2.0f}'
 								if consumable_type == 'fighter':
-									consumable_detail = f'{grammar.plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
+									consumable_detail = f'{to_plural("fighter", consumable["fightersNum"])}, {consumable["distanceToKill"]/10:0.1f} km action radius'
 								if consumable_type == 'regenCrew':
 									consumable_detail = f'Repairs {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
 									if database_client is not None:
@@ -649,7 +648,7 @@ class Ship(commands.Cog):
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
 				closest_match = find_close_match_item(ship.lower(), "ship_list")
-				embed = discord.Embed(title=f"Ship {ship} is not understood.\n", description="")
+				embed = Embed(title=f"Ship {ship} is not understood.\n", description="")
 				if closest_match:
 					closest_match_string = closest_match[0].title()
 					closest_match_string = f'\nDid you mean **{closest_match_string}**?'

@@ -5,7 +5,7 @@ from discord import app_commands
 from discord.ext import commands
 from scripts.utilities.compile_bot_help import *
 from scripts.mackbot_constants import icons_emoji, EMPTY_LENGTH_CHAR
-from scripts.utilities.utils import command_list, command_prefix
+from scripts.utilities.bot_data import command_list, command_prefix
 
 class BotHelp(commands.Cog):
 	def __init__(self, client):

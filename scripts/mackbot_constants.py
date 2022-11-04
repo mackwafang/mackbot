@@ -69,19 +69,19 @@ cmdr_name_to_ascii = {
 }
 
 # here because of lazy
-roman_numeral = {
-	'I': 1,
-	'II': 2,
-	'III': 3,
-	'IV': 4,
-	'V': 5,
-	'VI': 6,
-	'VII': 7,
-	'VIII': 8,
-	'IX': 9,
-	'X': 10,
-	':star:': 11,
-}
+roman_numeral = (
+	'I',
+	'II',
+	'III',
+	'IV',
+	'V',
+	'VI',
+	'VII',
+	'VIII',
+	'IX',
+	'X',
+	':star:',
+)
 
 # barrel count names
 barrel_count_names = {
@@ -104,6 +104,13 @@ AA_RATING_DESCRIPTOR = {
 	(175, inf): "Do Not Approach",
 }
 
+GOOD_BOT_MESSAGES = (
+	'Thank you!',
+	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
+	':3',
+	':heart:',
+)
+
 MM_WITH_CV_TIER = (
 	(),
 	(),
@@ -117,6 +124,8 @@ MM_WITH_CV_TIER = (
 	(8,10),
 	(10),
 )
+
+WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
 ship_group_dict = {
