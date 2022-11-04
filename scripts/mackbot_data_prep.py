@@ -1,6 +1,4 @@
-import requests
 import wargaming, traceback, json, logging, os, pickle, io
-
 
 from hashlib import sha256
 from pymongo import MongoClient
