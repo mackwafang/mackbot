@@ -229,5 +229,15 @@
 		"brief": "Get mackbot's support Discord server",
 		"usage": "",
 		"description": ["Get mackbot's support Discord server"]
+	},
+	"about": {
+		"brief": "Information about mackbot",
+		"usage": "",
+		"description": ["Information about mackbot"]
+	},
+	"faq": {
+		"brief": "Information about mackbot",
+		"usage": "",
+		"description": ["Information about mackbot"]
 	}
 }

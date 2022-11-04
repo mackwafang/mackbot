@@ -1,5 +1,10 @@
 from math import inf
 
+EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
+DEGREE_SYMBOL = "\xb0"
+SIGMA_SYMBOL = "\u03c3"
+EMPTY_LENGTH_CHAR = '\u200b'
+
 # dictionary to convert user input to output nations
 nation_dictionary = {
 	'usa': 'US',
@@ -20,6 +25,16 @@ nation_dictionary = {
 	'netherlands': "Dutch",
 	'spain': "Spanish"
 }
+
+ship_types = {
+	'Destroyer': 'Destroyer',
+	'AirCarrier': 'Aircraft Carrier',
+	'Aircraft Carrier': 'Aircraft Carrier',
+	'Battleship': 'Battleship',
+	'Cruiser': 'Cruiser',
+	'Submarine': 'Submarine'
+}
+
 # convert weegee ship type to usn hull classifications
 hull_classification_converter = {
 	'Destroyer': 'DD',
@@ -54,19 +69,19 @@ cmdr_name_to_ascii = {
 }
 
 # here because of lazy
-roman_numeral = {
-	'I': 1,
-	'II': 2,
-	'III': 3,
-	'IV': 4,
-	'V': 5,
-	'VI': 6,
-	'VII': 7,
-	'VIII': 8,
-	'IX': 9,
-	'X': 10,
-	':star:': 11,
-}
+roman_numeral = (
+	'I',
+	'II',
+	'III',
+	'IV',
+	'V',
+	'VI',
+	'VII',
+	'VIII',
+	'IX',
+	'X',
+	':star:',
+)
 
 # barrel count names
 barrel_count_names = {
@@ -89,6 +104,13 @@ AA_RATING_DESCRIPTOR = {
 	(175, inf): "Do Not Approach",
 }
 
+GOOD_BOT_MESSAGES = (
+	'Thank you!',
+	'Mackbot tattara kekkō ganbatta poii? Homete hometei!',
+	':3',
+	':heart:',
+)
+
 MM_WITH_CV_TIER = (
 	(),
 	(),
@@ -102,6 +124,8 @@ MM_WITH_CV_TIER = (
 	(8,10),
 	(10),
 )
+
+WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
 ship_group_dict = {
@@ -123,4 +147,34 @@ ship_group_dict = {
 	'start':                "Starting"
 }
 
-COAL_TO_GOLD = 80/11
+# icons for prettifying outputs
+icons_emoji = {
+	"torp": "<:torp:917573129579151392>",
+	"dd": "<:destroyer:917573129658859573>",
+	"gun": "<:gun:917573129730146325>",
+	"bb_prem": "<:battleship_premium:917573129801449563>",
+	"plane_torp": "<:plane_torpedo:917573129847590993>",
+	"ss_prem": "<:submarine_premium:917573129851764776>",
+	"ss": "<:submarine:917573129876955147>",
+	"bb": "<:battleship:917573129876959232>",
+	"cv": "<:carrier:917573129931477053>",
+	"c": "<:cruiser:917573129885323374>",
+	"dd_prem": "<:destroyer_premium:917573129944059965>",
+	"plane_rocket": "<:plane_projectile:917573129956638750>",
+	"c_prem": "<:cruiser_premium:917573129965027398>",
+	"cv_prem": "<:carrier_premium:917573130019557416>",
+	"plane_bomb": "<:plane_bomb:917573130023759893>",
+	"penetration": "<:penetration:917583397122084864>",
+	"ap": "<:ap:917585790765252608>",
+	"he": "<:he:917585790773653536>",
+	"sap": "<:sap:917585790811402270>",
+	"reload": "<:reload:917585790815584326>",
+	"range": "<:range:917589573415088178>",
+	"aa": "<:aa:917590394806599780>",
+	"plane": "<:plane:917601379235815524>",
+	"concealment": "<:concealment:917605435278782474>",
+	"clan_in": "<:clan_in:952757125225021450>",
+	"clan_out": "<:clan_out:952757125237575690>",
+	"green_plus": "<:green_plus:979497350869450812>",
+	"red_dash": "<:red_dash:979497350911385620>",
+}
