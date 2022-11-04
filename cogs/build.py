@@ -54,11 +54,13 @@ class Build(commands.Cog):
 				embed = Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 
-				embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+				embed.description = f"**Tier {roman_numeral[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 				m = ""
 				for i, bid in enumerate(builds):
-					build_name = builds[i]['name']
+					build_name = builds[i]['name'].title()
+					if build_name in ['aa']:
+						build_name = build_name.upper()
 					m += f"[{i + 1}] {build_name}\n"
 				embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 				embed.set_footer(text="Please select a build.\nResponse expires in 15 seconds.")

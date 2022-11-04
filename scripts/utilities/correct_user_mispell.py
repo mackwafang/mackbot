@@ -3,7 +3,7 @@ from asyncio.exceptions import TimeoutError, CancelledError
 from discord import Client
 from discord.ext.commands import Context
 
-async def correct_user_misspell(client, context: Context, command: str, *args: list[str]) -> None:
+async def correct_user_misspell(client: Client, context: Context, command: str, *args: list[str]) -> None:
 	"""
 	Correct user's spelling mistake on ships on some commands
 
@@ -24,7 +24,7 @@ async def correct_user_misspell(client, context: Context, command: str, *args: l
 
 		prefix_and_invoke = ' '.join(context.message.content.split()[:2])
 		context.message.content = f"{prefix_and_invoke} {' '.join(args)}"
-		await globals()[command](context, *args)
+		await client.all_commands[command](context, *args)
 	except Exception as e:
 		if type(e) in (TimeoutError, CancelledError):
 			pass
