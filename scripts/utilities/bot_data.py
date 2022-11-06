@@ -34,3 +34,6 @@ if os.path.exists(clan_history_file_path):
 
 with open(os.path.join(os.getcwd(), "data", "hottakes.txt")) as f:
 	hottake_strings = f.read().split('\n')
+
+with open(os.path.join(os.getcwd(), "data", "faq.json")) as f:
+	faq_data = json.load(f)
