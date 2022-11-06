@@ -26,7 +26,7 @@ class Misc(commands.Cog):
 	@commands.hybrid_command(name="feedback", description="Provide feedback to the developer")
 	async def feedback(self, context: commands.Context):
 		logger.info("send feedback link")
-		await context.send(f"Need to rage at mack because he ~~fucks up~~ did goofed on a feature? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
+		await context.send(f"Got a feedback about mackbot? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
 	@commands.hybrid_command(name="doubloons", description="Converts doubloons to USD, vice versa.")
 	@app_commands.describe(

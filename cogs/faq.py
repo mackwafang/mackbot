@@ -11,6 +11,7 @@ class FAQ(commands.Cog):
 	async def faq(self, context: commands.Context):
 		async with context.typing():
 			embed = Embed(title="mackbot FAQ")
-			for question, answer in faq_data['faq']:
-				embed.add_field(name=question, value='\n'.join(answer), inline=False)
+			for item in faq_data:
+				question, answer = item.values()
+				embed.add_field(name=f":grey_question {question}", value='\n'.join(answer), inline=False)
 		await context.send(embed=embed)
