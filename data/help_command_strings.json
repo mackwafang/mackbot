@@ -90,19 +90,28 @@
 		"brief": "show all ships",
 		"usage": "[filters]",
 		"description": [
-			"show all available warships.",
-			"Filters may include:",
-			"- ship type: i.e. Destroyers, BB, Aircraft carriers",
-			"- tier: i.e. tier 6, tier viii",
-			"- consumable: Add the keyword **with:\"consumables\"**. Please note that pair of quotation marks must be present in order to consumable filter to work.",
-			"- consumable (cont.):",
-			"(limited or quick charge) damage control",
-			"(long or short) (range or duration) (hydro or radar)",
-			"(high charge or trailing) smoke",
-			"engine boost",
-			"(unlimited charge) dfaa",
-			"(super) heal"
-		]
+			"show all available warships."
+		],
+		"options": {
+			"filter - optional": [
+				"Filters may include:",
+				"- **Ship type**: i.e. Destroyers, BB, Aircraft carriers",
+				"- **Tier**: i.e. tier 6, tier viii",
+				"",
+				"- **Consumable**: Add the keyword **with:\"consumables\"**. Please note that pair of quotation marks must be present in order to consumable filter to work.",
+				"- consumables may include:",
+				"(limited or quick charge) damage control",
+				"(long or short) (range or duration) (hydro or radar)",
+				"(high charge or trailing) smoke",
+				"engine boost",
+				"(unlimited charge) dfaa",
+				"(super) heal",
+				"",
+				"**Gun caliber**: use **guns[comparator][number]mm**",
+				"gun caliber options: comparator:  <, >, <=, >=, ==.",
+				"gun caliber Example: guns>300mm (returns ships with main battery larger than 300mm"
+			]
+		}
 	},
 	"upgrade": {
 		"brief": "Get detail of a ship's upgrade",

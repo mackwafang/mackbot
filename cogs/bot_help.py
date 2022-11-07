@@ -26,7 +26,7 @@ class BotHelp(commands.Cog):
 					embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
 					embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 					if "options" in help_content:
-						embed.add_field(name="Options", value='\n'.join(f"**{k}**: {v}" for k, v in help_content['options'].items()), inline=False)
+						embed.add_field(name="Options", value='\n'.join(f"**{k}**: {chr(10).join(v) if type(v) == list else v}" for k, v in help_content['options'].items()), inline=False)
 
 					await context.send(embed=embed)
 				else:

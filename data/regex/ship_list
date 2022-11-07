@@ -1,3 +1,4 @@
 ?:(?:tier )(\d{1,2}|i[v|x]|[v|x]?i{0,3})
 page \d{1,2}
 (?:aircraft )?carriers?|battleships?|destroyers?|cruisers?|submarines?|\bbb\b|\bcv\b|\bc\b|\bdd\b|\bss\b
+(?:guns?\s?([><]=?|==)\s?(\d{2,3})mm)

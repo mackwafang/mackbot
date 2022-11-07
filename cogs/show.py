@@ -189,24 +189,50 @@ class Show(commands.Cog):
 		s = ship_list_regex.findall(args)
 
 		# how dafuq did this even works
-		ship_key = [[group for gi, group in enumerate(match) if group if gi != 3 and gi != 1] for match in s] # tokenize
+		ship_key = [[group for gi, group in enumerate(match) if group if gi not in [6, 5, 4, 3, 1]] for match in s] # tokenize
 		ship_key = [i[0] for i in ship_key if i] # extract
+
+		# specific keys
 		consumable_filter_keys = consumable_regex.findall(args) # get consumable filters
+		try:
+			gun_caliber_comparator = [v for v in [i[4] for i in s if i] if v][0]
+			gun_caliber_compare_value = int([v for v in [i[5] for i in s if i] if v][0])
+		except (ValueError, IndexError):
+			gun_caliber_comparator = ""
+			gun_caliber_compare_value = 0
 
 		key = ship_key.copy()
 		if consumable_filter_keys:
 			key += consumable_filter_keys # add consumable filters
 
+		# set up title
 		embed_title = f"Search result for {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in ship_key])}"
 		if not ship_key:
 			embed_title += "ships"
+		if gun_caliber_compare_value > 0:
+			embed_title += f", with guns {gun_caliber_comparator} {gun_caliber_compare_value}mm"
 		if consumable_filter_keys:
-			embed_title += f" with {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in consumable_filter_keys])}"
+			embed_title += f" and {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in consumable_filter_keys])} consumables"
 
 		# look up
 		result = []
 		if database_client is not None:
-			query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(f"^{i}$", re.I) for i in key]}} if key else {})
+			search_query = {}
+			if ship_key:
+				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key]}
+			if consumable_filter_keys:
+				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i}$", re.I) for i in consumable_filter_keys]}
+			if gun_caliber_comparator:
+				comparator_map = {
+					">": "gt",
+					"<": "lt",
+					">=": "gte",
+					"<=": "lte",
+					"==": "eq"
+				}
+				search_query["tags.gun_caliber"] = {f"${comparator_map[gun_caliber_comparator]}": gun_caliber_compare_value}
+
+			query_result = database_client.mackbot_db.ship_list.find(search_query)
 			if query_result is not None:
 				result = dict((str(i["ship_id"]), i) for i in query_result)
 		else:
@@ -228,7 +254,7 @@ class Show(commands.Cog):
 
 		logger.info(f"found {len(result)} items matching criteria: {' '.join(key)}")
 		if len(result) > 0:
-			# return the list of ships with fitting criteria
+			# compile search information
 			for ship in result:
 				ship_data = result[ship]
 				if ship_data is None:
@@ -237,12 +263,16 @@ class Show(commands.Cog):
 				ship_type = ship_data['type']
 				tier = ship_data['tier']
 				is_prem = ship_data['is_premium']
+				gun_caliber_string = ""
+				if gun_caliber_comparator:
+					gun_caliber_string += f" ({', '.join(f'{i}mm' for i in ship_data['tags']['gun_caliber'])})"
 
 				tier_string = roman_numeral[tier - 1]
 				type_icon = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 				# m += [f"**{tier_string:<6} {type_icon}** {name}"]
-				m += [[tier, tier_string, type_icon, name]]
+				m += [[tier, tier_string, type_icon, name + gun_caliber_string]]
 
+			# separate into pages
 			num_items = len(m)
 			m.sort(key=lambda x: (x[0], x[2], x[-1]))
 			m = [f"**{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name in m]
