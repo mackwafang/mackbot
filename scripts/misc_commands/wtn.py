@@ -83,7 +83,7 @@ async def cook(context: commands.Context):
 					"coins": coins_gained,
 					"next_mine_time": next_mine_time
 				})
-				embed.title = "Welcome to Wontology"
+				embed.title = f"Welcome to Wontology, {context.author.mention}"
 				embed.description = "Where the wontons are made up and the usage doesn't matter."
 				embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 				m += f"**You cooked {coins_gained} wonton**\n"

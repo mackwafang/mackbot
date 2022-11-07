@@ -1,4 +1,4 @@
-import wargaming, traceback, json, logging, os, pickle, io
+import wargaming, traceback, json, logging, os, pickle, io, requests
 
 from hashlib import sha256
 from pymongo import MongoClient
@@ -10,6 +10,7 @@ from pprint import pprint
 
 from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
 from scripts.mackbot_exceptions import BuildError
+from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode
 
 game_data = {}
 ship_list = {}
@@ -964,57 +965,79 @@ def create_ship_tags():
 
 	for s in ship_list:
 		try:
-			nat = nation_dictionary[ship_list[s]['nation']]
-			tags = []
-			t = ship_list[s]['type']
-			hull_class = hull_classification_converter[t]
-			if t == 'AirCarrier':
-				t = 'Aircraft Carrier'
-			tier = ship_list[s]['tier']  # add tier to search
-			prem = ship_list[s]['is_premium']  # is bote premium
+			ship = ship_list[s]
+			nat = nation_dictionary[ship['nation']]
+			tags = {
+				"ship": [],
+				"consumables": [],
+				"gun_caliber": [],
+			}
+			ship_type = ship['type']
+			hull_class = hull_classification_converter[ship_type]
+			if ship_type == 'AirCarrier':
+				ship_type = 'Aircraft Carrier'
+			tier = ship['tier']  # add tier to search
+			prem = ship['is_premium']  # is bote premium
 			ship_speed = 0
-			for e in ship_list[s]['modules']['engine']:
+			for e in ship['modules']['engine']:
 				max_speed = module_list[str(e)]['profile']['engine']['max_speed']
 				ship_speed = max(ship_speed, max_speed)
 			# add tags based on speed
 			if ship_speed <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]['max_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD]]
+				tags['ship'].append(SHIP_TAG_LIST[SHIP_TAG.SLOW_SPD])
 			if ship_speed >= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]['min_threshold']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_SPD]]
+				tags['ship'].append(SHIP_TAG_LIST[SHIP_TAG.FAST_SPD])
 			concealment = {
 				'detect_distance_by_plane': 0,
 				'detect_distance_by_ship': 0,
 			}
-			for e in ship_list[s]['modules']['hull']:
+			for e in ship['modules']['hull']:
 				c = module_list[str(e)]['profile']['hull']
 				concealment['detect_distance_by_ship'] = max(concealment['detect_distance_by_ship'], c['detect_distance_by_ship'])
 				concealment['detect_distance_by_plane'] = max(concealment['detect_distance_by_plane'], c['detect_distance_by_plane'])
 			# add tags based on detection range
 			if concealment['detect_distance_by_plane'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_air_spot_range'] or concealment['detect_distance_by_ship'] < ship_tags[SHIP_TAG_LIST[SHIP_TAG.STEALTH]]['min_sea_spot_range']:
-				tags += [SHIP_TAG_LIST[SHIP_TAG.STEALTH]]
+				tags['ship'].append(SHIP_TAG_LIST[SHIP_TAG.STEALTH])
 			# add tags based on gun firerate
 			try:
 				# some ships have main battery guns
 				fireRate = inf
-				for g in ship_list[s]['modules']['artillery']:
+				for g in ship['modules']['artillery']:
 					fireRate = min(fireRate, module_list[str(g)]['profile']['artillery']['shotDelay'])
 			except TypeError:
 				# some dont *ahemCVsahem*
 				fireRate = inf
-			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not t == 'Aircraft Carrier':
-				tags += [SHIP_TAG_LIST[SHIP_TAG.FAST_GUN], 'dakka']
-			# add tags based on a
+			if fireRate <= ship_tags[SHIP_TAG_LIST[SHIP_TAG.FAST_GUN]]['max_threshold'] and not ship_type == 'Aircraft Carrier':
+				tags['ship'].append(SHIP_TAG_LIST[SHIP_TAG.FAST_GUN])
+				tags['ship'].append('dakka')
+
+			# add gun caliber tag
+			caliber_list = set()
+			for g in ship['modules']['artillery']:
+				caliber_list = caliber_list | {int(module_list[str(g)]['profile']['artillery']['caliber'] * 1000)}
+			tags['gun_caliber'].extend(caliber_list)
+
+			# add tags based on aa
 			for h in ship_list[s]['modules']['hull']:
 				if 'anti_air' in module_list[str(h)]['profile']:
 					aa = module_list[str(h)]['profile']['anti_air']
 					if aa['rating'][tier - 1] > 50 or aa['max_range'] > ship_tags[SHIP_TAG_LIST[SHIP_TAG.AA]]['min_aa_range']:
 						if SHIP_TAG_LIST[SHIP_TAG.AA] not in tags:
-							tags += [SHIP_TAG_LIST[SHIP_TAG.AA]]
+							tags['ship'].append(SHIP_TAG_LIST[SHIP_TAG.AA])
 
-			tags += [nat, f't{tier}', t, t + 's', hull_class]
+			# add tags based on consumables
+			for slot in ship_list[s]['consumables']:
+				for consumable_index, consumable_variant in ship_list[s]['consumables'][slot]['abils']:
+					consumable_data = game_data[consumable_index][consumable_variant]
+					try:
+						tags['consumables'].extend(list(consumable_data_to_string(consumable_data)))
+					except IndexError:
+						pass
+
+			tags['ship'].extend([nat, f't{tier}', ship_type, ship_type + 's', hull_class])
 			ship_list[s]['tags'] = tags
 			if prem:
-				ship_list[s]['tags'] += ['premium']
+				ship_list[s]['tags']['ship'] += ['premium']
 		except Exception as e:
 			logger.warning(f"{type(e)} {e} at ship id {s}")
 			traceback.print_exc(type(e), e, None)

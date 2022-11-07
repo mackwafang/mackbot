@@ -7,11 +7,11 @@ from discord import app_commands, Embed
 from discord.ext import commands
 
 from mackbot import icons_emoji
-from scripts.mackbot_constants import hull_classification_converter, roman_numeral
+from scripts.mackbot_constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
 from scripts.utilities.bot_data import command_prefix
 from scripts.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
 from scripts.utilities.logger import logger
-from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex
+from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
 
 
 class Show(commands.Cog):
@@ -186,28 +186,53 @@ class Show(commands.Cog):
 		if context.clean_prefix != '/':
 			args = ' '.join(context.message.content.split()[3:])
 
-		search_param = args.split()
-		s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
+		s = ship_list_regex.findall(args)
 
-		tier = ''.join([i[2] for i in s])
-		key = [i[7] for i in s if len(i[7]) > 1]
-		page = [i[6] for i in s if len(i[6]) > 0]
+		# how dafuq did this even works
+		ship_key = [[group for gi, group in enumerate(match) if group if gi not in [6, 5, 4, 3, 1]] for match in s] # tokenize
+		ship_key = [i[0] for i in ship_key if i] # extract
 
-		# select page
-		page = int(page[0]) if len(page) > 0 else 1
+		# specific keys
+		consumable_filter_keys = consumable_regex.findall(args) # get consumable filters
+		try:
+			gun_caliber_comparator = [v for v in [i[4] for i in s if i] if v][0]
+			gun_caliber_compare_value = int([v for v in [i[5] for i in s if i] if v][0])
+		except (ValueError, IndexError):
+			gun_caliber_comparator = ""
+			gun_caliber_compare_value = 0
 
-		if len(tier) > 0:
-			if tier in roman_numeral:
-				tier = roman_numeral[tier]
-			tier = f't{tier}'
-			key += [tier]
-		key = [i.lower() for i in key if not 'page' in i]
-		embed_title = f"Search result for {''.join([i.title() + ' ' for i in key])}"
+		key = ship_key.copy()
+		if consumable_filter_keys:
+			key += consumable_filter_keys # add consumable filters
+
+		# set up title
+		embed_title = f"Search result for {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in ship_key])}"
+		if not ship_key:
+			embed_title += "ships"
+		if gun_caliber_compare_value > 0:
+			embed_title += f", with guns {gun_caliber_comparator} {gun_caliber_compare_value}mm"
+		if consumable_filter_keys:
+			embed_title += f" and {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in consumable_filter_keys])} consumables"
 
 		# look up
 		result = []
 		if database_client is not None:
-			query_result = database_client.mackbot_db.ship_list.find({"tags": {"$all": [re.compile(f"^{i}$", re.I) for i in key]}} if key else {})
+			search_query = {}
+			if ship_key:
+				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key]}
+			if consumable_filter_keys:
+				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i}$", re.I) for i in consumable_filter_keys]}
+			if gun_caliber_comparator:
+				comparator_map = {
+					">": "gt",
+					"<": "lt",
+					">=": "gte",
+					"<=": "lte",
+					"==": "eq"
+				}
+				search_query["tags.gun_caliber"] = {f"${comparator_map[gun_caliber_comparator]}": gun_caliber_compare_value}
+
+			query_result = database_client.mackbot_db.ship_list.find(search_query)
 			if query_result is not None:
 				result = dict((str(i["ship_id"]), i) for i in query_result)
 		else:
@@ -220,9 +245,16 @@ class Show(commands.Cog):
 					traceback.print_exc()
 					pass
 		m = []
+
+		try:
+			page = [match[1][5:] for match in s if match[1]]
+			page = max(0, int(page[0]) - 1)
+		except (IndexError, ValueError):
+			page = 0
+
 		logger.info(f"found {len(result)} items matching criteria: {' '.join(key)}")
 		if len(result) > 0:
-			# return the list of ships with fitting criteria
+			# compile search information
 			for ship in result:
 				ship_data = result[ship]
 				if ship_data is None:
@@ -231,12 +263,16 @@ class Show(commands.Cog):
 				ship_type = ship_data['type']
 				tier = ship_data['tier']
 				is_prem = ship_data['is_premium']
+				gun_caliber_string = ""
+				if gun_caliber_comparator:
+					gun_caliber_string += f" ({', '.join(f'{i}mm' for i in ship_data['tags']['gun_caliber'])})"
 
 				tier_string = roman_numeral[tier - 1]
 				type_icon = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 				# m += [f"**{tier_string:<6} {type_icon}** {name}"]
-				m += [[tier, tier_string, type_icon, name]]
+				m += [[tier, tier_string, type_icon, name + gun_caliber_string]]
 
+			# separate into pages
 			num_items = len(m)
 			m.sort(key=lambda x: (x[0], x[2], x[-1]))
 			m = [f"**{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name in m]
@@ -245,10 +281,12 @@ class Show(commands.Cog):
 			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			embed = Embed(title=embed_title + f"({max(1, page)}/{max(1, num_pages)})")
-			m = m[page - 1]  # select page
+			embed = Embed(title=f"{embed_title} ({max(1, page + 1)}/{max(1, num_pages)})")
+			m = m[page]  # select page
 			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-			embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
+			embed.set_footer(text=f"{num_items} ships found\n"
+			                      f"To get ship build, use [{command_prefix} build ship_name]\n"
+			                      f"To get ship data, use [{command_prefix} ship ship_name]")
 			for i in m:
 				embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 		else:
