@@ -36,3 +36,11 @@ class Listener(commands.Cog):
 		else:
 			await context.send("An internal error as occurred.")
 			traceback.print_exc()
+
+	@commands.Cog.listener()
+	async def on_guild_join(self, guild: discord.Guild):
+		logger.info(f"Joined server {guild.name} ({guild.id})")
+
+	@commands.Cog.listener()
+	async def on_guild_remove(self, guild: discord.Guild):
+		logger.info(f"Left server {guild.name} ({guild.id})")
