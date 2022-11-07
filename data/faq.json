@@ -1,0 +1,66 @@
+[
+  {
+    "question": "Who created mackbot?",
+    "answer": ["mackbot is created by mackwafang#2071. He plays way too much CV."]
+  },
+  {
+    "question": "Why is it *mackbot* called *mackbot*?",
+    "answer": ["Originally, mackbot was called buildbot. Until a clan member suggested that I should name it mackbot because I was its sole creator."]
+  },
+  {
+    "question": "What can mackbot do?",
+    "answer": [
+      "mackbot can:",
+      "Gives basic warship builds (via the **build** command)",
+      "- Gives warship information (via the **ship** command)",
+      "- Gives hot takes (via the **hottake** command)",
+      "- And more!",
+      "Get started with the **help** or the **command** command."
+    ]
+  },
+  {
+    "question": "Where does mackbot get its builds?",
+    "answer": [
+      "mackbot's ship builds are gathered from WoWS community driven sources.",
+      "In particular, mackbot's builds are gathered from Yurra et al. and is found at this link: https://docs.google.com/document/d/1XfsIIbyORQAxgOE-ao_nVSP8_fpa1igg0t48pXZFIu0/edit."
+    ]
+  },
+  {
+    "question": "Why doesn't mackbot response to my queries?",
+    "answer": [
+      "All mackbot queries need to start with the exact word **mackbot**, or uses **slash commands**.",
+      "mackbot will not respond if you edit your message, nor it will modify its outputs of existing queries."
+    ]
+  },
+  {
+    "question": "How was mackbot made?",
+    "answer": [
+      "~~With hopes and dreams, lots of spaghetti codes, and some hair loss.~~",
+      "mackbot is made with Python using the discord.py API."
+    ]
+  },
+  {
+    "question": "What if I have questions or report a bug?",
+    "answer": [
+      "You can visit the **mackbot's testing ground** Discord server using the command **support**"
+    ]
+  },
+  {
+    "question": "How can I keep up to date with all of the new mackbot updates?",
+    "answer": [
+      "Head over to the **mackbot's testing ground** server and subscribe to the **updates** channel!"
+    ]
+  },
+  {
+    "question": "Does the creator still plays warships?",
+    "answer": [
+      "*Maybe*. ~~Just becareful when you play tier 8 and 10.~~"
+    ]
+  },
+  {
+    "question": "Why wontons?",
+    "answer": [
+      "A goofy inside joke."
+    ]
+  }
+]

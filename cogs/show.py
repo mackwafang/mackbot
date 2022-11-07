@@ -7,11 +7,11 @@ from discord import app_commands, Embed
 from discord.ext import commands
 
 from mackbot import icons_emoji
-from scripts.mackbot_constants import hull_classification_converter, roman_numeral
+from scripts.mackbot_constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
 from scripts.utilities.bot_data import command_prefix
 from scripts.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
 from scripts.utilities.logger import logger
-from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex
+from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
 
 
 class Show(commands.Cog):
@@ -186,23 +186,22 @@ class Show(commands.Cog):
 		if context.clean_prefix != '/':
 			args = ' '.join(context.message.content.split()[3:])
 
-		search_param = args.split()
-		s = ship_list_regex.findall(''.join([str(i) + ' ' for i in search_param])[:-1])
+		s = ship_list_regex.findall(args)
 
-		tier = ''.join([i[2] for i in s])
-		key = [i[7] for i in s if len(i[7]) > 1]
-		page = [i[6] for i in s if len(i[6]) > 0]
+		# how dafuq did this even works
+		ship_key = [[group for gi, group in enumerate(match) if group if gi != 3 and gi != 1] for match in s] # tokenize
+		ship_key = [i[0] for i in ship_key if i] # extract
+		consumable_filter_keys = consumable_regex.findall(args) # get consumable filters
 
-		# select page
-		page = int(page[0]) if len(page) > 0 else 1
+		key = ship_key.copy()
+		if consumable_filter_keys:
+			key += consumable_filter_keys # add consumable filters
 
-		if len(tier) > 0:
-			if tier in roman_numeral:
-				tier = roman_numeral[tier]
-			tier = f't{tier}'
-			key += [tier]
-		key = [i.lower() for i in key if not 'page' in i]
-		embed_title = f"Search result for {''.join([i.title() + ' ' for i in key])}"
+		embed_title = f"Search result for {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in ship_key])}"
+		if not ship_key:
+			embed_title += "ships"
+		if consumable_filter_keys:
+			embed_title += f" with {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in consumable_filter_keys])}"
 
 		# look up
 		result = []
@@ -220,6 +219,13 @@ class Show(commands.Cog):
 					traceback.print_exc()
 					pass
 		m = []
+
+		try:
+			page = [match[1][5:] for match in s if match[1]]
+			page = max(0, int(page[0]) - 1)
+		except (IndexError, ValueError):
+			page = 0
+
 		logger.info(f"found {len(result)} items matching criteria: {' '.join(key)}")
 		if len(result) > 0:
 			# return the list of ships with fitting criteria
@@ -245,10 +251,12 @@ class Show(commands.Cog):
 			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			embed = Embed(title=embed_title + f"({max(1, page)}/{max(1, num_pages)})")
-			m = m[page - 1]  # select page
+			embed = Embed(title=f"{embed_title} ({max(1, page + 1)}/{max(1, num_pages)})")
+			m = m[page]  # select page
 			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
-			embed.set_footer(text=f"{num_items} ships found\nTo get ship build, use [{command_prefix} build [ship_name]]")
+			embed.set_footer(text=f"{num_items} ships found\n"
+			                      f"To get ship build, use [{command_prefix} build ship_name]\n"
+			                      f"To get ship data, use [{command_prefix} ship ship_name]")
 			for i in m:
 				embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 		else:

@@ -11,14 +11,18 @@ nation_dictionary = {
 	'us': 'US',
 	'pan_asia': 'Pan-Asian',
 	'ussr': 'Russian',
+	'russia': 'Russian',
 	'russian': 'Russian',
 	'europe': 'European',
+	'european': 'European',
 	'japan': 'Japanese',
+	'japanese': 'Japanese',
 	'uk': 'British',
 	'british': 'British',
 	'france': 'France',
 	'french': 'France',
 	'germany': 'German',
+	'german': 'German',
 	'italy': 'Italian',
 	'commonwealth': 'Commonwealth',
 	'pan_america': 'Pan-American',
@@ -178,3 +182,14 @@ icons_emoji = {
 	"green_plus": "<:green_plus:979497350869450812>",
 	"red_dash": "<:red_dash:979497350911385620>",
 }
+
+ITEMS_TO_UPPER = (
+	'bb',
+	'c',
+	'cv',
+	'dd',
+	'ss',
+	'dfaa',
+	'ijn',
+	'usn',
+)

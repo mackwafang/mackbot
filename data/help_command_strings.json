@@ -91,7 +91,17 @@
 		"usage": "[filters]",
 		"description": [
 			"show all available warships.",
-			"Filter may include ship type, tier, and/or nation"
+			"Filters may include:",
+			"- ship type: i.e. Destroyers, BB, Aircraft carriers",
+			"- tier: i.e. tier 6, tier viii",
+			"- consumable: Add the keyword **with:\"consumables\"**. Please note that pair of quotation marks must be present in order to consumable filter to work.",
+			"- consumable (cont.):",
+			"(limited or quick charge) damage control",
+			"(long or short) (range or duration) (hydro or radar)",
+			"(high charge or trailing) smoke",
+			"engine boost",
+			"(unlimited charge) dfaa",
+			"(super) heal"
 		]
 	},
 	"upgrade": {
