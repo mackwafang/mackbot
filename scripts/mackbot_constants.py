@@ -24,6 +24,7 @@ nation_dictionary = {
 	'germany': 'German',
 	'german': 'German',
 	'italy': 'Italian',
+	'italian': 'Italian',
 	'commonwealth': 'Commonwealth',
 	'pan_america': 'Pan-American',
 	'netherlands': "Dutch",
@@ -192,5 +193,8 @@ ITEMS_TO_UPPER = (
 	'dfaa',
 	'ijn',
 	'usn',
+	'usa',
+	'uk',
+	'ussr',
 	'aa',
 )

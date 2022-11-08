@@ -59,7 +59,7 @@ class Skill(commands.Cog):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 				await context.reply(embed=embed)
-				await correct_user_misspell(context, 'skill', skill_tree, closest_match[0])
+				await correct_user_misspell(self.client, context, 'skill', skill_tree, closest_match[0])
 			if type(e) == SkillTreeInvalid:
 				embed = Embed(title=f"Skill tree is not understood.\n", description="")
 				embed.description += f'\n{e}'

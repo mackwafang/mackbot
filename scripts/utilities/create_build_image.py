@@ -7,17 +7,17 @@ from PIL import Image, ImageFont, ImageDraw
 
 DISCLAIMER_TEXT = ["Please Note:",] + textwrap.wrap(
 	"mackbot ship build should be used as a base for your builds.",
-	width=80, break_long_words=False, replace_whitespace=False,
+	width=90, break_long_words=False, replace_whitespace=False,
 ) + textwrap.wrap(
 	"Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.",
-	width=80, break_long_words=False, replace_whitespace=False,
+	width=90, break_long_words=False, replace_whitespace=False,
 )
 
 # create build image
-ITEMS_SPACING = 10
-IMAGE_SIZE = (((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING + 1, 500)
-SKILL_IMAGE_POS_INIT = (0, 50)
-UPGRADE_IMAGE_POS_INIT = (0, 332)
+ITEMS_SPACING = 30
+IMAGE_SIZE = (((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING + 1, 470)
+SKILL_IMAGE_POS_INIT = (0, 75)
+UPGRADE_IMAGE_POS_INIT = (0, 335)
 
 font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
 disclaimer_font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=12)
@@ -52,8 +52,8 @@ def create_build_image(
 	ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
 	ship_tier_string = roman_numeral[ship['tier'] - 1]
 
-	ship_nation = ship['nation'].replace("_", " ")
-	ship_nation = ship_nation.upper() if ship_nation.lower() in ['us', 'uk', 'ussr'] else ship_nation.title()
+	ship_nation = ship['nation']
+	ship_nation = ship_nation.upper() if ship_nation.lower() in ['usa', 'uk', 'ussr'] else ship_nation.title()
 	ship_nation_image_dir = os.path.join("data", "flags_medium", f"flag_{ship_nation}.png")
 
 	image = Image.new("RGBA", IMAGE_SIZE, (0, 0, 0, 255)) # initialize new image
@@ -65,12 +65,14 @@ def create_build_image(
 
 	# draw ship name and ship type
 	with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
-		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.BILINEAR)
-		image.paste(ship_type_image, (0, 0), ship_type_image)
-	draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
+		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
+		image.paste(ship_type_image, (0, 8), ship_type_image)
+	# add ship name
+	draw.text((56, 36), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm', stroke_fill=(0, 0, 0, 255), stroke_width=2)
 
+	# add build name
 	build_title = build_name.upper() if build_name.lower() in ITEMS_TO_UPPER else build_name.title()
-	draw.text((image.width - 8, 27), f"{build_title} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
+	draw.text((image.width - 8, 36), f"{build_title} Build", fill=(255, 255, 255, 255), font=font, anchor='rm', stroke_fill=(0, 0, 0, 255), stroke_width=2)
 
 	# get skills from this ship's tree
 	if database_client is not None:
@@ -85,7 +87,7 @@ def create_build_image(
 			SKILL_IMAGE_POS_INIT,
 			(
 				SKILL_IMAGE_POS_INIT[0] + ((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING,
-				SKILL_IMAGE_POS_INIT[1] + ((60 + ITEMS_SPACING) * 4) - ITEMS_SPACING
+				SKILL_IMAGE_POS_INIT[1] + (60 * 4)
 			)
 		),
 		5,
@@ -102,7 +104,7 @@ def create_build_image(
 
 				coord = (
 					SKILL_IMAGE_POS_INIT[0] + (skill['x'] * (skill_image.width + ITEMS_SPACING)),
-					SKILL_IMAGE_POS_INIT[1] + (skill['y'] * (skill_image.height + ITEMS_SPACING))
+					SKILL_IMAGE_POS_INIT[1] + (skill['y'] * skill_image.height)
 				)
 				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
 
@@ -155,7 +157,7 @@ def create_build_image(
 			image.paste(upgrade_image, coord, upgrade_image)
 
 	# draw disclaimer
-	disclaimer_text_pos_init = (4, 422)
+	disclaimer_text_pos_init = (4, 400)
 	draw.text(disclaimer_text_pos_init, '\n'.join(DISCLAIMER_TEXT), font=disclaimer_font, fill=(255, 255, 255, 255))
 
 	return image

@@ -248,7 +248,7 @@ class Build(commands.Cog):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					await correct_user_misspell(context, 'build', f"{'-t' if send_text_build else ''} {closest_match[0]}")
+					await correct_user_misspell(self.client, context, 'build', f"{'-t' if send_text_build else ''} {closest_match[0]}")
 				else:
 					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:

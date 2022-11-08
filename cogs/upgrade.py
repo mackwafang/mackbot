@@ -140,4 +140,4 @@ class Upgrade(commands.Cog):
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 				embed.set_footer(text="Response expires in 10 seconds")
 			await context.send(embed=embed)
-			await correct_user_misspell(context, 'upgrade', closest_match[0])
+			await correct_user_misspell(self.client, context, 'upgrade', closest_match[0])
