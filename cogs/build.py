@@ -36,7 +36,6 @@ class Build(commands.Cog):
 
 		permissions = context.channel.permissions_for(context.me)
 		# check permission
-		logger.info("Attach Files permission denied")
 		if not permissions.embed_links and not permissions.attach_files:
 			# can't send either text or embed
 			logger.info("Both Attach File and Embed Link permission denied")
@@ -228,7 +227,7 @@ class Build(commands.Cog):
 				else:
 					# dynamically create
 					build_image = create_build_image(build_name, name, skills, upgrades, cmdr)
-				build_image.save("temp.png")
+				build_image.save("./temp.png")
 				try:
 					if multi_build_user_response:
 						# response to user's selection of drop-down menu
