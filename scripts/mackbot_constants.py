@@ -192,4 +192,5 @@ ITEMS_TO_UPPER = (
 	'dfaa',
 	'ijn',
 	'usn',
+	'aa',
 )

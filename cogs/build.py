@@ -3,7 +3,7 @@ import traceback
 from discord import app_commands, Embed, SelectOption, File
 from discord.errors import Forbidden
 from discord.ext import commands
-from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary
+from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, ITEMS_TO_UPPER
 from scripts.mackbot_enums import SHIP_BUILD_FETCH_FROM
 from scripts.mackbot_exceptions import *
 from scripts.utilities.logger import logger
@@ -30,9 +30,29 @@ class Build(commands.Cog):
 			args = ' '.join(context.message.content.split()[2:])
 
 		args = args.split()
-		send_image_build = args[0] in ["--image", "-i"]
-		if send_image_build:
+		send_text_build = args[0] in ["--text", "-t"]
+		if send_text_build:
 			args = args[1:]
+
+		permissions = context.channel.permissions_for(context.me)
+		# check permission
+		logger.info("Attach Files permission denied")
+		if not permissions.embed_links and not permissions.attach_files:
+			# can't send either text or embed
+			logger.info("Both Attach File and Embed Link permission denied")
+			await context.send("mackbot requires the **Attach Files** permission for this feature.")
+			return
+		if send_text_build and not permissions.embed_links and permissions.attach_files:
+			# can't send text, send embed
+			logger.info("Embed Links permission denied")
+			logger.info("Reattempt to send build using image; Attach Files permission OK")
+			send_text_build = False
+		if permissions.embed_links and not permissions.attach_files:
+			# can't send image, try text
+			logger.info("Attach Link permission denied")
+			logger.info("Reattempt to send build; Embed Link permission OK")
+			send_text_build = True
+
 		user_ship_name = ''.join([i + ' ' for i in args])[:-1]
 		name, images = "", None
 		try:
@@ -57,14 +77,15 @@ class Build(commands.Cog):
 				embed.description = f"**Tier {roman_numeral[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 
 				m = ""
+				option_strings = []
 				for i, bid in enumerate(builds):
-					build_name = builds[i]['name'].title()
-					if build_name in ['aa']:
-						build_name = build_name.upper()
+					build_name = builds[i]['name']
+					build_name = build_name.upper() if build_name.lower() in ITEMS_TO_UPPER else build_name.title()
+					option_strings.append(build_name)
 					m += f"[{i + 1}] {build_name}\n"
 				embed.add_field(name="mackbot found multiple builds for this ship", value=m, inline=False)
 				embed.set_footer(text="Please select a build.\nResponse expires in 15 seconds.")
-				options = [SelectOption(label=f"[{i + 1}] {builds[i]['name']}", value=i) for i, b in enumerate(builds)]
+				options = [SelectOption(label=f"[{i + 1}] {o}", value=i) for i, o in enumerate(option_strings)]
 				view = UserSelection(
 					author=context.message.author,
 					timeout=15,
@@ -75,6 +96,9 @@ class Build(commands.Cog):
 				user_selected_build_id = await get_user_response_with_drop_down(view)
 				if 0 <= user_selected_build_id < len(builds):
 					pass
+				elif user_selected_build_id == -1:
+					logger.info("No response from user")
+					return
 				else:
 					await context.send(f"Input {user_selected_build_id} is incorrect")
 
@@ -88,15 +112,11 @@ class Build(commands.Cog):
 				cmdr = build['cmdr']
 				build_errors = build['errors']
 
-			if not send_image_build:
+			if send_text_build:
 				embed = Embed(title=f"{build_name.title()} Build for {name}", description='')
-
 				embed.set_thumbnail(url=images['small'])
-
 				logger.info(f"returning build information for <{name}> in embeded format")
-
 				tier_string = roman_numeral[tier - 1]
-
 				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
 
 				footer_message = ""
@@ -194,7 +214,7 @@ class Build(commands.Cog):
 					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
 				embed.set_footer(text=error_footer_message + footer_message)
 
-			if not send_image_build:
+			if send_text_build:
 				if multi_build_user_response:
 					# response to user's selection of drop-down menu
 					await multi_build_user_response.respond(embed=embed, ephemeral=False)
@@ -215,9 +235,8 @@ class Build(commands.Cog):
 						await multi_build_user_response.respond(file=File('temp.png'), ephemeral=False)
 					else:
 						await context.send(file=File('temp.png'))
-					await context.send("__Note: mackbot ship build should be used as a base for your builds. Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.__")
 				except Forbidden:
-					await context.send("mackbot requires the **Send Attachment** feature for this feature.")
+					await context.send("mackbot requires the **Send Attachment** permission for this feature.")
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -230,7 +249,7 @@ class Build(commands.Cog):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					await correct_user_misspell(context, 'build', f"{'-i' if send_image_build else ''} {closest_match[0]}")
+					await correct_user_misspell(context, 'build', f"{'-t' if send_text_build else ''} {closest_match[0]}")
 				else:
 					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:

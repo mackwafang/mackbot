@@ -13,5 +13,5 @@ class FAQ(commands.Cog):
 			embed = Embed(title="mackbot FAQ")
 			for item in faq_data:
 				question, answer = item.values()
-				embed.add_field(name=f":grey_question {question}", value='\n'.join(answer), inline=False)
+				embed.add_field(name=f":grey_question: {question}", value='\n'.join(answer), inline=False)
 		await context.send(embed=embed)

@@ -107,7 +107,7 @@
 				"(unlimited charge) dfaa",
 				"(super) heal",
 				"",
-				"**Gun caliber**: use **guns[comparator][number]mm**",
+				"**Gun caliber**: use **guns:[comparator][number]mm**",
 				"gun caliber options: comparator:  <, >, <=, >=, ==.",
 				"gun caliber Example: guns>300mm (returns ships with main battery larger than 300mm"
 			]
