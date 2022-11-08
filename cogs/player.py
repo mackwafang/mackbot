@@ -13,7 +13,7 @@ from scripts.utilities.game_data.warships_data import ship_list_simple
 from scripts.utilities.logger import logger
 from scripts.utilities.to_plural import to_plural
 from .bot_help import BotHelp
-from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types
+from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji
 from scripts.utilities.bot_data import WG
 from scripts.utilities.regex import player_arg_filter_regex
 
@@ -220,22 +220,31 @@ class Player(commands.Cog):
 								embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
+
 								# battle distribution by ship types
 								player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
 								m = ""
 								for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
 									try:
-										type_stat = player_ship_stats_df.loc[s_t]
-										if type_stat['battles'] > 0:
-											m += f"**{ship_types[s_t]}s**\n"
+										if s_t in list(player_ship_stats_df.index):
+											type_stat = player_ship_stats_df.loc[s_t]
+											if type_stat['battles'] > 0:
+												emoji = {
+													"AirCarrier": icons_emoji['cv'],
+													"Battleship": icons_emoji['bb'],
+													"Cruiser":  icons_emoji['c'],
+													"Destroyer": icons_emoji['dd'],
+													"Submarine": icons_emoji['ss']
+												}[s_t]
+												m += f"**{emoji}{ship_types[s_t]}s**\n"
 
-											type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
-											type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
-											type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
-											m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-											m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
+												type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
+												type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
+												type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
+												m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
+												m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
 									except KeyError:
-										pass
+										traceback.print_exc()
 								embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
 
 								# average stats by tier
