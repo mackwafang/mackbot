@@ -21,7 +21,7 @@ class Build(commands.Cog):
 	@commands.hybrid_command(name='build', description='Get a basic warship build')
 	@app_commands.rename(args="value")
 	@app_commands.describe(
-		args="Ship name. Adds -i before ship name to get image variation",
+		args="Ship name. Adds -t or --text before ship name to get text variation",
 	)
 	async def build(self, context: commands.Context, args: str):
 

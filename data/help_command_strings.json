@@ -7,7 +7,7 @@
 			"mackbot may prompt you for a secondary response if it founds multiple builds."
 		],
 		"options": {
-			"-i, --image": "Provide an image version of the requested item instead."
+			"-t, --text": "Provide an image version of the requested item instead."
 		}
 	},
 	"ship": {
