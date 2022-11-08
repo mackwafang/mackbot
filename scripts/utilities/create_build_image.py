@@ -1,9 +1,26 @@
-import os
+import os, textwrap
 
 from scripts.utilities.game_data.warships_data import database_client, skill_list, game_data
 from scripts.utilities.game_data.game_data_finder import get_ship_data
-from scripts.mackbot_constants import roman_numeral
+from scripts.mackbot_constants import roman_numeral, ITEMS_TO_UPPER
 from PIL import Image, ImageFont, ImageDraw
+
+DISCLAIMER_TEXT = ["Please Note:",] + textwrap.wrap(
+	"mackbot ship build should be used as a base for your builds.",
+	width=80, break_long_words=False, replace_whitespace=False,
+) + textwrap.wrap(
+	"Please consult a friend to see if mackbot's commander skills or upgrades selection is right for you.",
+	width=80, break_long_words=False, replace_whitespace=False,
+)
+
+# create build image
+ITEMS_SPACING = 10
+IMAGE_SIZE = (((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING + 1, 500)
+SKILL_IMAGE_POS_INIT = (0, 50)
+UPGRADE_IMAGE_POS_INIT = (0, 332)
+
+font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
+disclaimer_font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=12)
 
 def create_build_image(
 		build_name: str,
@@ -20,11 +37,6 @@ def create_build_image(
 		upgrade_index = file.split("_")[2] # get index
 		image_file_dict[upgrade_index] = image_file
 
-	font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
-
-	# create build image
-	image_size = (400, 400)
-
 	ship = get_ship_data(build_ship_name)
 
 	# get ship type image
@@ -40,15 +52,25 @@ def create_build_image(
 	ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
 	ship_tier_string = roman_numeral[ship['tier'] - 1]
 
-	image = Image.new("RGBA", image_size, (0, 0, 0, 255)) # initialize new image
+	ship_nation = ship['nation'].replace("_", " ")
+	ship_nation = ship_nation.upper() if ship_nation.lower() in ['us', 'uk', 'ussr'] else ship_nation.title()
+	ship_nation_image_dir = os.path.join("data", "flags_medium", f"flag_{ship_nation}.png")
+
+	image = Image.new("RGBA", IMAGE_SIZE, (0, 0, 0, 255)) # initialize new image
 	draw = ImageDraw.Draw(image) # get drawing context
+
+	# draw nation flag
+	with Image.open(ship_nation_image_dir).convert("RGBA") as ship_nation_image:
+		image.paste(ship_nation_image, (0, 0), ship_nation_image)
 
 	# draw ship name and ship type
 	with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
-		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
+		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.BILINEAR)
 		image.paste(ship_type_image, (0, 0), ship_type_image)
 	draw.text((56, 27), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm') # add ship name
-	draw.text((image.width - 8, 27), f"{build_name.title()} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
+
+	build_title = build_name.upper() if build_name.lower() in ITEMS_TO_UPPER else build_name.title()
+	draw.text((image.width - 8, 27), f"{build_title} build", fill=(255, 255, 255, 255), font=font, anchor='rm') # add build name
 
 	# get skills from this ship's tree
 	if database_client is not None:
@@ -56,14 +78,32 @@ def create_build_image(
 		skill_list_filtered_by_ship_type = {i['skill_id']: i for i in query_result}
 	else:
 		skill_list_filtered_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+
 	# draw skills
+	draw.rounded_rectangle(
+		(
+			SKILL_IMAGE_POS_INIT,
+			(
+				SKILL_IMAGE_POS_INIT[0] + ((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING,
+				SKILL_IMAGE_POS_INIT[1] + ((60 + ITEMS_SPACING) * 4) - ITEMS_SPACING
+			)
+		),
+		5,
+		fill=(100, 100, 100, 255),
+		outline=(255, 255, 255, 255),
+		width=2,
+	)
+
 	for skill_id in skill_list_filtered_by_ship_type:
 		skill = skill_list_filtered_by_ship_type[skill_id]
 		skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
 		if os.path.isfile(skill_image_filename):
 			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
 
-				coord = (4 + (skill['x'] * 64), 50 + (skill['y'] * 64))
+				coord = (
+					SKILL_IMAGE_POS_INIT[0] + (skill['x'] * (skill_image.width + ITEMS_SPACING)),
+					SKILL_IMAGE_POS_INIT[1] + (skill['y'] * (skill_image.height + ITEMS_SPACING))
+				)
 				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
 
 				if int(skill_id) in build_skills:
@@ -75,10 +115,23 @@ def create_build_image(
 					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 				else:
 					# fade out unneeded skills
-					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
+					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.75)
 					image.paste(skill_image, coord, skill_image)
 
 	# draw upgrades
+	draw.rounded_rectangle(
+		(
+			UPGRADE_IMAGE_POS_INIT,
+			(
+				UPGRADE_IMAGE_POS_INIT[0] + (len(build_upgrades) * (60 + ITEMS_SPACING)) - ITEMS_SPACING,
+				UPGRADE_IMAGE_POS_INIT[1] + 60
+			)
+		),
+		5,
+		fill=(100, 100, 100, 255),
+		outline=(255, 255, 255, 255),
+		width=2,
+	)
 	for slot, u in enumerate(build_upgrades):
 		if u != -1:
 			# specific upgrade
@@ -95,7 +148,14 @@ def create_build_image(
 			upgrade_image_dir = image_file_dict['any.png']
 
 		with Image.open(upgrade_image_dir).convert("RGBA") as upgrade_image:
-			coord = (4 + (slot * 64), image.height - 60)
+			coord = (
+				UPGRADE_IMAGE_POS_INIT[0] + (slot * (upgrade_image.width + ITEMS_SPACING)),
+				UPGRADE_IMAGE_POS_INIT[1]
+			)
 			image.paste(upgrade_image, coord, upgrade_image)
+
+	# draw disclaimer
+	disclaimer_text_pos_init = (4, 422)
+	draw.text(disclaimer_text_pos_init, '\n'.join(DISCLAIMER_TEXT), font=disclaimer_font, fill=(255, 255, 255, 255))
 
 	return image
