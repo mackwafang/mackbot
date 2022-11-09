@@ -7,11 +7,13 @@ from discord import app_commands, Embed
 from discord.ext import commands
 
 from mackbot import icons_emoji
+from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
 from scripts.mackbot_constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
 from scripts.utilities.bot_data import command_prefix
 from scripts.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
 from scripts.utilities.logger import logger
 from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
+from scripts.utilities.ship_consumable_code import characteristic_rules
 
 
 class Show(commands.Cog):
@@ -193,7 +195,43 @@ class Show(commands.Cog):
 		ship_key = [i[0] for i in ship_key if i] # extract
 
 		# specific keys
-		consumable_filter_keys = consumable_regex.findall(args) # get consumable filters
+		c_char_reason = []
+		consumable_filter_keys = []
+		try:
+			consumable_filter_keys = consumable_regex.findall(args) # get consumable filters
+			# create consumable characteristics reasoning
+			for match in consumable_filter_keys:
+				for group in [2, 4, 6, 8, 10, 12]:
+					if match[group]:
+						if match[group-1]:
+							consumable = {
+								2: SHIP_CONSUMABLE.DAMCON,
+								4: SHIP_CONSUMABLE.HYDRO,
+								6: SHIP_CONSUMABLE.RADAR,
+								8: SHIP_CONSUMABLE.SMOKE,
+								10: SHIP_CONSUMABLE.DFAA,
+								12: SHIP_CONSUMABLE.HEAL,
+							}[group]
+							characteristic = {
+								"quick ": SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE,
+								"quick charge ": SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE,
+								"limited ": SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE,
+								"limited charge ": SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE,
+								"long duration ": SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION,
+								"short duration ": SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_DURATION,
+								"long range ": SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE,
+								"short range ": SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE,
+								"super ": SHIP_CONSUMABLE_CHARACTERISTIC.SUPER,
+								"high charge ": SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE,
+								"trailing ": SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING,
+								"unlimited ": SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE,
+								"unlimited charge ": SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE,
+							}[match[group - 1].lower()]
+							reason = [f"{match[group - 1].title()}{match[group].title()} refers to {match[group].title()} {r}" for r in characteristic_rules((consumable.value, 1 << characteristic.value))]
+							c_char_reason.extend(reason)
+		except IndexError:
+			pass
+
 		try:
 			gun_caliber_comparator = [v for v in [i[4] for i in s if i] if v][0]
 			gun_caliber_compare_value = int([v for v in [i[5] for i in s if i] if v][0])
@@ -203,7 +241,7 @@ class Show(commands.Cog):
 
 		key = ship_key.copy()
 		if consumable_filter_keys:
-			key += consumable_filter_keys # add consumable filters
+			key.extend([i[0] for i in consumable_filter_keys]) # add consumable filters
 
 		# set up title
 		embed_title = f"Search result for {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in ship_key])}"
@@ -212,7 +250,7 @@ class Show(commands.Cog):
 		if gun_caliber_compare_value > 0:
 			embed_title += f", with guns {gun_caliber_comparator} {gun_caliber_compare_value}mm"
 		if consumable_filter_keys:
-			embed_title += f" and {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in consumable_filter_keys])} consumables"
+			embed_title += f" and {', '.join([i[0].title() if i[0].upper() not in ITEMS_TO_UPPER else i[0].upper() for i in consumable_filter_keys])} consumables"
 
 		# look up
 		result = []
@@ -221,7 +259,7 @@ class Show(commands.Cog):
 			if ship_key:
 				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key]}
 			if consumable_filter_keys:
-				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i}$", re.I) for i in consumable_filter_keys]}
+				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i[0]}$", re.I) for i in consumable_filter_keys]}
 			if gun_caliber_comparator:
 				comparator_map = {
 					">": "gt",
@@ -244,8 +282,8 @@ class Show(commands.Cog):
 				except Exception as e:
 					traceback.print_exc()
 					pass
-		m = []
 
+		m = []
 		try:
 			page = [match[1][5:] for match in s if match[1]]
 			page = max(0, int(page[0]) - 1)
@@ -263,6 +301,9 @@ class Show(commands.Cog):
 				ship_type = ship_data['type']
 				tier = ship_data['tier']
 				is_prem = ship_data['is_premium']
+				nation = ship_data['nation']
+				nation = icons_emoji[f"flag_{nation.upper() if nation in ITEMS_TO_UPPER else nation.title()}"]
+
 				gun_caliber_string = ""
 				if gun_caliber_comparator:
 					gun_caliber_string += f" ({', '.join(f'{i}mm' for i in ship_data['tags']['gun_caliber'])})"
@@ -270,23 +311,25 @@ class Show(commands.Cog):
 				tier_string = roman_numeral[tier - 1]
 				type_icon = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 				# m += [f"**{tier_string:<6} {type_icon}** {name}"]
-				m += [[tier, tier_string, type_icon, name + gun_caliber_string]]
+				m += [[tier, tier_string, type_icon, name + gun_caliber_string, nation]]
 
 			# separate into pages
 			num_items = len(m)
 			m.sort(key=lambda x: (x[0], x[2], x[-1]))
-			m = [f"**{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name in m]
+			m = [f"{nation} **{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name, nation in m]
 
-			items_per_page = 30
+			items_per_page = 60
+			columns = 6
 			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
 			embed = Embed(title=f"{embed_title} ({max(1, page + 1)}/{max(1, num_pages)})")
 			m = m[page]  # select page
-			m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]  # spliting into columns
+			m = [m[i:i + items_per_page // columns] for i in range(0, len(m), items_per_page // columns)]  # spliting into columns
 			embed.set_footer(text=f"{num_items} ships found\n"
 			                      f"To get ship build, use [{command_prefix} build ship_name]\n"
-			                      f"To get ship data, use [{command_prefix} ship ship_name]")
+			                      f"To get ship data, use [{command_prefix} ship ship_name]\n" +
+			                      '\n'.join(c_char_reason))
 			for i in m:
 				embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
 		else:

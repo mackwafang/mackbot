@@ -10,7 +10,7 @@ from pprint import pprint
 
 from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
 from scripts.mackbot_exceptions import BuildError
-from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode
+from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 
 game_data = {}
 ship_list = {}

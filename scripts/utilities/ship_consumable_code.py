@@ -1,4 +1,51 @@
+from scripts.mackbot_constants import CONSUMABLES_CHARACTERISTIC_THRESHOLDS
 from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
+
+def characteristic_rules(encoded: tuple) -> str:
+	"""
+	Returns why this consumable is classified as so
+	Args:
+		encoded (tuple): encoded tuple from encode()
+
+	Returns:
+		list - list of strings of reasons, or None if not tuple or tuple less than 2
+	"""
+	if type(encoded) != tuple or (type(encoded) == tuple and len(encoded) != 2):
+		return None
+
+	reasons = []
+	c_characteristic = encoded[1]
+
+	for c in SHIP_CONSUMABLE_CHARACTERISTIC:
+		if c_characteristic & 1 == 1:
+			if (encoded[0], c) in CONSUMABLES_CHARACTERISTIC_THRESHOLDS:
+				threshold_data = CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(encoded[0], c)]
+
+				threshold = threshold_data['threshold']
+				comparator_to_string = {
+					"eq": "is",
+					"neq": "not equals to",
+					"gt": "more than",
+					"gte": "at least",
+					"lt": "less than",
+					"lte": "at most",
+				}[threshold_data['comparator']]
+
+				characteristic_to_string = {
+					SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE: "with unlimited charge",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE: "with limited charges",
+					SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE: f"with {comparator_to_string} {threshold} charges",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION: f"with {comparator_to_string} {threshold} seconds of active duration",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE: f"with {comparator_to_string} {threshold/1000:0.1f} km of range",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_DURATION: f"with {comparator_to_string} {threshold} seconds of active duration",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE: f"with {comparator_to_string} {threshold/1000:0.1f} km of range",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SUPER: f"that recovers {comparator_to_string} {threshold}% of max HP per second",
+					SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING: f"smokes that cover the ship traveling {comparator_to_string} {threshold} knots",
+					SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE: f"with {comparator_to_string} {threshold} seconds of cooldown time",
+				}[c]
+				reasons.append(characteristic_to_string)
+		c_characteristic >>= 1
+	return reasons
 
 def consumable_check(consumable_data):
 	"""

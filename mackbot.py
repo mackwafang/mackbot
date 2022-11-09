@@ -1,5 +1,4 @@
-import discord, \
-	asyncio
+import discord, asyncio
 from discord.ext import commands
 from scripts.utilities.game_data.game_data_finder import *
 from scripts.utilities.bot_data import *
