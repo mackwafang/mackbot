@@ -21,7 +21,7 @@ class Build(commands.Cog):
 	@commands.hybrid_command(name='build', description='Get a basic warship build')
 	@app_commands.rename(args="value")
 	@app_commands.describe(
-		args="Ship name. Adds -i before ship name to get image variation",
+		args="Ship name. Adds -t or --text before ship name to get text variation",
 	)
 	async def build(self, context: commands.Context, args: str):
 
@@ -36,7 +36,6 @@ class Build(commands.Cog):
 
 		permissions = context.channel.permissions_for(context.me)
 		# check permission
-		logger.info("Attach Files permission denied")
 		if not permissions.embed_links and not permissions.attach_files:
 			# can't send either text or embed
 			logger.info("Both Attach File and Embed Link permission denied")
@@ -228,7 +227,7 @@ class Build(commands.Cog):
 				else:
 					# dynamically create
 					build_image = create_build_image(build_name, name, skills, upgrades, cmdr)
-				build_image.save("temp.png")
+				build_image.save("./temp.png")
 				try:
 					if multi_build_user_response:
 						# response to user's selection of drop-down menu
@@ -249,7 +248,7 @@ class Build(commands.Cog):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
 					await context.send(embed=embed)
-					await correct_user_misspell(context, 'build', f"{'-t' if send_text_build else ''} {closest_match[0]}")
+					await correct_user_misspell(self.client, context, 'build', f"{'-t' if send_text_build else ''} {closest_match[0]}")
 				else:
 					await context.send(embed=embed)
 			elif type(e) == NoBuildFound:
