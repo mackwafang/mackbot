@@ -57,10 +57,10 @@ class Ship(commands.Cog):
 			args = list(context.kwargs.values())
 			input_type = COMMAND_INPUT_TYPE.SLASH
 
-		args = ' '.join(i for i in args if i)  # fuse back together to check filter
 		param_filter = ""
 
 		if input_type == COMMAND_INPUT_TYPE.CLI:
+			args = ' '.join(i for i in args if i)  # fuse back together to check filter
 			split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
 			has_filter = len(split_opt_args) > 1
 			if has_filter:

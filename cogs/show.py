@@ -315,8 +315,8 @@ class Show(commands.Cog):
 
 			# separate into pages
 			num_items = len(m)
-			m.sort(key=lambda x: (x[0], x[2], x[-1]))
-			m = [f"{nation} **{(tier_string + ' '+ type_icon).ljust(16, chr(160))}** {name}" for tier, tier_string, type_icon, name, nation in m]
+			m.sort(key=lambda x: (x[-1], x[0], x[2], x[-2]))
+			m = [f"{nation} **{type_icon} {tier_string}** {name}" for tier, tier_string, type_icon, name, nation in m]
 
 			items_per_page = 60
 			columns = 6
@@ -331,7 +331,7 @@ class Show(commands.Cog):
 			                      f"To get ship data, use [{command_prefix} ship ship_name]\n" +
 			                      '\n'.join(c_char_reason))
 			for i in m:
-				embed.add_field(name="(Tier) Ship", value=''.join([v + '\n' for v in i]))
+				embed.add_field(name="(Tier) Ship", value='\n'.join(i))
 		else:
 			# no ships found
 			embed = Embed(title=embed_title, description="")
