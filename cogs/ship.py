@@ -4,6 +4,7 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
+from scripts.mackbot_enums import COMMAND_INPUT_TYPE
 from scripts.mackbot_exceptions import *
 from scripts.utilities.logger import logger
 from scripts.utilities.regex import ship_param_filter_regex
@@ -50,20 +51,25 @@ class Ship(commands.Cog):
 
 		# check if *not* slash command,
 		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[2:])
+			args = context.message.content.split()[2:]
+			input_type = COMMAND_INPUT_TYPE.CLI
+		else:
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
 
-		args = args.split()
-		send_compact = args[0] in ['--compact', '-c']
-		if send_compact:
-			args = args[1:]
-		args = ' '.join(i for i in args)  # fuse back together to check filter
+		args = ' '.join(i for i in args if i)  # fuse back together to check filter
 		param_filter = ""
 
-		split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
-		has_filter = len(split_opt_args) > 1
-		if has_filter:
-			param_filter = split_opt_args[1]
-		ship = split_opt_args[0]
+		if input_type == COMMAND_INPUT_TYPE.CLI:
+			split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
+			has_filter = len(split_opt_args) > 1
+			if has_filter:
+				param_filter = split_opt_args[1]
+			ship = split_opt_args[0]
+		else:
+			ship = args[0]
+			param_filter = args[1]
+
 		try:
 			ship_data = get_ship_data(ship)
 			if ship_data is None:
@@ -484,19 +490,20 @@ class Ship(commands.Cog):
 									m += f"**Aircraft:** {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts), {aircraft['max_health']} HP\n"
 									m += f"**Squadron:** {squadron['squad_size']} aircraft ({n_attacks} flight{'s' if n_attacks > 1 else ''} of {squadron['attack_size']}), {aircraft['max_health'] * squadron['squad_size']} HP\n"
 									m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-									m += f"**Payload:** {aircraft['payload']} x {aircraft['payload_name']} "
+									m += f"**Payload:** {aircraft['payload']} x {aircraft['payload_name']} per aircraft"
+									m += f"**Attacking Flight:** {aircraft['payload'] * n_attacks} "
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
-										m += "rocket\n"
+										m += "rockets\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{aircraft['max_damage']} " \
 										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
-										m += f"torpedo\n"
+										m += f"torpedoes\n"
 										m += f"**Torpedo:** :boom:{aircraft['max_damage']:0.0f}, {aircraft['torpedo_speed']} kts\n"
 										m += f"**Arming Range:** {aircraft['arming_range']:0.1f}m\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-										m += f"bomb\n"
-										m += f"**{squadron['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
+										m += f"bombs\n"
+										m += f"**{aircraft['bomb_type']} Bomb:** :boom:{aircraft['max_damage']:0.0f} " \
 										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
@@ -514,7 +521,7 @@ class Ship(commands.Cog):
 												m += f"{to_plural('fighter', consumable_data['fightersNum'])}, "
 											if consumable_type == "regenerateHealth":
 												m += f"{consumable_data['regenerationRate']:1.0%}/s, "
-											m += f"{consumable_data['reloadTime']:1.0f}s reload"
+											m += f"{consumable_data['reloadTime']:1.0f}s cooldown"
 											m += ")\n"
 									m += '\n'
 									embed.add_field(name=f"__**{squadron['name'].replace(chr(10), ' ')}**__", value=m, inline=False)

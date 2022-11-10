@@ -19,7 +19,7 @@ class Build(commands.Cog):
 		self.client = client
 
 	@commands.hybrid_command(name='build', description='Get a basic warship build')
-	@app_commands.rename(args="value")
+	@app_commands.rename(args="ship")
 	@app_commands.describe(
 		args="Ship name. Adds -t or --text before ship name to get text variation",
 	)
