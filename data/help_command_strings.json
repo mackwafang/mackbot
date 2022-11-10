@@ -99,6 +99,7 @@
 				"- **Tier**: i.e. tier 6, tier viii",
 				"",
 				"- **Consumable**: Add the keyword **with:\"consumables\"**. The pair of quotation marks must be present in order to consumable filter to work. Multiple consumables can be used.",
+				"Please note that this option returns what consumables that are available to the ship, rather what it can take into battle (i.e. querying smoke and radar will return British light cruisers, as those consumables are available to them)",
 				"- consumables may include:",
 				"(limited or quick charge) damage control",
 				"(long or short) (range or duration) (hydro or radar)",

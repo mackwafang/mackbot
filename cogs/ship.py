@@ -1,4 +1,5 @@
 import re, traceback
+from typing import Optional
 
 from discord import app_commands, Embed
 from discord.ext import commands
@@ -36,7 +37,7 @@ class Ship(commands.Cog):
 	@app_commands.describe(
 		args="Ship name. Add -p to filter combat parameters.",
 	)
-	async def ship(self, context: commands.Context, args: str):
+	async def ship(self, context: commands.Context, args: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 

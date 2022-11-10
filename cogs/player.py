@@ -1,4 +1,6 @@
 import traceback
+from typing import Optional
+
 import pandas as pd
 
 from datetime import date
@@ -7,13 +9,15 @@ from discord import app_commands, Embed
 from discord.utils import escape_markdown
 from discord.ext import commands
 
+
+from .bot_help import BotHelp
 from scripts.mackbot_exceptions import NoShipFound
+from scripts.mackbot_enums import COMMAND_INPUT_TYPE
+from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji
 from scripts.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from scripts.utilities.game_data.warships_data import ship_list_simple
 from scripts.utilities.logger import logger
 from scripts.utilities.to_plural import to_plural
-from .bot_help import BotHelp
-from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji
 from scripts.utilities.bot_data import WG
 from scripts.utilities.regex import player_arg_filter_regex
 
@@ -23,15 +27,29 @@ class Player(commands.Cog):
 		self.client = client
 
 	@commands.hybrid_command(name="player", description="Get information about a player.")
+	@app_commands.rename(b_type="battle_type")
 	@app_commands.describe(
-		value="Player name. For optional arguments, see mackbot help player or /player help"
+		player_name="Player name",
+		region="Player's region. Defaults to na",
+		tier="Display top 10 ships of this tier",
+		ship="Display player's stat of this ship",
+		b_type="Switch battle type for display. Acceptable values: solo, div2 (2-man divisions), div3 (3-man divisions). Default is pvp"
 	)
-	async def player(self, context: commands.Context, value: str):
+	async def player(self,
+	                 context: commands.Context,
+	                 player_name: str,
+	                 region: Optional[str]='na',
+	                 tier:Optional[int]=0,
+	                 ship:Optional[str]="",
+	                 b_type:Optional[str]='pvp'
+	                 ):
 		# check if *not* slash command,
 		if context.clean_prefix != '/':
 			args = context.message.content.split()[2:]
+			input_type = COMMAND_INPUT_TYPE.CLI
 		else:
-			args = value.split()
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
 
 		if args:
 			username = args[0][:24]
@@ -39,35 +57,47 @@ class Player(commands.Cog):
 				try:
 					battle_type = 'pvp'
 					battle_type_string = 'Random'
-					player_region = 'na'
+					if input_type == COMMAND_INPUT_TYPE.CLI:
+						player_region = 'na'
 
-					# grab optional args
-					if len(args) > 1:
-						optional_args = player_arg_filter_regex.findall(' '.join(args[1:]))
+						# grab optional args
+						if len(args) > 1:
+							optional_args = player_arg_filter_regex.findall(' '.join(args[1:]))
 
-						battle_type = [i[0] for i in optional_args if len(i[0])]
-						ship_filter = [i[1] for i in optional_args if len(i[1])]
-						if '-' in ship_filter:
-							# if some how user adds a --tier, remove this (i sucks at regex)
-							ship_filter = ship_filter.split("-")[0][:-1]
-						player_region = [i[3] for i in optional_args if len(i[3])]# filter ship listing, same rule as list ships
+							battle_type = [i[0] for i in optional_args if len(i[0])]
+							ship_filter = [i[1] for i in optional_args if len(i[1])]
+							if '-' in ship_filter:
+								# if some how user adds a --tier, remove this (i sucks at regex)
+								ship_filter = ship_filter.split("-")[0][:-1]
+							player_region = [i[3] for i in optional_args if len(i[3])]# filter ship listing, same rule as list ships
 
-						battle_type = battle_type[0] if len(battle_type) else ''
-						ship_filter = ship_filter[0] if len(ship_filter) else ''
-						player_region = player_region[0] if len(player_region) else ''
-						if player_region not in WOWS_REALMS:
-							player_region = 'na'
+							battle_type = battle_type[0] if len(battle_type) else ''
+							ship_filter = ship_filter[0] if len(ship_filter) else ''
+							player_region = player_region[0] if len(player_region) else ''
+							if player_region not in WOWS_REALMS:
+								player_region = 'na'
+						else:
+							optional_args = [''] * 5
+							ship_filter = ''
+
+						try:
+							ship_tier_filter = int([i[2] for i in optional_args if len(i[2])][0])
+						except (ValueError, IndexError):
+							ship_tier_filter = 0
 					else:
-						optional_args = [''] * 5
-						ship_filter = ''
+						username = player_name[:24]
+						battle_type = b_type
+						player_region = region
+						ship_filter = ship
+						try:
+							ship_tier_filter = int(tier)
+						except ValueError:
+							ship_tier_filter = 0
+
 
 					player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
 					player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 
-					try:
-						ship_tier_filter = int([i[2] for i in optional_args if len(i[2])][0])
-					except (ValueError, IndexError):
-						ship_tier_filter = 0
 					try:
 						# convert user specified specific stat to wg values
 						battle_type = {
@@ -291,7 +321,7 @@ class Player(commands.Cog):
 									ship_id = ship_data['ship_id']
 									player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 									ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-									m += f"**{player_ship_stats_df['emoji']} {list(roman_numeral.keys())[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
+									m += f"**{player_ship_stats_df['emoji']} {roman_numeral[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
 									m += f"**{player_ship_stats_df['battles']} Battles**\n"
 									m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 									m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
