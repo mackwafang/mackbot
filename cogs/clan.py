@@ -1,9 +1,11 @@
 from datetime import date
+from typing import Optional
 
 from discord import app_commands, Embed, SelectOption
 from discord.utils import escape_markdown
 from discord.ext import commands
 
+from scripts.mackbot_enums import COMMAND_INPUT_TYPE
 from .bot_help import BotHelp
 from scripts.mackbot_constants import WOWS_REALMS, icons_emoji
 from scripts.utilities.bot_data import WG, clan_history
@@ -16,23 +18,31 @@ class Clan(commands.Cog):
 		self.client = client
 
 	@commands.hybrid_command(name="clan", description="Get some basic information about a clan")
-	@app_commands.rename(args="clan")
 	@app_commands.describe(
-		args="Name or tag of clan"
+		clan_name="Name or tag of clan",
+		region='Clan region'
 	)
-	async def clan(self, context: commands.Context, args: str):
+	async def clan(self, context: commands.Context,
+	                 clan_name: str,
+	                 region: Optional[str]='na',):
 		# check if *not* slash command,
 		if context.clean_prefix != '/':
 			args = context.message.content.split()[2:]
+			input_type = COMMAND_INPUT_TYPE.CLI
 		else:
-			args = args.split()
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
 
 		if args:
 			# grab optional args
-			optional_args = clan_filter_regex.findall(' '.join(args))[0]
+			if input_type == COMMAND_INPUT_TYPE.CLI:
+				optional_args = clan_filter_regex.findall(' '.join(args))[0]
 
-			search_term = optional_args[0]
-			clan_region = optional_args[1] # filter ship listing, same rule as list ships
+				search_term = optional_args[0]
+				clan_region = optional_args[1] # filter ship listing, same rule as list ships
+			else:
+				search_term = clan_name
+				clan_region = region
 
 			if clan_region not in WOWS_REALMS:
 				clan_region = 'na'
@@ -86,7 +96,7 @@ class Clan(commands.Cog):
 					m += f"{clan_age_month} month{'' if clan_age_month == 1 else 's'} "
 				if clan_age_day:
 					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
-				m += ')\n'
+				m += ' old)\n'
 				if clan_detail['old_tag'] and clan_detail['old_name']:
 					m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
 				m += f"**Members: ** {clan_detail['members_count']}\n"

@@ -13,7 +13,7 @@ from discord.ext import commands
 from .bot_help import BotHelp
 from scripts.mackbot_exceptions import NoShipFound
 from scripts.mackbot_enums import COMMAND_INPUT_TYPE
-from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji
+from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji, ITEMS_TO_UPPER
 from scripts.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from scripts.utilities.game_data.warships_data import ship_list_simple
 from scripts.utilities.logger import logger
@@ -211,16 +211,19 @@ class Player(commands.Cog):
 								player_stat_max_kills_ship = ship_data['name']
 								player_stat_max_kills_ship_type = ship_data['emoji']
 								player_stat_max_kills_ship_tier = roman_numeral[ship_data['tier'] - 1]
+								player_stat_max_kills_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
 
 								ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
 								player_stat_max_damage_ship = ship_data['name']
 								player_stat_max_damage_ship_type = ship_data['emoji']
 								player_stat_max_damage_ship_tier = roman_numeral[ship_data['tier'] - 1]
+								player_stat_max_damage_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
 
 								ship_data = get_ship_data_by_id(player_battle_stat['max_scouting_damage_ship_id'])
 								player_stat_max_spot_dmg_ship = ship_data['name']
 								player_stat_max_spot_dmg_ship_type = ship_data['emoji']
 								player_stat_max_spot_dmg_ship_tier = roman_numeral[ship_data['tier'] - 1]
+								player_stat_max_spot_dmg_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
 
 								player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
 								player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
@@ -234,17 +237,18 @@ class Player(commands.Cog):
 								m += f"**Average Damage**: {player_stat_avg_dmg:,.0f}\n"
 								m += f"**Average Spotting**: {player_stat_avg_spot_dmg:,.0f}\n"
 								m += f"**Average XP**: {player_stat_avg_xp:,.0f} XP\n"
-								m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
-								m += f"**Highest Damage**: {player_stat_max_damage:,.0f} with {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
-								m += f"**Highest Spotting Damage**: {player_stat_max_spot_dmg:,.0f} with {player_stat_max_spot_dmg_ship_type} **{player_stat_max_spot_dmg_ship_tier} {player_stat_max_spot_dmg_ship}**\n"
+								m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_nation} {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
+								m += f"**Highest Damage**: {player_stat_max_damage:,.0f} with {player_stat_max_damage_ship_nation} {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
+								m += f"**Highest Spotting Damage**: {player_stat_max_spot_dmg:,.0f} with {player_stat_max_spot_dmg_ship_nation} {player_stat_max_spot_dmg_ship_type} **{player_stat_max_spot_dmg_ship_tier} {player_stat_max_spot_dmg_ship}**\n"
 								embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 								# top 10 ships by battle count
 								m = ""
 								for i in range(10):
 									try:
-										s = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-										m += f"**{s['emoji']} {list(roman_numeral)[s['tier'] - 1]} {s['name'].title()}** ({s['battles']} | {s['wr']:0.2%} WR)\n"
+										ship = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
+										ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
+										m += f"**{ship_nation_emoji} {ship['emoji']} {roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.2%} WR)\n"
 									except IndexError:
 										pass
 								embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -305,7 +309,8 @@ class Player(commands.Cog):
 										if i <= len(player_ship_stats_df) // items_per_col:
 											for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
 												ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-												m += f"{r}) **{ship['emoji']} {ship['name'].title()}**\n"
+												ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
+												m += f"**{r}) {ship_nation_emoji} {roman_numeral[ship['tier']- 1]} {ship['emoji']} {ship['name'].title()}**\n"
 												m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
 												m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:,.0f}\n\n"
 												r += 1
