@@ -1,4 +1,51 @@
+from scripts.mackbot_constants import CONSUMABLES_CHARACTERISTIC_THRESHOLDS
 from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
+
+def characteristic_rules(encoded: tuple) -> str:
+	"""
+	Returns why this consumable is classified as so
+	Args:
+		encoded (tuple): encoded tuple from encode()
+
+	Returns:
+		list - list of strings of reasons, or None if not tuple or tuple less than 2
+	"""
+	if type(encoded) != tuple or (type(encoded) == tuple and len(encoded) != 2):
+		return None
+
+	reasons = []
+	c_characteristic = encoded[1]
+
+	for c in SHIP_CONSUMABLE_CHARACTERISTIC:
+		if c_characteristic & 1 == 1:
+			if (encoded[0], c) in CONSUMABLES_CHARACTERISTIC_THRESHOLDS:
+				threshold_data = CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(encoded[0], c)]
+
+				threshold = threshold_data['threshold']
+				comparator_to_string = {
+					"eq": "is",
+					"neq": "not equals to",
+					"gt": "more than",
+					"gte": "at least",
+					"lt": "less than",
+					"lte": "at most",
+				}[threshold_data['comparator']]
+
+				characteristic_to_string = {
+					SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE: "with unlimited charge",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE: "with limited charges",
+					SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE: f"with {comparator_to_string} {threshold} charges",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION: f"with {comparator_to_string} {threshold} seconds of active duration",
+					SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE: f"with {comparator_to_string} {threshold/1000:0.1f} km of range",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_DURATION: f"with {comparator_to_string} {threshold} seconds of active duration",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE: f"with {comparator_to_string} {threshold/1000:0.1f} km of range",
+					SHIP_CONSUMABLE_CHARACTERISTIC.SUPER: f"that recovers {comparator_to_string} {threshold}% of max HP per second",
+					SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING: f"smokes that cover the ship traveling {comparator_to_string} {threshold} knots",
+					SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE: f"with {comparator_to_string} {threshold} seconds of cooldown time",
+				}[c]
+				reasons.append(characteristic_to_string)
+		c_characteristic >>= 1
+	return reasons
 
 def consumable_check(consumable_data):
 	"""
@@ -27,15 +74,15 @@ def encode(consumable_data: dict) -> int:
 	c_characteristic = 0
 	if consumable_type == 'crashCrew':
 		c_type = SHIP_CONSUMABLE.DAMCON
-		if consumable_data['numConsumables'] != -1:
+		if consumable_data['numConsumables'] != CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.DAMCON, SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE)
-		if consumable_data['reloadTime'] <= 40:
+		if consumable_data['reloadTime'] <= CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.DAMCON, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE)
 	if consumable_type == 'rls':
 		c_type = SHIP_CONSUMABLE.RADAR
-		if consumable_data['workTime'] > 20:
+		if consumable_data['workTime'] > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.RADAR, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION)
-		if consumable_data['distShip'] * 30 > 10000:
+		if consumable_data['distShip'] * 30 > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.RADAR, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE)
 	if consumable_type == 'speedBoosters':
 		c_type = SHIP_CONSUMABLE.SPEED_BOOST
@@ -43,29 +90,29 @@ def encode(consumable_data: dict) -> int:
 		c_type = SHIP_CONSUMABLE.GUN_BOOST
 	if consumable_type == 'airDefenseDisp':
 		c_type = SHIP_CONSUMABLE.DFAA
-		if consumable_data['numConsumables'] == -1:
+		if consumable_data['numConsumables'] == CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.DFAA, SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE)
 	if consumable_type == 'sonar':
 		c_type = SHIP_CONSUMABLE.HYDRO
-		if consumable_data['workTime'] > 120:
+		if consumable_data['workTime'] > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION)
-		if consumable_data['distShip'] * 30 <= 3000:
+		if consumable_data['distShip'] * 30 <= CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE)
-		if consumable_data['distShip'] * 30 > 5000:
+		if consumable_data['distShip'] * 30 > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE)
 	if consumable_type == 'smokeGenerator':
 		c_type = SHIP_CONSUMABLE.SMOKE
-		if consumable_data['numConsumables'] > 4:
+		if consumable_data['numConsumables'] > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.SMOKE, SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE)
-		if consumable_data['speedLimit'] > 15:
+		if consumable_data['speedLimit'] > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.SMOKE, SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING)
 	if consumable_type == 'scout':
 		c_type = SHIP_CONSUMABLE.SPOTTER
 	if consumable_type == 'regenCrew':
 		c_type = SHIP_CONSUMABLE.HEAL
-		if consumable_data['regenerationHPSpeed'] * 100 > 1:
+		if consumable_data['regenerationHPSpeed'] * 100 > CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.SUPER)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.SUPER)
-		if consumable_data['reloadTime'] <= 60:
+		if consumable_data['reloadTime'] <= CONSUMABLES_CHARACTERISTIC_THRESHOLDS[(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE)]['threshold']:
 			c_characteristic |= (1 << SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE)
 	if consumable_type == 'fighter':
 		c_type = SHIP_CONSUMABLE.FIGHTER

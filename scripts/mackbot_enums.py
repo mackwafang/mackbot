@@ -1,5 +1,9 @@
 from enum import IntEnum, auto
 
+class COMMAND_INPUT_TYPE(IntEnum):
+	CLI = 0
+	SLASH = auto()
+
 class SHIP_BUILD_FETCH_FROM(IntEnum):
 	LOCAL = auto()
 	MONGO_DB = auto()

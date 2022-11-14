@@ -10,7 +10,7 @@ from pprint import pprint
 
 from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
 from scripts.mackbot_exceptions import BuildError
-from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode
+from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 
 game_data = {}
 ship_list = {}
@@ -855,8 +855,6 @@ def update_ship_modules():
 								'attack_cooldown': plane['attackCooldown'],
 								'spotting_range': plane['visibilityFactor'],
 								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'bomb_type': projectile['ammoType'],
-								'bomb_pen': int(projectile['alphaPiercingHE']),
 								'consumables': plane['PlaneAbilities'],
 								'profile': {
 									"dive_bomber": {
@@ -866,7 +864,9 @@ def update_ship_modules():
 										'burn_probability': projectile['burnProb'] * 100,
 										'max_health': int(plane['maxHealth']),
 										'payload': int(plane['attackCount']),
-										'payload_name': projectile['name']
+										'payload_name': projectile['name'],
+										'bomb_type': projectile['ammoType'],
+										'bomb_pen': int(projectile['alphaPiercingHE']),
 									}
 								}
 							}
@@ -896,8 +896,6 @@ def update_ship_modules():
 								'attack_cooldown': plane['attackCooldown'],
 								'spotting_range': plane['visibilityFactor'],
 								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'bomb_type': projectile['ammoType'],
-								'bomb_pen': int(projectile['alphaPiercingHE']),
 								'module_id': module_id,
 								'module_id_str': plane['index'],
 								'consumables': plane['PlaneAbilities'],
@@ -909,7 +907,9 @@ def update_ship_modules():
 										'burn_probability': projectile['burnProb'] * 100,
 										'max_health': int(plane['maxHealth']),
 										'payload': int(plane['attackCount']),
-										'payload_name': projectile['name']
+										'payload_name': projectile['name'],
+										'bomb_pen': int(projectile['alphaPiercingHE']),
+										'bomb_type': projectile['ammoType'],
 									}
 								}
 							}

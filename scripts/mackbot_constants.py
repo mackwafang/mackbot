@@ -1,4 +1,5 @@
 from math import inf
+from .mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
 
 EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 DEGREE_SYMBOL = "\xb0"
@@ -182,6 +183,21 @@ icons_emoji = {
 	"clan_out": "<:clan_out:952757125237575690>",
 	"green_plus": "<:green_plus:979497350869450812>",
 	"red_dash": "<:red_dash:979497350911385620>",
+	'flag_Commonwealth': '<:flag_Commonwealth:1039970300030373930>',
+	'flag_Europe': '<:flag_Europe:1039970301552885780>',
+	'flag_France': '<:flag_France:1039970302647599175>',
+	'flag_Germany': '<:flag_Germany:1039970303729737748>',
+	'flag_Italy': '<:flag_Italy:1039970305592012810>',
+	'flag_Japan': '<:flag_Japan:1039970306674151475>',
+	'flag_Netherlands': '<:flag_Netherlands:1039970307664007328>',
+	'flag_Pan_America': '<:flag_Pan_America:1039970308943249438>',
+	'flag_Pan_Asia': '<:flag_Pan_Asia:1039970310499356725>',
+	'flag_Poland': '<:flag_Poland:1039970311698927776>',
+	'flag_Spain': '<:flag_Spain:1039970312785240124>',
+	'flag_UK': '<:flag_UK:1039970313808662658>',
+	'flag_USA': '<:flag_USA:1039970314613956692>',
+	'flag_USSR': '<:flag_USSR:1039970316388147230>',
+
 }
 
 ITEMS_TO_UPPER = (
@@ -198,3 +214,18 @@ ITEMS_TO_UPPER = (
 	'ussr',
 	'aa',
 )
+
+CONSUMABLES_CHARACTERISTIC_THRESHOLDS = {
+	(SHIP_CONSUMABLE.DAMCON, SHIP_CONSUMABLE_CHARACTERISTIC.LIMITED_CHARGE): {"threshold": -1, "comparator": "neq"},
+	(SHIP_CONSUMABLE.DAMCON, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE): {"threshold": 40, "comparator": "lte"},
+	(SHIP_CONSUMABLE.RADAR, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION): {"threshold": 30, "comparator": "gte"},
+	(SHIP_CONSUMABLE.RADAR, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE): {"threshold": 10000, "comparator": "gt"},
+	(SHIP_CONSUMABLE.DFAA, SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE): {"threshold": -1, "comparator": "eq"},
+	(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_DURATION): {"threshold": 120, "comparator": "gt"},
+	(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.SHORT_RANGE): {"threshold": 3000, "comparator": "lte"},
+	(SHIP_CONSUMABLE.HYDRO, SHIP_CONSUMABLE_CHARACTERISTIC.LONG_RANGE): {"threshold": 5000, "comparator": "gt"},
+	(SHIP_CONSUMABLE.SMOKE, SHIP_CONSUMABLE_CHARACTERISTIC.HIGH_CHARGE): {"threshold": 4, "comparator": "gt"},
+	(SHIP_CONSUMABLE.SMOKE, SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING): {"threshold": 15, "comparator": "gt"},
+	(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.SUPER): {"threshold": 1, "comparator": "gt"},
+	(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE): {"threshold": 60, "comparator": "lte"},
+}

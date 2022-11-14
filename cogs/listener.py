@@ -20,7 +20,7 @@ class Listener(commands.Cog):
 		if context.author != self.client.user:  # this prevent bot from responding to itself
 			query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 			if context.clean_prefix == "/":
-				query = f"/{context.command} {' '.join(v for k, v in context.kwargs.items())}"
+				query = f"/{context.command} {' '.join(str(v) for k, v in context.kwargs.items())}"
 			from_server = context.guild if context.guild else "DM"
 			logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
 

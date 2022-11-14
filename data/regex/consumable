@@ -1,11 +1,11 @@
-(?:(?:limited|quick) charge )?(?:dame?con|damage control|dc)
-(?:(?:long|short) (?:range|duration) )?hydro
-(?:(?:long|short) (?:range|duration) )?radar
-(?:(?:high charge|trailing) )?smoke
+(?:(limited|quick) (?:charge)? )?(dame?con|damage control|dc)
+((?:long|short) (?:range|duration) )?(hydro)
+((?:long|short) (?:range|duration) )?(radar)
+((?:high charge|trailing) )?(smoke)
 engine boost
 gun boost
-(?:unlimited charge? )?dfaa|defensive aa fire
+(unlimited (?:charge)? )?(dfaa|defensive aa fire)
 torpedo boost(?:er)?
-(?:super )?(?:repair|heal)
+(super )?(repair|heal)
 spotter(?: aircraft| plane)?
 fighters?(?: plane)?
