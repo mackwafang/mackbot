@@ -36,7 +36,8 @@ class Ship(commands.Cog):
 	@commands.hybrid_command(name='ship', description='Get combat parameters of a warship')
 	@app_commands.rename(args="value")
 	@app_commands.describe(
-		args="Ship name. Add -p to filter combat parameters.",
+		args="Ship name",
+		parameters="Ship parameters for detailed report",
 	)
 	async def ship(self, context: commands.Context, args: str, parameters: Optional[str]=""):
 		"""

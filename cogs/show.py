@@ -191,7 +191,12 @@ class Show(commands.Cog):
 		s = ship_list_regex.findall(args)
 
 		# how dafuq did this even works
-		ship_key = [[group for gi, group in enumerate(match) if group if gi not in [6, 5, 4, 3, 1]] for match in s] # tokenize
+		tier_key = [match[0] for match in s if match[0]]
+		if tier_key:
+			tier_key = f"t{tier_key[0]}"
+		else:
+			tier_key = ""
+		ship_key = [[group for gi, group in enumerate(match) if group and gi not in [6, 5, 4, 3, 1, 0]] for match in s] # tokenize
 		ship_key = [i[0] for i in ship_key if i] # extract
 
 		# specific keys
@@ -227,7 +232,7 @@ class Show(commands.Cog):
 								"unlimited ": SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE,
 								"unlimited charge ": SHIP_CONSUMABLE_CHARACTERISTIC.UNLIMITED_CHARGE,
 							}[match[group - 1].lower()]
-							reason = [f"{match[group - 1].title()}{match[group].title()} refers to {match[group].title()} {r}" for r in characteristic_rules((consumable.value, 1 << characteristic.value))]
+							reason = [f"{match[group - 1].title()}{match[group].title()} refers to {match[group].title()}s {r}" for r in characteristic_rules((consumable.value, 1 << characteristic.value))]
 							c_char_reason.extend(reason)
 		except IndexError:
 			pass
@@ -242,6 +247,8 @@ class Show(commands.Cog):
 		key = ship_key.copy()
 		if consumable_filter_keys:
 			key.extend([i[0] for i in consumable_filter_keys]) # add consumable filters
+		if tier_key:
+			key.append(tier_key)
 
 		# set up title
 		embed_title = f"Search result for {', '.join([i.title() if i.upper() not in ITEMS_TO_UPPER else i.upper() for i in ship_key])}"
@@ -256,8 +263,8 @@ class Show(commands.Cog):
 		result = []
 		if database_client is not None:
 			search_query = {}
-			if ship_key:
-				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key]}
+			if ship_key or tier_key:
+				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key] + [re.compile(f"^{tier_key}$", re.I) if tier_key else None]}
 			if consumable_filter_keys:
 				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i[0]}$", re.I) for i in consumable_filter_keys]}
 			if gun_caliber_comparator:
