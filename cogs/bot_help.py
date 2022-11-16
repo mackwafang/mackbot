@@ -3,9 +3,9 @@ import discord, re
 from typing import Optional
 from discord import app_commands
 from discord.ext import commands
-from scripts.utilities.compile_bot_help import *
-from scripts.mackbot_constants import icons_emoji, EMPTY_LENGTH_CHAR
-from scripts.utilities.bot_data import command_list, command_prefix
+from mackbot.utilities.compile_bot_help import *
+from mackbot.constants import icons_emoji, EMPTY_LENGTH_CHAR
+from mackbot.utilities.bot_data import command_list, command_prefix
 
 class BotHelp(commands.Cog):
 	def __init__(self, client):

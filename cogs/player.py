@@ -11,15 +11,15 @@ from discord.ext import commands
 
 
 from .bot_help import BotHelp
-from scripts.mackbot_exceptions import NoShipFound
-from scripts.mackbot_enums import COMMAND_INPUT_TYPE
-from scripts.mackbot_constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji, ITEMS_TO_UPPER
-from scripts.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
-from scripts.utilities.game_data.warships_data import ship_list_simple
-from scripts.utilities.logger import logger
-from scripts.utilities.to_plural import to_plural
-from scripts.utilities.bot_data import WG
-from scripts.utilities.regex import player_arg_filter_regex
+from mackbot.exceptions import NoShipFound
+from mackbot.enums import COMMAND_INPUT_TYPE
+from mackbot.constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji, ITEMS_TO_UPPER
+from mackbot.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
+from mackbot.utilities.game_data.warships_data import ship_list_simple
+from mackbot.utilities.logger import logger
+from mackbot.utilities.to_plural import to_plural
+from mackbot.utilities.bot_data import WG
+from mackbot.utilities.regex import player_arg_filter_regex
 
 
 class Player(commands.Cog):

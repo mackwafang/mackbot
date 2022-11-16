@@ -9,7 +9,7 @@ with open('../data/translator.json') as f:
 	translator = json.load(f)
 	translator_keys = tuple(translator.keys())
 
-_allowed_type = ('Ability', 'Aircraft', 'Ship', 'Projectile', 'Modernization', 'Gun', 'Crew')
+_allowed_type = ('Ability', 'Aircraft', 'Ship', 'Projectile', 'Modernization', 'Gun', 'Crew', 'Achievement')
 unicode_replacements = (
 	("\xa0", ' '),
 	("\xc2", '.'),

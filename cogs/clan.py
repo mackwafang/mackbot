@@ -5,13 +5,22 @@ from discord import app_commands, Embed, SelectOption
 from discord.utils import escape_markdown
 from discord.ext import commands
 
-from scripts.mackbot_enums import COMMAND_INPUT_TYPE
+from mackbot.enums import COMMAND_INPUT_TYPE
+from mackbot.utilities.to_plural import to_plural
 from .bot_help import BotHelp
-from scripts.mackbot_constants import WOWS_REALMS, icons_emoji
-from scripts.utilities.bot_data import WG, clan_history
-from scripts.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
-from scripts.utilities.regex import clan_filter_regex
+from mackbot.constants import WOWS_REALMS, icons_emoji, roman_numeral
+from mackbot.utilities.bot_data import WG, clan_history
+from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
+from mackbot.utilities.regex import clan_filter_regex
+from mackbot.wargaming.clans import clan_ranking
 
+LEAGUE_STRING = [
+	"Hurricane",
+	"Typhoon",
+	"Storm",
+	"Gale",
+	"Squall",
+]
 
 class Clan(commands.Cog):
 	def __init__(self, client):
@@ -80,7 +89,9 @@ class Clan(commands.Cog):
 
 				clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
 				clan_id = clan_detail['clan_id']
-				embed = Embed(title=f"Search result for clan {clan_detail['name']}", description="")
+				clan_ladder = clan_ranking(clan_id, clan_region)
+
+				embed = Embed(title=f"Search result for clan {clan_detail['name']}", description="", color=clan_ladder['color'])
 				embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
 				clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
@@ -98,13 +109,26 @@ class Clan(commands.Cog):
 					m += f"{clan_age_day} day{'' if clan_age_day == 1 else 's'}"
 				m += ' old)\n'
 				if clan_detail['old_tag'] and clan_detail['old_name']:
-					m += f"**Formerly:** [{clan_detail['old_tag']}] {clan_detail['old_name']}\n"
+					m += f"**Formerly:** [{escape_markdown(clan_detail['old_tag'])}] {clan_detail['old_name']}\n"
 				m += f"**Members: ** {clan_detail['members_count']}\n"
 				m += f"**Region: ** {clan_region.upper()}\n"
+				m += f"**League: **{LEAGUE_STRING[clan_ladder['league']]} {roman_numeral[clan_ladder['division']]}\n"
 				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
 
 				if clan_detail['description']:
 					embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
+
+				# clan current ranking
+				if clan_ladder is not None:
+					battle_count = clan_ladder['battles_count']
+					best_position = clan_ladder['max_position']
+					m = ""
+					m += f"{LEAGUE_STRING[clan_ladder['league']]} {roman_numeral[clan_ladder['division']]} ({clan_ladder['division_rating']} / 100)\n"
+					m += f"Best: {LEAGUE_STRING[best_position['league']]} {roman_numeral[best_position['division']]} ({best_position['division_rating']} / 100)\n\n"
+
+					m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L, {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
+					embed.add_field(name="__**Clan Battle**__", value=m, inline=False)
+
 				# update clan history for member transfer feature
 				# check clan in data
 				history_output = []

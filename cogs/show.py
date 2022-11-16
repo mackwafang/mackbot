@@ -6,14 +6,14 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot import icons_emoji
-from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
-from scripts.mackbot_constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
-from scripts.utilities.bot_data import command_prefix
-from scripts.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
-from scripts.utilities.logger import logger
-from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
-from scripts.utilities.ship_consumable_code import characteristic_rules
+from bot import icons_emoji
+from mackbot.enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
+from mackbot.constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
+from mackbot.utilities.bot_data import command_prefix
+from mackbot.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
+from mackbot.utilities.logger import logger
+from mackbot.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
+from mackbot.utilities.ship_consumable_code import characteristic_rules
 
 
 class Show(commands.Cog):

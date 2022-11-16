@@ -3,17 +3,17 @@ from typing import Optional
 
 from discord import app_commands, Embed
 from discord.ext import commands
-from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
-from scripts.mackbot_enums import COMMAND_INPUT_TYPE
-from scripts.mackbot_exceptions import *
-from scripts.utilities.logger import logger
-from scripts.utilities.regex import ship_param_filter_regex
-from scripts.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
-from scripts.utilities.game_data.warships_data import database_client, module_list, upgrade_list
-from scripts.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
-from scripts.utilities.correct_user_mispell import correct_user_misspell
-from scripts.utilities.find_close_match_item import find_close_match_item
-from scripts.utilities.to_plural import to_plural
+from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
+from mackbot.enums import COMMAND_INPUT_TYPE
+from mackbot.exceptions import *
+from mackbot.utilities.logger import logger
+from mackbot.utilities.regex import ship_param_filter_regex
+from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
+from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list
+from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.to_plural import to_plural
 
 class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	HULL = 0

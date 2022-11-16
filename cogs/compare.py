@@ -5,13 +5,13 @@ from discord.ext import commands
 from itertools import zip_longest
 
 from .bot_help import BotHelp
-from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
-from scripts.mackbot_exceptions import *
-from scripts.utilities.logger import logger
-from scripts.utilities.game_data.game_data_finder import get_ship_data, get_module_data
-from scripts.utilities.find_close_match_item import find_close_match_item
-from scripts.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
-from scripts.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
+from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
+from mackbot.exceptions import *
+from mackbot.utilities.logger import logger
+from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_module_data
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
+from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 
 class Compare(commands.Cog):
 	def __init__(self, client):

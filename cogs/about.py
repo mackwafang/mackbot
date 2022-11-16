@@ -2,10 +2,10 @@ import inflect
 
 from discord import Embed
 from discord.ext import commands
-from scripts.mackbot_constants import EMPTY_LENGTH_CHAR
-from scripts.utilities.game_data.warships_data import database_client
-from scripts.utilities.bot_data import discord_invite_url
-from scripts.utilities.to_plural import to_plural
+from mackbot.constants import EMPTY_LENGTH_CHAR
+from mackbot.utilities.game_data.warships_data import database_client
+from mackbot.utilities.bot_data import discord_invite_url
+from mackbot.utilities.to_plural import to_plural
 
 grammar = inflect.engine()
 

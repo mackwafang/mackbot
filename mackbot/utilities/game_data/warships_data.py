@@ -1,11 +1,11 @@
 
 from pymongo import MongoClient
 
-from scripts.utilities.bot_data import mongodb_host
-from scripts.utilities.logger import logger
+from mackbot.utilities.bot_data import mongodb_host
+from mackbot.utilities.logger import logger
 
-from scripts.mackbot_constants import icons_emoji, hull_classification_converter
-from scripts.mackbot_data_prep import load_game_params, game_data
+from mackbot.constants import icons_emoji, hull_classification_converter
+from mackbot.data_prep import load_game_params, game_data
 
 ship_list = {}
 skill_list = {}
@@ -38,7 +38,7 @@ try:
 		}
 
 except ConnectionError:
-	from scripts.mackbot_data_prep import (
+	from mackbot.data_prep import (
 		load,
 		ship_list,
 		skill_list,

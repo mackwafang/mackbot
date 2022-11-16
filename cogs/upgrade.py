@@ -3,11 +3,11 @@ import traceback
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from scripts.mackbot_exceptions import NoUpgradeFound
-from scripts.utilities.correct_user_mispell import correct_user_misspell
-from scripts.utilities.find_close_match_item import find_close_match_item
-from scripts.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
-from scripts.utilities.logger import logger
+from mackbot.exceptions import NoUpgradeFound
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
+from mackbot.utilities.logger import logger
 
 
 class Upgrade(commands.Cog):

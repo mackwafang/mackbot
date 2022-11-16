@@ -1,7 +1,7 @@
 from discord import Embed
 from discord.ext import commands
 
-from scripts.utilities.bot_data import faq_data
+from mackbot.utilities.bot_data import faq_data
 
 class FAQ(commands.Cog):
 	def __init__(self, client):
