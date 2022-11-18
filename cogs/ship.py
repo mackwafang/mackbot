@@ -3,6 +3,8 @@ from typing import Optional
 
 from discord import app_commands, Embed
 from discord.ext import commands
+
+from mackbot.ballistics.ballistics import build_trajectory
 from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
@@ -280,6 +282,7 @@ class Ship(commands.Cog):
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 					m += f"**Range: ** {guns['range'] / 1000:1.0f} km\n"
+					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 						m += f"**Precision:** {guns['sigma']:1.2f}{SIGMA_SYMBOL}\n"
 						m += '-------------------\n'
@@ -300,23 +303,29 @@ class Ship(commands.Cog):
 						else:
 							m += f")\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+							trajectory = build_trajectory(module, 'he')
 							m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
+							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
 
 					if guns['max_damage']['cs']:
 						m += f"**SAP:** {guns['max_damage']['cs']} ({icons_emoji['penetration']} {guns['pen']['cs']} mm)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+							trajectory = build_trajectory(module, 'cs')
 							m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
+							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
+
 					if guns['max_damage']['ap']:
 						m += f"**AP:** {guns['max_damage']['ap']}\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
+							trajectory = build_trajectory(module, 'ap')
 							m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
+							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
-					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 					m += '\n'
 					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
