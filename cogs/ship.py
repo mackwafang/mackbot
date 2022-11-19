@@ -303,28 +303,22 @@ class Ship(commands.Cog):
 						else:
 							m += f")\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-							trajectory = build_trajectory(module, 'he')
 							m += f"**HE DPM:** {guns['gun_dpm']['he']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['he']:1.0f} m/s\n"
-							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
 
 					if guns['max_damage']['cs']:
 						m += f"**SAP:** {guns['max_damage']['cs']} ({icons_emoji['penetration']} {guns['pen']['cs']} mm)\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-							trajectory = build_trajectory(module, 'cs')
 							m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
-							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
 
 					if guns['max_damage']['ap']:
 						m += f"**AP:** {guns['max_damage']['ap']}\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-							trajectory = build_trajectory(module, 'ap')
 							m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
-							m += f"**Trajectory Data:** {trajectory[-1].time:0.1f}s\n"
 							m += '-------------------\n'
 
 					m += '\n'
