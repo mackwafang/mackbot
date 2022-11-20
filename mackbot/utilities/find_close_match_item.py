@@ -1,5 +1,5 @@
 import difflib
-from scripts.utilities.game_data.warships_data import database_client, ship_list, upgrade_list, skill_list
+from mackbot.utilities.game_data.warships_data import database_client, ship_list, upgrade_list, skill_list
 
 def find_close_match_item(name: str, database: str) -> list:
 	"""

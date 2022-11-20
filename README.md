@@ -1,9 +1,10 @@
 # mackbot
 The World of Warships (WoWS) Discord bot with ship build sharing and ship encyclopedia.
 
-Invite mackbot [here](https://discord.com/api/oauth2/authorize?client_id=667866391231332353&permissions=378880&scope=bot).
+mackbot is designed to help new and existing players to be familiar with their warships, upgrades, or skills, while not in-game or while in a heated debate in their Discord server. 
 
-mackbot now has a web application with limited capabilities at https://mackbot-web.herokuapp.com/
+##Invite mackbot
+Invite mackbot to your server [here](https://discord.com/api/oauth2/authorize?client_id=667866391231332353&permissions=378880&scope=bot).
 
 ## Installation
 After making a clone/fork, simply the following to install the necessary packages for mackbot to run:
@@ -12,30 +13,31 @@ pip3 install -r requirements.txt
 ```
 
 ## config.json
-mackbot will require a file named `config.json` which will need to contain the following key/value pairs:
+mackbot will require a file named `config.json` in the `data` directory, which will need to contain the following key/value pairs:
 ```
 {
-  "wg_token": wg_api_token_here,
-  "bot_token": discord_bot_token_here,
-  "sheet_id": optional_token_for_google_sheets_fetching,
-  "bot_invite_url": discord_bot_invite_url_here
+    "wg_token" : "WG_token_goes_here",
+    "bot_token" : "discord_bot_token_goes_here",
+    "sheet_id" : "optional_google_sheets_id_here",
+    "bot_invite_url": "optional_discord_bot_invite_url_here",
+    "mongodb_host": "optional_mongodb_url_here",
+    "command_prefix": "mackbot",
+    "discord_invite_url": "support_server_invite_url"
 }
 ```
-- **wg_token**: Required for gathering some information (such as the **player** command) from WG.
-- **bot_token**: Required to run the bot
-- **sheet_id**: Optional for fetching from a Google Sheet where you can crowdsource your ship builds.
-- **bot_invite_url**: Optional for the **invite** command.
 
 ## Discord Commands
-All usable commands can be found by using the command `mackbot help` in Discord, or in the `./help_command_strings.json`. You can enable/disable commands in the `./help_command_strings.json` file.
+All usable commands can be found by using the command `mackbot help` in Discord, or in the `./data/help_command_strings.json`. You can enable/disable commands in the `./data/help_command_strings.json` file.
 
-mackbot's commands include, but not limited to:
-- **build** (Get a ship build)
-- **ship** (Get warship information)
-- **show** (Display items in a category (e.g. ships, upgrades))
-- **player** (Get player information)
+###mackbot's commands include, but not limited to:
+- **build** (Get a ship build, via **mackbot build** or **/build**)
+- **ship** (Get warship information, via **mackbot ship** or **/ship**)
+- **show** (Display items in a category (e.g. ships, upgrades), via **mackbot show** or **/show**)
+- **player** (Get player information, via **mackbot player** or **/player**)
 
+## Discord server
+mackbot has a [Discord server](https://discord.gg/3rt6n2SYWr) for all updates or support needs.
 
-### Legal
+## Legal
 All copyrighted materials owned by Wargaming.net. All rights reserved.\
 All other contents are available under the MIT license.

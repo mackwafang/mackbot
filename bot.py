@@ -1,8 +1,8 @@
 import discord, asyncio
 from discord.ext import commands
-from scripts.utilities.game_data.game_data_finder import *
-from scripts.utilities.bot_data import *
-from scripts.utilities.compile_bot_help import compile_help_strings
+from mackbot.utilities.game_data.game_data_finder import *
+from mackbot.utilities.bot_data import *
+from mackbot.utilities.compile_bot_help import compile_help_strings
 from cogs import *
 
 class Mackbot(commands.Bot):
@@ -35,7 +35,7 @@ async def main():
 	if database_client is None:
 		load_ship_builds()
 
-	await mackbot.load_extension("scripts.misc_commands.wtn")
+	await mackbot.load_extension("mackbot.misc_commands.wtn")
 	await mackbot.add_cog(Listener(mackbot, command_prefix))
 	for cog in [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc]:
 		await mackbot.add_cog(cog(mackbot))

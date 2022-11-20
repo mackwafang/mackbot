@@ -4,5 +4,6 @@
     "sheet_id" : "optional_google_sheets_id_here",
     "bot_invite_url": "optional_discord_bot_invite_url_here",
     "mongodb_host": "optional_mongodb_url_here",
-    "command_prefix": "mackbot"
+    "command_prefix": "mackbot",
+	"discord_invite_url": "support_server_invite_url"
 }

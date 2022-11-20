@@ -7,10 +7,10 @@ from discord import app_commands, Embed
 from discord.ext import commands
 
 from cogs import BotHelp
-from scripts.mackbot_constants import GOOD_BOT_MESSAGES, EXCHANGE_RATE_DOUB_TO_DOLLAR, WOWS_REALMS
-from scripts.utilities.bot_data import hottake_strings, bot_invite_url, discord_invite_url
-from scripts.utilities.compile_bot_help import help_dictionary
-from scripts.utilities.logger import logger
+from mackbot.constants import GOOD_BOT_MESSAGES, EXCHANGE_RATE_DOUB_TO_DOLLAR, WOWS_REALMS
+from mackbot.utilities.bot_data import hottake_strings, bot_invite_url, discord_invite_url
+from mackbot.utilities.compile_bot_help import help_dictionary
+from mackbot.utilities.logger import logger
 
 
 class Misc(commands.Cog):

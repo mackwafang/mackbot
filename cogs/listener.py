@@ -3,7 +3,7 @@ import discord, traceback
 from discord import app_commands
 from discord.ext import commands
 from .bot_help import BotHelp
-from scripts.utilities.logger import logger
+from mackbot.utilities.logger import logger
 
 class Listener(commands.Cog):
 	def __init__(self, client: discord.Client, command_prefix: str):

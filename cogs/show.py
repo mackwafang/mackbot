@@ -6,14 +6,14 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot import icons_emoji
-from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
-from scripts.mackbot_constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
-from scripts.utilities.bot_data import command_prefix
-from scripts.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
-from scripts.utilities.logger import logger
-from scripts.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
-from scripts.utilities.ship_consumable_code import characteristic_rules
+from bot import icons_emoji
+from mackbot.enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
+from mackbot.constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
+from mackbot.utilities.bot_data import command_prefix
+from mackbot.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
+from mackbot.utilities.logger import logger
+from mackbot.utilities.regex import skill_list_regex, equip_regex, ship_list_regex, consumable_regex
+from mackbot.utilities.ship_consumable_code import characteristic_rules
 
 
 class Show(commands.Cog):
@@ -264,7 +264,10 @@ class Show(commands.Cog):
 		if database_client is not None:
 			search_query = {}
 			if ship_key or tier_key:
-				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key] + [re.compile(f"^{tier_key}$", re.I) if tier_key else None]}
+				tag_query = [re.compile(f"^{i}$", re.I) for i in ship_key]
+				if tier_key:
+					tag_query.append(re.compile(f"^{tier_key}$", re.I))
+				search_query["tags.ship"] = {"$all": tag_query}
 			if consumable_filter_keys:
 				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i[0]}$", re.I) for i in consumable_filter_keys]}
 			if gun_caliber_comparator:

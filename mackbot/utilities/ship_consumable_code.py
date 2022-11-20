@@ -1,5 +1,5 @@
-from scripts.mackbot_constants import CONSUMABLES_CHARACTERISTIC_THRESHOLDS
-from scripts.mackbot_enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
+from mackbot.constants import CONSUMABLES_CHARACTERISTIC_THRESHOLDS
+from mackbot.enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
 
 def characteristic_rules(encoded: tuple) -> str:
 	"""

@@ -3,16 +3,16 @@ import traceback
 from discord import app_commands, Embed, SelectOption, File
 from discord.errors import Forbidden
 from discord.ext import commands
-from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, ITEMS_TO_UPPER
-from scripts.mackbot_enums import SHIP_BUILD_FETCH_FROM
-from scripts.mackbot_exceptions import *
-from scripts.utilities.logger import logger
-from scripts.utilities.create_build_image import create_build_image
-from scripts.utilities.game_data.warships_data import database_client
-from scripts.utilities.game_data.game_data_finder import get_ship_data, get_upgrade_data, get_commander_data, get_ship_builds_by_name, skill_list
-from scripts.utilities.correct_user_mispell import correct_user_misspell
-from scripts.utilities.find_close_match_item import find_close_match_item
-from scripts.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
+from mackbot.constants import ship_types, roman_numeral, nation_dictionary, ITEMS_TO_UPPER
+from mackbot.enums import SHIP_BUILD_FETCH_FROM
+from mackbot.exceptions import *
+from mackbot.utilities.logger import logger
+from mackbot.utilities.create_build_image import create_build_image
+from mackbot.utilities.game_data.warships_data import database_client
+from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_upgrade_data, get_commander_data, get_ship_builds_by_name, skill_list
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 
 class Build(commands.Cog):
 	def __init__(self, client):

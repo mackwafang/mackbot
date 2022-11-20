@@ -8,9 +8,10 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from scripts.mackbot_constants import nation_dictionary, hull_classification_converter
-from scripts.mackbot_exceptions import BuildError
-from scripts.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
+from mackbot.constants import nation_dictionary, hull_classification_converter
+from mackbot.exceptions import BuildError
+from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
+from mackbot.wargaming.armory import get_armory_ships
 
 game_data = {}
 ship_list = {}
@@ -390,6 +391,8 @@ def update_ship_modules():
 		logger.warning("Module list is empty.")
 		load_module_list()
 
+	armory_ship_data = get_armory_ships()
+
 	for s in tqdm(ship_list):
 		ship = ship_list[s]
 
@@ -403,10 +406,16 @@ def update_ship_modules():
 			ship_upgrade_info = module_data['ShipUpgradeInfo']  # get upgradable modules
 
 			# get credit and xp cost for ship research
-			ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
-			ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
-			ship_list[s]['price_special'] = ship_upgrade_info['costGold']
-			ship_list[s]['price_special_type'] = ""
+			if s in armory_ship_data:
+				ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
+				ship_list[s]['price_xp'] = 0
+				ship_list[s]['price_special'] = armory_ship_data[s]['value']
+				ship_list[s]['price_special_type'] = armory_ship_data[s]['currency_type']
+			else:
+				ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
+				ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
+				ship_list[s]['price_special'] = ship_upgrade_info['costGold']
+				ship_list[s]['price_special_type'] = ""
 
 			# is this a test boat?
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
@@ -643,6 +652,11 @@ def update_ship_modules():
 							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
 							'mass': {'he': 0, 'ap': 0, 'cs': 0},
 							'drag': {'he': 0, 'ap': 0, 'cs': 0},
+							'normalization': {'he': 0, 'ap': 0, 'cs': 0},
+							'fuse_time': {'he': 0, 'ap': 0, 'cs': 0},
+							'fuse_time_threshold': {'he': 0, 'ap': 0, 'cs': 0},
+							'ricochet': {'he': 0, 'ap': 0, 'cs': 0},
+							'ricochet_always': {'he': 0, 'ap': 0, 'cs': 0},
 							'turrets': {}
 						}
 
@@ -698,6 +712,11 @@ def update_ship_modules():
 									new_turret_data['krupp']['he'] = ammo['bulletKrupp']
 									new_turret_data['mass']['he'] = ammo['bulletMass']
 									new_turret_data['drag']['he'] = ammo['bulletAirDrag']
+									new_turret_data['normalization']['he'] = ammo['bulletCapNormalizeMaxAngle']
+									new_turret_data['fuse_time']['he'] = ammo['bulletDetonator']
+									new_turret_data['fuse_time_threshold']['he'] = ammo['bulletDetonatorThreshold']
+									new_turret_data['ricochet']['he'] = ammo['bulletRicochetAt']
+									new_turret_data['ricochet_always']['he'] = ammo['bulletAlwaysRicochetAt']
 								if ammo['ammoType'] == 'CS':  # SAP rounds
 									new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
 									new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
@@ -706,6 +725,11 @@ def update_ship_modules():
 									new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
 									new_turret_data['mass']['cs'] = ammo['bulletMass']
 									new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
+									new_turret_data['normalization']['cs'] = ammo['bulletCapNormalizeMaxAngle']
+									new_turret_data['fuse_time']['cs'] = ammo['bulletDetonator']
+									new_turret_data['fuse_time_threshold']['cs'] = ammo['bulletDetonatorThreshold']
+									new_turret_data['ricochet']['cs'] = ammo['bulletRicochetAt']
+									new_turret_data['ricochet_always']['cs'] = ammo['bulletAlwaysRicochetAt']
 								if ammo['ammoType'] == 'AP':
 									new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
@@ -713,6 +737,11 @@ def update_ship_modules():
 									new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
 									new_turret_data['mass']['ap'] = ammo['bulletMass']
 									new_turret_data['drag']['ap'] = ammo['bulletAirDrag']
+									new_turret_data['normalization']['ap'] = ammo['bulletCapNormalizeMaxAngle']
+									new_turret_data['fuse_time']['ap'] = ammo['bulletDetonator']
+									new_turret_data['fuse_time_threshold']['ap'] = ammo['bulletDetonatorThreshold']
+									new_turret_data['ricochet']['ap'] = ammo['bulletRicochetAt']
+									new_turret_data['ricochet_always']['ap'] = ammo['bulletAlwaysRicochetAt']
 
 							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
 						continue
@@ -1034,6 +1063,15 @@ def create_ship_tags():
 					except IndexError:
 						pass
 
+			# add tags for non-researchable ships
+			if ship['price_special_type']:
+				price_special_type_string = {
+						'coal': ["coal"],
+						'paragon_xp': ["research bureau", "research"],
+						'steel': ["steel"],
+				}[ship['price_special_type']]
+				tags['ship'].extend(price_special_type_string + ['armory'])
+
 			tags['ship'].extend([nat, f't{tier}', ship_type, ship_type + 's', hull_class])
 			ship_list[s]['tags'] = tags
 			if prem:
@@ -1075,7 +1113,7 @@ def load_consumable_list():
 	global consumable_list
 
 	logger.info("Creating consumable list")
-	consumable_list.update(dict((str(game_data[i]['id']), game_data[i]) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
+	consumable_list.update(dict((str(game_data[i]['id']), game_data[i].copy()) for i in game_data if game_data[i]['typeinfo']['type'] == 'Ability'))
 	for consumable in consumable_list:
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']

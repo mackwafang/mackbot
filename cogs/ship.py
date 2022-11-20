@@ -3,17 +3,19 @@ from typing import Optional
 
 from discord import app_commands, Embed
 from discord.ext import commands
-from scripts.mackbot_constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
-from scripts.mackbot_enums import COMMAND_INPUT_TYPE
-from scripts.mackbot_exceptions import *
-from scripts.utilities.logger import logger
-from scripts.utilities.regex import ship_param_filter_regex
-from scripts.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
-from scripts.utilities.game_data.warships_data import database_client, module_list, upgrade_list
-from scripts.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
-from scripts.utilities.correct_user_mispell import correct_user_misspell
-from scripts.utilities.find_close_match_item import find_close_match_item
-from scripts.utilities.to_plural import to_plural
+
+from mackbot.ballistics.ballistics import build_trajectory
+from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
+from mackbot.enums import COMMAND_INPUT_TYPE
+from mackbot.exceptions import *
+from mackbot.utilities.logger import logger
+from mackbot.utilities.regex import ship_param_filter_regex
+from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
+from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list
+from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.to_plural import to_plural
 
 class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	HULL = 0
@@ -88,6 +90,8 @@ class Ship(commands.Cog):
 			is_test_ship = ship_data['is_test_ship']
 			price_gold = ship_data['price_gold']
 			price_credit = ship_data['price_credit']
+			price_special = ship_data['price_special']
+			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
 			logger.info(f"returning ship information for <{name}> in embeded format")
 			ship_type = ship_types[ship_type]
@@ -154,9 +158,16 @@ class Ship(commands.Cog):
 				return (ship_filter >> x) & 1 == 1
 
 			if price_credit > 0 and price_xp > 0:
-				embed.description += '\n{:,} XP\n{:,} Credits'.format(price_xp, price_credit)
+				embed.description += f'\n{price_xp:,} XP\n{price_credit:,} Credits'
 			if price_gold > 0 and is_prem:
-				embed.description += '\n{:,} Doubloons'.format(price_gold)
+				embed.description += f'\n{price_gold:,} Doubloons'
+			if price_special_type:
+				price_special_type_string = {
+						'coal': "Units of Coal",
+						'paragon_xp': "Research Bureau Points",
+						'steel': "Units of Steel",
+				}[price_special_type]
+				embed.description += f'\n{price_special:,} {price_special_type_string}'
 
 			aircraft_modules = {
 				'fighter': "Fighters",
@@ -280,6 +291,7 @@ class Ship(commands.Cog):
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
 					m += f"**Range: ** {guns['range'] / 1000:1.0f} km\n"
+					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 						m += f"**Precision:** {guns['sigma']:1.2f}{SIGMA_SYMBOL}\n"
 						m += '-------------------\n'
@@ -310,13 +322,13 @@ class Ship(commands.Cog):
 							m += f"**SAP DPM:** {guns['gun_dpm']['cs']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['cs']:1.0f} m/s\n"
 							m += '-------------------\n'
+
 					if guns['max_damage']['ap']:
 						m += f"**AP:** {guns['max_damage']['ap']}\n"
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 							m += f"**AP DPM:** {guns['gun_dpm']['ap']:,} DPM\n"
 							m += f"**Shell Velocity:** {guns['speed']['ap']:1.0f} m/s\n"
 							m += '-------------------\n'
-					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 
 					m += '\n'
 					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
@@ -645,7 +657,11 @@ class Ship(commands.Cog):
 				embed.add_field(name="__**Consumables**__", value=m, inline=False)
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
-			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
+			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n\n"
+			footer_message += f"Tags: "
+			for tags in ship_data['tags'].values():
+				footer_message += f"{', '.join(str(i).title() for i in tags)}, "
+			footer_message = footer_message[:-2]
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)

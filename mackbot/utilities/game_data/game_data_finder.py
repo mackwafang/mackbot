@@ -2,11 +2,11 @@ import pymongo, os
 
 from string import ascii_letters
 from typing import Union
-from scripts.utilities.bot_data import command_list
-from scripts.utilities.game_data.warships_data import *
-from scripts.mackbot_exceptions import *
-from scripts.mackbot_enums import SHIP_BUILD_FETCH_FROM
-from scripts.mackbot_constants import cmdr_name_to_ascii
+from mackbot.utilities.bot_data import command_list
+from mackbot.utilities.game_data.warships_data import *
+from mackbot.exceptions import *
+from mackbot.enums import SHIP_BUILD_FETCH_FROM
+from mackbot.constants import cmdr_name_to_ascii
 
 with open(os.path.join(os.getcwd(), "data", "ship_name_dict.json"), encoding='utf-8') as f:
 	import json

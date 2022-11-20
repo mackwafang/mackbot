@@ -1,8 +1,8 @@
 import os, textwrap
 
-from scripts.utilities.game_data.warships_data import database_client, skill_list, game_data
-from scripts.utilities.game_data.game_data_finder import get_ship_data
-from scripts.mackbot_constants import roman_numeral, ITEMS_TO_UPPER
+from mackbot.utilities.game_data.warships_data import database_client, skill_list, game_data
+from mackbot.utilities.game_data.game_data_finder import get_ship_data
+from mackbot.constants import roman_numeral, ITEMS_TO_UPPER
 from PIL import Image, ImageFont, ImageDraw
 
 DISCLAIMER_TEXT = ["Please Note:",] + textwrap.wrap(
