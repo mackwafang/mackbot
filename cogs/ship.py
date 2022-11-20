@@ -4,7 +4,6 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.ballistics.ballistics import build_trajectory
 from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
