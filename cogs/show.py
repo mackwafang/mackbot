@@ -264,7 +264,10 @@ class Show(commands.Cog):
 		if database_client is not None:
 			search_query = {}
 			if ship_key or tier_key:
-				search_query["tags.ship"] = {"$all": [re.compile(f"^{i}$", re.I) for i in ship_key] + [re.compile(f"^{tier_key}$", re.I) if tier_key else None]}
+				tag_query = [re.compile(f"^{i}$", re.I) for i in ship_key]
+				if tier_key:
+					tag_query.append(re.compile(f"^{tier_key}$", re.I))
+				search_query["tags.ship"] = {"$all": tag_query}
 			if consumable_filter_keys:
 				search_query["tags.consumables"] = {"$all": [re.compile(f"^{i[0]}$", re.I) for i in consumable_filter_keys]}
 			if gun_caliber_comparator:

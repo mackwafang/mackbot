@@ -90,6 +90,8 @@ class Ship(commands.Cog):
 			is_test_ship = ship_data['is_test_ship']
 			price_gold = ship_data['price_gold']
 			price_credit = ship_data['price_credit']
+			price_special = ship_data['price_special']
+			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
 			logger.info(f"returning ship information for <{name}> in embeded format")
 			ship_type = ship_types[ship_type]
@@ -156,9 +158,16 @@ class Ship(commands.Cog):
 				return (ship_filter >> x) & 1 == 1
 
 			if price_credit > 0 and price_xp > 0:
-				embed.description += '\n{:,} XP\n{:,} Credits'.format(price_xp, price_credit)
+				embed.description += f'\n{price_xp:,} XP\n{price_credit:,} Credits'
 			if price_gold > 0 and is_prem:
-				embed.description += '\n{:,} Doubloons'.format(price_gold)
+				embed.description += f'\n{price_gold:,} Doubloons'
+			if price_special_type:
+				price_special_type_string = {
+						'coal': "Units of Coal",
+						'paragon_xp': "Research Bureau Points",
+						'steel': "Units of Steel",
+				}[price_special_type]
+				embed.description += f'\n{price_special:,} {price_special_type_string}'
 
 			aircraft_modules = {
 				'fighter': "Fighters",
@@ -648,7 +657,11 @@ class Ship(commands.Cog):
 				embed.add_field(name="__**Consumables**__", value=m, inline=False)
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
-			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n"
+			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n\n"
+			footer_message += f"Tags: "
+			for tags in ship_data['tags'].values():
+				footer_message += f"{', '.join(str(i).title() for i in tags)}, "
+			footer_message = footer_message[:-2]
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
