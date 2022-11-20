@@ -157,7 +157,7 @@ class Ship(commands.Cog):
 				return (ship_filter >> x) & 1 == 1
 
 			if price_credit > 0 and price_xp > 0:
-				embed.description += f'\n{price_xp:,} XP\n{price_credit:,} Credits'
+				embed.description += f'\n{price_xp:,} XP and {price_credit:,} Credits'
 			if price_gold > 0 and is_prem:
 				embed.description += f'\n{price_gold:,} Doubloons'
 			if price_special_type:
