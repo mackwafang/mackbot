@@ -196,7 +196,7 @@ class Show(commands.Cog):
 			tier_key = f"t{tier_key[0]}"
 		else:
 			tier_key = ""
-		ship_key = [[group for gi, group in enumerate(match) if group and gi not in [6, 5, 4, 3, 1, 0]] for match in s] # tokenize
+		ship_key = [[group for gi, group in enumerate(match) if group and gi not in [6, 5, 4, 3, 1, 0, 10]] for match in s] # tokenize
 		ship_key = [i[0] for i in ship_key if i] # extract
 
 		# specific keys
