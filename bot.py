@@ -37,7 +37,7 @@ async def main():
 
 	await mackbot.load_extension("mackbot.misc_commands.wtn")
 	await mackbot.add_cog(Listener(mackbot, command_prefix))
-	for cog in [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc]:
+	for cog in BOT_COGS:
 		await mackbot.add_cog(cog(mackbot))
 
 

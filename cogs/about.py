@@ -33,5 +33,6 @@ class AboutBot(commands.Cog):
 		m = ""
 		m += "All copyrighted materials owned by Wargaming.net. All rights reserved.\n"
 		m += "All other contents are available under the MIT license.\n"
+		m += "Shell Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell"
 		embed.add_field(name="Legal", value=m, inline=False)
 		await context.send(embed=embed)
