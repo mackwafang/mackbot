@@ -11,6 +11,5 @@ from .show import Show
 from .skill import Skill
 from .upgrade import Upgrade
 from .misc import Misc
-from .analyze import Analyze
 
-BOT_COGS = [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc, Analyze]
+BOT_COGS = [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc]
