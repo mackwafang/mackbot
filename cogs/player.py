@@ -9,7 +9,7 @@ from discord import app_commands, Embed
 from discord.utils import escape_markdown
 from discord.ext import commands
 
-
+from mackbot.utilities.discord.formatting import number_separator
 from .bot_help import BotHelp
 from mackbot.exceptions import NoShipFound
 from mackbot.enums import COMMAND_INPUT_TYPE
@@ -43,9 +43,12 @@ class Player(commands.Cog):
 	                 ship:Optional[str]="",
 	                 b_type:Optional[str]='pvp'
 	                 ):
+
 		# check if *not* slash command,
-		if context.clean_prefix != '/':
+		if context.clean_prefix != '/' or '[modified]' in context.message.content:
 			args = context.message.content.split()[2:]
+			if '[modified]' in context.message.content:
+				args = args[:-1]
 			input_type = COMMAND_INPUT_TYPE.CLI
 		else:
 			args = list(context.kwargs.values())
@@ -201,45 +204,65 @@ class Player(commands.Cog):
 
 							if not ship_filter and not ship_tier_filter:
 								# general information
-								player_stat_wr = player_battle_stat['wins'] / player_battle_stat['battles']
-								player_stat_sr = player_battle_stat['survived_battles'] / player_battle_stat['battles']
-								player_stat_max_kills = player_battle_stat['max_frags_battle']
-								player_stat_max_damage = player_battle_stat['max_damage_dealt']
-								player_stat_max_spot_dmg = player_battle_stat['max_damage_scouting']
-
-								ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
-								player_stat_max_kills_ship = ship_data['name']
-								player_stat_max_kills_ship_type = ship_data['emoji']
-								player_stat_max_kills_ship_tier = roman_numeral[ship_data['tier'] - 1]
-								player_stat_max_kills_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
-
-								ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
-								player_stat_max_damage_ship = ship_data['name']
-								player_stat_max_damage_ship_type = ship_data['emoji']
-								player_stat_max_damage_ship_tier = roman_numeral[ship_data['tier'] - 1]
-								player_stat_max_damage_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
-
-								ship_data = get_ship_data_by_id(player_battle_stat['max_scouting_damage_ship_id'])
-								player_stat_max_spot_dmg_ship = ship_data['name']
-								player_stat_max_spot_dmg_ship_type = ship_data['emoji']
-								player_stat_max_spot_dmg_ship_tier = roman_numeral[ship_data['tier'] - 1]
-								player_stat_max_spot_dmg_ship_nation = icons_emoji[f"flag_{ship_data['nation'].upper() if ship_data['nation'] in ITEMS_TO_UPPER else ship_data['nation'].title()}"]
-
-								player_stat_avg_kills = player_battle_stat['frags'] / player_battle_stat['battles']
-								player_stat_avg_dmg = player_battle_stat['damage_dealt'] / player_battle_stat['battles']
-								player_stat_avg_xp = player_battle_stat['xp'] / player_battle_stat['battles']
-								player_stat_avg_spot_dmg = player_battle_stat['damage_scouting'] / player_battle_stat['battles']
+								max_kills_ship_data = get_ship_data_by_id(player_battle_stat['max_frags_ship_id'])
+								max_damage_ship_data = get_ship_data_by_id(player_battle_stat['max_damage_dealt_ship_id'])
+								max_spotting_ship_data = get_ship_data_by_id(player_battle_stat['max_scouting_damage_ship_id'])
+								player_stat = {
+									'wr': player_battle_stat['wins'] / player_battle_stat['battles'],
+									'sr': player_battle_stat['survived_battles'] / player_battle_stat['battles'],
+									'max': {
+										'kills': {
+											'count': player_battle_stat['max_frags_battle'],
+											'ship': {
+												'name': max_kills_ship_data['name'],
+												'type': max_kills_ship_data['emoji'],
+												'tier': roman_numeral[max_kills_ship_data['tier'] - 1],
+												'nation': icons_emoji[f"flag_{max_kills_ship_data['nation'].upper() if max_kills_ship_data['nation'] in ITEMS_TO_UPPER else max_kills_ship_data['nation'].title()}"]
+											},
+										},
+										'damage': {
+											'count': player_battle_stat['max_damage_dealt'],
+											'ship': {
+												'name': max_damage_ship_data['name'],
+												'type': max_damage_ship_data['emoji'],
+												'tier': roman_numeral[max_damage_ship_data['tier'] - 1],
+												'nation': icons_emoji[f"flag_{max_damage_ship_data['nation'].upper() if max_damage_ship_data['nation'] in ITEMS_TO_UPPER else max_damage_ship_data['nation'].title()}"]
+											}
+										},
+										'spotting': {
+											'count': player_battle_stat['max_damage_scouting'],
+											'ship': {
+												'name': max_spotting_ship_data['name'],
+												'type': max_spotting_ship_data['emoji'],
+												'tier': roman_numeral[max_spotting_ship_data['tier'] - 1],
+												'nation': icons_emoji[f"flag_{max_spotting_ship_data['nation'].upper() if max_spotting_ship_data['nation'] in ITEMS_TO_UPPER else max_spotting_ship_data['nation'].title()}"]
+											}
+										}
+									},
+									'average': {
+										'kills': player_battle_stat['frags'] / player_battle_stat['battles'],
+										'damage': player_battle_stat['damage_dealt'] / player_battle_stat['battles'],
+										'xp': player_battle_stat['xp'] / player_battle_stat['battles'],
+										'spotting': player_battle_stat['damage_scouting'] / player_battle_stat['battles'],
+									}
+								}
 
 								m = f"**{player_battle_stat['battles']:,} battles**\n"
-								m += f"**Win Rate**: {player_stat_wr:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
-								m += f"**Survival Rate**: {player_stat_sr:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
-								m += f"**Average Kills**: {player_stat_avg_kills:0.2f}\n"
-								m += f"**Average Damage**: {player_stat_avg_dmg:,.0f}\n"
-								m += f"**Average Spotting**: {player_stat_avg_spot_dmg:,.0f}\n"
-								m += f"**Average XP**: {player_stat_avg_xp:,.0f} XP\n"
-								m += f"**Highest Kill**: {to_plural('kill', player_stat_max_kills)} with {player_stat_max_kills_ship_nation} {player_stat_max_kills_ship_type} **{player_stat_max_kills_ship_tier} {player_stat_max_kills_ship}**\n"
-								m += f"**Highest Damage**: {player_stat_max_damage:,.0f} with {player_stat_max_damage_ship_nation} {player_stat_max_damage_ship_type} **{player_stat_max_damage_ship_tier} {player_stat_max_damage_ship}**\n"
-								m += f"**Highest Spotting Damage**: {player_stat_max_spot_dmg:,.0f} with {player_stat_max_spot_dmg_ship_nation} {player_stat_max_spot_dmg_ship_type} **{player_stat_max_spot_dmg_ship_tier} {player_stat_max_spot_dmg_ship}**\n"
+								m += f"**Win Rate**: {player_stat['wr']:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
+								m += f"**Survival Rate**: {player_stat['sr']:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
+								m += f"**Average Kills**: {number_separator(player_stat['average']['kills'], '.2f')}\n"
+								m += f"**Average Damage**: {number_separator(player_stat['average']['damage']), '.0f'}\n"
+								m += f"**Average Spotting**: {number_separator(player_stat['average']['spotting'], '.0f')}\n"
+								m += f"**Average XP**: {number_separator(player_stat['average']['xp'], '.0f')} XP\n"
+								m += f"**Highest Kill**: {to_plural('kill', player_stat['max']['kills']['count'])} with " \
+								     f"{player_stat['max']['kills']['ship']['nation']} {player_stat['max']['kills']['ship']['type']} " \
+								     f"**{player_stat['max']['kills']['ship']['tier']} {player_stat['max']['kills']['ship']['name']}**\n"
+								m += f"**Highest Damage**: {number_separator(player_stat['max']['damage']['count'], '.0f')} with " \
+								     f"{player_stat['max']['damage']['ship']['nation']} {player_stat['max']['damage']['ship']['type']} " \
+								     f"**{player_stat['max']['damage']['ship']['tier']} {player_stat['max']['damage']['ship']['name']}**\n"
+								m += f"**Highest Spotting Damage**: {number_separator(player_stat['max']['spotting']['count'], '.0f')} with " \
+								     f"{player_stat['max']['spotting']['ship']['nation']} {player_stat['max']['spotting']['ship']['type']} " \
+								     f"**{player_stat['max']['spotting']['ship']['tier']} {player_stat['max']['spotting']['ship']['name']}**\n"
 								embed.add_field(name=f"__**{battle_type_string} Battle**__", value=m, inline=True)
 
 								# top 10 ships by battle count
@@ -276,7 +299,7 @@ class Player(commands.Cog):
 												type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
 												type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
 												m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / player_battle_stat['battles']:2.1%})\n"
-												m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {type_average_dmg:,.0f} DMG\n\n"
+												m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {number_separator(type_average_dmg, '.0f')} DMG\n\n"
 									except KeyError:
 										traceback.print_exc()
 								embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
@@ -292,8 +315,8 @@ class Player(commands.Cog):
 										tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
 										tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
-										m += f"**{roman_numeral[tier - 1]}: {int(tier_stat['battles'])} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
-										m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {tier_average_dmg:,.0f} DMG\n"
+										m += f"**{roman_numeral[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
+										m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {number_separator(tier_average_dmg, '.0f')} DMG\n"
 									except KeyError:
 										m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
 								embed.add_field(name=f"__**Average by Tier**__", value=m)
@@ -312,7 +335,7 @@ class Player(commands.Cog):
 												ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
 												m += f"**{r}) {ship_nation_emoji} {roman_numeral[ship['tier']- 1]} {ship['emoji']} {ship['name'].title()}**\n"
 												m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
-												m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {ship['avg_dmg']:,.0f}\n\n"
+												m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {number_separator(ship['avg_dmg'], '.0f')}\n\n"
 												r += 1
 											embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 								else:
@@ -326,17 +349,18 @@ class Player(commands.Cog):
 									ship_id = ship_data['ship_id']
 									player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 									ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-									m += f"**{player_ship_stats_df['emoji']} {roman_numeral[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
+									ship_nation = icons_emoji[f"flag_{player_ship_stats_df['nation'].upper() if player_ship_stats_df['nation'] in ITEMS_TO_UPPER else player_ship_stats_df['nation'].title()}"]
+									m += f"**{ship_nation} {player_ship_stats_df['emoji']} {roman_numeral[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
 									m += f"**{player_ship_stats_df['battles']} Battles**\n"
 									m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 									m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
 									m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-									m += f"**Average Damage: ** {player_ship_stats_df['avg_dmg']:,.0f}\n"
-									m += f"**Average Spotting Damage: ** {player_ship_stats_df['avg_spot_dmg']:,.0f}\n"
-									m += f"**Average XP: ** {player_ship_stats_df['avg_xp']:,.0f}\n"
-									m += f"**Max Damage: ** {player_ship_stats_df['max_dmg']:,.0f}\n"
-									m += f"**Max Spotting Damage: ** {player_ship_stats_df['max_spot_dmg']:,.0f}\n"
-									m += f"**Max XP: ** {player_ship_stats_df['max_xp']:,.0f}\n"
+									m += f"**Average Damage: ** {number_separator(player_ship_stats_df['avg_dmg'], '.0f')}\n"
+									m += f"**Average Spotting Damage: ** {number_separator(player_ship_stats_df['avg_spot_dmg'], '.0f')}\n"
+									m += f"**Average XP: ** {number_separator(player_ship_stats_df['avg_xp'], '.0f')}\n"
+									m += f"**Max Damage: ** {number_separator(player_ship_stats_df['max_dmg'], '.0f')}\n"
+									m += f"**Max Spotting Damage: ** {number_separator(player_ship_stats_df['max_spot_dmg'], '.0f')}\n"
+									m += f"**Max XP: ** {number_separator(player_ship_stats_df['max_xp'], '.0f')}\n"
 								except Exception as e:
 									if type(e) == NoShipFound:
 										m += f"Ship with name {ship_filter} is not found\n"

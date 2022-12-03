@@ -3,6 +3,7 @@ import traceback
 from discord import app_commands, Embed
 from discord.ext import commands
 
+from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import NoSkillFound, SkillTreeInvalid
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
@@ -22,9 +23,16 @@ class Skill(commands.Cog):
 	async def skill(self, context: commands.Context, skill_tree: str, skill_name: str):
 		# get information on requested skill
 		# message parse
-		if context.clean_prefix != '/':
-			skill_name = ' '.join(context.message.content.split()[3:])
-
+		# check if *not* slash command,
+		if context.clean_prefix != '/' or '[modified]' in context.message.content:
+			args = context.message.content.split()[3:]
+			if '[modified]' in context.message.content:
+				args = args[:-1]
+			args = ' '.join(args)
+			input_type = COMMAND_INPUT_TYPE.CLI
+		else:
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
 		try:
 			# ship_class = args[0].lower()
 			# skill_name = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]

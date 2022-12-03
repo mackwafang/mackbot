@@ -2,7 +2,6 @@
 	"[zao]":"[zaō]",
 	"arp myoko":"arp myōkō",
 	"arp myoukou":"arp myōkō",
-	"smaland":"småland",
 	"arp kongo":"arp kongō",
 	"arp kongou":"arp kongō",
 	"[grober kurfurst]":"[grosser kurfürst]",
@@ -34,7 +33,6 @@
 	"shokaku":"shōkaku",
 	"skane":"skåne",
 	"vasteras":"västerås",
-	"la galissonniere":"la galissonnière",
 	"algerie":"algérie",
 	"oland":"öland",
 	"konigsberg":"königsberg",
@@ -118,9 +116,9 @@
 	"alvaro de bazan": "Álvaro de bazán",
 	"bazan": "Álvaro de bazán",
 	"maass": "leberecht maass",
-	"schultz": "felix schultz",
 	"maerker": "gustav-julius maerker",
 	"nikolai": "imperator nikolai i",
 	"montecuccoli": "raimondo montecuccoli",
-	"a. regolo": "attilio regolo"
+	"a. regolo": "attilio regolo",
+	"regolo": "attilio regolo"
 }

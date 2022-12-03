@@ -3,6 +3,7 @@ import traceback
 from discord import app_commands, Embed
 from discord.ext import commands
 
+from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import NoUpgradeFound
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
@@ -20,8 +21,16 @@ class Upgrade(commands.Cog):
 	)
 	async def upgrade(self, context: commands.Context, upgrade_name: str):
 		logger.info(f"Received {upgrade_name}")
-		if context.clean_prefix != '/':
-			upgrade_name = ' '.join(context.message.content.split()[2:])
+		# check if *not* slash command,
+		if context.clean_prefix != '/' or '[modified]' in context.message.content:
+			args = context.message.content.split()[2:]
+			if '[modified]' in context.message.content:
+				args = args[:-1]
+			input_type = COMMAND_INPUT_TYPE.CLI
+		else:
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
+		upgrade_name = ' '.join(args)
 
 		# getting appropriate search function
 		try:

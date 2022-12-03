@@ -1,4 +1,5 @@
-import discord, asyncio
+import discord, asyncio, os
+
 from discord.ext import commands
 from mackbot.utilities.game_data.game_data_finder import *
 from mackbot.utilities.bot_data import *
@@ -23,6 +24,10 @@ bot_intents.message_content = True
 
 mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
 
+# create temp directory for bot
+if not os.path.isdir(os.path.join(".", "tmp")):
+	os.mkdir(os.path.join(".", "tmp"))
+
 def post_process() -> None:
 	compile_help_strings()
 
@@ -37,7 +42,7 @@ async def main():
 
 	await mackbot.load_extension("mackbot.misc_commands.wtn")
 	await mackbot.add_cog(Listener(mackbot, command_prefix))
-	for cog in [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc]:
+	for cog in BOT_COGS:
 		await mackbot.add_cog(cog(mackbot))
 
 

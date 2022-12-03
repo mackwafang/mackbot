@@ -4,7 +4,7 @@ from discord import app_commands, Embed, SelectOption, File
 from discord.errors import Forbidden
 from discord.ext import commands
 from mackbot.constants import ship_types, roman_numeral, nation_dictionary, ITEMS_TO_UPPER
-from mackbot.enums import SHIP_BUILD_FETCH_FROM
+from mackbot.enums import SHIP_BUILD_FETCH_FROM, COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
 from mackbot.utilities.create_build_image import create_build_image
@@ -24,12 +24,16 @@ class Build(commands.Cog):
 		args="Ship name. Adds -t or --text before ship name to get text variation",
 	)
 	async def build(self, context: commands.Context, args: str):
-
 		# check if *not* slash command,
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[2:])
+		if context.clean_prefix != '/' or '[modified]' in context.message.content:
+			args = context.message.content.split()[2:]
+			if '[modified]' in context.message.content:
+				args = args[:-1]
+			input_type = COMMAND_INPUT_TYPE.CLI
+		else:
+			args = list(context.kwargs.values())
+			input_type = COMMAND_INPUT_TYPE.SLASH
 
-		args = args.split()
 		send_text_build = args[0] in ["--text", "-t"]
 		if send_text_build:
 			args = args[1:]
@@ -104,12 +108,14 @@ class Build(commands.Cog):
 			if not builds:
 				raise NoBuildFound
 			else:
+				# get build information
 				build = builds[user_selected_build_id]
 				build_name = build['name']
 				upgrades = build['upgrades']
 				skills = build['skills']
 				cmdr = build['cmdr']
 				build_errors = build['errors']
+				build_hash = build['hash']
 
 			if send_text_build:
 				embed = Embed(title=f"{build_name.title()} Build for {name}", description='')
@@ -227,13 +233,13 @@ class Build(commands.Cog):
 				else:
 					# dynamically create
 					build_image = create_build_image(build_name, name, skills, upgrades, cmdr)
-				build_image.save("./temp.png")
+				build_image.save(f"./tmp/build_{build_hash}.png")
 				try:
 					if multi_build_user_response:
 						# response to user's selection of drop-down menu
 						await multi_build_user_response.respond(file=File('temp.png'), ephemeral=False)
 					else:
-						await context.send(file=File('temp.png'))
+						await context.send(file=File(f"./tmp/build_{build_hash}.png"))
 				except Forbidden:
 					await context.send("mackbot requires the **Send Attachment** permission for this feature.")
 		except Exception as e:
