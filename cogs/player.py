@@ -43,9 +43,12 @@ class Player(commands.Cog):
 	                 ship:Optional[str]="",
 	                 b_type:Optional[str]='pvp'
 	                 ):
+
 		# check if *not* slash command,
-		if context.clean_prefix != '/':
+		if context.clean_prefix != '/' or '[modified]' in context.message.content:
 			args = context.message.content.split()[2:]
+			if '[modified]' in context.message.content:
+				args = args[:-1]
 			input_type = COMMAND_INPUT_TYPE.CLI
 		else:
 			args = list(context.kwargs.values())

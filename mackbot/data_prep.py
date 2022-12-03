@@ -652,6 +652,7 @@ def update_ship_modules():
 							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
 							'mass': {'he': 0, 'ap': 0, 'cs': 0},
 							'drag': {'he': 0, 'ap': 0, 'cs': 0},
+							'ammo_name': {'he': '', 'ap': '', 'cs': ''},
 							'normalization': {'he': 0, 'ap': 0, 'cs': 0},
 							'fuse_time': {'he': 0, 'ap': 0, 'cs': 0},
 							'fuse_time_threshold': {'he': 0, 'ap': 0, 'cs': 0},
@@ -717,6 +718,7 @@ def update_ship_modules():
 									new_turret_data['fuse_time_threshold']['he'] = ammo['bulletDetonatorThreshold']
 									new_turret_data['ricochet']['he'] = ammo['bulletRicochetAt']
 									new_turret_data['ricochet_always']['he'] = ammo['bulletAlwaysRicochetAt']
+									new_turret_data['ammo_name']['he'] = ammo['name']
 								if ammo['ammoType'] == 'CS':  # SAP rounds
 									new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
 									new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
@@ -730,6 +732,7 @@ def update_ship_modules():
 									new_turret_data['fuse_time_threshold']['cs'] = ammo['bulletDetonatorThreshold']
 									new_turret_data['ricochet']['cs'] = ammo['bulletRicochetAt']
 									new_turret_data['ricochet_always']['cs'] = ammo['bulletAlwaysRicochetAt']
+									new_turret_data['ammo_name']['cs'] = ammo['name']
 								if ammo['ammoType'] == 'AP':
 									new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
 									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
@@ -742,6 +745,7 @@ def update_ship_modules():
 									new_turret_data['fuse_time_threshold']['ap'] = ammo['bulletDetonatorThreshold']
 									new_turret_data['ricochet']['ap'] = ammo['bulletRicochetAt']
 									new_turret_data['ricochet_always']['ap'] = ammo['bulletAlwaysRicochetAt']
+									new_turret_data['ammo_name']['ap'] = ammo['name']
 
 							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
 						continue
