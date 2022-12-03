@@ -278,12 +278,6 @@ class Ship(commands.Cog):
 					query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
 					fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
-				m = ""
-				m += f"**Range: **"
-				m += ' - '.join(str(fc['profile']['fire_control']['distance']) for fc in fire_control_range)
-				m = m[:-2]
-				m += " km\n"
-
 				for module in query_result:
 					m = ""
 					guns = module['profile']['artillery']
@@ -292,7 +286,7 @@ class Ship(commands.Cog):
 						turret = turret_data[turret_name]
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
-					m += f"**Range: ** {guns['range'] / 1000:1.0f} km\n"
+					m += f"**Range: ** {'km - '.join(str(fc['profile']['fire_control']['distance']) for fc in fire_control_range)} km\n"
 					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 						m += f"**Precision:** {guns['sigma']:1.2f}{SIGMA_SYMBOL}\n"
@@ -315,18 +309,21 @@ class Ship(commands.Cog):
 								'cs': 'SAP'
 							}[ammo_type]
 							m += f"__**{ammo_type_string}: {guns['ammo_name'][ammo_type]}**__\n"
-							m += f"**{ammo_type_string} Shell:** :boom:{number_separator(guns['max_damage'][ammo_type])}\n"
+							m += f"**{ammo_type_string} Shell:** :boom:{number_separator(guns['max_damage'][ammo_type])}"
+							if ammo_type == 'he':
+								m += f" ("
+								m += f"{icons_emoji['penetration']} {guns['pen'][ammo_type]} mm"
+								if ammo_type == 'he':
+									m += f", :fire: {guns['burn_probability']} %"
+								m += ")"
+							else:
+								m += f" (Ricochet at {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}~{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL})"
+
 							if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-								m += f"**DPM:** {number_separator(guns['gun_dpm'][ammo_type])} DPM"
-								if ammo_type != 'ap':
-									m += f" ("
-									m += f"{icons_emoji['penetration']} {guns['pen'][ammo_type]} mm"
-									if ammo_type == 'he':
-										m += f", :fire: {guns['burn_probability']} %"
-									m += ")"
-								m += "\n"
+								m += f"\n**DPM:** {number_separator(guns['gun_dpm'][ammo_type])} DPM\n"
 								m += f"**Shell Velocity:** {guns['speed'][ammo_type]:1.0f} m/s\n"
-								m += '-------------------\n'
+								m += '-------------------'
+							m += "\n"
 
 					m += '\n'
 					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
@@ -499,20 +496,17 @@ class Ship(commands.Cog):
 								if detailed_filter:
 									m = ""
 									m += f"**Hangar:** {squadron['hangarSettings']['startValue']} aircraft (Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s)\n"
-									m += f"**Aircraft:** {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts.), {number_separator(aircraft['max_health'], '.0f')} HP\n"
-									m += f"**Squadron:** {squadron['squad_size']} aircraft ({to_plural('flight', n_attacks)}), {number_separator(aircraft['max_health'] * squadron['squad_size'], '.0f')} HP\n"
-									m += f"**Attacking Flight:** "
+									m += f"**Squadron:** {squadron['squad_size']} aircraft ({to_plural('flight', n_attacks)}), {number_separator(aircraft['max_health'] * squadron['squad_size'], '.0f')} HP, {aircraft['cruise_speed']} kts. (up to {aircraft['max_speed']} kts.)\n"
+									m += f"**Attacking Flight:** {squadron['attack_size']} aircraft\n"
+									m += f"**Payload:** {squadron['attack_size'] * aircraft['payload']} x {aircraft['payload_name']} ({aircraft['payload']} per aircraft)\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
-										m += f"{squadron['attack_size']} aircraft x {aircraft['payload_name']} {to_plural('rockets', aircraft['payload'])}\n"
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{number_separator(aircraft['max_damage'], '.0f')} " \
 										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
-										m += f"{squadron['attack_size']} aircraft x {aircraft['payload_name']} {to_plural('torpedo', aircraft['payload'])}\n"
 										m += f"**Torpedo:** :boom:{number_separator(aircraft['max_damage'], '.0f')}, {aircraft['torpedo_speed']} kts\n"
 										m += f"**Arming Range:** {aircraft['arming_range']:0.1f}m\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
-										m += f"{squadron['attack_size']} aircraft x {aircraft['payload_name']} {to_plural('bomb', aircraft['payload'])}\n"
 										m += f"**{aircraft['bomb_type']} Bomb:** :boom:{number_separator(aircraft['max_damage'], '.0f')} " \
 										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"

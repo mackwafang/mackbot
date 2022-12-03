@@ -4,6 +4,7 @@ from discord import app_commands, Embed, SelectOption
 from discord.ext import commands
 from itertools import zip_longest
 
+from mackbot.utilities.discord.formatting import number_separator
 from .bot_help import BotHelp
 from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
 from mackbot.exceptions import *
@@ -131,8 +132,12 @@ class Compare(commands.Cog):
 						m += "**HE DPM**\n"
 						m += "**AP Shell**\n"
 						m += "**AP DPM**\n"
+						m += "**AP Ricochet Start**\n"
+						m += "**AP Ricochet Always**\n"
 						m += "**SAP Shell**\n"
 						m += "**SAP DPM**\n"
+						m += "**SAP Ricochet Start**\n"
+						m += "**SAP Ricochet Always**\n"
 						m += "**Salvo\n**"
 						embed.add_field(name="__Artillery__", value=m, inline=True)
 						for i, mid in enumerate(pair):
@@ -149,23 +154,31 @@ class Compare(commands.Cog):
 								m += f"{artillery['dispersion_h']['10000']:1.0f}m x {artillery['dispersion_v']['10000']:1.0f}m\n"
 								m += f"{artillery['dispersion_h'][str(int(artillery['range']))]:1.0f}m x {artillery['dispersion_v'][str(int(artillery['range']))]:1.0f}m\n"
 								if artillery['max_damage']['he']:
-									m += f"{artillery['max_damage']['he']} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
-									m += f"{artillery['gun_dpm']['he']}\n"
+									m += f"{number_separator(artillery['max_damage']['he'])} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
+									m += f"{number_separator(artillery['gun_dpm']['he'])}\n"
 								else:
 									m += "-\n"
 									m += "-\n"
 
 								if artillery['max_damage']['ap']:
-									m += f"{artillery['max_damage']['ap']}\n"
-									m += f"{artillery['gun_dpm']['ap']}\n"
+									m += f"{number_separator(artillery['max_damage']['ap'])}\n"
+									m += f"{number_separator(artillery['gun_dpm']['ap'])}\n"
+									m += f"{artillery['ricochet']['ap']}\n"
+									m += f"{artillery['ricochet_always']['ap']}\n"
 								else:
+									m += "-\n"
+									m += "-\n"
 									m += "-\n"
 									m += "-\n"
 
 								if artillery['max_damage']['cs']:
-									m += f"{artillery['max_damage']['cs']} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
-									m += f"{artillery['gun_dpm']['cs']}\n"
+									m += f"{number_separator(artillery['max_damage']['cs'])} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
+									m += f"{number_separator(artillery['gun_dpm']['cs'])}\n"
+									m += f"{artillery['ricochet']['cs']}\n"
+									m += f"{artillery['ricochet_always']['cs']}\n"
 								else:
+									m += "-\n"
+									m += "-\n"
 									m += "-\n"
 									m += "-\n"
 								m += f"{sum(v['numBarrels'] * v['count'] for k, v in artillery['turrets'].items()):1.0f} shells\n"
@@ -193,7 +206,7 @@ class Compare(commands.Cog):
 								module = get_module_data(mid)
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{module['profile']['atba']['range']/1000:1.1f} km\n"
-								m += f"{int(sum([module['profile']['atba'][t]['gun_dpm'] for t in module['profile']['atba'] if type(module['profile']['atba'][t]) == dict]))}\n"
+								m += f"{number_separator(sum([module['profile']['atba'][t]['gun_dpm'] for t in module['profile']['atba'] if type(module['profile']['atba'][t]) == dict]), '.0f')}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
@@ -224,7 +237,7 @@ class Compare(commands.Cog):
 								m = f"{module['name'][:20]}{'...' if len(module['name']) > 20 else ''}\n"
 								m += f"{torp['range']:1.1f} km\n"
 								m += f"{torp['spotting_range']:1.1f} km\n"
-								m += f"{torp['max_damage']:1.0f}\n"
+								m += f"{number_separator(torp['max_damage'], '.0f')}\n"
 								m += f"{torp['shotDelay']:1.1f}s\n"
 								m += f"{torp['torpedo_speed']:1.0f} kts.\n"
 								m += f"{torp['numBarrels']} torpedoes\n"
@@ -254,7 +267,7 @@ class Compare(commands.Cog):
 								module = get_module_data(mid)
 								hull = module['profile']['hull']
 								m = f"{module['name']}\n"
-								m += f"{hull['health']:1.0f} HP\n"
+								m += f"{number_separator(hull['health'], '.0f')} HP\n"
 								m += f"{hull['turnRadius']:1.0f}m\n"
 								m += f"{hull['rudderTime']:1.1f}s\n"
 								m += f"{hull['detect_distance_by_ship']:1.1f} km\n"
@@ -340,12 +353,12 @@ class Compare(commands.Cog):
 								m += f"{plane['payload_name']}{'...' if len(plane['payload_name']) > 20 else ''}\n"
 								m += f"{plane['cruise_speed']} kts.\n"
 								m += f"{plane['max_speed']} kts.\n"
-								m += f"{plane['max_health'] * module['squad_size']:1.0f}\n"
+								m += f"{number_separator(plane['max_health'] * module['squad_size'], '.0f')}\n"
 								m += f"{plane['payload'] * module['attack_size']:1.0f} {projectile_type}\n"
-								m += f"{plane['max_damage']:1.0f}\n"
+								m += f"{number_separator(plane['max_damage'], '.0f')}\n"
 								m += f"{module['squad_size'] // module['attack_size']:1.0f} flight(s)\n"
 								m += f"{module['attack_size']:1.0f} aircraft\n"
-								m += f"{plane['max_damage'] * plane['payload'] * module['attack_size']:1.0f}\n"
+								m += f"{number_separator(plane['max_damage'] * plane['payload'] * module['attack_size'], '.0f')}\n"
 								if user_selection == 5:
 									m += f"{plane['aiming_time']:0.1f}s\n"
 								if user_selection == 6:
