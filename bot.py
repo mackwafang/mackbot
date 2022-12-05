@@ -1,10 +1,11 @@
-import discord, asyncio, os
+import discord, asyncio
 
 from discord.ext import commands
 from mackbot.utilities.game_data.game_data_finder import *
 from mackbot.utilities.bot_data import *
 from mackbot.utilities.compile_bot_help import compile_help_strings
 from cogs import *
+from cogs.wows.listener import Listener
 
 class Mackbot(commands.Bot):
 	def __init__(self, **kwargs):
