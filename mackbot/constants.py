@@ -128,7 +128,7 @@ MM_WITH_CV_TIER = (
 	(6,8,10),
 	(8,10),
 	(8,10),
-	(10),
+	(10, ),
 )
 
 WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
