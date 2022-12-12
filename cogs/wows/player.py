@@ -251,7 +251,7 @@ class Player(commands.Cog):
 								m += f"**Win Rate**: {player_stat['wr']:0.2%} ({player_battle_stat['wins']} W / {player_battle_stat['losses']} L / {player_battle_stat['draws']} D)\n"
 								m += f"**Survival Rate**: {player_stat['sr']:0.2%} ({player_battle_stat['survived_battles']} battles)\n"
 								m += f"**Average Kills**: {number_separator(player_stat['average']['kills'], '.2f')}\n"
-								m += f"**Average Damage**: {number_separator(player_stat['average']['damage']), '.0f'}\n"
+								m += f"**Average Damage**: {number_separator(player_stat['average']['damage'], '.0f')}\n"
 								m += f"**Average Spotting**: {number_separator(player_stat['average']['spotting'], '.0f')}\n"
 								m += f"**Average XP**: {number_separator(player_stat['average']['xp'], '.0f')} XP\n"
 								m += f"**Highest Kill**: {to_plural('kill', player_stat['max']['kills']['count'])} with " \
