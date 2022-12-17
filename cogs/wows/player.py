@@ -187,14 +187,23 @@ class Player(commands.Cog):
 									'damage'        : ship_stat['damage_dealt'],
 									"wr"            : 0 if ship_stat['battles'] == 0 else ship_stat['wins'] / ship_stat['battles'],
 									"sr"            : 0 if ship_stat['battles'] == 0 else ship_stat['survived_battles'] / ship_stat['battles'],
-									"avg_dmg"       : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
-									"avg_spot_dmg"  : 0 if ship_stat['battles'] == 0 else ship_stat['damage_scouting'] / ship_stat['battles'],
-									"avg_kills"     : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
-									"avg_xp"        : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
-									"max_kills"     : ship_stat['max_frags_battle'],
-									"max_dmg"       : ship_stat['max_damage_dealt'],
-									"max_spot_dmg"  : ship_stat['max_damage_scouting'],
-									"max_xp"        : ship_stat['max_xp'],
+									"average": {
+										"dmg"       : 0 if ship_stat['battles'] == 0 else ship_stat['damage_dealt'] / ship_stat['battles'],
+										"spot_dmg"  : 0 if ship_stat['battles'] == 0 else ship_stat['damage_scouting'] / ship_stat['battles'],
+										"kills"     : 0 if ship_stat['battles'] == 0 else ship_stat['frags'] / ship_stat['battles'],
+										"xp"        : 0 if ship_stat['battles'] == 0 else ship_stat['xp'] / ship_stat['battles'],
+									},
+									"max": {
+										"kills"     : ship_stat['max_frags_battle'],
+										"dmg"       : ship_stat['max_damage_dealt'],
+										"spot_dmg"  : ship_stat['max_damage_scouting'],
+										"xp"        : ship_stat['max_xp'],
+									},
+									'main_battery'  : ship_stat['main_battery'].copy(),
+									'secondary_battery': ship_stat['second_battery'].copy(),
+									'ramming'       : ship_stat['ramming'].copy(),
+									'torpedoes'     : ship_stat['torpedoes'].copy(),
+									'aircraft'      : ship_stat['aircraft'].copy()
 								}
 								player_ship_stats[ship_id] = stats.copy()
 							# sort player owned ships by battle count
@@ -335,7 +344,7 @@ class Player(commands.Cog):
 												ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
 												m += f"**{r}) {ship_nation_emoji} {roman_numeral[ship['tier']- 1]} {ship['emoji']} {ship['name'].title()}**\n"
 												m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
-												m += f"Avg. Kills: {ship['avg_kills']:0.2f} | Avg. Damage: {number_separator(ship['avg_dmg'], '.0f')}\n\n"
+												m += f"Avg. Kills: {ship['average']['kills']:0.2f} | Avg. Damage: {number_separator(ship['average']['dmg'], '.0f')}\n\n"
 												r += 1
 											embed.add_field(name=f"__**Top {top_n} Tier {ship_tier_filter} Ships (by battles)**__", value=m, inline=True)
 								else:
@@ -354,13 +363,16 @@ class Player(commands.Cog):
 									m += f"**{player_ship_stats_df['battles']} Battles**\n"
 									m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 									m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"
-									m += f"**Average Kills: ** {player_ship_stats_df['avg_kills']:0.2f}\n"
-									m += f"**Average Damage: ** {number_separator(player_ship_stats_df['avg_dmg'], '.0f')}\n"
-									m += f"**Average Spotting Damage: ** {number_separator(player_ship_stats_df['avg_spot_dmg'], '.0f')}\n"
-									m += f"**Average XP: ** {number_separator(player_ship_stats_df['avg_xp'], '.0f')}\n"
-									m += f"**Max Damage: ** {number_separator(player_ship_stats_df['max_dmg'], '.0f')}\n"
-									m += f"**Max Spotting Damage: ** {number_separator(player_ship_stats_df['max_spot_dmg'], '.0f')}\n"
-									m += f"**Max XP: ** {number_separator(player_ship_stats_df['max_xp'], '.0f')}\n"
+									m += f"**{'-'*10}Average{'-'*10}**\n"
+									m += f"**Kills: ** {player_ship_stats_df['average']['kills']:0.2f}\n"
+									m += f"**Damage: ** {number_separator(player_ship_stats_df['average']['dmg'], '.0f')}\n"
+									m += f"**Spotting Damage: ** {number_separator(player_ship_stats_df['average']['spot_dmg'], '.0f')}\n"
+									m += f"**XP: ** {number_separator(player_ship_stats_df['average']['xp'], '.0f')}\n"
+									m += f"**{'-' * 10}Best{'-' * 10}**\n"
+									m += f"**Kills: ** {number_separator(player_ship_stats_df['max']['kills'], '.0f')}\n"
+									m += f"**Damage: ** {number_separator(player_ship_stats_df['max']['dmg'], '.0f')}\n"
+									m += f"**Spotting Damage: ** {number_separator(player_ship_stats_df['max']['spot_dmg'], '.0f')}\n"
+									m += f"**XP: ** {number_separator(player_ship_stats_df['max']['xp'], '.0f')}\n"
 								except Exception as e:
 									if type(e) == NoShipFound:
 										m += f"Ship with name {ship_filter} is not found\n"
@@ -369,7 +381,20 @@ class Player(commands.Cog):
 									else:
 										m += "An internal error has occurred.\n"
 										traceback.print_exc()
-								embed.add_field(name="__Ship Specific Stat__", value=m)
+								embed.add_field(name="__Ship Specific Stat__", value=m, inline=True)
+
+								for field in [['main_battery', 'secondary_battery'], ['ramming', 'torpedoes', 'aircraft']]:
+									m = ""
+									for kill_type in field:
+										field_title = ' '.join(kill_type.split("_")).title()
+										kill_type_stat = player_ship_stats_df[kill_type]
+										m += f"__**{field_title}**__\n"
+										m += f"**Kills:** {kill_type_stat['frags']}\n"
+										m += f"**Max Kills:** {kill_type_stat['max_frags_battle']}\n"
+										if 'hits' in kill_type_stat:
+											m += f"**Accuracy:** {kill_type_stat['hits']/max(1, kill_type_stat['shots']):0.1%} ({kill_type_stat['hits']}/{kill_type_stat['shots']})\n"
+										m += "\n"
+									embed.add_field(name=f"__Stat by Armament__", value=m, inline=True)
 
 							embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 					else:
