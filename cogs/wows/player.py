@@ -280,7 +280,7 @@ class Player(commands.Cog):
 									try:
 										ship = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
 										ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
-										m += f"**{ship_nation_emoji}{ship['emoji']}{roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.2%} WR)\n"
+										m += f"**{ship_nation_emoji}{ship['emoji']}{roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.1%} WR)\n"
 									except IndexError:
 										pass
 								embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
