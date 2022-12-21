@@ -50,7 +50,7 @@ def create_build_image(
 	ship_type_image_filename += '.png'
 
 	ship_type_image_dir = os.path.join("data", "icons", ship_type_image_filename)
-	ship_tier_string = roman_numeral[ship['tier'] - 1]
+	ship_tier_image_dir = os.path.join("data", "icons", "tier.png")
 
 	ship_nation = ship['nation']
 	ship_nation = ship_nation.upper() if ship_nation.lower() in ['usa', 'uk', 'ussr'] else ship_nation.title()
@@ -67,8 +67,17 @@ def create_build_image(
 	with Image.open(ship_type_image_dir).convert("RGBA") as ship_type_image:
 		ship_type_image = ship_type_image.resize((ship_type_image.width * 2, ship_type_image.height * 2), Image.NEAREST)
 		image.paste(ship_type_image, (0, 8), ship_type_image)
-	# add ship name
-	draw.text((56, 36), f"{ship_tier_string} {ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm', stroke_fill=(0, 0, 0, 255), stroke_width=2)
+
+	with Image.open(ship_tier_image_dir).convert("RGBA") as ship_tier_image:
+		# ship_tier_image = ship_tier_image.resize((ship_tier_image.width * 2, ship_tier_image.height * 2), Image.NEAREST)
+		ship_tier_image = ship_tier_image.crop((
+			(ship['tier'] - 1) * 27,
+			0,
+			(ship['tier']) * 27,
+			ship_tier_image.height,
+		))
+		image.paste(ship_tier_image, (56, 21), ship_tier_image)
+	draw.text((91, 36), f"{ship['name']}", fill=(255, 255, 255, 255), font=font, anchor='lm', stroke_fill=(0, 0, 0, 255), stroke_width=2)
 
 	# add build name
 	build_title = build_name.upper() if build_name.lower() in ITEMS_TO_UPPER else build_name.title()
