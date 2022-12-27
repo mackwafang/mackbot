@@ -202,6 +202,12 @@ def load_module_list():
 			break
 
 def load_ship_list():
+	"""
+	Get information from wg api about list of ships.
+	Note: Some ships may be updated in the update_ship_modules function
+	Returns:
+		dict - dictionary of ships
+	"""
 	logger.info("Fetching Ship List")
 	global ship_list
 	ship_list_file_name = 'ship_list'
@@ -252,7 +258,6 @@ def load_ship_list():
 			pickle.dump(ship_list, f)
 		logger.info("Cache complete")
 	del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
-
 
 def load_upgrade_list():
 	global ship_list, game_data, camo_list, flag_list, upgrade_list
@@ -371,7 +376,6 @@ def load_upgrade_list():
 
 	create_upgrade_abbr()
 
-
 def update_ship_modules():
 	# the painstaking method of updating ship modules with useful information
 	# why? because the wg api does not provide information such as (but not limited to):
@@ -392,6 +396,56 @@ def update_ship_modules():
 		load_module_list()
 
 	armory_ship_data = get_armory_ships()
+
+	# add submarines to ship list and initialize data
+	submarines_index = [i for i in game_data if game_data[i]['typeinfo']['species'] == 'Submarine']
+	for i in submarines_index:
+		submarine_data = game_data[i]
+		ship_list_data = {
+			"description": "",
+			"price_gold": 0,
+			"ship_id_str": game_data[i]["index"],
+			"has_demo_profile": False,
+			"images": {
+				"small": None,
+				"medium": None,
+				"large": None,
+				"contour": None,
+			},
+			"modules": {
+				'engine': [],
+				'torpedo_bomber': [],
+				'fighter': [],
+				'hull': [],
+				'artillery': [],
+				'torpedoes': [],
+				'fire_control': [],
+				'flight_control': [],
+				'dive_bomber': [],
+				'skip_bomber': [],
+			},
+			"module_tree": {},
+			"nation": 'ussr' if submarine_data['navalFlag'].lower() == 'russia' else submarine_data['navalFlag'].lower(),
+			"is_premium": False,
+			"ship_id": game_data[i]["id"],
+			"price_credit": 0,
+			"default_profile": {},
+			"upgrades": [],
+			"tier": submarine_data['level'],
+			"next_ships": {},
+			"mod_slots": [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6][submarine_data['level'] - 1],
+			"type": "Submarine",
+			"is_special": False,
+			"name": submarine_data["name"]
+		}
+		skip_addition_condition = [
+			'(old)' in ship_list_data['name'],
+			ship_list_data['nation'] == 'events'
+		]
+		if any(skip_addition_condition):
+			continue
+
+		ship_list[str(submarine_data['id'])] = ship_list_data.copy()
 
 	for s in tqdm(ship_list):
 		ship = ship_list[s]
