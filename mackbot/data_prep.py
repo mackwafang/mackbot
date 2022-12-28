@@ -177,7 +177,7 @@ def find_module_by_tag(x):
 	if l:
 		return l[0]
 	else:
-		return []
+		return None
 
 def load_module_list():
 	global module_list
@@ -423,6 +423,7 @@ def update_ship_modules():
 				'flight_control': [],
 				'dive_bomber': [],
 				'skip_bomber': [],
+				'pinger': [],
 			},
 			"module_tree": {},
 			"nation": 'ussr' if submarine_data['navalFlag'].lower() == 'russia' else submarine_data['navalFlag'].lower(),
@@ -439,8 +440,8 @@ def update_ship_modules():
 			"name": submarine_data["name"]
 		}
 		skip_addition_condition = [
-			'(old)' in ship_list_data['name'],
-			ship_list_data['nation'] == 'events'
+			ship_list_data['nation'] == 'events',
+			submarine_data['group'] in ['disabled', 'preserved']
 		]
 		if any(skip_addition_condition):
 			continue
@@ -475,25 +476,64 @@ def update_ship_modules():
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
+				# tries to get data from module list
 				if type(ship_upgrade_info[_info]) == dict:  # if there are data
 					try:
 						module_id = find_module_by_tag(_info)
-						if ship_upgrade_info[_info]['ucType'] == "_SkipBomber":
-							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
-							module_id = str(game_data[module]['id'])
-							del module
+						if module_id is not None:
+							# module found
+							if ship_upgrade_info[_info]['ucType'] == "_SkipBomber":
+								module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
+								module_id = str(game_data[module]['id'])
+								del module
+						else:
+							# module not found add it to module list
+							# find module id in game data
+							module_info = game_data[_info]
+							new_module_list_data = {
+								"profile": {},
+								"name": module_info['name'],
+								"image": None,
+								"tag": _info,
+								"module_id_str": module_info['index'],
+								"module_id": module_info['id'],
+								"type": module_info['ucType'],
+								"price_credit": module_info['costCR'],
+							}
+							module_list[str(module_info['id'])] = new_module_list_data.copy()
+							module_id = str(module_info['id'])
 					except IndexError as e:
 						# we did an oopsie
 						continue
 
+					# update module list items with more information
 					if ship_upgrade_info[_info]['ucType'] == '_Hull':
 						# get secondary information
+						if int(module_id) not in ship['modules']['hull']:
+							ship['modules']['hull'].append(int(module_id))
 						hull = module_data[ship_upgrade_info[_info]['components']['hull'][0]]
+						if 'hull' not in module_list[module_id]['profile']:
+							module_list[module_id]['profile']['hull'] = {
+								"rudderTime": 0,
+								"turnRadius": 0,
+								'detect_distance_by_ship': 0,
+								'detect_distance_by_plane': 0,
+							}
+						# standard information
+						module_list[module_id]['profile']['hull']['health'] = hull['health']
 						module_list[module_id]['profile']['hull']['rudderTime'] = hull['rudderTime']
 						module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
 						module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
 						module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
 
+						# submarines information
+						if ship['type'] == 'Submarine':
+							if 'SubmarineBattery' in hull:
+								module_list[module_id]['profile']['hull']['battery'] = hull['SubmarineBattery'].copy()
+							module_list[module_id]['profile']['hull']['oilLeakDuration'] = hull['oilLeakDuration']
+
+
+						# secondary battery information
 						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
 							module_list[module_id]['profile']['atba'] = {
 								'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
@@ -688,6 +728,9 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
+						if int(module_id) not in ship['modules']['artillery']:
+							ship['modules']['artillery'].append(int(module_id))
+
 						# get turret parameter
 						new_turret_data = {
 							'shotDelay': 0,
@@ -714,6 +757,8 @@ def update_ship_modules():
 							'ricochet_always': {'he': 0, 'ap': 0, 'cs': 0},
 							'turrets': {}
 						}
+						if 'artillery' not in module_list[module_id]['profile']:
+							module_list[module_id]['profile']['artillery'] = {}
 
 						gun = ship_upgrade_info[_info]['components']['artillery'][0]
 						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
@@ -805,6 +850,8 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
+						if int(module_id) not in ship['modules']['torpedoes']:
+							ship['modules']['torpedoes'].append(int(module_id))
 						# get torps parameter
 						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
 						gun = module_data[gun]
@@ -834,11 +881,38 @@ def update_ship_modules():
 						new_turret_data['is_deep_water'] = projectile['isDeepWater']
 						new_turret_data['range'] = projectile['maxDist'] * 30 / 1000
 						new_turret_data['spotting_range'] = projectile['visibilityFactor']
+						if ship['type'] == 'Submarine':
+							new_turret_data['loaders'] = {}
+							if 'loaders' in gun:
+								for tubes, location in gun['loaders']:
+									for l in location:
+										if str(l) not in new_turret_data['loaders']:
+											new_turret_data['loaders'][str(l)] = [tubes]
+										else:
+											new_turret_data['loaders'][str(l)].append(tubes)
+							if 'SubmarineTorpedoParams' in projectile:
+								new_turret_data['shutoff_distance'] = projectile['SubmarineTorpedoParams']['dropTargetAtDistance']
 
 						module_list[module_id]['profile']['torpedoes'] = new_turret_data.copy()
 						continue
 
+					if ship_upgrade_info[_info]['ucType'] == '_Sonar':  # submarine pingers
+						if int(module_id) not in ship['modules']['pinger']:
+							ship['modules']['pinger'].append(int(module_id))
+						# get torps parameter
+						gun = ship_upgrade_info[_info]['components']['pinger'][0]
+						gun = module_data[gun]
+						new_turret_data = {
+							"shotDelay": gun['waveReloadTime'],
+							"range": gun['waveDistance'],
+							"ping_effect_duration": [sector['lifetime'] for sector in gun['sectorParams']],
+							"ping_effect_width": [sector['width'] for sector in gun['sectorParams']],
+						}
+						module_list[module_id]['profile']['pinger'] = new_turret_data.copy()
+						continue
+
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
+						ship['modules']['fighter'].append(int(module_id))
 						planes = ship_upgrade_info[_info]['components']['fighter'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
@@ -880,6 +954,8 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
+						if int(module_id) not in ship['modules']['torpedo_bomber']:
+							ship['modules']['torpedo_bomber'].append(int(module_id))
 						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
@@ -920,6 +996,8 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+						if int(module_id) not in ship['modules']['dive_bomber']:
+							ship['modules']['dive_bomber'].append(int(module_id))
 						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
@@ -960,6 +1038,8 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
+						if int(module_id) not in ship['modules']['skip_bomber']:
+							ship['modules']['skip_bomber'].append(int(module_id))
 						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
 						planes = module_data[planes]['planes']
 						module_list[module_id] = {}
@@ -1002,8 +1082,8 @@ def update_ship_modules():
 							}
 						continue
 		except Exception as e:
+			logger.error("at ship id " + s)
 			if not type(e) == KeyError:
-				logger.error("at ship id " + s)
 				logger.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logger.error("Update your GameParams JSON file(s)")
 			traceback.print_exc()

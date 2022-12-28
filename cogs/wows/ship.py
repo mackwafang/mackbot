@@ -128,7 +128,8 @@ class Ship(commands.Cog):
 			if tier < 11:
 				tier_string = tier_string.upper()
 			embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
-			embed.set_thumbnail(url=images['small'])
+			if images['small'] is not None:
+				embed.set_thumbnail(url=images['small'])
 
 			# defines ship params filtering
 
@@ -199,19 +200,24 @@ class Ship(commands.Cog):
 					m = ""
 
 					hull = module['profile']['hull']
-					m += f"**{module['name']}:** **{number_separator(hull['health'])} HP**\n"
-					if hull['artillery_barrels'] > 0:
-						m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
-					if hull['torpedoes_barrels'] > 0:
-						m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
-					if hull['atba_barrels'] > 0:
-						m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
-					if hull['anti_aircraft_barrels'] > 0:
-						m += f"{hull['anti_aircraft_barrels']} AA Gun{'s' if hull['anti_aircraft_barrels'] > 1 else ''}\n"
-					if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
-						m += f"{hull['planes_amount']} Aircraft\n"
+					m += f"**{module['name']}:** **{number_separator(hull['health'], '.0f')} HP**\n"
+					# if hull['artillery_barrels'] > 0:
+					# 	m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
+					# if hull['torpedoes_barrels'] > 0:
+					# 	m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
+					# if hull['atba_barrels'] > 0:
+					# 	m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
+					# if hull['anti_aircraft_barrels'] > 0:
+					# 	m += f"{hull['anti_aircraft_barrels']} AA Gun{'s' if hull['anti_aircraft_barrels'] > 1 else ''}\n"
+					# if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
+					# 	m += f"{hull['planes_amount']} Aircraft\n"
 
+					if ship_type == 'Submarine':
+						m += f"{hull['battery']['capacity']} battery unit\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.HULL:
+						if ship_type == 'Submarine':
+							m += f"+{hull['battery']['regenRate']} battery unit per second while surfaced\n"
+							m += f"{hull['oilLeakDuration']}s oil leak duration\n\n"
 						m += f"{hull['rudderTime']}s rudder shift time\n"
 						m += f"{hull['turnRadius']}m turn radius\n"
 					m += '\n'
@@ -446,7 +452,7 @@ class Ship(commands.Cog):
 					torps = module['profile']['torpedoes']
 					projectile_name = module['name'].replace(chr(10), ' ')
 					turret_name = list(torps['turrets'].keys())[0]
-					m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']} km, {to_plural('barrel', torps['numBarrels'])})"
+					m += f"**{torps['turrets'][turret_name]['count']} x {turret_name} ({torps['range']:0.1f} km, {to_plural('barrel', torps['numBarrels'])})"
 					if torps['is_deep_water']:
 						m += " [DW]"
 					m += '**\n'
@@ -459,6 +465,9 @@ class Ship(commands.Cog):
 						m += f"**Speed:** {torps['torpedo_speed']} kts.\n"
 						m += f"**Spotting Range:** {torps['spotting_range']} km\n"
 						m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
+						if ship_type == 'Submarine':
+							m += f"**Loaders:** {', '.join(str(t) for t in torps['loaders']['0'])} bow, {', '.join(str(t) for t in torps['loaders']['1'])} aft\n"
+							m += f"**Stop homing at:** {', '.join(f'{icons_emoji[t]}: {d[0]:1.0f}m/{d[1]:1.0f}m' for t, d in torps['shutoff_distance'].items() if t != 'default')}\n"
 						m += '-------------------\n'
 				embed.add_field(name=f"{icons_emoji['torp']} __**Torpedoes**__", value=m)
 
