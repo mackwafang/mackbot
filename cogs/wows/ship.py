@@ -605,9 +605,9 @@ class Ship(commands.Cog):
 							action_time = consumable['workTime']
 							cd_time = consumable['reloadTime']
 
-							m += f"**{consumable_name}** "
+							m += f"**{consumable_name}**"
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
-								# m += f"\n{consumable_description}\n\n"
+								m += f"\n{consumable_description}\n"
 								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
@@ -641,6 +641,16 @@ class Ship(commands.Cog):
 									consumable_detail = f'Max Speed: +{consumable["boostCoeff"] * 100:0.0f}%'
 								if consumable_type == 'torpedoReloader':
 									consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
+								if consumable_type == 'hydrophone':
+									consumable_detail = f'Reveal ships and terrain within {consumable["hydrophoneWaveRadius"] / 1000:0.1f}km every {consumable["hydrophoneUpdateFrequency"]}'
+								if consumable_type == 'submarineLocator':
+									consumable_detail = f'On cooldown for {consumable["preparationTime"] // 60:0.0f}m {consumable["preparationTime"] % 60:0.0f}s after the battle starts\n'
+									consumable_detail += f'Reveal submarines within {consumable["distShip"] * 30 / 1000:0.1f} km.'
+								if consumable_type == "subsEnergyFreeze":
+									consumable_detail = f""
+								if consumable_type == "fastRudders":
+									consumable_detail = f"Submarine plane shift: -{1 - consumable['buoyancyRudderTimeCoeff']:1.0%}\n"
+									consumable_detail += f"Dive and ascend speed: +{consumable['maxBuoyancySpeedCoeff'] - 1:1.0%}"
 
 								m += f"{charges} charge{'s' if charges != 1 else ''}, "
 								m += f"{f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''} duration, "
