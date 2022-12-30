@@ -9,7 +9,17 @@ with open('../data/translator.json') as f:
 	translator = json.load(f)
 	translator_keys = tuple(translator.keys())
 
-_allowed_type = ('Ability', 'Aircraft', 'Ship', 'Projectile', 'Modernization', 'Gun', 'Crew', 'Achievement')
+_allowed_type = (
+	'Ability',
+	'Aircraft',
+	'Ship',
+	'Projectile',
+	'Modernization',
+	'Gun',
+	'Crew',
+	'Achievement',
+	'Unit'
+)
 unicode_replacements = (
 	("\xa0", ' '),
 	("\xc2", '.'),
@@ -27,13 +37,16 @@ for file_count in range(NUM_FILES):
 			if data[key]['typeinfo']['type'] in _allowed_type:
 				items_to_dump[key] = data[key].copy()
 
-				# translate names to human readable names
-				for tk in translator_keys:
-					if data[key]['name'].upper() in tk:
-						key_index = translator_keys[translator_keys.index(tk)]
-						for string, replace in unicode_replacements:
-							translated_name = translator[key_index].replace(string, replace)
-						items_to_dump[key]['name'] = translated_name
+				index_to_check = 'name'
+				if data[key]['typeinfo']['type'] == 'Ship':
+					index_to_check = 'index'
+				name_for_translator = "IDS_" + data[key][index_to_check].upper()
+				# translate names for modules to human readable names
+				if name_for_translator in translator_keys:
+					for string, replace in unicode_replacements:
+						translated_name = translator[name_for_translator].replace(string, replace)
+					items_to_dump[key]['name'] = translated_name
+				# translate names for ships to human readable names
 
 				# adds consumable names and description
 				if data[key]['typeinfo']['type'] == 'Ability':

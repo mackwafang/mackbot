@@ -260,7 +260,7 @@ class Build(commands.Cog):
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = Embed(title=f"Build for {name}", description='')
-				embed.description = f"**Tier {list(roman_numeral.keys())[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+				embed.description = f"**Tier {list(roman_numeral)[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
