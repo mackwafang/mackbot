@@ -196,9 +196,8 @@ class Ship(commands.Cog):
 				else:
 					query_result = [module_list[str(m)] for m in sorted(modules['hull'], key=lambda x: module_list[str(x)]['name'])]
 
+				m = ""
 				for module in query_result:
-					m = ""
-
 					hull = module['profile']['hull']
 					m += f"**{module['name']}:** **{number_separator(hull['health'], '.0f')} HP**\n"
 					# if hull['artillery_barrels'] > 0:
@@ -220,8 +219,8 @@ class Ship(commands.Cog):
 							m += f"{hull['oilLeakDuration']}s oil leak duration\n\n"
 						m += f"{hull['rudderTime']}s rudder shift time\n"
 						m += f"{hull['turnRadius']}m turn radius\n"
-					m += '\n'
-					embed.add_field(name="__**Hull**__", value=m, inline=True)
+					m += '\n\n'
+				embed.add_field(name="__**Hull**__", value=m, inline=True)
 
 				# air support info
 				m = ''
@@ -605,6 +604,8 @@ class Ship(commands.Cog):
 							action_time = consumable['workTime']
 							cd_time = consumable['reloadTime']
 
+							if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE) and charges != 'Infinite':
+								m += f"**{charges} x ** "
 							m += f"**{consumable_name}**"
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
 								m += f"\n{consumable_description}\n"
@@ -642,7 +643,7 @@ class Ship(commands.Cog):
 								if consumable_type == 'torpedoReloader':
 									consumable_detail = f'Torpedo Reload Time lowered to {consumable["torpedoReloadTime"]:1.0f}s'
 								if consumable_type == 'hydrophone':
-									consumable_detail = f'Reveal ships and terrain within {consumable["hydrophoneWaveRadius"] / 1000:0.1f}km every {consumable["hydrophoneUpdateFrequency"]}'
+									consumable_detail = f'Reveal ships and terrain within {consumable["hydrophoneWaveRadius"] / 1000:0.1f}km every {consumable["hydrophoneUpdateFrequency"]}s'
 								if consumable_type == 'submarineLocator':
 									consumable_detail = f'On cooldown for {consumable["preparationTime"] // 60:0.0f}m {consumable["preparationTime"] % 60:0.0f}s after the battle starts\n'
 									consumable_detail += f'Reveal submarines within {consumable["distShip"] * 30 / 1000:0.1f} km.'
@@ -660,7 +661,7 @@ class Ship(commands.Cog):
 									m += '\n'
 							else:
 								if len(consumables[consumable_slot]['abils']) > 1 and c_index != len(consumables[consumable_slot]['abils']) - 1:
-									m += 'or '
+									m += ' or '
 						m += '\n'
 
 				embed.add_field(name="__**Consumables**__", value=m, inline=False)
@@ -668,11 +669,12 @@ class Ship(commands.Cog):
 			footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
 			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n\n"
 			footer_message += f"Tags: "
-			for tags in ship_data['tags'].values():
-				footer_message += f"{', '.join(str(i).title() for i in tags)}, "
-			footer_message = footer_message[:-2]
+			tags = []
+			for tag in ship_data['tags'].values():
+				tags += [str(i) for i in tag]
+			footer_message += ', '.join(tags)
 			if is_test_ship:
-				footer_message += f"*Test ship is subject to change before her release\n"
+				footer_message += f"\n* Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
 			await context.send(embed=embed)
 		except Exception as e:

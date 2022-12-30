@@ -144,6 +144,15 @@ def decode(c_type: int, c_characteristic: int=0):
 	return [ct] + [f"{i} {ct}" for i in cc]
 
 def consumable_data_to_string(consumable_data):
+	"""
+	convert consumable code to user-end strings
+	Args:
+		consumable_data (dict): consumable data via game data
+
+	Returns:
+		str - consumable string
+	"""
 	c_type, c_char = encode(consumable_data)
-	for i in decode(c_type, c_char):
-		yield i.lower()
+	if c_type != 0:
+		for i in decode(c_type, c_char):
+			yield i.lower()
