@@ -23,7 +23,7 @@ bot_intents.members = True
 bot_intents.typing = True
 bot_intents.message_content = True
 
-mackbot = Mackbot(command_prefix=command_prefix, intents=bot_intents, help_command=None)
+mackbot = Mackbot(command_prefix=commands.when_mentioned_or(command_prefix), intents=bot_intents, help_command=None)
 
 # create temp directory for bot
 if not os.path.isdir(os.path.join(".", "tmp")):

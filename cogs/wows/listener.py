@@ -11,6 +11,23 @@ class Listener(commands.Cog):
 		self.command_prefix = command_prefix
 
 	@commands.Cog.listener()
+	async def on_message(self, message: discord.Message):
+		# check for mackbot response testing by checking it only contains the ping
+		if message.content == f"<@{self.client.application_id}>":
+			m = ""
+			permissions = message.channel.permissions_for(message.guild.me)
+			missing_permission = [
+				("Embed Links", not permissions.embed_links, "All commands"),
+				("Attach Files", not permissions.attach_files, "build"),
+			]
+
+			m += f"mackbot response in **{message.channel.name}**:\n"
+			for permission_name, is_permission_missing, use_in in missing_permission:
+				m += f"**{permission_name}:** {':x:' if is_permission_missing else ':white_check_mark:'} (Use in: {use_in})\n"
+			m += "\n"
+			await message.channel.send(content=m)
+
+	@commands.Cog.listener()
 	async def on_ready(self):
 		await self.client.change_presence(activity=discord.Game(self.command_prefix + ' help'))
 		logger.info(f"Logged on as {self.client.user} (ID: {self.client.user.id})")
