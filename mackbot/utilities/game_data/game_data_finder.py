@@ -522,13 +522,8 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
 			if len(query_result) > 0:
 				data = game_data[query_result[0]]
-				ship_name = data['name']
-				ship_name = ship_name.replace(str(data['index']), '')[1:]
-				ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
-				ship_name = ''.join(ship_name)
-				ship_name = ship_name.replace("_", " ")
 
-				ship_data['name'] = ship_name + " (old)"
+				ship_data['name'] = data['name']
 				ship_data['tier'] = data['level']
 				ship_data['nation'] = data['navalFlag']
 				ship_data['type'] = data['typeinfo']['species']
@@ -547,13 +542,8 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 			query_result = [i for i in game_data if game_data[i]['id'] == ship_id]
 			if len(query_result) > 0:
 				data = game_data[query_result[0]]
-				ship_name = data['name']
-				ship_name = ship_name.replace(str(data['index']), '')[1:]
-				ship_name = ''.join(i for i in ship_name if i in ascii_letters or i == '_').split()
-				ship_name = ''.join(ship_name)
-				ship_name = ship_name.replace("_", " ")
 
-				ship_data['name'] = ship_name + " (old)"
+				ship_data['name'] = data['name']
 				ship_data['tier'] = data['level']
 				ship_data['nation'] = data['navalFlag']
 				ship_data['type'] = data['typeinfo']['species']
