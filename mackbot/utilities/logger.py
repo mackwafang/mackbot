@@ -17,7 +17,7 @@ if not os.path.exists(os.path.join(os.getcwd(), "logs")):
 LOG_FILE_NAME = os.path.join(os.getcwd(), 'logs', f'mackbot_{time.strftime("%m_%d_%Y", time.localtime())}.log')
 handler = RotatingFileHandler(LOG_FILE_NAME, mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding='utf-8', delay=0)
 stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(levelname)-5s] %(message)s')
+formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(module)s.%(funcName)s] [%(levelname)-5s] %(message)s')
 
 handler.setFormatter(formatter)
 handler.addFilter(LogFilterBlacklist("RESUME", "RESUMED"))

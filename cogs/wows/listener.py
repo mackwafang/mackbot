@@ -14,6 +14,7 @@ class Listener(commands.Cog):
 	async def on_message(self, message: discord.Message):
 		# check for mackbot response testing by checking it only contains the ping
 		if message.content == f"<@{self.client.application_id}>":
+			logger.info(f"Checking response in {message.channel.name}...")
 			m = ""
 			permissions = message.channel.permissions_for(message.guild.me)
 			missing_permission = [
@@ -23,6 +24,7 @@ class Listener(commands.Cog):
 
 			m += f"mackbot response in **{message.channel.name}**:\n"
 			for permission_name, is_permission_missing, use_in in missing_permission:
+				logger.info(f"{permission_name}: {not is_permission_missing}")
 				m += f"**{permission_name}:** {':x:' if is_permission_missing else ':white_check_mark:'} (Use in: {use_in})\n"
 			m += "\n"
 			await message.channel.send(content=m)
