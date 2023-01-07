@@ -114,6 +114,7 @@ class Compare(commands.Cog):
 				embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m)
 
 			if user_selection == 0:
+				# main battery
 				ship_module[0]['artillery'] = ships_to_compare[0]['modules']['artillery']
 				ship_module[1]['artillery'] = ships_to_compare[1]['modules']['artillery']
 				l = zip_longest(ship_module[0]['artillery'], ship_module[1]['artillery'])
@@ -189,6 +190,7 @@ class Compare(commands.Cog):
 					embed.add_field(name="Error", value="One of these ships does not have main battery guns")
 
 			if user_selection == 1:
+				# secondary
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
@@ -214,6 +216,7 @@ class Compare(commands.Cog):
 					embed.add_field(name="Error", value="One of these ships does not have secondary battery guns")
 
 			if user_selection == 2:
+				# torpedo
 				ship_module[0]['torpedo'] = ships_to_compare[0]['modules']['torpedoes']
 				ship_module[1]['torpedo'] = ships_to_compare[1]['modules']['torpedoes']
 				l = zip_longest(ship_module[0]['torpedo'], ship_module[1]['torpedo'])
@@ -226,6 +229,9 @@ class Compare(commands.Cog):
 						m += "**Damage**\n"
 						m += "**Reload**\n"
 						m += "**Speed**\n"
+						m += "**Launchers**\n"
+						if ships_to_compare[0]['type'] == 'Submarine' or ships_to_compare[1]['type'] == 'Submarine':
+							m += "**Loaders**\n"
 						m += "**Salvo**\n"
 						m += "**Deepwater**\n"
 						embed.add_field(name="__Torpedo__", value=m, inline=True)
@@ -240,6 +246,11 @@ class Compare(commands.Cog):
 								m += f"{number_separator(torp['max_damage'], '.0f')}\n"
 								m += f"{torp['shotDelay']:1.1f}s\n"
 								m += f"{torp['torpedo_speed']:1.0f} kts.\n"
+								m += f"{sum([torp['turrets'][launcher]['count'] for launcher in torp['turrets']])} launchers\n"
+								if ships_to_compare[0]['type'] == 'Submarine' or ships_to_compare[1]['type'] == 'Submarine':
+									m += f"{', '.join(str(t) for t in torp['loaders']['0'])} bow, {', '.join(str(t) for t in torp['loaders']['1'])} aft\n"
+								else:
+									m += "-"
 								m += f"{torp['numBarrels']} torpedoes\n"
 								m += f"{'Yes' if torp['is_deep_water'] else 'No'}\n"
 								embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m, inline=True)
@@ -248,6 +259,7 @@ class Compare(commands.Cog):
 				else:
 					embed.add_field(name="Error", value="One of these ships does not have torpedo launchers")
 			if user_selection == 3:
+				# hull
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
@@ -256,6 +268,9 @@ class Compare(commands.Cog):
 						# set up title axis
 						m = f"**Hull**\n"
 						m += f"**Health**\n"
+						if ships_to_compare[0]['type'] == 'Submarine' or ships_to_compare[1]['type'] == 'Submarine':
+							m += "**Battery**\n"
+							m += "**Regen on Surface**\n"
 						m += f"**Turn Radius**\n"
 						m += f"**Rudder Time**\n"
 						m += f"**{icons_emoji['concealment']} by Sea**\n"
@@ -268,6 +283,11 @@ class Compare(commands.Cog):
 								hull = module['profile']['hull']
 								m = f"{module['name']}\n"
 								m += f"{number_separator(hull['health'], '.0f')} HP\n"
+								if ships_to_compare[0]['type'] == 'Submarine' or ships_to_compare[1]['type'] == 'Submarine':
+									m += f"{hull['battery']['capacity']:1.0f} units\n"
+									m += f"{hull['battery']['regenRate']:1.1f} units/s\n"
+								else:
+									m += "-"
 								m += f"{hull['turnRadius']:1.0f}m\n"
 								m += f"{hull['rudderTime']:1.1f}s\n"
 								m += f"{hull['detect_distance_by_ship']:1.1f} km\n"
@@ -276,6 +296,7 @@ class Compare(commands.Cog):
 							else:
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 			if user_selection == 4:
+				# aa
 				ship_module[0]['hull'] = ships_to_compare[0]['modules']['hull']
 				ship_module[1]['hull'] = ships_to_compare[1]['modules']['hull']
 				l = zip_longest(ship_module[0]['hull'], ship_module[1]['hull'])
