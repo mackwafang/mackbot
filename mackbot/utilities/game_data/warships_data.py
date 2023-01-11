@@ -17,6 +17,7 @@ flag_list = {}
 upgrade_abbr_list = {}
 consumable_list = {}
 ship_list_simple = {}
+upgrade_list_simple = {}
 
 # define database stuff
 database_client = None
@@ -26,7 +27,7 @@ try:
 
 	load_game_params()
 	game_data = game_data.copy()
-	# this exists because of the player function to quickly fetch some ship data
+	# this exists because of the player function to quickly fetch some ship data locally
 	db_ship_list = database_client.mackbot_db.ship_list.find({}, {"_id": 0})
 	for ship in db_ship_list:
 		ship_list_simple[str(ship['ship_id'])] = {
@@ -35,6 +36,12 @@ try:
 			"nation": ship['nation'],
 			"type": ship['type'],
 			"emoji": icons_emoji[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
+		}
+
+	db_upgrade_list = database_client.mackbot_db.upgrade_list.find({}, {"_id": 0})
+	for upgrade in db_upgrade_list:
+		upgrade_list_simple[str(upgrade['consumable_id'])] = {
+			'name': upgrade['name'],
 		}
 
 except ConnectionError:

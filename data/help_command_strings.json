@@ -141,7 +141,7 @@
 		]
 	},
 	"doubloons": {
-		"brief": "Display the doubloons to dollar conversion",
+		"brief": "Doubloons to dollar calculator",
 		"usage": "[options]",
 		"description": [
 			"Get the money conversion value of doubloons to USD or vice versa.",

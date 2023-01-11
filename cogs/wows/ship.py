@@ -16,6 +16,7 @@ from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.discord.formatting import number_separator
+from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 
 class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	HULL = 0
@@ -36,11 +37,12 @@ class Ship(commands.Cog):
 		self.client = client
 
 	@commands.hybrid_command(name='ship', description='Get combat parameters of a warship')
-	@app_commands.rename(args="value")
+	@app_commands.rename(args="ship")
 	@app_commands.describe(
 		args="Ship name",
 		parameters="Ship parameters for detailed report",
 	)
+	@app_commands.autocomplete(args=auto_complete_ship_name)
 	async def ship(self, context: commands.Context, args: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
@@ -127,7 +129,7 @@ class Ship(commands.Cog):
 			tier_string = roman_numeral[tier - 1]
 			if tier < 11:
 				tier_string = tier_string.upper()
-			embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_type}**\n'
+			embed.description += f'**Tier {tier_string} {"Premium " if is_prem else ""}{nation_dictionary[nation]} {ship_type}**\n'
 			if images['small'] is not None:
 				embed.set_thumbnail(url=images['small'])
 

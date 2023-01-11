@@ -9,7 +9,7 @@ from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
 from mackbot.utilities.logger import logger
-
+from mackbot.utilities.discord.items_autocomplete import auto_complete_upgrades_name
 
 class Upgrade(commands.Cog):
 	def __init__(self, client):
@@ -19,6 +19,7 @@ class Upgrade(commands.Cog):
 	@app_commands.describe(
 		upgrade_name="Upgrade name, upgrade abbreviation, or ship name (applicable to ships with unique upgrades)."
 	)
+	@app_commands.autocomplete(upgrade_name=auto_complete_upgrades_name)
 	async def upgrade(self, context: commands.Context, upgrade_name: str):
 		logger.info(f"Received {upgrade_name}")
 		# check if *not* slash command,

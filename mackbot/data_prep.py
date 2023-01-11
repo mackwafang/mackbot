@@ -397,7 +397,7 @@ def update_ship_modules():
 
 	armory_ship_data = get_armory_ships()
 
-	# add submarines to ship list and initialize data
+	# add submarines to ship list and initialize submarine data for update
 	submarines_index = [i for i in game_data if game_data[i]['typeinfo']['species'] == 'Submarine']
 	for i in submarines_index:
 		submarine_data = game_data[i]
@@ -472,6 +472,10 @@ def update_ship_modules():
 				ship_list[s]['price_special'] = ship_upgrade_info['costGold']
 				ship_list[s]['price_special_type'] = ""
 
+			# is this a premium boat?
+			ship_list[s]['is_premium'] = module_data['group'] in ('special', 'specialUnsellable')
+			# is this a special boat? (i.e. event)
+			ship_list[s]['is_special'] = module_data['group'] in ('ultimate', 'clan', 'coopOnly', 'upgradeableExclusive', 'upgradeableUltimate', 'earlyAccess')
 			# is this a test boat?
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
 

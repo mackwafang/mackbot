@@ -56,7 +56,8 @@ def create_build_image(
 	ship_nation = ship_nation.upper() if ship_nation.lower() in ['usa', 'uk', 'ussr'] else ship_nation.title()
 	ship_nation_image_dir = os.path.join("data", "flags_medium", f"flag_{ship_nation}.png")
 
-	image = Image.new("RGBA", IMAGE_SIZE, (0, 0, 0, 255)) # initialize new image
+	# initialize new image
+	image = Image.new("RGBA", IMAGE_SIZE, (0, 0, 0, 255))
 	draw = ImageDraw.Draw(image) # get drawing context
 
 	# draw nation flag
