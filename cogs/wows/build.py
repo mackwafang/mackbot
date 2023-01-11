@@ -13,6 +13,7 @@ from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_upgr
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
+from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 
 class Build(commands.Cog):
 	def __init__(self, client):
@@ -23,6 +24,7 @@ class Build(commands.Cog):
 	@app_commands.describe(
 		args="Ship name. Adds -t or --text before ship name to get text variation",
 	)
+	@app_commands.autocomplete(args=auto_complete_ship_name)
 	async def build(self, context: commands.Context, args: str):
 		# check if *not* slash command,
 		if context.clean_prefix != '/' or '[modified]' in context.message.content:
