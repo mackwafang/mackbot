@@ -131,14 +131,13 @@ class Compare(commands.Cog):
 						m += "**Dispersion @ max range**\n"
 						m += "**HE Shell**\n"
 						m += "**HE DPM**\n"
+						m += "**HE Detail**\n"
 						m += "**AP Shell**\n"
 						m += "**AP DPM**\n"
-						m += "**AP Ricochet Start**\n"
-						m += "**AP Ricochet Always**\n"
+						m += "**AP Detail**\n"
 						m += "**SAP Shell**\n"
 						m += "**SAP DPM**\n"
-						m += "**SAP Ricochet Start**\n"
-						m += "**SAP Ricochet Always**\n"
+						m += "**SAP Detail**\n"
 						m += "**Salvo\n**"
 						embed.add_field(name="__Artillery__", value=m, inline=True)
 						for i, mid in enumerate(pair):
@@ -155,19 +154,19 @@ class Compare(commands.Cog):
 								m += f"{artillery['dispersion_h']['10000']:1.0f}m x {artillery['dispersion_v']['10000']:1.0f}m\n"
 								m += f"{artillery['dispersion_h'][str(int(artillery['range']))]:1.0f}m x {artillery['dispersion_v'][str(int(artillery['range']))]:1.0f}m\n"
 								if artillery['max_damage']['he']:
-									m += f"{number_separator(artillery['max_damage']['he'])} ({icons_emoji['penetration']} {artillery['pen']['he']}mm, :fire: {artillery['burn_probability']}%)\n"
+									m += f"{number_separator(artillery['max_damage']['he'])}\n"
 									m += f"{number_separator(artillery['gun_dpm']['he'])}\n"
+									m += f"{icons_emoji['penetration']} {artillery['pen']['he']}mm | :fire: {artillery['burn_probability']}% | {artillery['speed']['he']:0.0f}m/s\n"
 								else:
+									m += "-\n"
 									m += "-\n"
 									m += "-\n"
 
 								if artillery['max_damage']['ap']:
 									m += f"{number_separator(artillery['max_damage']['ap'])}\n"
 									m += f"{number_separator(artillery['gun_dpm']['ap'])}\n"
-									m += f"{artillery['ricochet']['ap']}\n"
-									m += f"{artillery['ricochet_always']['ap']}\n"
+									m += f"{artillery['ricochet']['ap']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['ap']}{DEGREE_SYMBOL} | {artillery['speed']['ap']:0.0f}m/s\n"
 								else:
-									m += "-\n"
 									m += "-\n"
 									m += "-\n"
 									m += "-\n"
@@ -175,10 +174,8 @@ class Compare(commands.Cog):
 								if artillery['max_damage']['cs']:
 									m += f"{number_separator(artillery['max_damage']['cs'])} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
 									m += f"{number_separator(artillery['gun_dpm']['cs'])}\n"
-									m += f"{artillery['ricochet']['cs']}\n"
-									m += f"{artillery['ricochet_always']['cs']}\n"
+									m += f"{artillery['ricochet']['cs']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['cs']}{DEGREE_SYMBOL} | {artillery['speed']['cs']:0.0f}m/s\n"
 								else:
-									m += "-\n"
 									m += "-\n"
 									m += "-\n"
 									m += "-\n"
