@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 from discord.ext import commands
 from random import randint, sample
 from pymongo import MongoClient
+from mackbot.utilities.to_plural import to_plural
 
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
@@ -39,13 +40,6 @@ try:
 except (ConnectionError, KeyError):
 	logger.warning("Cannot connect to database")
 
-def to_plural(str: str, count: int) -> str:
-	if str[-1].lower() == 'y':
-		return f"{count} {str[:-1] + 'ies'}"
-	elif str[-1].lower() == 'o':
-		return f"{count} {str[:-1] + 'es'}"
-	else:
-		return f"{count} {str + 's'}"
 
 def to_minutes(seconds):
 	return seconds * 60
