@@ -460,6 +460,19 @@ def update_ship_modules():
 
 			ship_upgrade_info = module_data['ShipUpgradeInfo']  # get upgradable modules
 
+			# get next ship in the researchable lines
+			for _k, _data in ship_upgrade_info.items():
+				if type(_data) == dict:
+					if _data['nextShips']:
+						for next_ship in _data['nextShips']:
+							next_ship_id = str(game_data[next_ship]['id'])
+							ship_list[s]['next_ships'][next_ship_id] = 0
+							# add this ship as the predecessor
+							if next_ship_id in ship_list:
+								ship_list[next_ship_id]['prev_ship'] = s
+
+			del _k, _data
+
 			# get credit and xp cost for ship research
 			if s in armory_ship_data:
 				ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
