@@ -18,6 +18,7 @@ ITEMS_SPACING = 30
 IMAGE_SIZE = (((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING + 1, 470)
 SKILL_IMAGE_POS_INIT = (0, 75)
 UPGRADE_IMAGE_POS_INIT = (0, 335)
+SKILL_ACQUIRE_COLOR = (0, 255, 0, 255)# (255, 204, 102, 255)
 
 font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
 disclaimer_font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=12)
@@ -116,18 +117,17 @@ def create_build_image(
 					SKILL_IMAGE_POS_INIT[0] + (skill['x'] * (skill_image.width + ITEMS_SPACING)),
 					SKILL_IMAGE_POS_INIT[1] + (skill['y'] * skill_image.height)
 				)
-				green = Image.new("RGBA", (60, 60), (0, 255, 0, 255))
 
 				if int(skill_id) in build_skills:
 					# indicate user should take this skill
-					skill_image = Image.composite(green, skill_image, skill_image)
+					skill_image = Image.composite(SKILL_ACQUIRE_COLOR, skill_image, skill_image)
 					# add number to indicate order should user take this skill
 					skill_acquired_order = build_skills.index(int(skill_id)) + 1
 					image.paste(skill_image, coord, skill_image)
 					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 				else:
 					# fade out unneeded skills
-					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.75)
+					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
 					image.paste(skill_image, coord, skill_image)
 
 	# draw upgrades
