@@ -18,7 +18,7 @@ ITEMS_SPACING = 30
 IMAGE_SIZE = (((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING + 1, 470)
 SKILL_IMAGE_POS_INIT = (0, 75)
 UPGRADE_IMAGE_POS_INIT = (0, 335)
-SKILL_ACQUIRE_COLOR = (0, 255, 0, 255)# (255, 204, 102, 255)
+SKILL_ACQUIRE_COLOR = (255, 204, 102, 255)
 
 font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=20)
 disclaimer_font = ImageFont.truetype("./data/arialbd.ttf", encoding='unic', size=12)

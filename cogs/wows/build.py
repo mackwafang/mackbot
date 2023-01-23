@@ -22,7 +22,7 @@ class Build(commands.Cog):
 	@commands.hybrid_command(name='build', description='Get a basic warship build')
 	@app_commands.rename(args="ship")
 	@app_commands.describe(
-		args="Ship name. Adds -t or --text before ship name to get text variation",
+		args="Ship name",
 	)
 	@app_commands.autocomplete(args=auto_complete_ship_name)
 	async def build(self, context: commands.Context, args: str):
