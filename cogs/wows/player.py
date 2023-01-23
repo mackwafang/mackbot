@@ -96,7 +96,7 @@ class Player(commands.Cog):
 							ship_tier_filter = int(tier)
 						except ValueError:
 							ship_tier_filter = 0
-
+					player_region = player_region.lower()
 
 					player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
 					player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
@@ -276,14 +276,14 @@ class Player(commands.Cog):
 
 								# top 10 ships by battle count
 								m = ""
-								for i in range(10):
+								for i in range(5):
 									try:
 										ship = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
 										ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
-										m += f"**{ship_nation_emoji}{ship['emoji']}{roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.0%} WR)\n"
+										m += f"**{ship_nation_emoji}{ship['emoji']}{roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.2%} WR)\n"
 									except IndexError:
 										pass
-								embed.add_field(name=f"__**Top 10 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
+								embed.add_field(name=f"__**Top 5 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
 
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
 

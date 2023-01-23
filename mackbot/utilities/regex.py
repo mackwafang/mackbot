@@ -2,7 +2,7 @@ import re, os
 
 with open(os.path.join(os.getcwd(), "data", "regex", "ship_list")) as f:
 	regex = '|'.join(f"({i})" for i in f.read().split("\n"))
-	regex += "|(with:\\s?[\"\'](?:.*)[\"\'])"
+	regex += "|(consumables?:\\s?[\"\'](?:.*)[\"\'])"
 with open(os.path.join(os.getcwd(), "data", "regex", "nation")) as f:
 	regex += '|(' + '|'.join(f"(?:{i})" for i in f.read().split("\n")) + ')'
 ship_list_regex = re.compile(regex, flags=re.I)

@@ -10,7 +10,7 @@ from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
 from mackbot.utilities.regex import ship_param_filter_regex
 from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
-from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list
+from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list, ship_list_simple
 from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
@@ -92,6 +92,8 @@ class Ship(commands.Cog):
 			upgrades = ship_data['upgrades']
 			is_prem = ship_data['is_premium']
 			is_test_ship = ship_data['is_test_ship']
+			next_ships = list(ship_data['next_ships'].keys())
+			prev_ship = ship_data['prev_ship'] if 'prev_ship' in ship_data else None
 			price_gold = ship_data['price_gold']
 			price_credit = ship_data['price_credit']
 			price_special = ship_data['price_special']
@@ -130,6 +132,29 @@ class Ship(commands.Cog):
 			if tier < 11:
 				tier_string = tier_string.upper()
 			embed.description += f'**Tier {tier_string} {"Premium " if is_prem else ""}{nation_dictionary[nation]} {ship_type}**\n'
+			if prev_ship is not None:
+				prev_ship_data = ship_list_simple[prev_ship]
+				embed.description += f"\nRequires **{icons_emoji[prev_ship_data['type']]} {roman_numeral[prev_ship_data['tier'] - 1]} {prev_ship_data['name']}**"
+
+			if price_credit > 0 and price_xp > 0:
+				embed.description += f'\n{number_separator(price_xp)} XP and {number_separator(price_credit)} Credits'
+			if price_gold > 0 and is_prem:
+				embed.description += f'\n{number_separator(price_gold)} Doubloons'
+			if price_special_type:
+				price_special_type_string = {
+						'coal': "Units of Coal",
+						'paragon_xp': "Research Bureau Points",
+						'steel': "Units of Steel",
+				}[price_special_type]
+				embed.description += f'\n{number_separator(price_special)} {price_special_type_string}'
+
+			if next_ships:
+				embed.description += "\n\nSuccessor: "
+				for _next_ship in next_ships:
+					next_ship_data = ship_list_simple[_next_ship]
+					embed.description += f"**{icons_emoji[next_ship_data['type']]} {roman_numeral[next_ship_data['tier'] - 1]} {next_ship_data['name']}** or "
+				embed.description = embed.description[:-4]
+
 			if images['small'] is not None:
 				embed.set_thumbnail(url=images['small'])
 
@@ -161,18 +186,6 @@ class Ship(commands.Cog):
 
 			def is_filtered(x):
 				return (ship_filter >> x) & 1 == 1
-
-			if price_credit > 0 and price_xp > 0:
-				embed.description += f'\n{price_xp:,} XP and {price_credit:,} Credits'
-			if price_gold > 0 and is_prem:
-				embed.description += f'\n{price_gold:,} Doubloons'
-			if price_special_type:
-				price_special_type_string = {
-						'coal': "Units of Coal",
-						'paragon_xp': "Research Bureau Points",
-						'steel': "Units of Steel",
-				}[price_special_type]
-				embed.description += f'\n{price_special:,} {price_special_type_string}'
 
 			aircraft_modules = {
 				'fighter': "Fighters",
@@ -220,8 +233,8 @@ class Ship(commands.Cog):
 							m += f"+{hull['battery']['regenRate']} battery unit per second while surfaced\n"
 							m += f"{hull['oilLeakDuration']}s oil leak duration\n\n"
 						m += f"{hull['rudderTime']}s rudder shift time\n"
-						m += f"{hull['turnRadius']}m turn radius\n"
-					m += '\n\n'
+						m += f"{hull['turnRadius']}m turn radius\n\n"
+					m += '\n'
 				embed.add_field(name="__**Hull**__", value=m, inline=True)
 
 				# air support info

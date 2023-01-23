@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 from discord.ext import commands
 from random import randint, sample
 from pymongo import MongoClient
+from mackbot.utilities.to_plural import to_plural
 
 # logger stuff
 class LogFilterBlacklist(logging.Filter):
@@ -19,7 +20,7 @@ logger = logging.getLogger("mackbot")
 logger.setLevel(logging.INFO)
 
 EMPTY_LENGTH_CHAR = '\u200b'
-NEXT_MINE_TIME_DELAY = 3 * 60 * 60
+NEXT_MINE_TIME_DELAY = 1 * 30 * 60
 WONTON_CAP = 500000
 WONTON_GIF_URL = (
 	"https://c.tenor.com/bj5iZ-5GelIAAAAj/angry.gif",
@@ -39,13 +40,6 @@ try:
 except (ConnectionError, KeyError):
 	logger.warning("Cannot connect to database")
 
-def to_plural(str: str, count: int) -> str:
-	if str[-1].lower() == 'y':
-		return f"{count} {str[:-1] + 'ies'}"
-	elif str[-1].lower() == 'o':
-		return f"{count} {str[:-1] + 'es'}"
-	else:
-		return f"{count} {str + 's'}"
 
 def to_minutes(seconds):
 	return seconds * 60
@@ -87,6 +81,10 @@ async def cook(context: commands.Context):
 				embed.description = f"Where the wontons are made up and the usage doesn't matter, {context.author.mention}!"
 				embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 				m += f"**You cooked {coins_gained} wonton**\n"
+				m += f"\nYou can cook again in "
+				m += f"{NEXT_MINE_TIME_DELAY // 3600:1.0f}h " if NEXT_MINE_TIME_DELAY // 3600 > 0 else ''
+				m += f"{(NEXT_MINE_TIME_DELAY % 3600) // 60:2.0f}m " if (NEXT_MINE_TIME_DELAY % 3600) // 60 > 0 else ''
+				m += f"{NEXT_MINE_TIME_DELAY % 60:02.0f}s" if NEXT_MINE_TIME_DELAY % 60 > 0 else ''
 			else:
 				# returning user
 				next_mine_time = query_result['next_mine_time'] # convert posix time back to datetime
@@ -127,18 +125,23 @@ async def cook(context: commands.Context):
 								logger.info("Blessed wonton found")
 						else:
 							embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
+						m += f"\nYou can cook again in "
+						m += f"{NEXT_MINE_TIME_DELAY // 3600:1.0f}h " if NEXT_MINE_TIME_DELAY // 3600 > 0 else ''
+						m += f"{(NEXT_MINE_TIME_DELAY % 3600) // 60:2.0f}m " if (NEXT_MINE_TIME_DELAY % 3600) // 60 > 0 else ''
+						m += f"{NEXT_MINE_TIME_DELAY % 60:02.0f}s" if NEXT_MINE_TIME_DELAY % 60 > 0 else ''
 					else:
 						embed.title = "**Wontons full!**\n"
 						m += f"**You have {to_plural('wonton', WONTON_CAP)}**\n"
+
 				else:
 					# nope, can't mine yet
 					time_left = abs(seconds_until_next_mine)
 					logger.info(f"Returning wontologist, cook cooldown: {time_left:2.0f}s")
 					embed.title = "**You can't cook yet!**\n"
-					m += f"Time left: " \
-					     f"{time_left // 3600:1.0f}h " \
-					     f"{(time_left % 3600) // 60:2.0f}m " \
-					     f"{time_left % 60:02.0f}s"
+					m += f"Time left: "
+					m += f"{time_left // 3600:1.0f}h " if time_left // 3600 > 0 else ''
+					m += f"{(time_left % 3600) // 60:2.0f}m " if (time_left % 3600) // 60 > 0 else ''
+					m += f"{time_left % 60:02.0f}s" if time_left % 60 > 0 else ''
 
 			embed.add_field(name=EMPTY_LENGTH_CHAR, value=m)
 			await context.send(file=wonton_image_file, embed=embed)
