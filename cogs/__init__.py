@@ -10,5 +10,20 @@ from cogs.wows.show import Show
 from cogs.wows.skill import Skill
 from cogs.wows.upgrade import Upgrade
 from cogs.wows.misc import Misc
+from cogs.wows.analyze import Analyze
 
-BOT_COGS = [BotHelp, Ship, AboutBot, FAQ, Build, Compare, Clan, Player, Show, Skill, Upgrade, Misc]
+BOT_COGS = [
+	BotHelp,
+	Ship,
+	AboutBot,
+	FAQ,
+	Build,
+	Compare,
+	Clan,
+	Player,
+	Show,
+	Skill,
+	Upgrade,
+	Misc,
+	Analyze
+]
