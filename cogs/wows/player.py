@@ -96,7 +96,7 @@ class Player(commands.Cog):
 							ship_tier_filter = int(tier)
 						except ValueError:
 							ship_tier_filter = 0
-
+					player_region = player_region.lower()
 
 					player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
 					player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
