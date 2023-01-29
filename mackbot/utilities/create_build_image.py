@@ -127,7 +127,7 @@ def create_build_image(
 					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
 				else:
 					# fade out unneeded skills
-					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.5)
+					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.8)
 					image.paste(skill_image, coord, skill_image)
 
 	# draw upgrades
