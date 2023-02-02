@@ -606,8 +606,6 @@ class Ship(commands.Cog):
 				for consumable_slot in consumables:
 					if len(consumables[consumable_slot]['abils']) > 0:
 						m += f"__**Slot {consumables[consumable_slot]['slot'] + 1}:**__ "
-						if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
-							m += '\n'
 						for c_index, c in enumerate(consumables[consumable_slot]['abils']):
 							consumable_index, consumable_type = c
 							consumable = get_consumable_data(consumable_index.split("_")[0], consumable_type)
@@ -621,9 +619,11 @@ class Ship(commands.Cog):
 
 							if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE) and charges != 'Infinite':
 								m += f"**{charges} x ** "
-							m += f"**{consumable_name}**"
+							if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
+								m += f"**{consumable_name}**"
+
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
-								m += f"\n{consumable_description}\n"
+								m = f"\n{consumable_description}\n"
 								m += "\n"
 								consumable_detail = ""
 								if consumable_type == 'airDefenseDisp':
@@ -674,12 +674,13 @@ class Ship(commands.Cog):
 								if len(consumable_detail) > 0:
 									m += consumable_detail
 									m += '\n'
+								embed.add_field(name=f"__**Slot {consumables[consumable_slot]['slot'] + 1}{'-'+str(c_index + 1) if len(consumables[consumable_slot]['abils']) > 1 else ''}: {consumable_name}**__", value=m, inline=False)
 							else:
 								if len(consumables[consumable_slot]['abils']) > 1 and c_index != len(consumables[consumable_slot]['abils']) - 1:
 									m += ' or '
 						m += '\n'
-
-				embed.add_field(name="__**Consumables**__", value=m, inline=False)
+				if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
+					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
 			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n\n"

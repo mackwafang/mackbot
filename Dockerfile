@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir --timeout 60 -r requirements.txt
 
 COPY GameParamsPruned_*.json GameParamsPruned_*.json
 COPY data .
-COPY scripts .
-COPY data/live_config.json data/
-COPY mackbot.py .
+COPY mackbot .
+COPY data/live_config.json data/config.json
+COPY bot.py .
 
-CMD ["python3", "mackbot.py"]
+CMD ["python3", "bot.py"]
