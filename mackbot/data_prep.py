@@ -542,6 +542,7 @@ def update_ship_modules():
 						module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
 						module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
 						module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
+						module_list[module_id]['profile']['hull']['armor'] = dict((k,v) for k, v in hull['armor'].items() if v > 0)
 
 						# submarines information
 						if ship['type'] == 'Submarine':
@@ -793,6 +794,7 @@ def update_ship_modules():
 								new_turret_data['turrets'][turret_name] = {
 									'numBarrels': int(turret_data['numBarrels']),
 									'count': 1,
+									'armor': dict((k,v) for k, v in turret_data['armor'].items() if v > 0),
 								}
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1

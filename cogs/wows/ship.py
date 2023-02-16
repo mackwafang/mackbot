@@ -4,7 +4,7 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER
+from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
@@ -31,6 +31,7 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	CONCEAL = auto()
 	CONSUMABLE = auto()
 	UPGRADES = auto()
+	ARMOR = auto()
 
 class Ship(commands.Cog):
 	def __init__(self, client):
@@ -160,7 +161,7 @@ class Ship(commands.Cog):
 
 			# defines ship params filtering
 
-			ship_filter = 0b111111111111  # assuming no filter is provided, display all
+			ship_filter = 0b1111111111111  # assuming no filter is provided, display all
 			# grab filters
 			if len(param_filter) > 0:
 				ship_filter = 0  # filter is requested, disable all
@@ -183,6 +184,13 @@ class Ship(commands.Cog):
 				ship_filter |= is_filter_requested(11) << SHIP_COMBAT_PARAM_FILTER.CONCEAL
 				ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
 				ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
+				ship_filter |= is_filter_requested(14) << SHIP_COMBAT_PARAM_FILTER.ARMOR
+
+				if True:
+					ship_filter_debug_string = "filter: "
+					for i in SHIP_COMBAT_PARAM_FILTER:
+						ship_filter_debug_string += f"{i.name}: {(ship_filter >> i.value) & 1}, "
+					logger.info(ship_filter_debug_string)
 
 			def is_filtered(x):
 				return (ship_filter >> x) & 1 == 1
@@ -599,6 +607,33 @@ class Ship(commands.Cog):
 					m += "\n"
 
 				embed.add_field(name="__**Upgrades**__", value=m, inline=True)
+
+			# armor
+			if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.ARMOR): #is_filtered(SHIP_COMBAT_PARAM_FILTER.ARMOR):
+				m = ""
+				if database_client is not None:
+					hull_armor_query_result = list(database_client.mackbot_db.module_list.find({
+						"module_id": {"$in": modules['hull']}
+					}).sort("name", 1))
+					gun_armor_query_result = list(database_client.mackbot_db.module_list.find({
+						"module_id": {"$in": modules['artillery']}
+					}).sort("name", 1))
+				else:
+					logger.error("Cannot establish a connection to MongoDB")
+					raise ConnectionError
+
+				if hull_armor_query_result:
+					for module in hull_armor_query_result:
+						armor_data = module['profile']['hull']['armor']
+						for armor_location, armor_location_data in ARMOR_ID_TO_STRING.items():
+							m += f"__**{armor_location.title()}**__\n"
+							for armor_id, armor_string in armor_location_data.items():
+								if armor_id in armor_data: # only select armor values that are identified in ARMOR_ID_TO_STRING
+									armor_value = armor_data[armor_id]
+									m += f"{armor_string} ({armor_id}): {armor_value:1.0f}mm\n"
+							m += "\n"
+						embed.add_field(name=f"__**{module['name'].title()}'s Armor**__", value=m, inline=True)
+						m = ""
 
 			# consumables
 			if len(consumables) > 0 and is_filtered(SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
