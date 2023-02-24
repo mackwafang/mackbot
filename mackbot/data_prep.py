@@ -8,7 +8,7 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from mackbot.constants import nation_dictionary, hull_classification_converter
+from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 from mackbot.wargaming.armory import get_armory_ships
@@ -342,6 +342,12 @@ def load_upgrade_list():
 					1: 'Coal',
 					3: 'Unique'
 				}[upgrade['type']]
+
+				# update upgrade's profile, because wg apparently stop updating them, again
+				# for p in upgrade_list[uid]['profile']:
+				# 	upgrade[uid]['profile'][p] = game_data[i]['modifier'][p]
+				upgrade_list[uid]['profile'] = game_data[i]['modifiers'].copy()
+
 				upgrade_list[uid]['slot'] = int(upgrade['slot']) + 1
 				upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
 
@@ -542,6 +548,7 @@ def update_ship_modules():
 						module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
 						module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
 						module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
+						module_list[module_id]['profile']['hull']['armor'] = dict((k,v) for k, v in hull['armor'].items() if v > 0)
 
 						# submarines information
 						if ship['type'] == 'Submarine':
@@ -793,6 +800,7 @@ def update_ship_modules():
 								new_turret_data['turrets'][turret_name] = {
 									'numBarrels': int(turret_data['numBarrels']),
 									'count': 1,
+									'armor': dict((k,v) for k, v in turret_data['armor'].items() if v > 0),
 								}
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1

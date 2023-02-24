@@ -6,9 +6,9 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from bot import icons_emoji
+from bot import ICONS_EMOJI
 from mackbot.enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
-from mackbot.constants import hull_classification_converter, roman_numeral, ITEMS_TO_UPPER
+from mackbot.constants import hull_classification_converter, ROMAN_NUMERAL, ITEMS_TO_UPPER
 from mackbot.utilities.bot_data import command_prefix
 from mackbot.utilities.game_data.warships_data import database_client, skill_list, upgrade_abbr_list, upgrade_list, ship_list
 from mackbot.utilities.logger import logger
@@ -118,8 +118,8 @@ class Show(commands.Cog):
 
 			if len(tier) > 0:
 				for t in tier:
-					if t in roman_numeral:
-						t = roman_numeral[t]
+					if t in ROMAN_NUMERAL:
+						t = ROMAN_NUMERAL[t]
 					tier = f't{t}'
 					key += [t]
 			if len(slot) > 0:
@@ -312,14 +312,14 @@ class Show(commands.Cog):
 				tier = ship_data['tier']
 				is_prem = ship_data['is_premium']
 				nation = ship_data['nation']
-				nation = icons_emoji[f"flag_{nation.upper() if nation in ITEMS_TO_UPPER else nation.title()}"]
+				nation = ICONS_EMOJI[f"flag_{nation.upper() if nation in ITEMS_TO_UPPER else nation.title()}"]
 
 				gun_caliber_string = ""
 				if gun_caliber_comparator:
 					gun_caliber_string += f" ({', '.join(f'{i}mm' for i in ship_data['tags']['gun_caliber'])})"
 
-				tier_string = roman_numeral[tier - 1]
-				type_icon = icons_emoji[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
+				tier_string = ROMAN_NUMERAL[tier - 1]
+				type_icon = ICONS_EMOJI[hull_classification_converter[ship_type].lower() + ("_prem" if is_prem else "")]
 				# m += [f"**{tier_string:<6} {type_icon}** {name}"]
 				m += [[tier, tier_string, type_icon, name + gun_caliber_string, nation]]
 

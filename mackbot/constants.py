@@ -1,3 +1,6 @@
+import json, os
+
+
 from math import inf
 from .enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
 
@@ -6,31 +9,10 @@ DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
 EMPTY_LENGTH_CHAR = '\u200b'
 
+
 # dictionary to convert user input to output nations
-nation_dictionary = {
-	'usa': 'US',
-	'us': 'US',
-	'pan_asia': 'Pan-Asian',
-	'ussr': 'Russian',
-	'russia': 'Russian',
-	'russian': 'Russian',
-	'europe': 'European',
-	'european': 'European',
-	'japan': 'Japanese',
-	'japanese': 'Japanese',
-	'uk': 'British',
-	'british': 'British',
-	'france': 'France',
-	'french': 'France',
-	'germany': 'German',
-	'german': 'German',
-	'italy': 'Italian',
-	'italian': 'Italian',
-	'commonwealth': 'Commonwealth',
-	'pan_america': 'Pan-American',
-	'netherlands': "Dutch",
-	'spain': "Spanish"
-}
+with open(os.path.join(os.getcwd(), "data", "nation_dictionary.json")) as f:
+	nation_dictionary = json.load(f)
 
 ship_types = {
 	'Destroyer': 'Destroyer',
@@ -75,7 +57,7 @@ cmdr_name_to_ascii = {
 }
 
 # here because of lazy
-roman_numeral = (
+ROMAN_NUMERAL = (
 	'I',
 	'II',
 	'III',
@@ -90,7 +72,7 @@ roman_numeral = (
 )
 
 # barrel count names
-barrel_count_names = {
+BARREL_COUNT_NAMES = {
 	1: "Single",
 	2: "Double",
 	3: "Triple",
@@ -134,7 +116,7 @@ MM_WITH_CV_TIER = (
 WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
-ship_group_dict = {
+SHIP_GROUP_DICT = {
 	'disabled':             "Unavailable",
 	'ultimate':             "Armory", # ship available via the armory
 	'special':              "Premium",
@@ -154,7 +136,7 @@ ship_group_dict = {
 }
 
 # icons for prettifying outputs
-icons_emoji = {
+ICONS_EMOJI = {
 	"torp": "<:torp:917573129579151392>",
 	"dd": "<:destroyer:917573129658859573>",
 	"Destroyer": "<:destroyer:917573129658859573>",
@@ -236,39 +218,47 @@ CONSUMABLES_CHARACTERISTIC_THRESHOLDS = {
 	(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE): {"threshold": 60, "comparator": "lte"},
 }
 
+with open(os.path.join(os.getcwd(), "data", "upgrade_modifier_description.json")) as f:
+	UPGRADE_MODIFIER_DESC = json.load(f)
+
 ARMOR_ID_TO_STRING = {
-	"turret": {
-		65568: "Turret Side Plate (Front)",
-		65569: "Turret Top Plate",
-		65635: "Turret Bottom Plate",
-		65636: "Turret Frontal Plate",
-		65571: "Turret Rear Plate",
-		131104: "Turret Side Plate (Rear)",
-		65670: "Barbette Armor (Top)",
-		65710: "Barbette Bottom",
-		65750: "Barbette Hatch",
-		131206: "Barbette Armor (Bottom)",
-		131207: "Barbette Armor (Bottom)",
-		131208: "Barbette Armor (Bottom)",
-		131209: "Barbette Armor (Bottom)",
-	},
-	"torpedo protection": {
-		65548: "Torpedo Protection Bottom (?)",
-		65583: "Torpedo Protection Side Plating",
-		65584: "Torpedo Protection Side Plating",
+	"fore and aft": {
+		"65584": "Fore-end Armor Belt",
+		"65585": "Aft-end Armor Belt",
+		# "262247": "Fore-end Armor Belt",
 	},
 	"citadel": {
-		65600: "Citadel Deck",
-		131133: "Citadel Deck",
-		131136: "Citadel Deck (Center)",
-		131138: "Citadel Armored Deck Slope (Side)",
+		"65600": "Citadel Deck",
+		# "131133": "Citadel Deck",
+		"131136": "Citadel Deck (Center)",
+		"131138": "Citadel Armored Deck Slope (Side)",
 	},
 	"superstructure": {
-		65593: "Casemate Deck",
-		65625: "Superstructure Plating",
-		65626: "Superstructure Plating",
-		65643: "Conning Tower (Top)",
-		65644: "Conning Tower",
-		262234: "Superstructure Plating (Secondary Bottom)",
+		"65593": "Casemate Deck",
+		"65625": "Superstructure Plating",
+		# "65626": "Superstructure Plating",
+		"65643": "Conning Tower (Top Plate)",
+		"65644": "Conning Tower",
+		"262234": "Superstructure Plating (Secondary Bottom)",
+	},
+	"turret": {
+		"65568": "Turret Side Plate (Front)",
+		"65569": "Turret Top Plate",
+		"65635": "Turret Bottom Plate",
+		"65636": "Turret Frontal Plate",
+		"65571": "Turret Rear Plate",
+		"65670": "Barbette Armor (Top)",
+		"65710": "Barbette Bottom",
+		"65750": "Barbette Hatch",
+		"131104": "Turret Side Plate (Rear)",
+		"131206": "Barbette Armor (Bottom)",
+		# "131207": "Barbette Armor (Bottom)",
+		# "131208": "Barbette Armor (Bottom)",
+		# "131209": "Barbette Armor (Bottom)",
+	},
+	"torpedo protection": {
+		"65548": "Torpedo Protection Bottom (?)",
+		"65583": "Torpedo Protection Side Plating",
+		# "65584": "Torpedo Protection Side Plating",
 	},
 }

@@ -8,7 +8,7 @@ from discord.ext import commands
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.utilities.to_plural import to_plural
 from .bot_help import BotHelp
-from mackbot.constants import WOWS_REALMS, icons_emoji, roman_numeral
+from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 from mackbot.utilities.regex import clan_filter_regex
@@ -114,7 +114,7 @@ class Clan(commands.Cog):
 					m += f"**Formerly:** [{escape_markdown(clan_detail['old_tag'])}] {clan_detail['old_name']}\n"
 				m += f"**Members: ** {clan_detail['members_count']}\n"
 				m += f"**Region: ** {clan_region.upper()}\n"
-				m += f"**League: **{LEAGUE_STRING[clan_ladder['league']]} {roman_numeral[clan_ladder['division']]}\n"
+				m += f"**League: **{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]}\n"
 				embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
 
 				if clan_detail['description']:
@@ -125,8 +125,8 @@ class Clan(commands.Cog):
 					battle_count = clan_ladder['battles_count']
 					best_position = clan_ladder['max_position']
 					m = ""
-					m += f"{LEAGUE_STRING[clan_ladder['league']]} {roman_numeral[clan_ladder['division']]} ({clan_ladder['division_rating']} / 100)\n"
-					m += f"Best: {LEAGUE_STRING[best_position['league']]} {roman_numeral[best_position['division']]} ({best_position['division_rating']} / 100)\n\n"
+					m += f"{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]} ({clan_ladder['division_rating']} / 100)\n"
+					m += f"Best: {LEAGUE_STRING[best_position['league']]} {ROMAN_NUMERAL[best_position['division']]} ({best_position['division_rating']} / 100)\n\n"
 
 					m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L, {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
 					embed.add_field(name="__**Clan Battle**__", value=m, inline=False)
@@ -141,9 +141,9 @@ class Clan(commands.Cog):
 					members_out = set(previous_member_list.keys()) - set(new_member_list.keys())
 					members_in = set(new_member_list.keys()) - set(previous_member_list.keys())
 					for m in members_out:
-						history_output += [(previous_member_list[m]['account_name'], icons_emoji['clan_out'])]
+						history_output += [(previous_member_list[m]['account_name'], ICONS_EMOJI['clan_out'])]
 					for m in members_in:
-						history_output += [(new_member_list[m]['account_name'], icons_emoji['clan_in'])]
+						history_output += [(new_member_list[m]['account_name'], ICONS_EMOJI['clan_in'])]
 
 					# check if last update was at least a week ago
 					if (date.fromtimestamp(clan_detail['updated_at']) - date.fromtimestamp(clan_history[clan_id]['updated_at'])).days > 7:

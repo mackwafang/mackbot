@@ -1,0 +1,377 @@
+{
+  "scoutWorkTimeCoeff": {
+    "description": "Spotting aircraft action time",
+    "unit": "%"
+  },
+  "GMIdealRadius": {
+    "description": "Main battery maximum dispersion",
+    "unit": "%"
+  },
+  "GMRotationSpeed": {
+    "description": "Main battery rotation speed",
+    "unit": "%"
+  },
+  "torpedoBomberHealth": {
+    "description": "Torpedo bomber health",
+    "unit": "%"
+  },
+  "batteryRegenCoeff": {
+    "description": " Dive capacity recharge rate",
+    "unit": "%"
+  },
+  "PMCritProb": {
+    "description": "",
+    "unit": "%"
+  },
+  "bombAlphaDamageMultiplier": {
+    "description": "Bomb damage",
+    "unit": "%"
+  },
+  "GSIdealRadius": {
+    "description": "Secondary battery maximum dispersion",
+    "unit": "%"
+  },
+  "diveBomberMinSpeedMultiplier": {
+    "description": "",
+    "unit": "%"
+  },
+  "planeSpawnTime": {
+    "description": "Aircraft preparation time",
+    "unit": "%"
+  },
+  "GTShotDelay": {
+    "description": "Torpedo tube reload time",
+    "unit": "%"
+  },
+  "engineForwardUpTime": {
+    "description": "Time taken to reach full speed while accelerating",
+    "unit": "%"
+  },
+  "planeMaxSpeedMultiplier": {
+    "description": "Squadron maximum speed",
+    "unit": "%"
+  },
+  "crashCrewWorkTimeCoeff": {
+    "description": "Damage control party work time",
+    "unit": "%"
+  },
+  "engineBackwardForsageMaxSpeed": {
+    "description": "",
+    "unit": "%"
+  },
+  "GTRotationSpeed": {
+    "description": "Torpedo tube rotation speed",
+    "unit": "%"
+  },
+  "buoyancyRudderTimeCoeff": {
+    "description": "Submarine diving time",
+    "unit": "%"
+  },
+  "torpedoVisibilityFactor": {
+    "description": "Torpedo detectability range by sea",
+    "unit": "%"
+  },
+  "torpedoBomberAimingTime": {
+    "description": "Torpedo bomber attack time",
+  	"modifier": 1,
+    "unit": "s"
+  },
+  "buoyancyRudderResetTimeCoeff": {
+    "description": "",
+    "unit": "%"
+  },
+  "SGRepairTime": {
+    "description": "Steering gears repair time",
+    "unit": "%"
+  },
+  "AAMaxHP": {
+    "description": "AA guns health",
+    "unit": "%"
+  },
+  "diveBomberMaxSpeedMultiplier": {
+    "description": "Dive bomber max speed",
+    "unit": "%"
+  },
+  "GMShotDelay": {
+    "description": "Main battery reload time",
+    "unit": "%"
+  },
+  "planeEmptyReturnSpeed": {
+    "description": "Squadron return speed",
+    "unit": "%"
+  },
+  "fighterHealth": {
+    "description": "Attack aircraft HP",
+    "unit": "%"
+  },
+  "dcNumPacksBonus": {
+    "description": "Depth charges per usage",
+  	"modifier": 1,
+    "unit": " depth charge(s)"
+  },
+  "floodProb": {
+    "description": "Chance of flood",
+    "unit": "%"
+  },
+  "skipBomberAimingTime": {
+    "description": "Skip bomber attack time",
+  	"modifier": -1,
+    "unit": "s"
+  },
+  "asReloadTimeCoeff": {
+    "description": "Airstrike cooldown",
+    "unit": "%"
+  },
+  "GTCritProb": {
+    "description": "Risk of torpedo tubes being incapacitated",
+    "unit": "%"
+  },
+  "visionXRayTorpedoDist": {
+    "description": "Guaranteed acquisition of torpedoes",
+    "unit": " km"
+  },
+  "smokeGeneratorWorkTimeCoeff": {
+    "description": "Smoke screen deploy time",
+    "unit": "%"
+  },
+  "GSMaxHP": {
+    "description": "Secondary battery health",
+    "unit": "%"
+  },
+  "diveBomberSpeedMultiplier": {
+    "description": "Bomber cruising speed",
+    "unit": "%"
+  },
+  "planeTorpedoSpeedMultiplier": {
+    "description": "Aerial Torpedo speed",
+    "unit": "%"
+  },
+  "GSMaxDist": {
+    "description": "Secondary battery firing range",
+    "unit": "%"
+  },
+  "hydrophoneUpdateFrequencyCoeff": {
+    "description": "Hydrophone ping interval",
+    "unit": "%"
+  },
+  "prioritySectorCooldownMultiplier": {
+    "description": "Priority AA sector preparation time",
+    "unit": "%"
+  },
+  "engineBackwardForsagePower": {
+    "description": "",
+    "unit": "%"
+  },
+  "pingerCritProb": {
+    "description": "Risk of sonar becoming incapacitated",
+    "unit": "%"
+  },
+  "PMDetonationProb": {
+    "description": "Risk of magazine detonation",
+    "unit": "%"
+  },
+  "floodTime": {
+    "description": "Flood duration on your ship",
+    "unit": "%"
+  },
+  "ConsumablesWorkTime": {
+    "description": "Consumable work time",
+    "unit": "%"
+  },
+  "PMRepairTime": {
+    "description": "",
+    "unit": "%"
+  },
+  "AAAuraDamage": {
+    "description": "Continuous AA damage",
+    "unit": "%"
+  },
+  "planeHealth": {
+    "description": "Squadron health",
+    "unit": "%"
+  },
+  "engineForwardForsageMaxSpeed": {
+    "description": "",
+    "unit": "%"
+  },
+  "ConsumableReloadTime": {
+    "description": "Consumable cooldown",
+    "unit": "%"
+  },
+  "planeConsumablesWorkTime": {
+    "description": "Squadron consumable work time",
+    "unit": "%"
+  },
+  "GSShotDelay": {
+    "description": "Secondary battery reload time",
+    "unit": "%"
+  },
+  "shootShift": {
+    "description": "Dispersion of shells from enemies targeting you",
+    "unit": "%"
+  },
+  "visibilityForSubmarineCoeff": {
+    "description": "Submarine detection range",
+    "unit": "%"
+  },
+  "asMaxHealthCoeff": {
+    "description": "Airstrike's aircraft health",
+    "unit": "%"
+  },
+  "pingerRepairTime": {
+    "description": "Sonar repair time",
+    "unit": "%"
+  },
+  "torpedoDamageCoeff": {
+    "description": "Torpedo damage",
+    "unit": "%"
+  },
+  "planeExtraHangarSize": {
+    "description": "Maximum number of aircraft of each type in reserve",
+  	"modifier": 1,
+    "unit": " aircraft"
+  },
+  "planeForsageTimeCoeff": {
+    "description": "Squadron engine boost duration",
+    "unit": "%"
+  },
+  "GMMaxHP": {
+    "description": "Main battery health",
+    "unit": "%"
+  },
+  "dcAlphaDamageMultiplier": {
+    "description": "Depth charge damage",
+    "unit": "%"
+  },
+  "sonarWorkTimeCoeff": {
+    "description": "Hydroaccoustic duration",
+    "unit": "%"
+  },
+  "airDefenseDispWorkTimeCoeff": {
+    "description": "DFAA action time",
+    "unit": "%"
+  },
+  "batteryCapacityCoeff": {
+    "description": "Dive capacity",
+    "unit": "%"
+  },
+  "smokeGeneratorLifeTime": {
+    "description": "Deployed smoke duration",
+    "unit": "%"
+  },
+  "AAInnerExtraBubbles": {
+    "description": "Flak explosion during DFAA",
+  	"modifier": 1,
+    "unit": ""
+  },
+  "GMMaxDist": {
+    "description": "Main battery firing range",
+    "unit": "%"
+  },
+  "airDefenseDispReloadCoeff": {
+    "description": "DFAA cooldown time",
+    "unit": "%"
+  },
+  "diveBomberHealth": {
+    "description": "Bomber health",
+    "unit": "%"
+  },
+  "engineCritProb": {
+    "description": "Chance of engine becoming incapacitated",
+    "unit": "%"
+  },
+  "fighterAimingTime": {
+    "description": "Attack aircraft attack time",
+  	"modifier": 1,
+    "unit": "s"
+  },
+  "GTMaxHP": {
+    "description": "Torpedo tubes health",
+    "unit": "%"
+  },
+  "burnTime": {
+    "description": "Fire duration on your ship",
+    "unit": "%"
+  },
+  "GMRepairTime": {
+    "description": "Main battery repair time",
+    "unit": "%"
+  },
+  "hydrophoneWaveSpeedCoeff": {
+    "description": "",
+    "unit": "%"
+  },
+  "pingerWaveSpeedCoeff": {
+    "description": "Sonar ping velocity",
+    "unit": "%"
+  },
+  "GMCritProb": {
+    "description": "chance of main battery becoming incapacitated",
+    "unit": "%"
+  },
+  "planeVisibilityFactor": {
+    "description": "Squadron detection range",
+    "unit": "%"
+  },
+  "rlsWorkTimeCoeff": {
+    "description": "Surveillance radar action time",
+    "unit": "%"
+  },
+  "SGCritProb": {
+    "description": "Chance of steering gears becoming incapacitated",
+    "unit": "%"
+  },
+  "engineForwardForsagePower": {
+    "description": "",
+    "unit": "%"
+  },
+  "burnProb": {
+    "description": "Chance of fire",
+    "unit": "%"
+  },
+  "engineBackwardUpTime": {
+    "description": "",
+    "unit": "%"
+  },
+  "skipBomberHealth": {
+    "description": "Skip bomber health",
+    "unit": "%"
+  },
+  "additionalConsumables": {
+    "description": "Number of consumables",
+  	"modifier": 1,
+    "unit": " consumable(s)"
+  },
+  "visibilityDistCoeff": {
+    "description": "Ship's detection range",
+    "unit": "%"
+  },
+  "speedBoostersWorkTimeCoeff": {
+    "description": "Engine boost work time",
+    "unit": "%"
+  },
+  "GTRepairTime": {
+    "description": "Torpedo tubes repair time",
+    "unit": "%"
+  },
+  "planeSpeed": {
+    "description": "Squadron speed",
+    "unit": "%"
+  },
+  "torpedoSpeedMultiplier": {
+    "description": "Torpedo speed",
+    "unit": "%"
+  },
+  "SGRudderTime": {
+    "description": "Rudder shift time",
+    "unit": "%"
+  },
+  "AABubbleDamage": {
+    "description": "Flak explosion damage",
+    "unit": "%"
+  },
+  "engineRepairTime": {
+    "description": "Engine repair time",
+    "unit": "%"
+  }
+}

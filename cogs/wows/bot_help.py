@@ -4,7 +4,7 @@ from typing import Optional
 from discord import app_commands
 from discord.ext import commands
 from mackbot.utilities.compile_bot_help import *
-from mackbot.constants import icons_emoji, EMPTY_LENGTH_CHAR
+from mackbot.constants import ICONS_EMOJI, EMPTY_LENGTH_CHAR
 from mackbot.utilities.bot_data import command_list, command_prefix
 
 class BotHelp(commands.Cog):
@@ -32,10 +32,10 @@ class BotHelp(commands.Cog):
 				else:
 					# a help on terminology
 					embed = discord.Embed(title=help_content['title'])
-					pat = re.compile('\$(' + '|'.join(icons_emoji.keys()) + ')')
+					pat = re.compile('\$(' + '|'.join(ICONS_EMOJI.keys()) + ')')
 
 					description_string = '\n'.join(help_content['description'])
-					description_string = pat.sub(lambda x: icons_emoji[x.group(0)[1:]], description_string)
+					description_string = pat.sub(lambda x: ICONS_EMOJI[x.group(0)[1:]], description_string)
 
 					# split "paragraphs" that are split by 2 newlines into fields
 					for p, content in enumerate(description_string.split("\n\n")):

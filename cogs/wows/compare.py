@@ -6,7 +6,7 @@ from itertools import zip_longest
 
 from mackbot.utilities.discord.formatting import number_separator
 from .bot_help import BotHelp
-from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
+from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
 from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_module_data
@@ -108,8 +108,8 @@ class Compare(commands.Cog):
 			m += "**Nation**\n"
 			embed.add_field(name="__Ship__", value=m)
 			for i in range(2):
-				m = f"{list(roman_numeral)[ships_to_compare[i]['tier'] - 1].upper() if ships_to_compare[i]['tier'] < 11 else ':star:'}\n"
-				m += f"{icons_emoji[hull_classification_converter[ships_to_compare[i]['type']].lower()]}\n"
+				m = f"{list(ROMAN_NUMERAL)[ships_to_compare[i]['tier'] - 1].upper() if ships_to_compare[i]['tier'] < 11 else ':star:'}\n"
+				m += f"{ICONS_EMOJI[hull_classification_converter[ships_to_compare[i]['type']].lower()]}\n"
 				m += f"{nation_dictionary[ships_to_compare[i]['nation']]}\n"
 				embed.add_field(name=f"__{ships_to_compare[i]['name']}__", value=m)
 
@@ -156,7 +156,7 @@ class Compare(commands.Cog):
 								if artillery['max_damage']['he']:
 									m += f"{number_separator(artillery['max_damage']['he'])}\n"
 									m += f"{number_separator(artillery['gun_dpm']['he'])}\n"
-									m += f"{icons_emoji['penetration']} {artillery['pen']['he']}mm | :fire: {artillery['burn_probability']}% | {artillery['speed']['he']:0.0f}m/s\n"
+									m += f"{ICONS_EMOJI['penetration']} {artillery['pen']['he']}mm | :fire: {artillery['burn_probability']}% | {artillery['speed']['he']:0.0f}m/s\n"
 								else:
 									m += "-\n"
 									m += "-\n"
@@ -172,7 +172,7 @@ class Compare(commands.Cog):
 									m += "-\n"
 
 								if artillery['max_damage']['cs']:
-									m += f"{number_separator(artillery['max_damage']['cs'])} ({icons_emoji['penetration']} {artillery['pen']['cs']}mm)\n"
+									m += f"{number_separator(artillery['max_damage']['cs'])} ({ICONS_EMOJI['penetration']} {artillery['pen']['cs']}mm)\n"
 									m += f"{number_separator(artillery['gun_dpm']['cs'])}\n"
 									m += f"{artillery['ricochet']['cs']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['cs']}{DEGREE_SYMBOL} | {artillery['speed']['cs']:0.0f}m/s\n"
 								else:
@@ -270,8 +270,8 @@ class Compare(commands.Cog):
 							m += "**Regen on Surface**\n"
 						m += f"**Turn Radius**\n"
 						m += f"**Rudder Time**\n"
-						m += f"**{icons_emoji['concealment']} by Sea**\n"
-						m += f"**{icons_emoji['concealment']} by Air**\n"
+						m += f"**{ICONS_EMOJI['concealment']} by Sea**\n"
+						m += f"**{ICONS_EMOJI['concealment']} by Air**\n"
 						embed.add_field(name="__Concealment__", value=m, inline=True)
 
 						for i, mid in enumerate(pair):
