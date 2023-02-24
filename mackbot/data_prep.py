@@ -8,7 +8,7 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from mackbot.constants import nation_dictionary, hull_classification_converter
+from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 from mackbot.wargaming.armory import get_armory_ships
@@ -342,6 +342,12 @@ def load_upgrade_list():
 					1: 'Coal',
 					3: 'Unique'
 				}[upgrade['type']]
+
+				# update upgrade's profile, because wg apparently stop updating them, again
+				# for p in upgrade_list[uid]['profile']:
+				# 	upgrade[uid]['profile'][p] = game_data[i]['modifier'][p]
+				upgrade_list[uid]['profile'] = game_data[i]['modifiers'].copy()
+
 				upgrade_list[uid]['slot'] = int(upgrade['slot']) + 1
 				upgrade_list[uid]['ship_restriction'] = [ship_list[str(game_data[s]['id'])]['name'] for s in upgrade['ships'] if s in game_data and str(game_data[s]['id']) in ship_list]
 

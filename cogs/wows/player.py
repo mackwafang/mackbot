@@ -13,7 +13,7 @@ from mackbot.utilities.discord.formatting import number_separator
 from .bot_help import BotHelp
 from mackbot.exceptions import NoShipFound
 from mackbot.enums import COMMAND_INPUT_TYPE
-from mackbot.constants import WOWS_REALMS, roman_numeral, EMPTY_LENGTH_CHAR, ship_types, icons_emoji, ITEMS_TO_UPPER
+from mackbot.constants import WOWS_REALMS, ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
 from mackbot.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from mackbot.utilities.game_data.warships_data import ship_list_simple
 from mackbot.utilities.logger import logger
@@ -225,8 +225,8 @@ class Player(commands.Cog):
 											'ship': {
 												'name': max_kills_ship_data['name'],
 												'type': max_kills_ship_data['emoji'],
-												'tier': roman_numeral[max_kills_ship_data['tier'] - 1],
-												'nation': icons_emoji[f"flag_{max_kills_ship_data['nation'].upper() if max_kills_ship_data['nation'] in ITEMS_TO_UPPER else max_kills_ship_data['nation'].title()}"]
+												'tier': ROMAN_NUMERAL[max_kills_ship_data['tier'] - 1],
+												'nation': ICONS_EMOJI[f"flag_{max_kills_ship_data['nation'].upper() if max_kills_ship_data['nation'] in ITEMS_TO_UPPER else max_kills_ship_data['nation'].title()}"]
 											},
 										},
 										'damage': {
@@ -234,8 +234,8 @@ class Player(commands.Cog):
 											'ship': {
 												'name': max_damage_ship_data['name'],
 												'type': max_damage_ship_data['emoji'],
-												'tier': roman_numeral[max_damage_ship_data['tier'] - 1],
-												'nation': icons_emoji[f"flag_{max_damage_ship_data['nation'].upper() if max_damage_ship_data['nation'] in ITEMS_TO_UPPER else max_damage_ship_data['nation'].title()}"]
+												'tier': ROMAN_NUMERAL[max_damage_ship_data['tier'] - 1],
+												'nation': ICONS_EMOJI[f"flag_{max_damage_ship_data['nation'].upper() if max_damage_ship_data['nation'] in ITEMS_TO_UPPER else max_damage_ship_data['nation'].title()}"]
 											}
 										},
 										'spotting': {
@@ -243,8 +243,8 @@ class Player(commands.Cog):
 											'ship': {
 												'name': max_spotting_ship_data['name'],
 												'type': max_spotting_ship_data['emoji'],
-												'tier': roman_numeral[max_spotting_ship_data['tier'] - 1],
-												'nation': icons_emoji[f"flag_{max_spotting_ship_data['nation'].upper() if max_spotting_ship_data['nation'] in ITEMS_TO_UPPER else max_spotting_ship_data['nation'].title()}"]
+												'tier': ROMAN_NUMERAL[max_spotting_ship_data['tier'] - 1],
+												'nation': ICONS_EMOJI[f"flag_{max_spotting_ship_data['nation'].upper() if max_spotting_ship_data['nation'] in ITEMS_TO_UPPER else max_spotting_ship_data['nation'].title()}"]
 											}
 										}
 									},
@@ -279,8 +279,8 @@ class Player(commands.Cog):
 								for i in range(5):
 									try:
 										ship = player_ship_stats[list(player_ship_stats)[i]] # get ith ship
-										ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
-										m += f"**{ship_nation_emoji}{ship['emoji']}{roman_numeral[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.2%} WR)\n"
+										ship_nation_emoji = ICONS_EMOJI[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
+										m += f"**{ship_nation_emoji}{ship['emoji']}{ROMAN_NUMERAL[ship['tier'] - 1]} {ship['name'].title()}** ({ship['battles']} | {ship['wr']:0.2%} WR)\n"
 									except IndexError:
 										pass
 								embed.add_field(name=f"__**Top 5 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
@@ -296,11 +296,11 @@ class Player(commands.Cog):
 											type_stat = player_ship_stats_df.loc[s_t]
 											if type_stat['battles'] > 0:
 												emoji = {
-													"AirCarrier": icons_emoji['cv'],
-													"Battleship": icons_emoji['bb'],
-													"Cruiser":  icons_emoji['c'],
-													"Destroyer": icons_emoji['dd'],
-													"Submarine": icons_emoji['ss']
+													"AirCarrier": ICONS_EMOJI['cv'],
+													"Battleship": ICONS_EMOJI['bb'],
+													"Cruiser":  ICONS_EMOJI['c'],
+													"Destroyer": ICONS_EMOJI['dd'],
+													"Submarine": ICONS_EMOJI['ss']
 												}[s_t]
 												m += f"**{emoji}{ship_types[s_t]}s**\n"
 
@@ -324,10 +324,10 @@ class Player(commands.Cog):
 										tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
 										tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
-										m += f"**{roman_numeral[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
+										m += f"**{ROMAN_NUMERAL[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
 										m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {number_separator(tier_average_dmg, '.0f')} DMG\n"
 									except KeyError:
-										m += f"**{list(roman_numeral.keys())[tier - 1]}**: No battles\n"
+										m += f"**{list(ROMAN_NUMERAL.keys())[tier - 1]}**: No battles\n"
 								embed.add_field(name=f"__**Average by Tier**__", value=m)
 							elif ship_tier_filter:
 								# list ships that the player has at this tier
@@ -341,8 +341,8 @@ class Player(commands.Cog):
 										if i <= len(player_ship_stats_df) // items_per_col:
 											for s in player_ship_stats_df.index[(items_per_col * i) : (items_per_col * (i+1))]:
 												ship = player_ship_stats_df.loc[s] # get ith ship of filtered ship list by tier
-												ship_nation_emoji = icons_emoji[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
-												m += f"**{r}) {ship_nation_emoji} {roman_numeral[ship['tier']- 1]} {ship['emoji']} {ship['name'].title()}**\n"
+												ship_nation_emoji = ICONS_EMOJI[f"flag_{ship['nation'].upper() if ship['nation'] in ITEMS_TO_UPPER else ship['nation'].title()}"]
+												m += f"**{r}) {ship_nation_emoji} {ROMAN_NUMERAL[ship['tier']- 1]} {ship['emoji']} {ship['name'].title()}**\n"
 												m += f"({ship['battles']} battles | {ship['wr']:0.2%} WR | {ship['sr']:2.2%} SR)\n"
 												m += f"Avg. Kills: {ship['average']['kills']:0.2f} | Avg. Damage: {number_separator(ship['average']['dmg'], '.0f')}\n\n"
 												r += 1
@@ -358,8 +358,8 @@ class Player(commands.Cog):
 									ship_id = ship_data['ship_id']
 									player_ship_stats_df = player_ship_stats_df[player_ship_stats_df['name'] == ship_filter].to_dict(orient='index')[ship_id]
 									ship_battles_draw = player_ship_stats_df['battles'] - (player_ship_stats_df['wins'] + player_ship_stats_df['losses'])
-									ship_nation = icons_emoji[f"flag_{player_ship_stats_df['nation'].upper() if player_ship_stats_df['nation'] in ITEMS_TO_UPPER else player_ship_stats_df['nation'].title()}"]
-									m += f"**{ship_nation} {player_ship_stats_df['emoji']} {roman_numeral[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
+									ship_nation = ICONS_EMOJI[f"flag_{player_ship_stats_df['nation'].upper() if player_ship_stats_df['nation'] in ITEMS_TO_UPPER else player_ship_stats_df['nation'].title()}"]
+									m += f"**{ship_nation} {player_ship_stats_df['emoji']} {ROMAN_NUMERAL[player_ship_stats_df['tier'] - 1]} {player_ship_stats_df['name'].title()}**\n"
 									m += f"**{player_ship_stats_df['battles']} Battles**\n"
 									m += f"**Win Rate:** {player_ship_stats_df['wr']:2.2%} ({player_ship_stats_df['wins']} W | {player_ship_stats_df['losses']} L | {ship_battles_draw} D)\n"
 									m += f"**Survival Rate: ** {player_ship_stats_df['sr']:2.2%} ({player_ship_stats_df['sr'] * player_ship_stats_df['battles']:1.0f} battles)\n"

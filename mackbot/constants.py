@@ -1,3 +1,6 @@
+import json, os
+
+
 from math import inf
 from .enums import SHIP_CONSUMABLE, SHIP_CONSUMABLE_CHARACTERISTIC
 
@@ -6,31 +9,10 @@ DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
 EMPTY_LENGTH_CHAR = '\u200b'
 
+
 # dictionary to convert user input to output nations
-nation_dictionary = {
-	'usa': 'US',
-	'us': 'US',
-	'pan_asia': 'Pan-Asian',
-	'ussr': 'Russian',
-	'russia': 'Russian',
-	'russian': 'Russian',
-	'europe': 'European',
-	'european': 'European',
-	'japan': 'Japanese',
-	'japanese': 'Japanese',
-	'uk': 'British',
-	'british': 'British',
-	'france': 'France',
-	'french': 'France',
-	'germany': 'German',
-	'german': 'German',
-	'italy': 'Italian',
-	'italian': 'Italian',
-	'commonwealth': 'Commonwealth',
-	'pan_america': 'Pan-American',
-	'netherlands': "Dutch",
-	'spain': "Spanish"
-}
+with open(os.path.join(os.getcwd(), "data", "nation_dictionary.json")) as f:
+	nation_dictionary = json.load(f)
 
 ship_types = {
 	'Destroyer': 'Destroyer',
@@ -75,7 +57,7 @@ cmdr_name_to_ascii = {
 }
 
 # here because of lazy
-roman_numeral = (
+ROMAN_NUMERAL = (
 	'I',
 	'II',
 	'III',
@@ -90,7 +72,7 @@ roman_numeral = (
 )
 
 # barrel count names
-barrel_count_names = {
+BARREL_COUNT_NAMES = {
 	1: "Single",
 	2: "Double",
 	3: "Triple",
@@ -134,7 +116,7 @@ MM_WITH_CV_TIER = (
 WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
-ship_group_dict = {
+SHIP_GROUP_DICT = {
 	'disabled':             "Unavailable",
 	'ultimate':             "Armory", # ship available via the armory
 	'special':              "Premium",
@@ -154,7 +136,7 @@ ship_group_dict = {
 }
 
 # icons for prettifying outputs
-icons_emoji = {
+ICONS_EMOJI = {
 	"torp": "<:torp:917573129579151392>",
 	"dd": "<:destroyer:917573129658859573>",
 	"Destroyer": "<:destroyer:917573129658859573>",
@@ -235,6 +217,9 @@ CONSUMABLES_CHARACTERISTIC_THRESHOLDS = {
 	(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.SUPER): {"threshold": 1, "comparator": "gt"},
 	(SHIP_CONSUMABLE.HEAL, SHIP_CONSUMABLE_CHARACTERISTIC.QUICK_RECHARGE): {"threshold": 60, "comparator": "lte"},
 }
+
+with open(os.path.join(os.getcwd(), "data", "upgrade_modifier_description.json")) as f:
+	UPGRADE_MODIFIER_DESC = json.load(f)
 
 ARMOR_ID_TO_STRING = {
 	"fore and aft": {

@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import NoUpgradeFound
+from mackbot.constants import UPGRADE_MODIFIER_DESC
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
@@ -80,9 +81,21 @@ class Upgrade(commands.Cog):
 				embed.add_field(name='Description', value=description, inline=False)
 
 			if len(profile) > 0:
-				embed.add_field(name='Effect',
-				                value=''.join([profile[detail]['description'] + '\n' for detail in profile]),
-				                inline=False)
+				m = ""
+				for effect in profile:
+					modifier_string_data = UPGRADE_MODIFIER_DESC[effect]
+					value = profile[effect]
+					m += modifier_string_data['description'] + ": "
+					if modifier_string_data['unit'] != "%":
+						# not percentage modifier
+						m += f"{value:2.0f}{modifier_string_data['unit']}\n"
+					else:
+						if type(value) == dict:
+							value = list(value.values())[0]
+						s = '+' if (value - 1) > 0 else ''
+						m += f"{s}{value - 1:2.{0 if (value*100).is_integer() else 1}%}\n"
+
+				embed.add_field(name='Effect', value=m, inline=False)
 			else:
 				logger.info("effect field empty")
 

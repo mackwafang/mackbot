@@ -4,7 +4,7 @@ from typing import Optional
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import ship_types, roman_numeral, nation_dictionary, icons_emoji, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING
+from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
@@ -100,9 +100,9 @@ class Ship(commands.Cog):
 			price_special = ship_data['price_special']
 			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
-			logger.info(f"returning ship information for <{name}> in embeded format")
 			ship_type = ship_types[ship_type]
 
+			logger.info(f"Ship {name} ({ship_data['ship_id']}) found")
 			if ship_type == 'Cruiser':
 				# reclassify cruisers to their correct classification based on the washington naval treaty
 
@@ -129,13 +129,13 @@ class Ship(commands.Cog):
 			test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
 			embed = Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
 
-			tier_string = roman_numeral[tier - 1]
+			tier_string = ROMAN_NUMERAL[tier - 1]
 			if tier < 11:
 				tier_string = tier_string.upper()
 			embed.description += f'**Tier {tier_string} {"Premium " if is_prem else ""}{nation_dictionary[nation]} {ship_type}**\n'
 			if prev_ship is not None:
 				prev_ship_data = ship_list_simple[prev_ship]
-				embed.description += f"\nRequires **{icons_emoji[prev_ship_data['type']]} {roman_numeral[prev_ship_data['tier'] - 1]} {prev_ship_data['name']}**"
+				embed.description += f"\nRequires **{ICONS_EMOJI[prev_ship_data['type']]} {ROMAN_NUMERAL[prev_ship_data['tier'] - 1]} {prev_ship_data['name']}**"
 
 			if price_credit > 0 and price_xp > 0:
 				embed.description += f'\n{number_separator(price_xp)} XP and {number_separator(price_credit)} Credits'
@@ -153,7 +153,7 @@ class Ship(commands.Cog):
 				embed.description += "\n\nSuccessor: "
 				for _next_ship in next_ships:
 					next_ship_data = ship_list_simple[_next_ship]
-					embed.description += f"**{icons_emoji[next_ship_data['type']]} {roman_numeral[next_ship_data['tier'] - 1]} {next_ship_data['name']}** or "
+					embed.description += f"**{ICONS_EMOJI[next_ship_data['type']]} {ROMAN_NUMERAL[next_ship_data['tier'] - 1]} {next_ship_data['name']}** or "
 				embed.description = embed.description[:-4]
 
 			if images['small'] is not None:
@@ -263,7 +263,7 @@ class Ship(commands.Cog):
 							m += f"**Aircraft**: {airsup_info['payload']} bombs\n"
 							if nation == 'netherlands':
 								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
-								m += f"**HE Bomb**: :boom:{number_separator(airsup_info['max_damage'])} (:fire:{airsup_info['burn_probability']}%, {icons_emoji['penetration']} {airsup_info['bomb_pen']}mm)\n"
+								m += f"**HE Bomb**: :boom:{number_separator(airsup_info['max_damage'])} (:fire:{airsup_info['burn_probability']}%, {ICONS_EMOJI['penetration']} {airsup_info['bomb_pen']}mm)\n"
 							else:
 								m += f"**Squadron**: {airsup_info['squad_size']} aircraft\n"
 								m += f"**Depth Charge**: :boom:{number_separator(airsup_info['max_damage'])}\n"
@@ -340,7 +340,7 @@ class Ship(commands.Cog):
 							m += f"**{ammo_type_string} Shell:** :boom:{number_separator(guns['max_damage'][ammo_type])}"
 							if ammo_type == 'he':
 								m += f" ("
-								m += f"{icons_emoji['penetration']} {guns['pen'][ammo_type]} mm"
+								m += f"{ICONS_EMOJI['penetration']} {guns['pen'][ammo_type]} mm"
 								if ammo_type == 'he':
 									m += f", :fire: {guns['burn_probability']} %"
 								m += ")"
@@ -354,7 +354,7 @@ class Ship(commands.Cog):
 							m += "\n"
 
 					m += '\n'
-					embed.add_field(name=f"{icons_emoji['gun']} __**Main Battery**__", value=m, inline=False)
+					embed.add_field(name=f"{ICONS_EMOJI['gun']} __**Main Battery**__", value=m, inline=False)
 
 			# secondary armaments
 			if len(modules['hull']) is not None and is_filtered(SHIP_COMBAT_PARAM_FILTER.ATBAS):
@@ -390,13 +390,13 @@ class Ship(commands.Cog):
 									m += ' ('
 									if turret['burn_probability'] > 0:
 										m += f":fire: {turret['burn_probability'] * 100}%, "
-									m += f"{icons_emoji['penetration']} {turret['pen']}mm"
+									m += f"{ICONS_EMOJI['penetration']} {turret['pen']}mm"
 									m += ')\n'
 									m += f"**Reload**: {turret['shotDelay']}s\n"
 						# if len(modules['hull']) > 1:
 						# 	m += '-------------------\n'
 
-						embed.add_field(name=f"{icons_emoji['gun']} __**Secondary Battery**__", value=m, inline=True)
+						embed.add_field(name=f"{ICONS_EMOJI['gun']} __**Secondary Battery**__", value=m, inline=True)
 
 			# anti air
 			if len(modules['hull']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.AA):
@@ -458,7 +458,7 @@ class Ship(commands.Cog):
 							m += f"**Average AA Rating:** {int(average_rating)} ({rating_descriptor})\n"
 							m += f"**Range:** {aa['max_range'] / 1000:0.1f} km\n"
 					if "anti_air" in query_result[0]['profile']:
-						embed.add_field(name=f"{icons_emoji['aa']} __**Anti-Air**__", value=m, inline=False)
+						embed.add_field(name=f"{ICONS_EMOJI['aa']} __**Anti-Air**__", value=m, inline=False)
 
 			# torpedoes
 			if len(modules['torpedoes']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.TORPS):
@@ -489,9 +489,9 @@ class Ship(commands.Cog):
 						m += f"**Reaction Time:** {torps['spotting_range'] / (torps['torpedo_speed'] * 2.6) * 1000:1.1f}s\n"
 						if ship_type == 'Submarine':
 							m += f"**Loaders:** {', '.join(str(t) for t in torps['loaders']['0'])} bow, {', '.join(str(t) for t in torps['loaders']['1'])} aft\n"
-							m += f"**Stop homing at:** {', '.join(f'{icons_emoji[t]}: {d[0]:1.0f}m/{d[1]:1.0f}m' for t, d in torps['shutoff_distance'].items() if t != 'default')}\n"
+							m += f"**Stop homing at:** {', '.join(f'{ICONS_EMOJI[t]}: {d[0]:1.0f}m/{d[1]:1.0f}m' for t, d in torps['shutoff_distance'].items() if t != 'default')}\n"
 						m += '-------------------\n'
-				embed.add_field(name=f"{icons_emoji['torp']} __**Torpedoes**__", value=m)
+				embed.add_field(name=f"{ICONS_EMOJI['torp']} __**Torpedoes**__", value=m)
 
 			# aircraft squadrons
 			if any(aircraft_module_filtered):
@@ -518,11 +518,11 @@ class Ship(commands.Cog):
 								m += f"**{squadron['name'].replace(chr(10), ' ')}**\n"
 								aircraft_icon_emoji = None
 								if module_type == 'fighter':
-									aircraft_icon_emoji = icons_emoji['plane_rocket']
+									aircraft_icon_emoji = ICONS_EMOJI['plane_rocket']
 								if module_type == 'torpedo_bomber':
-									aircraft_icon_emoji = icons_emoji['plane_torp']
+									aircraft_icon_emoji = ICONS_EMOJI['plane_torp']
 								if module_type == 'dive_bomber' or module_type == 'skip_bomber':
-									aircraft_icon_emoji = icons_emoji['plane_bomb']
+									aircraft_icon_emoji = ICONS_EMOJI['plane_bomb']
 
 								if detailed_filter:
 									m = ""
@@ -533,13 +533,13 @@ class Ship(commands.Cog):
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
 										m += f"**Firing Delay:** {aircraft['aiming_time']:0.1f}s\n"
 										m += f"**{aircraft['rocket_type']} Rocket:** :boom:{number_separator(aircraft['max_damage'], '.0f')} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + ICONS_EMOJI['penetration'] + ' ' + str(aircraft['rocket_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER:
 										m += f"**Torpedo:** :boom:{number_separator(aircraft['max_damage'], '.0f')}, {aircraft['torpedo_speed']} kts\n"
 										m += f"**Arming Range:** {aircraft['arming_range']:0.1f}m\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.BOMBER:
 										m += f"**{aircraft['bomb_type']} Bomb:** :boom:{number_separator(aircraft['max_damage'], '.0f')} " \
-										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + icons_emoji['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
+										     f"{'(:fire:' + str(aircraft['burn_probability']) + '%, ' + ICONS_EMOJI['penetration'] + ' ' + str(aircraft['bomb_pen']) + 'mm)' if aircraft['burn_probability'] > 0 else ''}\n"
 									m += f"**Attack Cooldown:** {squadron['attack_cooldown']:0.1f}s\n"
 
 									squadron_consumables = squadron['consumables']
@@ -594,7 +594,7 @@ class Ship(commands.Cog):
 					m += f"**By Sea**: {hull['detect_distance_by_ship']:0.1f} km\n"
 					m += f"**By Air**: {hull['detect_distance_by_plane']:0.1f} km\n"
 					m += "\n"
-				embed.add_field(name=f"{icons_emoji['concealment']} __**Concealment**__", value=m, inline=True)
+				embed.add_field(name=f"{ICONS_EMOJI['concealment']} __**Concealment**__", value=m, inline=True)
 
 			# upgrades
 			if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):

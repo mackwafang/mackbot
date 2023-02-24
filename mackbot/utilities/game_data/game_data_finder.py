@@ -511,5 +511,5 @@ def get_ship_data_by_id(ship_id: int) -> dict:
 				ship_data['type'] = data['typeinfo']['species']
 			else:
 				raise NoShipFound
-	ship_data['emoji'] = icons_emoji[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
+	ship_data['emoji'] = ICONS_EMOJI[hull_classification_converter[ship_data['type']].lower() + ('_prem' if ship_data['is_prem'] else '')]
 	return ship_data

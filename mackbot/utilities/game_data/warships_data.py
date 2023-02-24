@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from mackbot.utilities.bot_data import mongodb_host
 from mackbot.utilities.logger import logger
 
-from mackbot.constants import icons_emoji, hull_classification_converter
+from mackbot.constants import ICONS_EMOJI, hull_classification_converter
 from mackbot.data_prep import load_game_params, game_data
 
 ship_list = {}
@@ -35,7 +35,7 @@ try:
 			"tier": ship['tier'],
 			"nation": ship['nation'],
 			"type": ship['type'],
-			"emoji": icons_emoji[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
+			"emoji": ICONS_EMOJI[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
 		}
 
 	db_upgrade_list = database_client.mackbot_db.upgrade_list.find({}, {"_id": 0})
@@ -79,5 +79,5 @@ except ConnectionError:
 			"tier": ship['tier'],
 			"nation": ship['nation'],
 			"type": ship['type'],
-			"emoji": icons_emoji[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
+			"emoji": ICONS_EMOJI[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
 		}
