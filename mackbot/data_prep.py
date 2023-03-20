@@ -58,7 +58,7 @@ class TqdmToLogger(io.StringIO):
 		self.logger.log(self.level, self.buf)
 
 stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s %(name)-15s %(levelname)-5s %(message)s')
+formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(module)s.%(funcName)s] [%(levelname)-5s] %(message)s')
 
 stream_handler.setFormatter(formatter)
 
@@ -403,10 +403,21 @@ def update_ship_modules():
 
 	armory_ship_data = get_armory_ships()
 
-	# add submarines to ship list and initialize submarine data for update
-	submarines_index = [i for i in game_data if game_data[i]['typeinfo']['species'] == 'Submarine']
-	for i in submarines_index:
-		submarine_data = game_data[i]
+	# add missing ships from api to ship list and initialize new ship data for update
+	known_ship_id = [i['ship_id'] for i in ship_list.values()]
+	missing_ship_index = [i for i in game_data if game_data[i]['typeinfo']['type'] == 'Ship']
+	for i in missing_ship_index:
+		missing_ship_data = game_data[i]
+		# skip known ships
+		if missing_ship_data['id'] in known_ship_id:
+			continue
+		# check if national flag is in flag dictionary
+		if missing_ship_data['navalFlag'] not in nation_dictionary:
+			continue
+		# check if not an normal playable ship
+		if missing_ship_data['typeinfo']['species'] not in ship_types:
+			continue
+
 		ship_list_data = {
 			"description": "",
 			"price_gold": 0,
@@ -432,27 +443,29 @@ def update_ship_modules():
 				'pinger': [],
 			},
 			"module_tree": {},
-			"nation": 'ussr' if submarine_data['navalFlag'].lower() == 'russia' else submarine_data['navalFlag'].lower(),
+			"nation": 'ussr' if missing_ship_data['navalFlag'].lower() == 'russia' else missing_ship_data['navalFlag'].lower(),
 			"is_premium": False,
 			"ship_id": game_data[i]["id"],
 			"price_credit": 0,
 			"default_profile": {},
 			"upgrades": [],
-			"tier": submarine_data['level'],
+			"tier": missing_ship_data['level'],
 			"next_ships": {},
-			"mod_slots": [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6][submarine_data['level'] - 1],
-			"type": "Submarine",
+			"mod_slots": [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6][missing_ship_data['level'] - 1],
+			"type": missing_ship_data['typeinfo']['species'],
 			"is_special": False,
-			"name": submarine_data["name"]
+			"name": missing_ship_data["name"]
 		}
 		skip_addition_condition = [
 			ship_list_data['nation'] == 'events',
-			submarine_data['group'] in ['disabled', 'preserved']
+			missing_ship_data['group'] in ['disabled', 'preserved']
 		]
 		if any(skip_addition_condition):
 			continue
 
-		ship_list[str(submarine_data['id'])] = ship_list_data.copy()
+		ship_list[str(missing_ship_data['id'])] = ship_list_data.copy()
+		if ship_list_data['name'] == 'Z-42':
+			pass
 
 	for s in tqdm(ship_list):
 		ship = ship_list[s]
