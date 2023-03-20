@@ -4,6 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 from .bot_help import BotHelp
 from mackbot.utilities.logger import logger
+from mackbot.utilities.bot_data import command_list
 
 class Listener(commands.Cog):
 	def __init__(self, client: discord.Client, command_prefix: str):
@@ -36,12 +37,42 @@ class Listener(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_command(self, context):
+		# TODO: On April 1st, remove CLI on all cogs
 		if context.author != self.client.user:  # this prevent bot from responding to itself
 			query = ''.join([i + ' ' for i in context.message.content.split()[1:]])
 			if context.clean_prefix == "/":
 				query = f"/{context.command} {' '.join(str(v) for k, v in context.kwargs.items())}"
+			else:
+				# cli commands
+				if context.command.name in command_list:
+					embed = discord.Embed(
+						title="__CLI Soon to be Deprecated!__",
+						description="CLI commands will be deprecated on **April 1st**. Please switch over to **slash commands**!"
+					)
+					embed.add_field(
+						name="__:question: What does this mean?__",
+						value="Rather than using **mackbot [command]...** use **/[command]** for your queries.",
+						inline=False,
+					)
+					embed.add_field(
+						name="__:question: Why?__",
+						value="Slash commands are easier to use and with no need for command prefix. It will allow you to use additional options that commands may have or even discover new commands.",
+						inline=False,
+					)
+					embed.add_field(
+						name="__:question: What happen if I query with CLI after April 1st?__",
+						value="mackbot will remind you that CLI will no longer work.",
+						inline=False,
+					)
+					embed.add_field(
+						name="__:question: Is this an early April Fools joke?__",
+						value="No.",
+						inline=False,
+					)
+					await context.send(embed=embed)
 			from_server = context.guild if context.guild else "DM"
 			logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
+
 
 	@commands.Cog.listener()
 	async def on_command_error(self, context: commands.Context, error: commands.errors):
