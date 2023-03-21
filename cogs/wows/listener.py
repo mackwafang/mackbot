@@ -69,6 +69,15 @@ class Listener(commands.Cog):
 						value="No.",
 						inline=False,
 					)
+					embed.add_field(
+						name="__:question: Why is mackbot not responding to slash commands?__",
+						value="A while back, I changed mackbot's invite URL so that it has slash commands enabled by default, thus making servers that mackbot joined before may not have it enabled.\n"
+						      "**Server Administrations:** To manually enable (or disable) mackbot's slash commands:\n"
+						      "**1)** Go to **Server Settings -> Integrations -> mackbot -> Manage**\n"
+						      "**2)** Under **Roles & Members**, enable \@everyone or specific roles\n"
+						      "**3) Optional:** Enable specific channels.\n",
+						inline=False,
+					)
 					await context.send(embed=embed)
 			from_server = context.guild if context.guild else "DM"
 			logger.info("User [{} ({})] via [{}] queried: {}".format(context.author, context.author.id, from_server, query))
