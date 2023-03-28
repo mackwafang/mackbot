@@ -23,7 +23,7 @@ class BotHelp(commands.Cog):
 				if help_key.split()[0] in command_list:
 					embed = discord.Embed(title=f"The {help_key} command")
 
-					embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
+					embed.add_field(name="Usage", value=f"/{help_key} {help_content['usage']}", inline=False)
 					embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 					if "options" in help_content:
 						embed.add_field(name="Options", value='\n'.join(f"**{k}**: {chr(10).join(v) if type(v) == list else v}" for k, v in help_content['options'].items()), inline=False)

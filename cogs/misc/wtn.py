@@ -2,7 +2,7 @@ import traceback, discord, logging, os, time, json
 
 from logging.handlers import RotatingFileHandler
 
-from discord import app_commands
+from discord import app_commands, Interaction
 from discord.ext import commands
 from random import randint, sample
 from pymongo import MongoClient
@@ -48,17 +48,17 @@ def to_minutes(seconds):
 
 class Wonton(commands.Cog):
 	@app_commands.command(name="cook", description="Make wonton")
-	async def cook(self, context: commands.Context):
+	async def cook(self, interaction: Interaction):
 		if db is None:
 			# can't connect to db, can't use
 			embed = discord.Embed(
 				title="Cannot connect to mackbot's database",
 				description="We apologize for the inconvenience and will have this issue fixed soon (シ_ _)シ"
 			)
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		else:
 			try:
-				author = context.author
+				author = interaction.user
 				query_result = db.wtn_wallet.find_one({"user": author.id})
 
 				wonton_image_file = None
@@ -81,7 +81,7 @@ class Wonton(commands.Cog):
 						"next_mine_time": next_mine_time
 					})
 					embed.title = f"Welcome to Wontology"
-					embed.description = f"Where the wontons are made up and the usage doesn't matter, {context.author.mention}!"
+					embed.description = f"Where the wontons are made up and the usage doesn't matter, {interaction.response.send_message.mention}!"
 					embed.set_image(url=sample(WONTON_GIF_URL, 1)[0])
 					m += f"**You cooked {coins_gained} wonton**\n"
 					m += f"\nYou can cook again in "
@@ -147,22 +147,25 @@ class Wonton(commands.Cog):
 						m += f"{time_left % 60:02.0f}s" if time_left % 60 > 0 else ''
 
 				embed.add_field(name=EMPTY_LENGTH_CHAR, value=m)
-				await context.send(file=wonton_image_file, embed=embed)
+				if wonton_image_file is None:
+					await interaction.response.send_message(embed=embed)
+				else:
+					await interaction.response.send_message(embed=embed, file=wonton_image_file)
 			except Exception as e:
 				traceback.print_exc()
 
 	@app_commands.command(name="wontons", description="Check wontons inventory")
-	async def wonton_count(self, context: commands.Context):
+	async def wonton_count(self, interaction: Interaction):
 		if db is None:
 			# can't connect to db, can't use
 			embed = discord.Embed(
 				title="Cannot connect to mackbot's database",
 				description="We apologize for the inconvenience and will have this issue fixed soon (シ_ _)シ"
 			)
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		else:
 			try:
-				author = context.author
+				author = interaction.user
 				query_result = db.wtn_wallet.find_one({"user": author.id})
 
 				embed = discord.Embed(title="Wonton Count", description="")
@@ -172,6 +175,6 @@ class Wonton(commands.Cog):
 				else:
 					embed.description += f"{author.mention}, you have {to_plural('wonton', query_result['coins'])}!\n"
 
-				await context.send(embed=embed)
+				await interaction.response.send_message(embed=embed)
 			except Exception as e:
 				traceback.print_exc()

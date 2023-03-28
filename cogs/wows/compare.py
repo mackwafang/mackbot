@@ -61,7 +61,9 @@ class Compare(commands.Cog):
 					except asyncio.TimeoutError:
 						pass
 				else:
-					await interaction.response.send_message(embed=embed)
+					embed.set_footer(text="A ship name cannot be understood and comparison cannot be completed.\n"
+					                      "Please check any spelling errors that may have occurred.")
+					await interaction.followup.send(embed=embed)
 					return
 			finally:
 				logger.info(f"ship check [{s}] OK")
