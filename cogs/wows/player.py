@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 from typing import Optional
 
@@ -41,6 +42,8 @@ class Player(commands.Cog):
 	                 ship:Optional[str]="",
 	                 b_type:Optional[str]='pvp'
 	                 ):
+
+		await interaction.response.defer(ephemeral=False, thinking=True)
 
 		try:
 			battle_type = 'pvp'
@@ -356,8 +359,11 @@ class Player(commands.Cog):
 					embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 			else:
 				embed.add_field(name='Information not available', value=f"mackbot cannot find player with name {escape_markdown(username)} in the {player_region.upper()} region", inline=True)
+
+			await interaction.followup.send(embed=embed)
 		except Exception as e:
 			logger.warning(f"Exception in player {type(e)}: {e}")
 			traceback.print_exc()
 
-		await interaction.response.send_message(embed=embed)
+			embed = Embed(title="An internal error has occurred.")
+			await interaction.response.send_message(embed=embed)

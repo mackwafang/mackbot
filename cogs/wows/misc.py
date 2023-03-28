@@ -93,18 +93,18 @@ class Misc(commands.Cog):
 		logger.info("sending a hottake")
 		await interaction.response.send_message('I tell people that ' + sample(hottake_strings, 1)[0])
 		if randint(0, 9) == 0:
-			await asyncio.sleep(2)
+			await asyncio.sleep(6)
 			await self.purpose(interaction)
 
 	async def purpose(self, interaction: Interaction):
 		author = interaction.user
-		await interaction.response.send_message(f"{author.mention}, what is my purpose?")
+		await interaction.channel.send(f"{author.mention}, what is my purpose?")
 
 		def check(message):
 			return author == message.author and message.content.lower().startswith("you") and len(message.content[3:]) > 0
 
 		message = await self.client.wait_for('message', timeout=30, check=check)
-		await interaction.response.send_message("Oh my god...")
+		await interaction.channel.send("Oh my god...")
 
 	@app_commands.command(name="web", description="Get the link to mackbot's web application")
 	async def web(self, interaction: Interaction):
