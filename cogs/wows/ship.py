@@ -721,8 +721,9 @@ class Ship(commands.Cog):
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
-					await interaction.response.send_message(embed=embed)
+					msg = await interaction.channel.send(embed=embed)
 					await correct_user_misspell(self.bot, interaction, Ship, "ship", closest_match[0], param_filter)
+					await msg.delete()
 				else:
 					await interaction.response.send_message(embed=embed)
 

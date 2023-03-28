@@ -37,6 +37,7 @@ class Compare(commands.Cog):
 			return interaction.user == message.author and message.content.lower() in ['y', 'yes']
 
 		# checking ships name and grab ship data
+		await interaction.response.defer()
 		for s in user_input_ships:
 			try:
 				ships_to_compare += [get_ship_data(s)]
@@ -44,17 +45,19 @@ class Compare(commands.Cog):
 				logger.info(f"ship check [{s}] FAILED")
 				logger.info(f"sending correction reponse")
 				closest_match = find_close_match_item(s.lower(), "ship_list")
-				closest_match_string = closest_match[0].title()
 				embed = Embed(title=f"Ship {s} is not understood.\n", description="")
 				if len(closest_match) > 0:
+					closest_match_string = closest_match[0].title()
 					embed.description += f'\nDid you mean **{closest_match_string}**?'
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-					await interaction.response.send_message(embed=embed)
+					correction_embed  = await interaction.channel.send(embed=embed)
 					try:
-						msg = await self.client.wait_for("message", timeout=10, check=user_correction_check)
+						msg = await self.bot.wait_for("message", timeout=10, check=user_correction_check)
 						if msg:
 							ships_to_compare += [get_ship_data(closest_match_string)]
+							await correction_embed.delete()
+							await msg.delete()
 					except asyncio.TimeoutError:
 						pass
 				else:
@@ -85,10 +88,10 @@ class Compare(commands.Cog):
 			options=options,
 			placeholder="Select an option"
 		)
-		view.message = await interaction.response.send_message(embed=response_embed, view=view)
+		view.message = await interaction.channel.send(embed=response_embed, view=view)
 		user_selection = await get_user_response_with_drop_down(view)
 		if 0 <= user_selection < len(user_options):
-			pass
+			await view.message.delete()
 		else:
 			await interaction.response.send_message(f"Input {user_selection} is incorrect")
 
@@ -381,7 +384,7 @@ class Compare(commands.Cog):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection].lower()}")
-			await interaction.response.send_message(embed=embed)
+			await interaction.followup.send(embed=embed)
 		else:
 			logger.info("Response expired")
 		del user_correction_check

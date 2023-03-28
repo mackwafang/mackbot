@@ -61,10 +61,11 @@ class Build(commands.Cog):
 			# find ship build
 			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
 			user_selected_build_id = 0
-			multi_build_user_response = None
 
+			await interaction.response.defer()
 			# get user selection for multiple ship builds
 			if len(builds) > 1:
+
 				embed = Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 
@@ -86,15 +87,15 @@ class Build(commands.Cog):
 					options=options,
 					placeholder="Select a build"
 				)
-				view.message = await interaction.response.send_message(embed=embed, view=view)
+				view.message = await interaction.channel.send(embed=embed, view=view)
 				user_selected_build_id = await get_user_response_with_drop_down(view)
 				if 0 <= user_selected_build_id < len(builds):
-					pass
+					await view.message.delete()
 				elif user_selected_build_id == -1:
 					logger.info("No response from user")
 					return
 				else:
-					await interaction.response.send_message(f"Input {user_selected_build_id} is incorrect")
+					await interaction.channel.send(f"Input {user_selected_build_id} is incorrect")
 
 			if not builds:
 				raise NoBuildFound
@@ -211,9 +212,9 @@ class Build(commands.Cog):
 				embed.set_footer(text=error_footer_message + footer_message)
 
 			if send_text_build:
-				if multi_build_user_response:
-					# response to user's selection of drop-down menu
-					await multi_build_user_response.respond(embed=embed, ephemeral=False)
+				# send text
+				if interaction.response.is_done():
+					await interaction.followup.send(embed=embed)
 				else:
 					await interaction.response.send_message(embed=embed)
 			else:
@@ -226,9 +227,8 @@ class Build(commands.Cog):
 					build_image = create_build_image(build_name, name, skills, upgrades, cmdr)
 				build_image.save(f"./tmp/build_{build_hash}.png")
 				try:
-					if multi_build_user_response:
-						# response to user's selection of drop-down menu
-						await multi_build_user_response.respond(file=File('temp.png'), ephemeral=False)
+					if interaction.response.is_done():
+						await interaction.followup.send(file=File(f"./tmp/build_{build_hash}.png"))
 					else:
 						await interaction.response.send_message(file=File(f"./tmp/build_{build_hash}.png"))
 				except Forbidden:
@@ -244,8 +244,9 @@ class Build(commands.Cog):
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-					await interaction.response.send_message(embed=embed)
+					msg = await interaction.channel.send(embed=embed)
 					await correct_user_misspell(self.bot, interaction, Build, "build", closest_match[0], send_text_build)
+					await msg.delete()
 				else:
 					await interaction.response.send_message(embed=embed)
 			elif type(e) == NoBuildFound:

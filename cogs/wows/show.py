@@ -17,16 +17,15 @@ from mackbot.utilities.ship_consumable_code import characteristic_rules
 
 
 class Show(commands.Cog):
-	def __init__(self, client):
-		self.client = client
-	@commands.group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
-	# @mackbot.group(pass_context=True, invoke_without_command=True)
-	async def show(self, context: commands.Context):
-		# list command
-		if context.invoked_subcommand is None:
-			await context.invoke(self.client.get_command('help'), 'show')
+	def __init__(self, bot):
+		self.bot = bot
+		self.bot.tree.add_command(ShowGroup(name="show", description="List out all items from a category"))
+	# @app_commands.command(name="show", description="List out all items from a category")#, pass_context=True, invoke_without_command=True)
+	# async def show(self, context: commands.Context):
+	# 	pass
 
-	@show.command(name="skills", description="Show all ships in a query.")
+class ShowGroup(app_commands.Group):
+	@app_commands.command(name="skills", description="Show all ships in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
 	async def skills(self, context: commands.Context, args: Optional[str]=""):
@@ -89,7 +88,7 @@ class Show(commands.Cog):
 
 		await context.send(embed=embed)
 
-	@show.command(name="upgrades", description="Show all upgrades in a query.")
+	@app_commands.command(name="upgrades", description="Show all upgrades in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
 	async def upgrades(self, context: commands.Context, args: Optional[str]=""):
@@ -177,7 +176,7 @@ class Show(commands.Cog):
 				logger.info(f"Exception {type(e)} {e}")
 		await context.send(embed=embed)
 
-	@show.command(name="ships", description="Show all ships in a query.")
+	@app_commands.command(name="ships", description="Show all ships in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
 	# @show.command()

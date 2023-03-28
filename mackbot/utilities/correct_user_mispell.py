@@ -24,6 +24,7 @@ async def correct_user_misspell(bot: Bot, interaction: discord.Interaction, cog:
 		# interaction.message.content = f"{command_prefix} {command} {' '.join(args)} [modified]" # change cli inputs
 		# await client.all_commands[command](interaction, *args)
 		await getattr(bot.get_cog(cog.__name__), command).callback(cog, interaction, *args)
+		await res.delete()
 	except Exception as e:
 		if type(e) in (TimeoutError, CancelledError):
 			pass
