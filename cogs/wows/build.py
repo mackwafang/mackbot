@@ -25,9 +25,9 @@ class Build(commands.Cog):
 		ship_name="Ship name",
 		text_version="Use text version instead",
 	)
-	@app_commands.autocomplete(args=auto_complete_ship_name)
+	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
 	async def build(self, interaction: Interaction, ship_name: str, text_version:Optional[bool]=False):
-		args = ship_name
+		user_ship_name = ship_name
 		send_text_build = text_version
 
 		permissions = interaction.channel.permissions_for(interaction.user)
@@ -48,7 +48,6 @@ class Build(commands.Cog):
 			logger.info("Reattempt to send build; Embed Link permission OK")
 			send_text_build = True
 
-		user_ship_name = ''.join([i + ' ' for i in args])[:-1]
 		name, images = "", None
 		try:
 			output = get_ship_data(user_ship_name)
