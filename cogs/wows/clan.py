@@ -26,7 +26,7 @@ class Clan(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="clan", description="Get some basic information about a clan")
+	@app_commands.command(name="clan", description="Get some basic information about a clan")
 	@app_commands.describe(
 		clan_name="Name or tag of clan",
 		region='Clan region'

@@ -15,7 +15,7 @@ class Skill(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="skill", description="Get information on a commander skill")
+	@app_commands.command(name="skill", description="Get information on a commander skill")
 	@app_commands.describe(
 		skill_tree="Skill tree query. Accepts ship hull classification or ship type",
 		skill_name="Skill name"

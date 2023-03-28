@@ -12,6 +12,8 @@ from cogs.wows.upgrade import Upgrade
 from cogs.wows.misc import Misc
 from cogs.wows.analyze import Analyze
 
+from cogs.misc.wtn import Wonton
+
 BOT_COGS = [
 	BotHelp,
 	Ship,
@@ -25,5 +27,5 @@ BOT_COGS = [
 	Skill,
 	Upgrade,
 	Misc,
-	Analyze
+	Wonton
 ]

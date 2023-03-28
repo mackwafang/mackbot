@@ -7,7 +7,7 @@ from mackbot.utilities.compile_bot_help import compile_help_strings
 from cogs import *
 from cogs.wows.listener import Listener
 
-class Mackbot(discord.Client):
+class Mackbot(commands.Bot):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
@@ -24,7 +24,7 @@ bot_intents.typing = True
 bot_intents.message_content = True
 
 mackbot = Mackbot(
-	# command_prefix=commands.when_mentioned_or(command_prefix),
+	command_prefix=commands.when_mentioned_or(command_prefix),
 	intents=bot_intents,
 	help_command=None
 )
@@ -45,7 +45,6 @@ async def main():
 	if database_client is None:
 		load_ship_builds()
 
-	await mackbot.load_extension("mackbot.misc.wtn")
 	await mackbot.add_cog(Listener(mackbot, command_prefix))
 	for cog in BOT_COGS:
 		await mackbot.add_cog(cog(mackbot))

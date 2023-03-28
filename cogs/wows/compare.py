@@ -18,7 +18,7 @@ class Compare(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name='compare', description='Compare combat parameters of two warships')
+	@app_commands.command(name='compare', description='Compare combat parameters of two warships')
 	@app_commands.describe(
 		value="Two ships to compare. Add the word \"and\" between ship names",
 	)

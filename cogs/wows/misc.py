@@ -17,18 +17,18 @@ class Misc(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="goodbot", description="Compliment mackbot")
+	@app_commands.command(name="goodbot", description="Compliment mackbot")
 	async def goodbot(self, context: commands.Context):
 		# good bot
 		logger.info(f"send reply message for goodbot")
 		await context.send(sample(GOOD_BOT_MESSAGES, 1)[0])  # block until message is sent
 
-	@commands.hybrid_command(name="feedback", description="Provide feedback to the developer")
+	@app_commands.command(name="feedback", description="Provide feedback to the developer")
 	async def feedback(self, context: commands.Context):
 		logger.info("send feedback link")
 		await context.send(f"Got a feedback about mackbot? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
-	@commands.hybrid_command(name="doubloons", description="Converts doubloons to USD, vice versa.")
+	@app_commands.command(name="doubloons", description="Converts doubloons to USD, vice versa.")
 	@app_commands.describe(
 		value="The doubloon value for conversion to dollars. If is_dollar is filled, this value is converted to USD instead.",
 		is_dollar="Add the word \"dollar\" or \"$\" to convert value into dollar value"
@@ -81,7 +81,7 @@ class Misc(commands.Cog):
 				await context.send(f"An internal error has occured.")
 				traceback.print_exc()
 
-	@commands.hybrid_command(name="code", description="Generate WoWS bonus code links")
+	@app_commands.command(name="code", description="Generate WoWS bonus code links")
 	@app_commands.rename(args="codes")
 	@app_commands.describe(args="WoWS codes to generate link")
 	async def code(self, context, args: str):
@@ -106,7 +106,7 @@ class Misc(commands.Cog):
 				logger.info(f"returned a wargaming bonus code link with code {c}")
 			await context.send(s)
 
-	@commands.hybrid_command(name="hottake", description="Give a WoWS hottake")
+	@app_commands.command(name="hottake", description="Give a WoWS hottake")
 	async def hottake(self, context: commands.Context):
 		logger.info("sending a hottake")
 		await context.send('I tell people that ' + sample(hottake_strings, 1)[0])
@@ -124,15 +124,15 @@ class Misc(commands.Cog):
 		message = await self.client.wait_for('message', timeout=30, check=check)
 		await context.send("Oh my god...")
 
-	@commands.hybrid_command(name="web", description="Get the link to mackbot's web application")
+	@app_commands.command(name="web", description="Get the link to mackbot's web application")
 	async def web(self, context: commands.Context):
 		await context.send("**mackbot's web application URL:\nhttps://mackbot-web.herokuapp.com/**")
 
-	@commands.hybrid_command(name="invite", description="Get a Discord invite link to get mackbot to your server.")
+	@app_commands.command(name="invite", description="Get a Discord invite link to get mackbot to your server.")
 	async def invite(self, context: commands.Context):
 		await context.send(bot_invite_url)
 
-	@commands.hybrid_command(name="commands", description="Get list of commands")
+	@app_commands.command(name="commands", description="Get list of commands")
 	async def cmd(self, context: commands.Context):
 		embed = Embed(title="mackbot commands")
 
@@ -144,6 +144,6 @@ class Misc(commands.Cog):
 
 		await context.send(embed=embed)
 
-	@commands.hybrid_command(name="support", description="Get mackbot's support Discord server")
+	@app_commands.command(name="support", description="Get mackbot's support Discord server")
 	async def support(self, context: commands.Context):
 		await context.send(discord_invite_url)

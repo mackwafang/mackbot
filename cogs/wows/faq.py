@@ -1,4 +1,4 @@
-from discord import Embed
+from discord import Embed, app_commands
 from discord.ext import commands
 
 from mackbot.utilities.bot_data import faq_data
@@ -7,7 +7,7 @@ class FAQ(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="faq", description="What is a mackbot?")
+	@app_commands.command(name="faq", description="What is a mackbot?")
 	async def faq(self, context: commands.Context):
 		async with context.typing():
 			embed = Embed(title="mackbot FAQ")

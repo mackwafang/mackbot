@@ -19,8 +19,7 @@ from mackbot.utilities.ship_consumable_code import characteristic_rules
 class Show(commands.Cog):
 	def __init__(self, client):
 		self.client = client
-
-	@commands.hybrid_group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
+	@commands.group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
 	# @mackbot.group(pass_context=True, invoke_without_command=True)
 	async def show(self, context: commands.Context):
 		# list command

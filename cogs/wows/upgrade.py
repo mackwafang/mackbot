@@ -16,7 +16,7 @@ class Upgrade(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="upgrade", description="Get information on an upgrade")
+	@app_commands.command(name="upgrade", description="Get information on an upgrade")
 	@app_commands.describe(
 		upgrade_name="Upgrade name, upgrade abbreviation, or ship name (applicable to ships with unique upgrades)."
 	)

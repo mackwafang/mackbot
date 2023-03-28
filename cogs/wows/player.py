@@ -26,7 +26,7 @@ class Player(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="player", description="Get information about a player.")
+	@app_commands.command(name="player", description="Get information about a player.")
 	@app_commands.rename(b_type="battle_type")
 	@app_commands.describe(
 		player_name="Player name",
