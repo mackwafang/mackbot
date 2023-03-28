@@ -35,4 +35,4 @@ class AboutBot(commands.Cog):
 		m += "All other contents are available under the MIT license.\n"
 		m += "Shell Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell"
 		embed.add_field(name="Legal", value=m, inline=False)
-		await interaction.channel.send(embed=embed)
+		await interaction.response.send_message(embed=embed)

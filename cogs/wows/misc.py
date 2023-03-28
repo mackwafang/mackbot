@@ -3,58 +3,52 @@ import traceback
 from random import sample, randint
 from typing import Optional
 
-from discord import app_commands, Embed
+from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
 from cogs import BotHelp
 from mackbot.constants import GOOD_BOT_MESSAGES, EXCHANGE_RATE_DOUB_TO_DOLLAR, WOWS_REALMS
 from mackbot.utilities.bot_data import hottake_strings, bot_invite_url, discord_invite_url
 from mackbot.utilities.compile_bot_help import help_dictionary
+from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.logger import logger
-
 
 class Misc(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
 	@app_commands.command(name="goodbot", description="Compliment mackbot")
-	async def goodbot(self, context: commands.Context):
+	async def goodbot(self, interaction: Interaction):
 		# good bot
 		logger.info(f"send reply message for goodbot")
-		await context.send(sample(GOOD_BOT_MESSAGES, 1)[0])  # block until message is sent
+		await interaction.response.send_message(sample(GOOD_BOT_MESSAGES, 1)[0])  # block until message is sent
 
 	@app_commands.command(name="feedback", description="Provide feedback to the developer")
-	async def feedback(self, context: commands.Context):
+	async def feedback(self, interaction: Interaction):
 		logger.info("send feedback link")
-		await context.send(f"Got a feedback about mackbot? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
+		await interaction.response.send_message(f"Got a feedback about mackbot? Submit a feedback form here!\nhttps://forms.gle/Lqm9bU5wbtNkpKSn7")
 
 	@app_commands.command(name="doubloons", description="Converts doubloons to USD, vice versa.")
 	@app_commands.describe(
-		value="The doubloon value for conversion to dollars. If is_dollar is filled, this value is converted to USD instead.",
-		is_dollar="Add the word \"dollar\" or \"$\" to convert value into dollar value"
+		value="The doubloon value for conversion to dollars.",
+		is_dollar="Set True to indicate to convert USD -> Dollars"
 	)
-	async def doubloons(self, context: commands.Context, value: int, is_dollar: Optional[str] = ""):
+	async def doubloons(self, interaction: Interaction, value: int, is_dollar:Optional[bool]=False):
 		# get conversion between doubloons and usd and vice versa
 		doub = 0
 		try:
+			# check reverse conversion
+			# dollars to doubloons
 			if is_dollar:
-				# check reverse conversion
-				# dollars to doubloons
-				if is_dollar.lower() in ['dollars', '$']:
-					dollar = float(value)
+				dollar = float(value)
 
-					def dollar_formula(x):
-						return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
+				def dollar_formula(x):
+					return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
-					logger.info(f"converting {dollar} dollars -> doubloons")
-					embed = Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
-					embed.add_field(name=f"Requested Dollars", value=f"{dollar:0.2f}$")
-					embed.add_field(name=f"Doubloons", value=f"Approx. {dollar_formula(dollar):0.0f} Doubloons")
-				else:
-					embed = Embed(
-						title="Doubloon Conversion Error",
-						description=f"Value {is_dollar} is not a value optional argument"
-					)
+				logger.info(f"converting {dollar} dollars -> doubloons")
+				embed = Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
+				embed.add_field(name=f"Requested Dollars", value=f"{number_separator(dollar, '.2f')}$")
+				embed.add_field(name=f"Doubloons", value=f"Approx. {number_separator(dollar_formula(dollar), '.0f')} Doubloons")
 			else:
 				# doubloon to dollars
 				doub = int(value)
@@ -65,85 +59,61 @@ class Misc(commands.Cog):
 
 				logger.info(f"converting {doub} doubloons -> dollars")
 				embed = Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
-				embed.add_field(name=f"Requested Doubloons", value=f"{doub} Doubloons")
-				embed.add_field(name=f"Price: ", value=f"{doub_formula(doub):0.2f}$")
+				embed.add_field(name=f"Requested Doubloons", value=f"{number_separator(doub, '.0f')} Doubloons")
+				embed.add_field(name=f"Price: ", value=f"{number_separator(doub_formula(doub), '.2f')}$")
 				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"
 				if value_exceed:
 					footer_message += "\n:warning: You cannot buy the requested doubloons."
 				embed.set_footer(text=footer_message)
 
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			if type(e) == TypeError:
-				await context.send(f"Value **{doub}** is not a number.")
+				await interaction.response.send_message(f"Value **{doub}** is not a number.")
 			else:
-				await context.send(f"An internal error has occured.")
+				await interaction.response.send_message(f"An internal error has occured.")
 				traceback.print_exc()
 
 	@app_commands.command(name="code", description="Generate WoWS bonus code links")
-	@app_commands.rename(args="codes")
-	@app_commands.describe(args="WoWS codes to generate link")
-	async def code(self, context, args: str):
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[2:])
+	@app_commands.describe(
+		codes="WoWS codes to generate link, multiple links should be separated by space",
+		region="Change region to the correct URL. Defaults to NA",
+	)
+	async def code(self, interaction: Interaction, codes: str, region:Optional[str]='na'):
+		s = ""
 
-		# find region
-		if args.split()[0].lower() in WOWS_REALMS:
-			region = args.split()[0].lower()
-			has_region_option = True
-		else:
-			region = 'na'
-			has_region_option = False
-
-		if len(args) == 0 or (has_region_option and len(args) == 1):
-			await BotHelp.custom_help(BotHelp, context, "code")
-		else:
-			s = ""
-
-			for c in args.split()[1:] if has_region_option else args.split():
-				s += f"**({region.upper()}) {c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
-				logger.info(f"returned a wargaming bonus code link with code {c}")
-			await context.send(s)
+		for c in codes.split():
+			s += f"**({region.upper()}) {c.upper()}** https://{region}.wargaming.net/shop/redeem/?bonus_mode={c.upper()}\n"
+			logger.info(f"returned a wargaming bonus code link with code {c}")
+		await interaction.response.send_message(s)
 
 	@app_commands.command(name="hottake", description="Give a WoWS hottake")
-	async def hottake(self, context: commands.Context):
+	async def hottake(self, interaction: Interaction):
 		logger.info("sending a hottake")
-		await context.send('I tell people that ' + sample(hottake_strings, 1)[0])
+		await interaction.response.send_message('I tell people that ' + sample(hottake_strings, 1)[0])
 		if randint(0, 9) == 0:
 			await asyncio.sleep(2)
-			await self.purpose(context)
+			await self.purpose(interaction)
 
-	async def purpose(self, context: commands.Context):
-		author = context.author
-		await context.send(f"{author.mention}, what is my purpose?")
+	async def purpose(self, interaction: Interaction):
+		author = interaction.user
+		await interaction.response.send_message(f"{author.mention}, what is my purpose?")
 
 		def check(message):
 			return author == message.author and message.content.lower().startswith("you") and len(message.content[3:]) > 0
 
 		message = await self.client.wait_for('message', timeout=30, check=check)
-		await context.send("Oh my god...")
+		await interaction.response.send_message("Oh my god...")
 
 	@app_commands.command(name="web", description="Get the link to mackbot's web application")
-	async def web(self, context: commands.Context):
-		await context.send("**mackbot's web application URL:\nhttps://mackbot-web.herokuapp.com/**")
+	async def web(self, interaction: Interaction):
+		await interaction.response.send_message("**~~mackbot's web application URL:\nhttps://mackbot-web.herokuapp.com/~~**")
 
 	@app_commands.command(name="invite", description="Get a Discord invite link to get mackbot to your server.")
-	async def invite(self, context: commands.Context):
-		await context.send(bot_invite_url)
-
-	@app_commands.command(name="commands", description="Get list of commands")
-	async def cmd(self, context: commands.Context):
-		embed = Embed(title="mackbot commands")
-
-		m = ""
-		for command in sorted([c.name for c in self.client.commands]):
-			m += f"**{command}:** {help_dictionary[command]['brief']}\n"
-		embed.add_field(name="Command (Description)", value=m)
-		embed.set_footer(text="For usage on any commands, use mackbot help <command>")
-
-		await context.send(embed=embed)
+	async def invite(self, interaction: Interaction):
+		await interaction.response.send_message(bot_invite_url)
 
 	@app_commands.command(name="support", description="Get mackbot's support Discord server")
-	async def support(self, context: commands.Context):
-		await context.send(discord_invite_url)
+	async def support(self, interaction: Interaction):
+		await interaction.response.send_message(discord_invite_url)

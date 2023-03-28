@@ -705,7 +705,7 @@ class Ship(commands.Cog):
 			if is_test_ship:
 				footer_message += f"\n* Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
-			await interaction.channel.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			traceback.print_exc()
@@ -721,12 +721,12 @@ class Ship(commands.Cog):
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 					await correct_user_misspell(self.bot, interaction, Ship, "ship", closest_match[0], param_filter)
 				else:
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 
 			else:
 				# we dun goofed
-				await interaction.channel.send(f"An internal error has occured.")
+				await interaction.response.send_message(f"An internal error has occured.")
 				traceback.print_exc()

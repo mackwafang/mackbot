@@ -50,7 +50,7 @@ class Compare(commands.Cog):
 					embed.description += f'\nDid you mean **{closest_match_string}**?'
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 					try:
 						msg = await self.client.wait_for("message", timeout=10, check=user_correction_check)
 						if msg:
@@ -58,7 +58,7 @@ class Compare(commands.Cog):
 					except asyncio.TimeoutError:
 						pass
 				else:
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 					return
 			finally:
 				logger.info(f"ship check [{s}] OK")
@@ -85,12 +85,12 @@ class Compare(commands.Cog):
 			options=options,
 			placeholder="Select an option"
 		)
-		view.message = await interaction.channel.send(embed=response_embed, view=view)
+		view.message = await interaction.response.send_message(embed=response_embed, view=view)
 		user_selection = await get_user_response_with_drop_down(view)
 		if 0 <= user_selection < len(user_options):
 			pass
 		else:
-			await interaction.channel.send(f"Input {user_selection} is incorrect")
+			await interaction.response.send_message(f"Input {user_selection} is incorrect")
 
 		# compile info
 		if user_selection != -1:
@@ -381,7 +381,7 @@ class Compare(commands.Cog):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection].lower()}")
-			await interaction.channel.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		else:
 			logger.info("Response expired")
 		del user_correction_check

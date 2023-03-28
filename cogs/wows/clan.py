@@ -58,7 +58,7 @@ class Clan(commands.Cog):
 					embed.description += '\n'.join(i.label for i in clan_options)
 					embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
 					                      "Response expires in 15 seconds")
-					view.message = await interaction.channel.send(embed=embed, view=view)
+					view.message = await interaction.response.send_message(embed=embed, view=view)
 					await view.wait()
 					selected_clan_index = await get_user_response_with_drop_down(view)
 					if selected_clan_index != -1:
@@ -146,12 +146,12 @@ class Clan(commands.Cog):
 					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
 					if sliced_member_list:
 						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
-				await interaction.channel.send(embed=embed)
+				await interaction.response.send_message(embed=embed)
 			else:
 				# no clan matches search
 				embed = Embed(title=f"Search result for clan {search_term}", description="")
 				embed.description += "Clan not found"
 
-				await interaction.channel.send(embed=embed)
+				await interaction.response.send_message(embed=embed)
 		else:
 			await BotHelp.custom_help(BotHelp, interaction, "clan")

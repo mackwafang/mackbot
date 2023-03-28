@@ -35,7 +35,7 @@ class Build(commands.Cog):
 		if not permissions.embed_links and not permissions.attach_files:
 			# can't send either text or embed
 			logger.info("Both Attach File and Embed Link permission denied")
-			await interaction.channel.send("mackbot requires the **Attach Files** permission for this feature.")
+			await interaction.response.send_message("mackbot requires the **Attach Files** permission for this feature.")
 			return
 		if send_text_build and not permissions.embed_links and permissions.attach_files:
 			# can't send text, send embed
@@ -86,7 +86,7 @@ class Build(commands.Cog):
 					options=options,
 					placeholder="Select a build"
 				)
-				view.message = await interaction.channel.send(embed=embed, view=view)
+				view.message = await interaction.response.send_message(embed=embed, view=view)
 				user_selected_build_id = await get_user_response_with_drop_down(view)
 				if 0 <= user_selected_build_id < len(builds):
 					pass
@@ -94,7 +94,7 @@ class Build(commands.Cog):
 					logger.info("No response from user")
 					return
 				else:
-					await interaction.channel.send(f"Input {user_selected_build_id} is incorrect")
+					await interaction.response.send_message(f"Input {user_selected_build_id} is incorrect")
 
 			if not builds:
 				raise NoBuildFound
@@ -215,7 +215,7 @@ class Build(commands.Cog):
 					# response to user's selection of drop-down menu
 					await multi_build_user_response.respond(embed=embed, ephemeral=False)
 				else:
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 			else:
 				# send image
 				if database_client is None:
@@ -230,9 +230,9 @@ class Build(commands.Cog):
 						# response to user's selection of drop-down menu
 						await multi_build_user_response.respond(file=File('temp.png'), ephemeral=False)
 					else:
-						await interaction.channel.send(file=File(f"./tmp/build_{build_hash}.png"))
+						await interaction.response.send_message(file=File(f"./tmp/build_{build_hash}.png"))
 				except Forbidden:
-					await interaction.channel.send("mackbot requires the **Send Attachment** permission for this feature.")
+					await interaction.response.send_message("mackbot requires the **Send Attachment** permission for this feature.")
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
@@ -244,10 +244,10 @@ class Build(commands.Cog):
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 					await correct_user_misspell(self.bot, interaction, Build, "build", closest_match[0], send_text_build)
 				else:
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = Embed(title=f"Build for {name}", description='')
@@ -256,7 +256,7 @@ class Build(commands.Cog):
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
-				await interaction.channel.send(embed=embed)
+				await interaction.response.send_message(embed=embed)
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()

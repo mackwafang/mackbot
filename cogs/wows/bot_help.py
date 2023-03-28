@@ -28,7 +28,7 @@ class BotHelp(commands.Cog):
 					if "options" in help_content:
 						embed.add_field(name="Options", value='\n'.join(f"**{k}**: {chr(10).join(v) if type(v) == list else v}" for k, v in help_content['options'].items()), inline=False)
 
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 				else:
 					# a help on terminology
 					embed = discord.Embed(title=help_content['title'])
@@ -46,9 +46,9 @@ class BotHelp(commands.Cog):
 					if help_content['related_terms']:
 						embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
 
-					await interaction.channel.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 			else:
-				await interaction.channel.send(f"The term {help_key} is not understood.")
+				await interaction.response.send_message(f"The term {help_key} is not understood.")
 		else:
 
 			help_content = help_dictionary[help_dictionary_index["help"]]
@@ -57,4 +57,4 @@ class BotHelp(commands.Cog):
 			embed.add_field(name="Usage", value=f"{command_prefix} help {help_content['usage']}", inline=False)
 			embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 			embed.add_field(name="Commands", value='\n'.join(f"**{k}**: {v['brief']}" for k, v in sorted(help_dictionary.items()) if k in command_list), inline=False)
-			await interaction.channel.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
