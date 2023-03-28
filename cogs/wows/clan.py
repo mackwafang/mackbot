@@ -1,13 +1,12 @@
 from datetime import date
 from typing import Optional
 
-from discord import app_commands, Embed, SelectOption
+from discord import app_commands, Embed, SelectOption, Interaction
 from discord.utils import escape_markdown
 from discord.ext import commands
 
-from mackbot.enums import COMMAND_INPUT_TYPE
-from mackbot.utilities.to_plural import to_plural
 from .bot_help import BotHelp
+from mackbot.utilities.to_plural import to_plural
 from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
@@ -23,43 +22,27 @@ LEAGUE_STRING = [
 ]
 
 class Clan(commands.Cog):
-	def __init__(self, client):
-		self.client = client
+	def __init__(self, bot):
+		self.bot = bot
 
 	@app_commands.command(name="clan", description="Get some basic information about a clan")
 	@app_commands.describe(
 		clan_name="Name or tag of clan",
 		region='Clan region'
 	)
-	async def clan(self, context: commands.Context,
-	                 clan_name: str,
-	                 region: Optional[str]='na',):
+	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
 		# check if *not* slash command,
-		if context.clean_prefix != '/' or '[modified]' in context.message.content:
-			args = context.message.content.split()[2:]
-			if '[modified]' in context.message.content:
-				args = args[:-1]
-			input_type = COMMAND_INPUT_TYPE.CLI
-		else:
-			args = list(context.kwargs.values())
-			input_type = COMMAND_INPUT_TYPE.SLASH
+		args = clan_name
 
 		if args:
-			# grab optional args
-			if input_type == COMMAND_INPUT_TYPE.CLI:
-				optional_args = clan_filter_regex.findall(' '.join(args))[0]
-
-				search_term = optional_args[0]
-				clan_region = optional_args[1] # filter ship listing, same rule as list ships
-			else:
-				search_term = clan_name
-				clan_region = region
+			search_term = clan_name
+			clan_region = region
 
 			if clan_region not in WOWS_REALMS:
 				clan_region = 'na'
 
 			if not search_term:
-				await BotHelp.custom_help(BotHelp, context, "clan")
+				await BotHelp.custom_help(BotHelp, interaction, "clan")
 				return
 
 			clan_search = WG[clan_region].clans.list(search=search_term)
@@ -68,14 +51,14 @@ class Clan(commands.Cog):
 				selected_clan = None
 				if len(clan_search) > 1:
 					clan_options= [SelectOption(label=f"[{i + 1}] [{escape_markdown(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
-					view = UserSelection(context.author, 15, "Select a clan", clan_options)
+					view = UserSelection(interaction.user, 15, "Select a clan", clan_options)
 
 					embed = Embed(title=f"Search result for clan {search_term}", description="")
 					embed.description += "**mackbot found the following clans**\n"
 					embed.description += '\n'.join(i.label for i in clan_options)
 					embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
 					                      "Response expires in 15 seconds")
-					view.message = await context.send(embed=embed, view=view)
+					view.message = await interaction.channel.send(embed=embed, view=view)
 					await view.wait()
 					selected_clan_index = await get_user_response_with_drop_down(view)
 					if selected_clan_index != -1:
@@ -154,7 +137,7 @@ class Clan(commands.Cog):
 					clan_history[clan_id] = {'members': clan_detail['members'], 'updated_at': clan_detail['updated_at']}
 
 				if history_output:
-					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{name}{icon}" for name, icon in history_output), inline=False)
+					embed.add_field(name=f"__**Transfer History**__", value='\n'.join(f"{escape_markdown(name)}{icon}" for name, icon in history_output), inline=False)
 
 				# output members
 				members_per_column = 10
@@ -163,12 +146,12 @@ class Clan(commands.Cog):
 					sliced_member_list = clan_members_sort_by_alpha[i:i+members_per_column]
 					if sliced_member_list:
 						embed.add_field(name=f"__**Members**__", value='\n'.join(sliced_member_list), inline=True)
-				await context.send(embed=embed)
+				await interaction.channel.send(embed=embed)
 			else:
 				# no clan matches search
 				embed = Embed(title=f"Search result for clan {search_term}", description="")
 				embed.description += "Clan not found"
 
-				await context.send(embed=embed)
+				await interaction.channel.send(embed=embed)
 		else:
-			await BotHelp.custom_help(BotHelp, context, "clan")
+			await BotHelp.custom_help(BotHelp, interaction, "clan")
