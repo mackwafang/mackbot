@@ -1,7 +1,7 @@
 import discord, re
 
 from typing import Optional
-from discord import app_commands
+from discord import app_commands, Interaction
 from discord.ext import commands
 from mackbot.utilities.compile_bot_help import *
 from mackbot.constants import ICONS_EMOJI, EMPTY_LENGTH_CHAR
@@ -11,9 +11,9 @@ class BotHelp(commands.Cog):
 	def __init__(self, client):
 		self.client = client
 
-	@commands.hybrid_command(name="help", description="Get help on a mackbot command or a WoWS terminology")
+	@app_commands.command(name="help", description="Get help on a mackbot command or a WoWS terminology")
 	@app_commands.describe(help_key="Command or WoWS terminology")
-	async def custom_help(self, context: commands.Context, help_key: Optional[str]=""):
+	async def custom_help(self, interaction: Interaction, help_key: Optional[str]=""):
 		help_key = help_key.lower()
 		logger.info(f"can i haz halp for {help_key}")
 		if len(help_key):
@@ -23,12 +23,12 @@ class BotHelp(commands.Cog):
 				if help_key.split()[0] in command_list:
 					embed = discord.Embed(title=f"The {help_key} command")
 
-					embed.add_field(name="Usage", value=f"{command_prefix} {help_key} {help_content['usage']}", inline=False)
+					embed.add_field(name="Usage", value=f"/{help_key} {help_content['usage']}", inline=False)
 					embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 					if "options" in help_content:
 						embed.add_field(name="Options", value='\n'.join(f"**{k}**: {chr(10).join(v) if type(v) == list else v}" for k, v in help_content['options'].items()), inline=False)
 
-					await context.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 				else:
 					# a help on terminology
 					embed = discord.Embed(title=help_content['title'])
@@ -46,9 +46,9 @@ class BotHelp(commands.Cog):
 					if help_content['related_terms']:
 						embed.add_field(name="Related Terms", value=', '.join(i for i in help_content['related_terms']), inline=False)
 
-					await context.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 			else:
-				await context.send(f"The term {help_key} is not understood.")
+				await interaction.response.send_message(f"The term {help_key} is not understood.")
 		else:
 
 			help_content = help_dictionary[help_dictionary_index["help"]]
@@ -57,4 +57,4 @@ class BotHelp(commands.Cog):
 			embed.add_field(name="Usage", value=f"{command_prefix} help {help_content['usage']}", inline=False)
 			embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)
 			embed.add_field(name="Commands", value='\n'.join(f"**{k}**: {v['brief']}" for k, v in sorted(help_dictionary.items()) if k in command_list), inline=False)
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)

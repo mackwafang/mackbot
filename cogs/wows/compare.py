@@ -1,10 +1,9 @@
 import traceback, re, asyncio
 
-from discord import app_commands, Embed, SelectOption
+from discord import app_commands, Embed, SelectOption, Interaction
 from discord.ext import commands
 from itertools import zip_longest
 
-from mackbot.utilities.discord.formatting import number_separator
 from .bot_help import BotHelp
 from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
 from mackbot.exceptions import *
@@ -13,36 +12,32 @@ from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_modu
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
+from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
+from mackbot.utilities.discord.formatting import number_separator
 
 class Compare(commands.Cog):
-	def __init__(self, client):
-		self.client = client
+	def __init__(self, bot):
+		self.bot = bot
 
-	@commands.hybrid_command(name='compare', description='Compare combat parameters of two warships')
+	@app_commands.command(name='compare', description='Compare combat parameters of two warships')
 	@app_commands.describe(
-		value="Two ships to compare. Add the word \"and\" between ship names",
+		ship1="First Ship Name",
+		ship2="Second Ship Name",
 	)
-	async def compare(self, context: commands.Context, value: str):
-		# check if *not* slash command,
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[2:])
-		else:
-			args = value
-		# args = ' '.join(args) # join arguments to split token
-		# user_input_ships = args.replace("and", "&").split("&")
-		compare_separator = ("and", "vs", "v")
-		user_input_ships = re.sub(f"\\s{'|'.join(compare_separator)}\s", " & ", args, flags=re.I).split("&")
-		if len(user_input_ships) != 2:
-			await BotHelp.custom_help(BotHelp, context, "compare")
-			return
-		# parse whitespace
-		user_input_ships  = [' '.join(i.split()) for i in user_input_ships]
+	@app_commands.autocomplete(
+		ship1=auto_complete_ship_name,
+        ship2=auto_complete_ship_name,
+	)
+	async def compare(self, interaction: Interaction, ship1: str, ship2: str):
+
+		user_input_ships  = [ship1, ship2]
 		ships_to_compare = []
 
 		def user_correction_check(message):
-			return context.author == message.author and message.content.lower() in ['y', 'yes']
+			return interaction.user == message.author and message.content.lower() in ['y', 'yes']
 
 		# checking ships name and grab ship data
+		await interaction.response.defer()
 		for s in user_input_ships:
 			try:
 				ships_to_compare += [get_ship_data(s)]
@@ -50,21 +45,25 @@ class Compare(commands.Cog):
 				logger.info(f"ship check [{s}] FAILED")
 				logger.info(f"sending correction reponse")
 				closest_match = find_close_match_item(s.lower(), "ship_list")
-				closest_match_string = closest_match[0].title()
 				embed = Embed(title=f"Ship {s} is not understood.\n", description="")
 				if len(closest_match) > 0:
+					closest_match_string = closest_match[0].title()
 					embed.description += f'\nDid you mean **{closest_match_string}**?'
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-					await context.send(embed=embed)
+					correction_embed  = await interaction.channel.send(embed=embed)
 					try:
-						msg = await self.client.wait_for("message", timeout=10, check=user_correction_check)
+						msg = await self.bot.wait_for("message", timeout=10, check=user_correction_check)
 						if msg:
 							ships_to_compare += [get_ship_data(closest_match_string)]
+							await correction_embed.delete()
+							await msg.delete()
 					except asyncio.TimeoutError:
 						pass
 				else:
-					await context.send(embed=embed)
+					embed.set_footer(text="A ship name cannot be understood and comparison cannot be completed.\n"
+					                      "Please check any spelling errors that may have occurred.")
+					await interaction.followup.send(embed=embed)
 					return
 			finally:
 				logger.info(f"ship check [{s}] OK")
@@ -86,17 +85,17 @@ class Compare(commands.Cog):
 		response_embed.set_footer(text="Response expires in 15 seconds")
 		options = [SelectOption(label=o, value=i) for i, o in enumerate(user_options)]
 		view = UserSelection(
-			author=context.message.author,
+			author=interaction.user,
 			timeout=15,
 			options=options,
 			placeholder="Select an option"
 		)
-		view.message = await context.send(embed=response_embed, view=view)
+		view.message = await interaction.channel.send(embed=response_embed, view=view)
 		user_selection = await get_user_response_with_drop_down(view)
 		if 0 <= user_selection < len(user_options):
-			pass
+			await view.message.delete()
 		else:
-			await context.send(f"Input {user_selection} is incorrect")
+			await interaction.response.send_message(f"Input {user_selection} is incorrect")
 
 		# compile info
 		if user_selection != -1:
@@ -387,7 +386,7 @@ class Compare(commands.Cog):
 								embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=True)
 				else:
 					embed.add_field(name="Error", value=f"One of these ships does not have {user_options[user_selection].lower()}")
-			await context.send(embed=embed)
+			await interaction.followup.send(embed=embed)
 		else:
 			logger.info("Response expired")
 		del user_correction_check

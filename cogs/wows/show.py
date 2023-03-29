@@ -3,7 +3,7 @@ import traceback
 from math import ceil
 from typing import Optional
 
-from discord import app_commands, Embed
+from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
 from bot import ICONS_EMOJI
@@ -17,24 +17,18 @@ from mackbot.utilities.ship_consumable_code import characteristic_rules
 
 
 class Show(commands.Cog):
-	def __init__(self, client):
-		self.client = client
+	def __init__(self, bot):
+		self.bot = bot
+		self.bot.tree.add_command(ShowGroup(name="show", description="List out all items from a category"))
+	# @app_commands.command(name="show", description="List out all items from a category")#, pass_context=True, invoke_without_command=True)
+	# async def show(self, interaction: Interaction):
+	# 	pass
 
-	@commands.hybrid_group(name="show", description="List out all items from a category", pass_context=True, invoke_without_command=True)
-	# @mackbot.group(pass_context=True, invoke_without_command=True)
-	async def show(self, context: commands.Context):
-		# list command
-		if context.invoked_subcommand is None:
-			await context.invoke(self.client.get_command('help'), 'show')
-
-	@show.command(name="skills", description="Show all ships in a query.")
+class ShowGroup(app_commands.Group):
+	@app_commands.command(name="skills", description="Show all ships in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
-	async def skills(self, context: commands.Context, args: Optional[str]=""):
-		# check if *not* slash command,
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[3:])
-
+	async def skills(self, interaction: Interaction, args: Optional[str]=""):
 		# list all skills
 		search_param = args.split()
 		search_param = skill_list_regex.findall(''.join([i + ' ' for i in search_param]))
@@ -88,17 +82,12 @@ class Show(commands.Cog):
 			embed.add_field(name="(Type, tier) Skill", value=''.join([v + '\n' for v in i]))
 		embed.set_footer(text=f"{num_items} skills found.\nFor more information on a skill, use [{command_prefix} skill [ship_class] [skill_name]]")
 
-		await context.send(embed=embed)
+		await interaction.response.send_message(embed=embed)
 
-	@show.command(name="upgrades", description="Show all upgrades in a query.")
+	@app_commands.command(name="upgrades", description="Show all upgrades in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
-	async def upgrades(self, context: commands.Context, args: Optional[str]=""):
-		# list upgrades
-
-		# check if *not* slash command,
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[3:])
+	async def upgrades(self, interaction: Interaction, args: Optional[str]=""):
 
 		embed = None
 		try:
@@ -176,17 +165,13 @@ class Show(commands.Cog):
 				error_message = f"Value {args[3]} is not understood"
 			else:
 				logger.info(f"Exception {type(e)} {e}")
-		await context.send(embed=embed)
+		await interaction.response.send_message(embed=embed)
 
-	@show.command(name="ships", description="Show all ships in a query.")
+	@app_commands.command(name="ships", description="Show all ships in a query.")
 	@app_commands.rename(args="query")
 	@app_commands.describe(args="Query to list items")
 	# @show.command()
-	async def ships(self, context: commands.Context, args: Optional[str]=""):
-		# parsing search parameters
-		# check if *not* slash command,
-		if context.clean_prefix != '/':
-			args = ' '.join(context.message.content.split()[3:])
+	async def ships(self, interaction: Interaction, args: Optional[str]=""):
 
 		s = ship_list_regex.findall(args)
 
@@ -346,4 +331,4 @@ class Show(commands.Cog):
 			# no ships found
 			embed = Embed(title=embed_title, description="")
 			embed.description = "**No ships found**"
-		await context.send(embed=embed)
+		await interaction.response.send_message(embed=embed)

@@ -6,6 +6,6 @@ engine boost
 gun boost
 (unlimited (?:charge)? )?(dfaa|defensive aa fire)
 torpedo boost(?:er)?
-(super )?(repair|heal)
+(super ?)?(repair|heal)
 spotter(?: aircraft| plane)?
 fighters?(?: plane)?

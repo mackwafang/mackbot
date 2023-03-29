@@ -13,7 +13,8 @@ class UserSelection(View):
 	async def disable_component(self) -> None:
 		for child in self.children:
 			child.disabled = True
-		await self.message.edit(view=self)
+		if self.message is not None:
+			await self.message.edit(view=self)
 
 	async def on_timeout(self) -> None:
 		self.select_menu.placeholder = "Response Expired"

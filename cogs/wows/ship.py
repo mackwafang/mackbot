@@ -1,6 +1,7 @@
 import re, traceback
 from typing import Optional
 
+import discord
 from discord import app_commands, Embed
 from discord.ext import commands
 
@@ -34,17 +35,16 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	ARMOR = auto()
 
 class Ship(commands.Cog):
-	def __init__(self, client):
-		self.client = client
+	def __init__(self, bot):
+		self.bot = bot
 
-	@commands.hybrid_command(name='ship', description='Get combat parameters of a warship')
-	@app_commands.rename(args="ship")
+	@app_commands.command(name='ship', description='Get combat parameters of a warship')
 	@app_commands.describe(
-		args="Ship name",
+		ship_name="Ship name",
 		parameters="Ship parameters for detailed report",
 	)
-	@app_commands.autocomplete(args=auto_complete_ship_name)
-	async def ship(self, context: commands.Context, args: str, parameters: Optional[str]=""):
+	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
+	async def ship(self, interaction: discord.Interaction, ship_name: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 
@@ -54,32 +54,10 @@ class Ship(commands.Cog):
 					-p/--parameters - Optional. Filters only specific warship parameters
 										Parameters may include, but not limited to: guns, secondary, torpedoes, hull
 		"""
-
-		# check if *not* slash command,
-		if context.clean_prefix != '/' or '[modified]' in context.message.content:
-			args = context.message.content.split()[2:]
-			if '[modified]' in context.message.content:
-				args = args[:-1]
-			input_type = COMMAND_INPUT_TYPE.CLI
-		else:
-			args = list(context.kwargs.values())
-			input_type = COMMAND_INPUT_TYPE.SLASH
-
-		param_filter = ""
-
-		if input_type == COMMAND_INPUT_TYPE.CLI:
-			args = ' '.join(i for i in args if i)  # fuse back together to check filter
-			split_opt_args = re.sub("(?:-p)|(?:--parameters)", ",", args, re.I).split(" , ")
-			has_filter = len(split_opt_args) > 1
-			if has_filter:
-				param_filter = split_opt_args[1]
-			ship = split_opt_args[0]
-		else:
-			ship = args[0]
-			param_filter = args[1]
+		param_filter = parameters
 
 		try:
-			ship_data = get_ship_data(ship)
+			ship_data = get_ship_data(ship_name)
 			if ship_data is None:
 				raise NoShipFound
 
@@ -717,8 +695,8 @@ class Ship(commands.Cog):
 				if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
-			footer_message += f"For details specific parameters, use [mackbot ship {ship} -p parameters]\n"
-			footer_message += f"For {ship.title()} builds, use [mackbot build {ship}]\n\n"
+			footer_message += f"For details specific parameters, use [/ship {ship_name} -p parameters]\n"
+			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n\n"
 			footer_message += f"Tags: "
 			tags = []
 			for tag in ship_data['tags'].values():
@@ -727,15 +705,15 @@ class Ship(commands.Cog):
 			if is_test_ship:
 				footer_message += f"\n* Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			traceback.print_exc()
 			# error, ship name not understood
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				closest_match = find_close_match_item(ship.lower(), "ship_list")
-				embed = Embed(title=f"Ship {ship} is not understood.\n", description="")
+				closest_match = find_close_match_item(ship_name.lower(), "ship_list")
+				embed = Embed(title=f"Ship {ship_name} is not understood.\n", description="")
 				if closest_match:
 					closest_match_string = closest_match[0].title()
 					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
@@ -743,12 +721,13 @@ class Ship(commands.Cog):
 					embed.description = closest_match_string
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
-					await context.send(embed=embed)
-					await correct_user_misspell(self.client, context, 'ship', f"{closest_match[0]}{' -p ' if param_filter else ''}{param_filter}")
+					msg = await interaction.channel.send(embed=embed)
+					await correct_user_misspell(self.bot, interaction, Ship, "ship", closest_match[0], param_filter)
+					await msg.delete()
 				else:
-					await context.send(embed=embed)
+					await interaction.response.send_message(embed=embed)
 
 			else:
 				# we dun goofed
-				await context.send(f"An internal error has occured.")
+				await interaction.response.send_message(f"An internal error has occured.")
 				traceback.print_exc()
