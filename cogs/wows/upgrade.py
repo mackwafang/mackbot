@@ -1,6 +1,6 @@
 import traceback
 
-from discord import app_commands, Embed
+from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
 from mackbot.enums import COMMAND_INPUT_TYPE
@@ -13,26 +13,16 @@ from mackbot.utilities.logger import logger
 from mackbot.utilities.discord.items_autocomplete import auto_complete_upgrades_name
 
 class Upgrade(commands.Cog):
-	def __init__(self, client):
-		self.client = client
+	def __init__(self, bot):
+		self.bot = bot
 
 	@app_commands.command(name="upgrade", description="Get information on an upgrade")
 	@app_commands.describe(
 		upgrade_name="Upgrade name, upgrade abbreviation, or ship name (applicable to ships with unique upgrades)."
 	)
 	@app_commands.autocomplete(upgrade_name=auto_complete_upgrades_name)
-	async def upgrade(self, context: commands.Context, upgrade_name: str):
+	async def upgrade(self, interaction: Interaction, upgrade_name: str):
 		logger.info(f"Received {upgrade_name}")
-		# check if *not* slash command,
-		if context.clean_prefix != '/' or '[modified]' in context.message.content:
-			args = context.message.content.split()[2:]
-			if '[modified]' in context.message.content:
-				args = args[:-1]
-			input_type = COMMAND_INPUT_TYPE.CLI
-		else:
-			args = list(context.kwargs.values())
-			input_type = COMMAND_INPUT_TYPE.SLASH
-		upgrade_name = ' '.join(args)
 
 		# getting appropriate search function
 		try:
@@ -70,8 +60,8 @@ class Upgrade(commands.Cog):
 			embed = Embed(title=embed_title, description="")
 			embed.set_thumbnail(url=image)
 			# get server emoji
-			if context.guild is not None:
-				server_emojis = context.guild.emojis
+			if interaction.guild is not None:
+				server_emojis = interaction.guild.emojis
 			else:
 				server_emojis = []
 
@@ -150,7 +140,7 @@ class Upgrade(commands.Cog):
 					logger.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
-			await context.send(embed=embed)
+			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception in upgrade: {type(e)} {e}")
 			traceback.print_exc()
@@ -162,5 +152,6 @@ class Upgrade(commands.Cog):
 				embed.description += f'\nDid you mean **{closest_match[0]}**?'
 				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 				embed.set_footer(text="Response expires in 10 seconds")
-			await context.send(embed=embed)
-			await correct_user_misspell(self.client, context, 'upgrade', closest_match[0])
+			msg = await interaction.channel.send(embed=embed)
+			await correct_user_misspell(self.bot, interaction, Upgrade, "upgrade", closest_match[0])
+			await msg.delete()
