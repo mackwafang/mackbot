@@ -30,6 +30,20 @@ class Listener(commands.Cog):
 				m += f"**{permission_name}:** {':x:' if is_permission_missing else ':white_check_mark:'} (Use in: {use_in})\n"
 			m += "\n"
 			await message.channel.send(content=m)
+		else:
+			args = message.content.split()
+			if args:
+				if args[1] in command_list:
+					logger.info("User [{} ({})] via [{}] queried: {}".format(message.author, message.author.id, message.guild, message.content))
+
+
+
+	@commands.Cog.listener()
+	async def on_interaction(self, interaction: discord.Interaction):
+		logger.info(f"user {interaction.user} ({interaction.user.id}) at "
+		            f"[{interaction.guild.name[:25]:<25} ({interaction.guild_id}), {interaction.channel.name[:25]:<25} ({interaction.channel_id})] "
+		            f"queried {interaction.data}"
+		)
 
 	@commands.Cog.listener()
 	async def on_ready(self):
@@ -55,7 +69,7 @@ class Listener(commands.Cog):
 						embed.add_field(
 							name=f":one: __**Server Administrations: To manually enable (or disable) mackbot's slash commands:**__\n",
 							value=f":regional_indicator_a: Go to Server Settings -> Integrations -> mackbot -> Manage\n"
-							      f":regional_indicator_b: Under Roles & Members, enable @everyone or specific roles\n"
+							      f":regional_indicator_b: Under Roles & Members, enable \@everyone or specific roles\n"
 							      f":regional_indicator_c: Optional: Enable specific channels.\n",
 							inline=False,
 						)
