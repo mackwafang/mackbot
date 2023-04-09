@@ -39,7 +39,7 @@ class Listener(commands.Cog):
 
 
 	@commands.Cog.listener()
-	async def on_interaction(self, interaction: discord.Interaction):
+	async def on_app_command_completion(self, interaction: discord.Interaction, command):
 		logger.info(f"user {interaction.user} ({interaction.user.id}) at "
 		            f"[{interaction.guild.name[:25]:<25} ({interaction.guild_id}), {interaction.channel.name[:25]:<25} ({interaction.channel_id})] "
 		            f"queried {interaction.data}"
@@ -91,8 +91,8 @@ class Listener(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
-		logger.info(f"Joined server {guild.name} ({guild.id})")
+		logger.info(f"Joined server [{guild.name}] ({guild.id})")
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild: discord.Guild):
-		logger.info(f"Left server {guild.name} ({guild.id})")
+		logger.info(f"Left server [{guild.name}] ({guild.id})")
