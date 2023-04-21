@@ -4,7 +4,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from cogs.wows.bot_help import BotHelp
 from mackbot.utilities.logger import logger
-from mackbot.utilities.bot_data import command_list, discord_invite_url, bot_invite_url
+from mackbot.utilities.bot_data import command_list, discord_invite_url, bot_invite_url, command_prefix
 
 class Listener(commands.Cog):
 	def __init__(self, client: discord.Client, command_prefix: str):
@@ -30,6 +30,20 @@ class Listener(commands.Cog):
 				m += f"**{permission_name}:** {':x:' if is_permission_missing else ':white_check_mark:'} (Use in: {use_in})\n"
 			m += "\n"
 			await message.channel.send(content=m)
+		else:
+			args = message.content.split()
+			if args:
+				if args[0] in command_prefix and args[1] in command_list:
+					logger.info("User [{} ({})] via [{}] queried: {}".format(message.author, message.author.id, message.guild, message.content))
+
+
+
+	@commands.Cog.listener()
+	async def on_app_command_completion(self, interaction: discord.Interaction, command):
+		logger.info(f"user {interaction.user} ({interaction.user.id}) at "
+		            f"[{interaction.guild.name[:25]:<25} ({interaction.guild_id}), {interaction.channel.name[:25]:<25} ({interaction.channel_id})] "
+		            f"queried {interaction.data}"
+		)
 
 	@commands.Cog.listener()
 	async def on_ready(self):
@@ -55,7 +69,7 @@ class Listener(commands.Cog):
 						embed.add_field(
 							name=f":one: __**Server Administrations: To manually enable (or disable) mackbot's slash commands:**__\n",
 							value=f":regional_indicator_a: Go to Server Settings -> Integrations -> mackbot -> Manage\n"
-							      f":regional_indicator_b: Under Roles & Members, enable @everyone or specific roles\n"
+							      f":regional_indicator_b: Under Roles & Members, enable \@everyone or specific roles\n"
 							      f":regional_indicator_c: Optional: Enable specific channels.\n",
 							inline=False,
 						)
@@ -77,8 +91,8 @@ class Listener(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_guild_join(self, guild: discord.Guild):
-		logger.info(f"Joined server {guild.name} ({guild.id})")
+		logger.info(f"Joined server [{guild.name}] ({guild.id})")
 
 	@commands.Cog.listener()
 	async def on_guild_remove(self, guild: discord.Guild):
-		logger.info(f"Left server {guild.name} ({guild.id})")
+		logger.info(f"Left server [{guild.name}] ({guild.id})")
