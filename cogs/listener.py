@@ -4,7 +4,7 @@ from discord import app_commands, Interaction
 from discord.ext import commands
 from cogs.wows.bot_help import BotHelp
 from mackbot.utilities.logger import logger
-from mackbot.utilities.bot_data import command_list, discord_invite_url, bot_invite_url
+from mackbot.utilities.bot_data import command_list, discord_invite_url, bot_invite_url, command_prefix
 
 class Listener(commands.Cog):
 	def __init__(self, client: discord.Client, command_prefix: str):
@@ -33,7 +33,7 @@ class Listener(commands.Cog):
 		else:
 			args = message.content.split()
 			if args:
-				if args[1] in command_list:
+				if args[0] in command_prefix and args[1] in command_list:
 					logger.info("User [{} ({})] via [{}] queried: {}".format(message.author, message.author.id, message.guild, message.content))
 
 
