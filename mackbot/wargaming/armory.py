@@ -18,14 +18,14 @@ def get_armory_data():
 
 	logger.info("Response OK, parsing data")
 	data = res.text
-	regex = re.compile("metashop\.state\.content = (.*)\\s*try")
+	# regex = re.compile("metashop\.state\.content = (.*)\\s*try")
+	regex = re.compile("const ?_state = (.*);+\n")
 
 	match = regex.findall(data)[0]
-	match = match[:-1]
 
 	armory_data = json.loads(match)
 
-	return armory_data['bundles']
+	return armory_data['content']['bundles']
 
 def get_armory_ships():
 	"""
@@ -40,12 +40,14 @@ def get_armory_ships():
 	logger.info("Extracting coal, research, and steel ship prices")
 	ships = {}
 	for k, data in armory_data.items():
-		for item in data['items']:
-			if (item['type'] == 'ship') and (data['price'][0]['currency'] in NON_EVENT_SHIP_CURRENCY):
+		# for each item in bundle
+		for item in data['entitlements']:
+			# check if ship and it is a ship that requires listed currency
+			if (item['type'] == 'ship') and (data['currency'] in NON_EVENT_SHIP_CURRENCY):
 				d = {
-					"ship_id": item['cd'],
-					"currency_type": data['price'][0]['currency'],
-					"value": data['price'][0]['value'],
+					"ship_id": item['identifier'],
+					"currency_type": data['currency'],
+					"value": data['price'],
 				}
 				ships[d['ship_id']] = d.copy()
 
