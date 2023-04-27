@@ -186,7 +186,7 @@ def load_module_list():
 	for page in count(1):
 		try:
 			m = wows_encyclopedia.modules(language='en', page_no=page)
-			for i in m:
+			for counter, i in enumerate(m):
 				module_list[i] = m[i]
 		except Exception as e:
 			if type(e) == wargaming.exceptions.RequestError:

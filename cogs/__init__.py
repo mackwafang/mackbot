@@ -10,7 +10,7 @@ from cogs.wows.show import Show
 from cogs.wows.skill import Skill
 from cogs.wows.upgrade import Upgrade
 from cogs.wows.misc import Misc
-from cogs.wows.analyze import Analyze
+#from cogs.wows.analyze import Analyze
 
 from cogs.misc.wtn import Wonton
 
