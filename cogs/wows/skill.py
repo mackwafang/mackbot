@@ -45,7 +45,7 @@ class Skill(commands.Cog):
 			await interaction.response.send_message(embed=embed)
 
 		except Exception as e:
-			logger.info(f"Exception in skill {type(e)}: {e}")
+			logger.info(f"Exception in skill {type(e)}: {e}. No skill found for {skill_name}")
 			traceback.print_exc()
 			if type(e) == NoSkillFound:
 				closest_match = find_close_match_item(skill_name, "skill_list")

@@ -290,7 +290,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception in get_skill_data {type(e)}: {e}")
+		logger.info(f"Exception in get_skill_data: {type(e)}: {e}. Tried to find skill with name {skill}.")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:
