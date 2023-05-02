@@ -217,7 +217,7 @@ def get_legendary_upgrade_by_ship_name(ship: str) -> dict:
 			return query_result
 	return None
 
-def get_skill_data(tree: str, skill: str) -> dict:
+def get_skill_data(skill: str) -> dict:
 	"""
 	returns information of a requested commander skill
 
@@ -242,40 +242,42 @@ def get_skill_data(tree: str, skill: str) -> dict:
 		ship_class_lookup = [i.lower() for i in hull_classification_converter.keys()] + [i.lower() for i in hull_classification_converter.values()]
 		hull_class_lower = dict([(i.lower(), hull_classification_converter[i].lower()) for i in hull_classification_converter])
 
-		if tree not in ship_class_lookup:
-			# requested type is not in
-			raise SkillTreeInvalid(f"Expected {', '.join(i for i in ship_class_lookup)}. Got {tree}.")
-		else:
+		# if tree not in ship_class_lookup:
+		# 	# requested type is not in
+		# 	raise SkillTreeInvalid(f"Expected {', '.join(i for i in ship_class_lookup)}. Got {tree}.")
+		# else:
 			# convert from hull classification to word
+			# if tree not in hull_class_lower:
+			# 	for h in hull_class_lower:
+			# 		if hull_class_lower[h].lower() == tree:
+			# 			tree = h.lower()
+			# 			break
 
-			if tree not in hull_class_lower:
-				for h in hull_class_lower:
-					if hull_class_lower[h].lower() == tree:
-						tree = h.lower()
-						break
-
-			if database_client is not None:
-				# connection to db
-				query_result = database_client.mackbot_db.skill_list.find_one({
-					"name": {"$regex": f"^{skill.lower()}$", "$options": "i"},
-					"tree": {"$regex": f"^{tree.lower()}$", "$options": "i"}
-				})
-				if query_result is None:
-					# query returns no result
-					raise NoSkillFound
-				else:
-					return query_result
-			else:
-				# looking for skill based on full name
-				filtered_skill_list = dict([(s, skill_list[s]) for s in skill_list if skill_list[s]['tree'].lower() == tree])
-				for f_s in filtered_skill_list:
-					for lookup_type in ['name', 'abbr']:
-						if filtered_skill_list[f_s]['name'].lower() == skill:
-							s = filtered_skill_list[f_s].copy()
-							if s['tree'] == 'AirCarrier':
-								s['tree'] = "Aircraft Carrier"
-							return s
+		if database_client is not None:
+			# connection to db
+			query_result = database_client.mackbot_db.skill_list.find({
+				"name": {"$regex": f"^{skill.lower()}$", "$options": "i"},
+				# "tree": {"$regex": f"^{tree.lower()}$", "$options": "i"}
+			})
+			query_result = [dict(i) for i in query_result]
+			if not query_result:
 				raise NoSkillFound
+
+			return query_result
+		else:
+			# looking for skill based on full name
+			return_dict = {}
+			for skill in skill_list:
+				for lookup_type in ['name', 'abbr']:
+					if skill_list[skill][lookup_type].lower() == skill:
+						s = skill_list[skill].copy()
+						if s['tree'] == 'AirCarrier':
+							s['tree'] = "Aircraft Carrier"
+
+						return_dict[skill] = s
+			if len(return_dict):
+				return return_dict
+			raise NoSkillFound
 
 	except Exception as e:
 		if skill == "*":
@@ -290,7 +292,7 @@ def get_skill_data(tree: str, skill: str) -> dict:
 				'y': -1,
 			}
 		# oops, probably not found
-		logger.info(f"Exception in get_skill_data {type(e)}: {e}")
+		logger.info(f"Exception in get_skill_data: {type(e)}: {e}. Tried to find skill with name {skill}.")
 		raise e
 
 def get_upgrade_data(upgrade: str) -> dict:

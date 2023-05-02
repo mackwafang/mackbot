@@ -257,7 +257,7 @@ class Build(commands.Cog):
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
-				await interaction.response.send_message(embed=embed)
+				await interaction.followup.send(embed=embed)
 			else:
 				logger.error(f"{type(e)}")
 				traceback.print_exc()
