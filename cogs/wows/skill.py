@@ -9,6 +9,7 @@ from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_skill_data
 from mackbot.utilities.logger import logger
+from mackbot.constants import ICONS_EMOJI
 
 
 class Skill(commands.Cog):
@@ -17,31 +18,27 @@ class Skill(commands.Cog):
 
 	@app_commands.command(name="skill", description="Get information on a commander skill")
 	@app_commands.describe(
-		skill_tree="Skill tree query. Accepts ship hull classification or ship type",
 		skill_name="Skill name"
 	)
-	async def skill(self, interaction: Interaction, skill_tree: str, skill_name: str):
+	async def skill(self, interaction: Interaction, skill_name: str):
 		# get information on requested skill
 		try:
-			# ship_class = args[0].lower()
-			# skill_name = ''.join([i + ' ' for i in args[1:]])[:-1]  # message_string[message_string.rfind('-')+1:]
+			embed = Embed(title=f"{skill_name.title()}", description="")
+			skill_data = get_skill_data(skill_name)
+			for skill in skill_data:
+				name = skill['name']
+				tree = skill['tree']
+				description = skill['description']
+				effect = skill['effect']
+				column = skill['x'] + 1
+				tier = skill['y'] + 1
+				category = skill['category']
 
-			# await context.typing()
-			skill_data = get_skill_data(skill_tree, skill_name)
-			name = skill_data['name']
-			tree = skill_data['tree']
-			description = skill_data['description']
-			effect = skill_data['effect']
-			column = skill_data['x'] + 1
-			tier = skill_data['y'] + 1
-			category = skill_data['category']
-			embed = Embed(title=f"{name}", description="")
-			# embed.set_thumbnail(url=icon)
-			embed.description += f"**{tree} Skill**\n"
-			embed.description += f"**Tier {tier} {category} Skill**, "
-			embed.description += f"**Column {column}**"
-			embed.add_field(name='Description', value=description, inline=False)
-			embed.add_field(name='Effect', value=effect, inline=False)
+				# embed.set_thumbnail(url=icon)
+				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
+				    f"{description}\n{effect}\n\n"
+				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
+
 			await interaction.response.send_message(embed=embed)
 
 		except Exception as e:
@@ -55,8 +52,9 @@ class Skill(commands.Cog):
 					embed.description += f'\nDid you mean **{closest_match[0]}**?'
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expires in 10 seconds")
-				await interaction.response.send_message(embed=embed)
-				await correct_user_misspell(self.bot, interaction, Skill, "skill", skill_tree, closest_match[0])
+				msg = await interaction.channel.send(embed=embed)
+				await correct_user_misspell(self.bot, interaction, Skill, "skill", closest_match[0])
+				await msg.delete()
 			if type(e) == SkillTreeInvalid:
 				embed = Embed(title=f"Skill tree is not understood.\n", description="")
 				embed.description += f'\n{e}'
