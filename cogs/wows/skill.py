@@ -41,7 +41,7 @@ class Skill(commands.Cog):
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
-				embed.description = f"{skill_name.title()} may refer to a skill in one of these trees."
+				embed.description = f"{name} may refer to a skill in one of these trees."
 
 			await interaction.response.send_message(embed=embed)
 
