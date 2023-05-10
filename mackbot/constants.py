@@ -150,6 +150,7 @@ ICONS_EMOJI = {
 	"Battleship": "<:battleship:917573129876959232>",
 	"cv": "<:carrier:917573129931477053>",
 	"AirCarrier": "<:carrier:917573129931477053>",
+	"Aircraft Carrier": "<:carrier:917573129931477053>",
 	"c": "<:cruiser:917573129885323374>",
 	"Cruiser": "<:cruiser:917573129885323374>",
 	"dd_prem": "<:destroyer_premium:917573129944059965>",
