@@ -293,7 +293,10 @@ class Ship(commands.Cog):
 					for turret_name in turret_data:
 						turret = turret_data[turret_name]
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
-					gun_ranges_with_fc = sorted([guns['range'] * fc['profile']['fire_control']['max_range_coef'] / 1000 for fc in fire_control_range])
+					if fire_control_range:
+						gun_ranges_with_fc = sorted([guns['range'] * fc['profile']['fire_control']['max_range_coef'] / 1000 for fc in fire_control_range])
+					else:
+						gun_ranges_with_fc = [guns['range'] / 1000]
 					gun_ranges_with_fc = [f"{i:0.1f}" for i in gun_ranges_with_fc]
 
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
