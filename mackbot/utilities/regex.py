@@ -27,6 +27,7 @@ ship_param_filter_regex = re.compile('('
                                      '(consumables?)|'
                                      '(upgrades?)|'
                                      '(armou?r)|'
+                                     '(sonar|pinger)|'
                                      ')*')
 player_arg_filter_regex = re.compile('(?:--type (solo|div2|div3))|(?:--ship (.+?(?= -|$)))|(?:--tier (\d+))|(?:--region (na|eu|ru|asia))')
 clan_filter_regex = re.compile('(.+?(?= -|$))(?: --region (na|eu|ru|asia))?')

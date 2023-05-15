@@ -26,6 +26,8 @@ upgrade_abbr_list = {}
 consumable_list = {}
 ship_build = {}
 
+all_data_loaded_for_use = False
+
 class SHIP_TAG(IntEnum):
 	SLOW_SPD = auto()
 	FAST_SPD = auto()
@@ -440,7 +442,7 @@ def update_ship_modules():
 				'flight_control': [],
 				'dive_bomber': [],
 				'skip_bomber': [],
-				'pinger': [],
+				'sonar': [],
 			},
 			"module_tree": {},
 			"nation": 'ussr' if missing_ship_data['navalFlag'].lower() == 'russia' else missing_ship_data['navalFlag'].lower(),
@@ -621,7 +623,7 @@ def update_ship_modules():
 								'near': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
 								'medium': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
 								'far': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
-								'flak': {'damage': 0, 'damage_with_dfaa': 0, },
+								'flak': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
 							}
 
 							min_aa_range = inf
@@ -887,6 +889,15 @@ def update_ship_modules():
 							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
 						continue
 
+					if ship_upgrade_info[_info]['ucType'] == '_Suo':  # Fire control system
+						if int(module_id) not in ship['modules']['fire_control']:
+							ship['modules']['fire_control'].append(int(module_id))
+
+						component = ship_upgrade_info[_info]['components']['fireControl'][0]
+						component = module_data[component]
+						module_list[module_id]['profile']['fire_control']['max_range_coef'] = component['maxDistCoef']
+						continue
+
 					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
 						if int(module_id) not in ship['modules']['torpedoes']:
 							ship['modules']['torpedoes'].append(int(module_id))
@@ -935,18 +946,19 @@ def update_ship_modules():
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Sonar':  # submarine pingers
-						if int(module_id) not in ship['modules']['pinger']:
-							ship['modules']['pinger'].append(int(module_id))
+						if int(module_id) not in ship['modules']['sonar']:
+							ship['modules']['sonar'].append(int(module_id))
 						# get torps parameter
 						gun = ship_upgrade_info[_info]['components']['pinger'][0]
 						gun = module_data[gun]
 						new_turret_data = {
 							"shotDelay": gun['waveReloadTime'],
 							"range": gun['waveDistance'],
+							"speed": gun['waveParams'][0]['waveSpeed'][0],
 							"ping_effect_duration": [sector['lifetime'] for sector in gun['sectorParams']],
 							"ping_effect_width": [sector['width'] for sector in gun['sectorParams']],
 						}
-						module_list[module_id]['profile']['pinger'] = new_turret_data.copy()
+						module_list[module_id]['profile']['sonar'] = new_turret_data.copy()
 						continue
 
 					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
@@ -1460,6 +1472,8 @@ def load():
 	create_ship_tags()
 	load_ship_builds()
 	post_process()
+
+	all_data_loaded_for_use = True
 
 if __name__ == "__main__":
 	load()

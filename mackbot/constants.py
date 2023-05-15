@@ -113,6 +113,12 @@ MM_WITH_CV_TIER = (
 	(10, ),
 )
 
+AMMO_TYPE_STRING = {
+	'he': 'HE',
+	'ap': 'AP',
+	'cs': 'SAP'
+}
+
 WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
