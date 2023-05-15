@@ -16,8 +16,11 @@ cmdr_list = {}
 flag_list = {}
 upgrade_abbr_list = {}
 consumable_list = {}
+
+# simple list only containing name
 ship_list_simple = {}
 upgrade_list_simple = {}
+skill_list_simple = {}
 
 # define database stuff
 database_client = None
@@ -43,6 +46,13 @@ try:
 		upgrade_list_simple[str(upgrade['consumable_id'])] = {
 			'name': upgrade['name'],
 		}
+
+	db_skill_list = database_client.mackbot_db.skill_list.find({}, {"_id": 0})
+	for skill in db_skill_list:
+		skill_list_simple[str(skill['skill_id'])] = {
+			'name': skill['name'],
+		}
+	skill_list_simple = dict((i, 0) for i in set(list([j['name'] for j in skill_list_simple.values()])))
 
 except ConnectionError:
 	from mackbot.data_prep import (

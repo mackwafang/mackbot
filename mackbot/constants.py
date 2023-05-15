@@ -113,6 +113,12 @@ MM_WITH_CV_TIER = (
 	(10, ),
 )
 
+AMMO_TYPE_STRING = {
+	'he': 'HE',
+	'ap': 'AP',
+	'cs': 'SAP'
+}
+
 WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
@@ -150,6 +156,7 @@ ICONS_EMOJI = {
 	"Battleship": "<:battleship:917573129876959232>",
 	"cv": "<:carrier:917573129931477053>",
 	"AirCarrier": "<:carrier:917573129931477053>",
+	"Aircraft Carrier": "<:carrier:917573129931477053>",
 	"c": "<:cruiser:917573129885323374>",
 	"Cruiser": "<:cruiser:917573129885323374>",
 	"dd_prem": "<:destroyer_premium:917573129944059965>",

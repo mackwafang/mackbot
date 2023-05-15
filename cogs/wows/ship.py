@@ -5,7 +5,7 @@ import discord
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING
+from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
 from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
@@ -33,6 +33,7 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	CONSUMABLE = auto()
 	UPGRADES = auto()
 	ARMOR = auto()
+	SONAR = auto()
 
 class Ship(commands.Cog):
 	def __init__(self, bot):
@@ -139,7 +140,7 @@ class Ship(commands.Cog):
 
 			# defines ship params filtering
 
-			ship_filter = 0b1111111111111  # assuming no filter is provided, display all
+			ship_filter = 0b111111111111111  # assuming no filter is provided, display all
 			# grab filters
 			if len(param_filter) > 0:
 				ship_filter = 0  # filter is requested, disable all
@@ -163,6 +164,7 @@ class Ship(commands.Cog):
 				ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
 				ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
 				ship_filter |= is_filter_requested(14) << SHIP_COMBAT_PARAM_FILTER.ARMOR
+				ship_filter |= is_filter_requested(15) << SHIP_COMBAT_PARAM_FILTER.SONAR
 
 				if True:
 					ship_filter_debug_string = "filter: "
@@ -291,8 +293,11 @@ class Ship(commands.Cog):
 					for turret_name in turret_data:
 						turret = turret_data[turret_name]
 						m += f"**{turret['count']} x {turret_name} ({to_plural('barrel', turret['numBarrels'])})**\n"
+					gun_ranges_with_fc = sorted([guns['range'] * fc['profile']['fire_control']['max_range_coef'] / 1000 for fc in fire_control_range])
+					gun_ranges_with_fc = [f"{i:0.1f}" for i in gun_ranges_with_fc]
+
 					m += f"**Rotation: ** {guns['transverse_speed']}{DEGREE_SYMBOL}/s ({180/guns['transverse_speed']:0.1f}s for 180{DEGREE_SYMBOL} turn)\n"
-					m += f"**Range: ** {'km - '.join(str(fc['profile']['fire_control']['distance']) for fc in fire_control_range)} km\n"
+					m += f"**Range: ** {' km - '.join(gun_ranges_with_fc)} km\n"
 					m += f"**Reload:** {guns['shotDelay']:0.1f}s\n"
 					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 						m += f"**Precision:** {guns['sigma']:1.2f}{SIGMA_SYMBOL}\n"
@@ -309,11 +314,7 @@ class Ship(commands.Cog):
 
 					for ammo_type in ['he', 'ap', 'cs']:
 						if guns['max_damage'][ammo_type]:
-							ammo_type_string = {
-								'he': 'HE',
-								'ap': 'AP',
-								'cs': 'SAP'
-							}[ammo_type]
+							ammo_type_string = AMMO_TYPE_STRING[ammo_type]
 							m += f"__**{ammo_type_string}: {guns['ammo_name'][ammo_type]}**__\n"
 							m += f"**{ammo_type_string} Shell:** :boom:{number_separator(guns['max_damage'][ammo_type])}"
 							if ammo_type == 'he':
@@ -694,6 +695,27 @@ class Ship(commands.Cog):
 						m += '\n'
 				if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 					embed.add_field(name="__**Consumables**__", value=m, inline=False)
+
+			# submarines pinger
+			if ship_type == 'Submarine' and len(modules['sonar']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.SONAR):
+				m = ""
+				if database_client is not None:
+					query_result = database_client.mackbot_db.module_list.find({
+						"module_id": {"$in": modules['sonar']}
+					}).sort("name", 1)
+				else:
+					query_result = sorted(modules['sonar'], key=lambda x: module_list[str(x)]['name'])
+
+				for module in query_result:
+					pinger = module['profile']['sonar']
+					m += f"__**{module['name']}**__\n"
+					m += f"**Range**: {pinger['range']/1000:0.1f} km\n"
+					m += f"**Duration**: {pinger['ping_effect_duration'][0]}s ({pinger['ping_effect_duration'][1]}s for 2)\n"
+					if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.SONAR:
+						m += f"**Width**: {pinger['ping_effect_width'][0]}m ({pinger['ping_effect_width'][1]}m for 2)\n"
+					m += '\n'
+				embed.add_field(name="__**Sonar**__", value=m, inline=False)
+
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [/ship {ship_name} -p parameters]\n"
 			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n\n"

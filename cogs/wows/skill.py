@@ -3,9 +3,9 @@ import traceback
 from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
-from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import NoSkillFound, SkillTreeInvalid
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.discord.items_autocomplete import auto_complete_skill_name
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_skill_data
 from mackbot.utilities.logger import logger
@@ -20,6 +20,7 @@ class Skill(commands.Cog):
 	@app_commands.describe(
 		skill_name="Skill name"
 	)
+	@app_commands.autocomplete(skill_name=auto_complete_skill_name)
 	async def skill(self, interaction: Interaction, skill_name: str):
 		# get information on requested skill
 		try:
@@ -27,7 +28,7 @@ class Skill(commands.Cog):
 			skill_data = get_skill_data(skill_name)
 			for skill in skill_data:
 				name = skill['name']
-				tree = skill['tree']
+				tree = 'Aircraft Carrier' if skill['tree'] == 'AirCarrier' else skill['tree']
 				description = skill['description']
 				effect = skill['effect']
 				column = skill['x'] + 1
@@ -38,6 +39,9 @@ class Skill(commands.Cog):
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
 				    f"{description}\n{effect}\n\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
+
+			if len(skill_data) > 1:
+				embed.description = f"{name} may refer to a skill in one of these trees."
 
 			await interaction.response.send_message(embed=embed)
 
