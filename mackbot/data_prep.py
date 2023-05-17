@@ -1473,6 +1473,7 @@ def load():
 	load_ship_builds()
 	post_process()
 
+	global all_data_loaded_for_use
 	all_data_loaded_for_use = True
 
 if __name__ == "__main__":
