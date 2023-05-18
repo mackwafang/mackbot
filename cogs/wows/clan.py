@@ -11,6 +11,7 @@ from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 from mackbot.utilities.regex import clan_filter_regex
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region
 from mackbot.wargaming.clans import clan_ranking
 
 LEAGUE_STRING = [
@@ -30,6 +31,7 @@ class Clan(commands.Cog):
 		clan_name="Name or tag of clan",
 		region='Clan region'
 	)
+	@app_commands.autocomplete(region=auto_complete_region)
 	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
 		# check if *not* slash command,
 		args = clan_name

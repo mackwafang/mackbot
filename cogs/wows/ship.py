@@ -6,34 +6,18 @@ from discord import app_commands, Embed
 from discord.ext import commands
 
 from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
-from mackbot.enums import COMMAND_INPUT_TYPE
+from mackbot.enums import SHIP_COMBAT_PARAM_FILTER
 from mackbot.exceptions import *
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.discord.formatting import number_separator
+from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
+from mackbot.utilities.find_close_match_item import find_close_match_item
+from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
+from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list, ship_list_simple
+from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
 from mackbot.utilities.logger import logger
 from mackbot.utilities.regex import ship_param_filter_regex
-from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
-from mackbot.utilities.game_data.warships_data import database_client, module_list, upgrade_list, ship_list_simple
-from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
-from mackbot.utilities.correct_user_mispell import correct_user_misspell
-from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.to_plural import to_plural
-from mackbot.utilities.discord.formatting import number_separator
-from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
-
-class SHIP_COMBAT_PARAM_FILTER(IntEnum):
-	HULL = 0
-	GUNS = auto()
-	ATBAS = auto()
-	TORPS = auto()
-	ROCKETS = auto()
-	TORP_BOMBER = auto()
-	BOMBER = auto()
-	ENGINE = auto()
-	AA = auto()
-	CONCEAL = auto()
-	CONSUMABLE = auto()
-	UPGRADES = auto()
-	ARMOR = auto()
-	SONAR = auto()
 
 class Ship(commands.Cog):
 	def __init__(self, bot):
@@ -44,7 +28,10 @@ class Ship(commands.Cog):
 		ship_name="Ship name",
 		parameters="Ship parameters for detailed report",
 	)
-	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
+	@app_commands.autocomplete(
+		ship_name=auto_complete_ship_name,
+		parameters=auto_complete_ship_parameters
+	)
 	async def ship(self, interaction: discord.Interaction, ship_name: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
@@ -55,7 +42,7 @@ class Ship(commands.Cog):
 					-p/--parameters - Optional. Filters only specific warship parameters
 										Parameters may include, but not limited to: guns, secondary, torpedoes, hull
 		"""
-		param_filter = parameters
+		param_filter = parameters.lower()
 
 		try:
 			ship_data = get_ship_data(ship_name)
@@ -582,7 +569,7 @@ class Ship(commands.Cog):
 			if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.UPGRADES):
 				m = ""
 				for slot in upgrades:
-					m += f"**Slot {slot + 1}**\n"
+					m += f"**Slot {int(slot) + 1}**\n"
 					if len(upgrades[slot]) > 0:
 						for u in upgrades[slot]:
 							m += f"{upgrade_list[u]['name']}\n"

@@ -34,3 +34,19 @@ class SHIP_CONSUMABLE_CHARACTERISTIC(IntEnum):
 	SUPER = auto()
 	TRAILING = auto()
 	QUICK_RECHARGE = auto()
+
+class SHIP_COMBAT_PARAM_FILTER(IntEnum):
+	HULL = 0
+	GUNS = auto()
+	ATBAS = auto()
+	TORPS = auto()
+	ROCKETS = auto()
+	TORP_BOMBER = auto()
+	BOMBER = auto()
+	ENGINE = auto()
+	AA = auto()
+	CONCEAL = auto()
+	CONSUMABLE = auto()
+	UPGRADES = auto()
+	ARMOR = auto()
+	SONAR = auto()

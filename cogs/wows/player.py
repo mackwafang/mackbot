@@ -12,9 +12,10 @@ from discord.ext import commands
 
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.exceptions import NoShipFound
-from mackbot.constants import WOWS_REALMS, ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
+from mackbot.constants import ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
 from mackbot.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from mackbot.utilities.game_data.warships_data import ship_list_simple
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region, auto_complete_ship_name, auto_complete_battle_type, auto_complete_tier
 from mackbot.utilities.logger import logger
 from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG
@@ -33,6 +34,12 @@ class Player(commands.Cog):
 		tier="Display top 10 ships of this tier",
 		ship="Display player's stat of this ship",
 		b_type="Switch battle type for display. Acceptable values: solo, div2 (2-man divisions), div3 (3-man divisions). Default is pvp"
+	)
+	@app_commands.autocomplete(
+		region=auto_complete_region,
+		ship=auto_complete_ship_name,
+		b_type=auto_complete_battle_type,
+		tier=auto_complete_tier
 	)
 	async def player(self,
 	                 interaction: Interaction,
