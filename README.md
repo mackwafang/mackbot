@@ -5,7 +5,7 @@ mackbot is designed to help new and existing players to be familiar with their w
 
 # mackbot for your servers
 Invite mackbot to your server [here](https://discord.com/api/oauth2/authorize?client_id=667866391231332353&permissions=2147796992&scope=bot%20applications.commands).
-
+****
 ---
 
 ## Discord Commands

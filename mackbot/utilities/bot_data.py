@@ -22,7 +22,6 @@ WG = {
 	'na': wargaming.WoWS(wg_token, region='na', language='en'),
 	'asia': wargaming.WoWS(wg_token, region='asia', language='en'),
 	'eu': wargaming.WoWS(wg_token, region='eu', language='en'),
-	'ru': wargaming.WoWS(wg_token, region='ru', language='en'),
 }
 wows_encyclopedia = WG['na'].encyclopedia
 
