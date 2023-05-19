@@ -33,7 +33,6 @@ class Clan(commands.Cog):
 	)
 	@app_commands.autocomplete(region=auto_complete_region)
 	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
-		# check if *not* slash command,
 		args = clan_name
 		await interaction.response.defer(ephemeral=False, thinking=True)
 		search_term = clan_name
@@ -42,7 +41,7 @@ class Clan(commands.Cog):
 		if clan_region not in WOWS_REALMS:
 			clan_region = 'na'
 
-		clan_search = WG[clan_region].clans.list(search=search_term)
+		clan_search = WG[clan_region].clan_list(clan_name=search_term)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
@@ -69,7 +68,7 @@ class Clan(commands.Cog):
 			# output clan information
 			# get clan information
 
-			clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+			clan_detail = WG[clan_region].clan_info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
 			clan_id = clan_detail['clan_id']
 			clan_ladder = clan_ranking(clan_id, clan_region)
 

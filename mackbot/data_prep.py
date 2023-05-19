@@ -1,4 +1,4 @@
-import wargaming, traceback, json, logging, os, pickle, io, requests
+import traceback, json, logging, os, pickle, io, requests
 
 from hashlib import sha256
 from pymongo import MongoClient
@@ -11,6 +11,7 @@ from pprint import pprint
 from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
+from mackbot.utilities.bot_data import WG
 from mackbot.wargaming.armory import get_armory_ships
 
 game_data = {}
@@ -76,14 +77,9 @@ with open(os.path.join("data", "config.json")) as f:
 mongodb_host = data['mongodb_host']
 sheet_id = data['sheet_id']
 
-# get weegee's wows encyclopedia
-try:
-	WG = wargaming.WoWS(data['wg_token'], region='na', language='en')
-except Exception as e:
-	logger.error("Cannot connect to WG servers")
-	exit(1)
-wows_encyclopedia = WG.encyclopedia
-ship_types = wows_encyclopedia.info()['ship_types']
+WOWS_INFO = WG['na'].encyclopedia_info()
+
+ship_types = WOWS_INFO['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 
 # dictionary to convert user inputted ship name to non-ascii ship name
@@ -185,23 +181,7 @@ def load_module_list():
 	global module_list
 	# get modules (i.e. guns, hulls, planes)
 	logger.info("Fetching Module List")
-	for page in count(1):
-		try:
-			m = wows_encyclopedia.modules(language='en', page_no=page)
-			for counter, i in enumerate(m):
-				module_list[i] = m[i]
-		except Exception as e:
-			if type(e) == wargaming.exceptions.RequestError:
-				if e.args[0] == "PAGE_NO_NOT_FOUND":
-					break
-				else:
-					logger.info(type(e), e)
-			elif type(e) == requests.exceptions.ConnectionError:
-				logger.info(type(e), e)
-				exit(type(e))
-			else:
-				logger.info(type(e), e)
-			break
+	module_list.update(WG['na'].modules())
 
 def load_ship_list():
 	"""
@@ -222,7 +202,7 @@ def load_ship_list():
 			ship_list.update(pickle.load(f))
 
 		# check to see if it is out of date
-		if ship_list['ships_updated_at'] != wows_encyclopedia.info()['ships_updated_at']:
+		if ship_list['ships_updated_at'] != WOWS_INFO['ships_updated_at']:
 			logger.info("Ship list outdated, fetching new list")
 			fetch_ship_list_from_wg = True
 			ship_list = {}
@@ -232,31 +212,18 @@ def load_ship_list():
 		fetch_ship_list_from_wg = True
 
 	if fetch_ship_list_from_wg:
-		for page in count(1):
-			# continuously count, because weegee don't list how many pages there are
-			# actually the above is a lie, this page count appears in the "meta" field when getting
-			# a response from wg via http request
-			try:
-				l = wows_encyclopedia.ships(language='en', page_no=page)
-				for i in l:
-					ship_list[i] = l[i]
-					# add skip bomber field to list's modules listing
-					ship_list[i]['modules']['skip_bomber'] = []
-					if "\xa0" in ship_list[i]['name']:
-						ship_list[i]['name'] = ship_list[i]['name'].replace("\xa0", " ")
-					if ship_list[i]['ship_id'] == 3741235152:
-						ship_list[i]['name'] = "Belfast '43"
-			except Exception as e:
-				if type(e) == wargaming.exceptions.RequestError:
-					if e.args[0] == "PAGE_NO_NOT_FOUND":
-						break
-					else:
-						logger.info(type(e), e)
-				else:
-					logger.info(type(e), e)
-				break
+		ship_list.update(WG['na'].ships())
+
+		for ship in ship_list:
+			# add skip bomber field to list's modules listing
+			ship_list[ship]['modules']['skip_bomber'] = []
+			if "\xa0" in ship_list[ship]['name']:
+				ship_list[ship]['name'] = ship_list[ship]['name'].replace("\xa0", " ")
+			if ship_list[ship]['ship_id'] == 3741235152:
+				ship_list[ship]['name'] = "Belfast '43"
+
 		with open(ship_list_file_dir, 'wb') as f:
-			ship_list['ships_updated_at'] = wows_encyclopedia.info()['ships_updated_at']
+			ship_list['ships_updated_at'] = WOWS_INFO['ships_updated_at']
 			pickle.dump(ship_list, f)
 		logger.info("Cache complete")
 	del ship_list_file_dir, ship_list_file_name, ship_list['ships_updated_at']
@@ -274,50 +241,36 @@ def load_upgrade_list():
 		load_game_params()
 
 
-	for page_num in count(1):
-		try:
-			misc_list = wows_encyclopedia.consumables(page_no=page_num)
-			# consumables of some page page_num
-			for consumable in misc_list:
-				c_type = misc_list[consumable]['type']
-				if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
-					# grab camouflages and stores
-					camo_list[consumable] = misc_list[consumable]
-				if c_type == 'Modernization':
-					# grab upgrades and store
-					upgrade_list[consumable] = misc_list[consumable]
+	misc_list = WG['na'].consumables()
+	# consumables of some page page_num
+	for consumable in misc_list:
+		c_type = misc_list[consumable]['type']
+		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
+			# grab camouflages and stores
+			camo_list[consumable] = misc_list[consumable]
+		if c_type == 'Modernization':
+			# grab upgrades and store
+			upgrade_list[consumable] = misc_list[consumable]
 
-					url = upgrade_list[consumable]['image']
-					url = url[:url.rfind('_')]
-					url = url[url.rfind('/') + 1:]
+			url = upgrade_list[consumable]['image']
+			url = url[:url.rfind('_')]
+			url = url[url.rfind('/') + 1:]
 
-					# initializing stuff for excluding obsolete upgrades
-					upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
-					upgrade_list[consumable]['is_special'] = ''
-					upgrade_list[consumable]['ship_restriction'] = []
-					upgrade_list[consumable]['nation_restriction'] = []
-					upgrade_list[consumable]['tier_restriction'] = []
-					upgrade_list[consumable]['type_restriction'] = []
-					upgrade_list[consumable]['slot'] = ''
-					upgrade_list[consumable]['additional_restriction'] = ''
-					upgrade_list[consumable]['tags'] = []
+			# initializing stuff for excluding obsolete upgrades
+			upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
+			upgrade_list[consumable]['is_special'] = ''
+			upgrade_list[consumable]['ship_restriction'] = []
+			upgrade_list[consumable]['nation_restriction'] = []
+			upgrade_list[consumable]['tier_restriction'] = []
+			upgrade_list[consumable]['type_restriction'] = []
+			upgrade_list[consumable]['slot'] = ''
+			upgrade_list[consumable]['additional_restriction'] = ''
+			upgrade_list[consumable]['tags'] = []
 
-				if c_type == 'Flags':
-					# grab flags
-					flag_list[consumable] = misc_list[consumable]
-		except Exception as e:
-			if type(e) == wargaming.exceptions.RequestError:
-				if e.args[0] == "PAGE_NO_NOT_FOUND":
-					# counter went outside of max number of pages.
-					# expected behavior, done
-					break
-				else:
-					# something else came up that is not a "exceed max number of pages"
-					logger.info(type(e), e)
-			else:
-				# we done goof now
-				logger.info(type(e), e)
-			break
+		if c_type == 'Flags':
+			# grab flags
+			flag_list[consumable] = misc_list[consumable]
+
 
 	logger.info('Adding upgrade information')
 	obsolete_upgrade = []
@@ -1295,7 +1248,7 @@ def load_cmdr_list():
 	global cmdr_list
 
 	logger.info("Fetching Commander List")
-	cmdr_list.update(wows_encyclopedia.crews())
+	cmdr_list.update(WG['na'].commanders())
 
 def load_consumable_list():
 	global consumable_list
