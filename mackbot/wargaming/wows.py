@@ -98,5 +98,14 @@ class WOWS:
 		assert search_type in ['startswith', 'exact']
 		return self._fetch_data("account", "list", {"search": player_name, "type": search_type})
 
-	def player_info(self, player_id: str, extra:str=""):
+	def player_info(self, player_id: int, extra:str=""):
 		return self._fetch_data("account", "info", {"account_id": player_id, "extra": extra})
+
+	def player_clan_info(self, player_id: int):
+		return self._fetch_data("clans", "accountinfo", {"account_id": player_id})
+
+	def clan_info(self, clan_id: int):
+		return self._fetch_data("clans", "info", {"clan_id": clan_id})
+
+	def ships_stat(self, player_id: int, extra: str=""):
+		return self._fetch_data("ships", "stats", {"account_id": player_id, "extra": extra})

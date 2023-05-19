@@ -65,7 +65,7 @@ class Player(commands.Cog):
 				ship_tier_filter = 0
 			player_region = player_region.lower()
 
-			player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
+			player_id_results = WG[player_region].player(player_name=username, search_type='exact',)
 			player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 
 			try:
@@ -90,9 +90,9 @@ class Player(commands.Cog):
 			if player_id:
 				player_name = player_id_results[0]['nickname']
 				if battle_type == 'pvp':
-					player_general_stats = WG[player_region].account.info(account_id=player_id, language='en')[player_id]
+					player_general_stats = WG[player_region].player_info(player_id=player_id)[player_id]
 				else:
-					player_general_stats = WG[player_region].account.info(account_id=player_id, language='en', extra="statistics."+battle_type, )[player_id]
+					player_general_stats = WG[player_region].player_info(player_id=player_id, extra="statistics."+battle_type, )[player_id]
 				player_account_hidden = player_general_stats['hidden_profile']
 
 				if player_account_hidden:
@@ -104,12 +104,12 @@ class Player(commands.Cog):
 					player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 					player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 					player_last_battle_months = int(player_last_battle_days // 30)
-					player_clan_id = WG[player_region].clans.accountinfo(account_id=player_id, language='en')
+					player_clan_id = WG[player_region].player_clan_info(player_id=player_id)
 					player_clan_tag = ""
 					if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
 						player_clan_id = player_clan_id[player_id]['clan_id']
 						if player_clan_id is not None: # check if player is in a clan
-							player_clan = WG[player_region].clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+							player_clan = WG[player_region].clan_info(clan_id=player_clan_id)[str(player_clan_id)]
 							player_clan_str = f"**[{escape_markdown(player_clan['tag'])}]** {player_clan['name']}"
 							player_clan_tag = f"[{escape_markdown(player_clan['tag'])}]"
 						else:
@@ -131,7 +131,7 @@ class Player(commands.Cog):
 					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
 
 					# add listing for player owned ships and of requested battle type
-					player_ships = WG[player_region].ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
+					player_ships = WG[player_region].ships_stat(player_id=player_id, extra='' if battle_type == 'pvp' else battle_type)[player_id]
 					player_ship_stats = {}
 					# calculate stats for each ships
 					for s in player_ships:
