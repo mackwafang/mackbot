@@ -104,8 +104,11 @@ class WOWS:
 	def player_clan_info(self, player_id: int):
 		return self._fetch_data("clans", "accountinfo", {"account_id": player_id})
 
-	def clan_info(self, clan_id: int):
-		return self._fetch_data("clans", "info", {"clan_id": clan_id})
+	def clan_list(self, clan_name: str):
+		return self._fetch_data("clans", "list", {"search": clan_name})
+
+	def clan_info(self, clan_id: int, extra: str=""):
+		return self._fetch_data("clans", "info", {"clan_id": clan_id, "extra": extra})
 
 	def ships_stat(self, player_id: int, extra: str=""):
 		return self._fetch_data("ships", "stats", {"account_id": player_id, "extra": extra})
