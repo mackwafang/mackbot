@@ -74,12 +74,22 @@ class WOWS:
 
 		return data
 
+	def encyclopedia_info(self):
+		return self._fetch_data("encyclopedia", "info")
 
 	def modules(self):
 		return self._fetch_data("encyclopedia", "modules")
 
 	def ships(self):
 		return self._fetch_data("encyclopedia", "ships")
+
+	def commanders(self):
+		return self._fetch_data("encyclopedia", "crews")
+
+	def consumables(self):
+		# Not things like warships consumables (like heals, damecon)
+		# wtf wg why you did this to me back in 2021
+		return self._fetch_data("encyclopedia", "consumables")
 
 	def upgrades(self):
 		return self._fetch_data("encyclopedia", "consumables", {"type": "Modernization"})
