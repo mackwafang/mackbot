@@ -294,7 +294,7 @@ class Player(commands.Cog):
 								m += f"**{ROMAN_NUMERAL[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
 								m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {number_separator(tier_average_dmg, '.0f')} DMG\n"
 							except KeyError:
-								m += f"**{list(ROMAN_NUMERAL.keys())[tier - 1]}**: No battles\n"
+								m += f"**{list(ROMAN_NUMERAL)[tier - 1]}**: No battles\n"
 						embed.add_field(name=f"__**Average by Tier**__", value=m)
 					elif ship_tier_filter:
 						# list ships that the player has at this tier
