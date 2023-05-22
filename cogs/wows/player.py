@@ -128,7 +128,7 @@ class Player(commands.Cog):
 						m += " (Today)\n"
 					m += f"**Clan**: {player_clan_str}\n"
 					m += f"**Region**: {player_region.upper()}"
-					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
+					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{escape_markdown(player_name)}**__', value=m, inline=False)
 
 					# add listing for player owned ships and of requested battle type
 					player_ships = WG[player_region].ships_stat(player_id=player_id, extra='' if battle_type == 'pvp' else battle_type)[player_id]
