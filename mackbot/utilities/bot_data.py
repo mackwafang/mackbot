@@ -1,7 +1,11 @@
-import os, json, wargaming, pickle
+import os, json, pickle
+
 from .logger import logger
+from mackbot.wargaming.wows import WOWS
 
 # actual stuff
+from ..constants import WOWS_REALMS
+
 logger.info("Fetching WoWS Encyclopedia")
 # load important stuff
 with open(os.path.join(os.getcwd(), "data", "config.json")) as f:
@@ -18,13 +22,7 @@ with open(os.path.join(os.getcwd(), "data", "command_list.json")) as f:
 	command_list = json.load(f)
 
 # get weegee's wows encyclopedia
-WG = {
-	'na': wargaming.WoWS(wg_token, region='na', language='en'),
-	'asia': wargaming.WoWS(wg_token, region='asia', language='en'),
-	'eu': wargaming.WoWS(wg_token, region='eu', language='en'),
-	'ru': wargaming.WoWS(wg_token, region='ru', language='en'),
-}
-wows_encyclopedia = WG['na'].encyclopedia
+WG = dict((region, WOWS(application_id=wg_token, region=region)) for region in WOWS_REALMS)
 
 clan_history = {}
 clan_history_file_path = os.path.join(os.getcwd(), "data", "clan_history")

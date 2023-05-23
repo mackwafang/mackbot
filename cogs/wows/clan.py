@@ -11,6 +11,7 @@ from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 from mackbot.utilities.regex import clan_filter_regex
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region
 from mackbot.wargaming.clans import clan_ranking
 
 LEAGUE_STRING = [
@@ -30,8 +31,8 @@ class Clan(commands.Cog):
 		clan_name="Name or tag of clan",
 		region='Clan region'
 	)
+	@app_commands.autocomplete(region=auto_complete_region)
 	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
-		# check if *not* slash command,
 		args = clan_name
 		await interaction.response.defer(ephemeral=False, thinking=True)
 		search_term = clan_name
@@ -40,7 +41,7 @@ class Clan(commands.Cog):
 		if clan_region not in WOWS_REALMS:
 			clan_region = 'na'
 
-		clan_search = WG[clan_region].clans.list(search=search_term)
+		clan_search = WG[clan_region].clan_list(clan_name=search_term)
 		if clan_search:
 			# check for multiple clan
 			selected_clan = None
@@ -67,7 +68,7 @@ class Clan(commands.Cog):
 			# output clan information
 			# get clan information
 
-			clan_detail = WG[clan_region].clans.info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
+			clan_detail = WG[clan_region].clan_info(clan_id=selected_clan['clan_id'], extra='members')[str(selected_clan['clan_id'])]
 			clan_id = clan_detail['clan_id']
 			clan_ladder = clan_ranking(clan_id, clan_region)
 

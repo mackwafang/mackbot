@@ -119,7 +119,7 @@ AMMO_TYPE_STRING = {
 	'cs': 'SAP'
 }
 
-WOWS_REALMS = ('na', 'ru', 'eu', 'asia')
+WOWS_REALMS = ('na', 'eu', 'asia')
 
 # defines the which categories of ships are in (i.e. researchable, doubloons, coal, etc)
 SHIP_GROUP_DICT = {

@@ -12,9 +12,10 @@ from discord.ext import commands
 
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.exceptions import NoShipFound
-from mackbot.constants import WOWS_REALMS, ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
+from mackbot.constants import ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
 from mackbot.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from mackbot.utilities.game_data.warships_data import ship_list_simple
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region, auto_complete_ship_name, auto_complete_battle_type, auto_complete_tier
 from mackbot.utilities.logger import logger
 from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG
@@ -33,6 +34,12 @@ class Player(commands.Cog):
 		tier="Display top 10 ships of this tier",
 		ship="Display player's stat of this ship",
 		b_type="Switch battle type for display. Acceptable values: solo, div2 (2-man divisions), div3 (3-man divisions). Default is pvp"
+	)
+	@app_commands.autocomplete(
+		region=auto_complete_region,
+		ship=auto_complete_ship_name,
+		b_type=auto_complete_battle_type,
+		tier=auto_complete_tier
 	)
 	async def player(self,
 	                 interaction: Interaction,
@@ -58,7 +65,7 @@ class Player(commands.Cog):
 				ship_tier_filter = 0
 			player_region = player_region.lower()
 
-			player_id_results = WG[player_region].account.list(search=username, type='exact', language='en')
+			player_id_results = WG[player_region].player(player_name=username, search_type='exact',)
 			player_id = str(player_id_results[0]['account_id']) if len(player_id_results) > 0 else ""
 
 			try:
@@ -83,9 +90,9 @@ class Player(commands.Cog):
 			if player_id:
 				player_name = player_id_results[0]['nickname']
 				if battle_type == 'pvp':
-					player_general_stats = WG[player_region].account.info(account_id=player_id, language='en')[player_id]
+					player_general_stats = WG[player_region].player_info(player_id=player_id)[player_id]
 				else:
-					player_general_stats = WG[player_region].account.info(account_id=player_id, language='en', extra="statistics."+battle_type, )[player_id]
+					player_general_stats = WG[player_region].player_info(player_id=player_id, extra="statistics."+battle_type, )[player_id]
 				player_account_hidden = player_general_stats['hidden_profile']
 
 				if player_account_hidden:
@@ -97,12 +104,12 @@ class Player(commands.Cog):
 					player_last_battle_string = date.fromtimestamp(player_general_stats['last_battle_time']).strftime("%b %d, %Y")
 					player_last_battle_days = (date.today() - date.fromtimestamp(player_general_stats['last_battle_time'])).days
 					player_last_battle_months = int(player_last_battle_days // 30)
-					player_clan_id = WG[player_region].clans.accountinfo(account_id=player_id, language='en')
+					player_clan_id = WG[player_region].player_clan_info(player_id=player_id)
 					player_clan_tag = ""
 					if player_clan_id[player_id] is not None: # Check if player has joined a clan yet
 						player_clan_id = player_clan_id[player_id]['clan_id']
 						if player_clan_id is not None: # check if player is in a clan
-							player_clan = WG[player_region].clans.info(clan_id=player_clan_id, language='en')[player_clan_id]
+							player_clan = WG[player_region].clan_info(clan_id=player_clan_id)[str(player_clan_id)]
 							player_clan_str = f"**[{escape_markdown(player_clan['tag'])}]** {player_clan['name']}"
 							player_clan_tag = f"[{escape_markdown(player_clan['tag'])}]"
 						else:
@@ -121,10 +128,10 @@ class Player(commands.Cog):
 						m += " (Today)\n"
 					m += f"**Clan**: {player_clan_str}\n"
 					m += f"**Region**: {player_region.upper()}"
-					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{player_name}**__', value=m, inline=False)
+					embed.add_field(name=f'__**{player_clan_tag}{" " if player_clan_tag else ""}{escape_markdown(player_name)}**__', value=m, inline=False)
 
 					# add listing for player owned ships and of requested battle type
-					player_ships = WG[player_region].ships.stats(account_id=player_id, language='en', extra='' if battle_type == 'pvp' else battle_type)[player_id]
+					player_ships = WG[player_region].ships_stat(player_id=player_id, extra='' if battle_type == 'pvp' else battle_type)[player_id]
 					player_ship_stats = {}
 					# calculate stats for each ships
 					for s in player_ships:
@@ -287,7 +294,7 @@ class Player(commands.Cog):
 								m += f"**{ROMAN_NUMERAL[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
 								m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {number_separator(tier_average_dmg, '.0f')} DMG\n"
 							except KeyError:
-								m += f"**{list(ROMAN_NUMERAL.keys())[tier - 1]}**: No battles\n"
+								m += f"**{list(ROMAN_NUMERAL)[tier - 1]}**: No battles\n"
 						embed.add_field(name=f"__**Average by Tier**__", value=m)
 					elif ship_tier_filter:
 						# list ships that the player has at this tier
