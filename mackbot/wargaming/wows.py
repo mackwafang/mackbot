@@ -16,6 +16,12 @@ ALLOWED_CATEGORY = {
 
 class WOWS:
 	def __init__(self, application_id: str, region: str):
+		"""
+		Initialize object to communicate to WG API
+		Args:
+			application_id (str): WG API Application ID
+			region (str): Region to access regional data (e.g. player). Accepts: asia, eu, na
+		"""
 		assert region.lower() in WOWS_REALMS
 		self.application_id = application_id
 		self.region = region.lower()
@@ -74,41 +80,126 @@ class WOWS:
 
 		return data
 
-	def encyclopedia_info(self):
+	def encyclopedia_info(self) -> dict:
+		"""
+		Get game general data
+		Returns:
+
+		"""
 		return self._fetch_data("encyclopedia", "info")
 
-	def modules(self):
+	def modules(self) -> dict:
+		"""
+		Get all ship's modules
+		Returns:
+
+		"""
 		return self._fetch_data("encyclopedia", "modules")
 
-	def ships(self):
+	def ships(self) -> dict:
+		"""
+		Get all ship's data. This data only includes ships that are up in the live version.
+		Returns:
+
+		"""
 		return self._fetch_data("encyclopedia", "ships")
 
-	def commanders(self):
+	def commanders(self) -> dict:
+		"""
+		Get all commanders.
+		Returns:
+
+		"""
 		return self._fetch_data("encyclopedia", "crews")
 
-	def consumables(self):
-		# Not things like warships consumables (like heals, damecon)
+	def consumables(self) -> dict:
+		"""
+		Get all consumables.
+		Not things like warships consumables (like heals, damecon)
+		Returns:
+
+		"""
 		# wtf wg why you did this to me back in 2021
 		return self._fetch_data("encyclopedia", "consumables")
 
-	def upgrades(self):
+	def upgrades(self) -> dict:
+		"""
+		Get all warships upgrades
+		Returns:
+
+		"""
 		return self._fetch_data("encyclopedia", "consumables", {"type": "Modernization"})
 
-	def player(self, player_name: str, search_type: str):
+	def player(self, player_name: str, search_type: str) -> dict:
+		"""
+		Return player ID given name
+		Args:
+			player_name (str): Player name. WG API has a limit of 24 characters (Does not apply to this method)
+			search_type (str): Search type. Accepts exact or startswith
+
+		Returns:
+
+		"""
 		assert search_type in ['startswith', 'exact']
 		return self._fetch_data("account", "list", {"search": player_name, "type": search_type})
 
-	def player_info(self, player_id: int, extra:str=""):
+	def player_info(self, player_id: int, extra:str="") -> dict:
+		"""
+		Return player's stats
+		Args:
+			player_id (id): Player ID
+			extra ():
+
+		Returns:
+
+		"""
 		return self._fetch_data("account", "info", {"account_id": player_id, "extra": extra})
 
-	def player_clan_info(self, player_id: int):
+	def player_clan_info(self, player_id: int) -> dict:
+		"""
+		Return some clan information of a player
+		Args:
+			player_id (int): Player ID
+
+		Returns:
+
+		"""
 		return self._fetch_data("clans", "accountinfo", {"account_id": player_id})
 
-	def clan_list(self, clan_name: str):
+	def clan_list(self, clan_name: str) -> dict:
+		"""
+		Return a list of clans given name or tag
+		Args:
+			clan_name (str): Clan name or tag
+
+		Returns:
+
+		"""
 		return self._fetch_data("clans", "list", {"search": clan_name})
 
-	def clan_info(self, clan_id: int, extra: str=""):
+	def clan_info(self, clan_id: int, extra: str="") -> dict:
+		"""
+		Return information about a clan
+
+		Does not include clan ranking
+		see mackbot.wargaming.clans
+		Args:
+			clan_id (int): Clan ID
+			extra (str):
+
+		Returns:
+
+		"""
 		return self._fetch_data("clans", "info", {"clan_id": clan_id, "extra": extra})
 
-	def ships_stat(self, player_id: int, extra: str=""):
+	def ships_stat(self, player_id: int, extra: str="") -> dict:
+		"""
+		Get stats of all of a player's ships
+		Args:
+			player_id (int): Player ID
+			extra ():
+
+		Returns:
+
+		"""
 		return self._fetch_data("ships", "stats", {"account_id": player_id, "extra": extra})
