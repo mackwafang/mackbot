@@ -93,7 +93,7 @@ class Upgrade(commands.Cog):
 				if len(type_restriction) > 0:
 					# find the server emoji id for this emoji id
 					if len(server_emojis) == 0:
-						m = ''.join([i.title() + ', ' for i in sorted(type_restriction)])[:-2]
+						m = ', '.join([i.title() for i in sorted(type_restriction)])
 					else:
 						m = ''
 						for t in type_restriction:
@@ -109,19 +109,19 @@ class Upgrade(commands.Cog):
 				embed.add_field(name="Ship Type", value=m)
 
 				if len(tier_restriction) > 0:
-					m = ''.join([str(i) + ', ' for i in tier_restriction])[:-2]
+					m = ', '.join([f"{i}" for i in tier_restriction])
 				else:
 					m = "All tiers"
 				embed.add_field(name="Tier", value=m)
 
 				if len(nation_restriction) > 0:
-					m = ''.join([i + ', ' for i in sorted(nation_restriction)])[:-2]
+					m = ', '.join([i.replace("_", " ") for i in sorted(nation_restriction)])
 				else:
 					m = 'All nations'
 				embed.add_field(name="Nation", value=m)
 
 				if len(ship_restriction) > 0:
-					m = ''.join([i + ', ' for i in sorted(ship_restriction[:10])])[:-2]
+					m = ', '.join([i for i in sorted(ship_restriction[:10])])
 					if len(ship_restriction) > 10:
 						m += "...and more"
 					if len(m) > 0:

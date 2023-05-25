@@ -15,7 +15,7 @@ class Listener(commands.Cog):
 	async def on_message(self, message: discord.Message):
 		# check for mackbot response testing by checking it only contains the ping
 		if message.content == f"<@{self.client.application_id}>":
-			logger.info(f"Checking response in {message.channel.name}...")
+			logger.info(f"Checking response in {message.guild.name}/{message.channel.name}...")
 			m = ""
 			permissions = message.channel.permissions_for(message.guild.me)
 			missing_permission = [

@@ -14,6 +14,10 @@ from mackbot.utilities.ship_consumable_code import consumable_data_to_string, en
 from mackbot.utilities.bot_data import WG
 from mackbot.wargaming.armory import get_armory_ships
 
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+
 game_data = {}
 ship_list = {}
 skill_list = {}
@@ -26,6 +30,8 @@ legendary_upgrade_list = {}
 upgrade_abbr_list = {}
 consumable_list = {}
 ship_build = {}
+
+_GOOGLE_SHEETS_CREDS = None
 
 all_data_loaded_for_use = False
 
@@ -105,6 +111,31 @@ def lerp(a, b, t):
 
 	"""
 	return ((1 - t) * a) + (t * b)
+
+def get_google_sheets_creds():
+	global _GOOGLE_SHEETS_CREDS
+
+	# If modifying these scopes, delete the file token.json.
+	SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+
+	_GOOGLE_SHEETS_CREDS = None
+	# The file token.json stores the user's access and refresh tokens, and is
+	# created automatically when the authorization flow completes for the first
+	# time.
+	if os.path.exists('token.json'):
+		_GOOGLE_SHEETS_CREDS = Credentials.from_authorized_user_file('token.json', SCOPES)
+	# If there are no (valid) credentials available, let the user log in.
+	if not _GOOGLE_SHEETS_CREDS or not _GOOGLE_SHEETS_CREDS.valid:
+		if _GOOGLE_SHEETS_CREDS and _GOOGLE_SHEETS_CREDS.expired and _GOOGLE_SHEETS_CREDS.refresh_token:
+			_GOOGLE_SHEETS_CREDS.refresh(Request())
+		else:
+			flow = InstalledAppFlow.from_client_secrets_file(
+				'credentials.json', SCOPES)
+			_GOOGLE_SHEETS_CREDS = flow.run_local_server(port=0)
+		# Save the credentials for the next run
+		with open('token.json', 'w') as token:
+			token.write(_GOOGLE_SHEETS_CREDS.to_json())
+
 
 def check_skill_order_valid(skills: list) -> bool:
 	"""
@@ -1264,35 +1295,11 @@ def load_ship_builds():
 	global ship_build, ship_list, skill_list
 	assert sheet_id is not None
 
-	from google.auth.transport.requests import Request
-	from google.oauth2.credentials import Credentials
-	from google_auth_oauthlib.flow import InstalledAppFlow
 	from googleapiclient.discovery import build
 	from googleapiclient.errors import HttpError
 
-	# If modifying these scopes, delete the file token.json.
-	SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
-	creds = None
-	# The file token.json stores the user's access and refresh tokens, and is
-	# created automatically when the authorization flow completes for the first
-	# time.
-	if os.path.exists('token.json'):
-		creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-	# If there are no (valid) credentials available, let the user log in.
-	if not creds or not creds.valid:
-		if creds and creds.expired and creds.refresh_token:
-			creds.refresh(Request())
-		else:
-			flow = InstalledAppFlow.from_client_secrets_file(
-				'credentials.json', SCOPES)
-			creds = flow.run_local_server(port=0)
-		# Save the credentials for the next run
-		with open('token.json', 'w') as token:
-			token.write(creds.to_json())
-
 	try:
-		service = build('sheets', 'v4', credentials=creds)
+		service = build('sheets', 'v4', credentials=_GOOGLE_SHEETS_CREDS)
 
 		# Call the Sheets API
 		sheet = service.spreadsheets()
@@ -1403,6 +1410,57 @@ def load_ship_builds():
 	except HttpError as err:
 		print(err)
 
+def update_google_sheet_ships_list():
+	global ship_build, ship_list, skill_list
+	assert sheet_id is not None
+
+	from googleapiclient.discovery import build
+	from googleapiclient.errors import HttpError
+
+	service = build('sheets', 'v4', credentials=_GOOGLE_SHEETS_CREDS)
+
+	try:
+		# tries to create a new sheet if not exists
+		spreadsheet = {
+			'requests': {
+				'addSheet': {
+					'properties': {
+						'title': "ship_list"
+					}
+				}
+			}
+		}
+		spreadsheet = service.spreadsheets().batchUpdate(
+			spreadsheetId=sheet_id,
+			body=spreadsheet,
+		).execute()
+	except HttpError as err:
+		# if 400 (already exists), continue as normal
+		if err.status_code != 400:
+			print(err)
+	try:
+		COL_TITLE = ['name', 'tier', 'type', 'is_premium', 'is_special']
+		values = [
+			COL_TITLE
+		]
+
+		for ship in ship_list.values():
+			values.append([ship['name'].lower(), ship['tier'], ship['type'], ship['is_premium'], ship['is_special']])
+
+		body = {"values": values}
+		result = service.spreadsheets().values().update(
+			spreadsheetId=sheet_id,
+			valueInputOption="USER_ENTERED",
+			range=F"'ship_list'!a1:{chr(ord('a') + len(COL_TITLE))}{len(values) + 1}",
+			body=body
+		).execute()
+
+	except HttpError as err:
+		print(err)
+
+# result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:Z').execute()
+	# values = result.get('values', [])
+
 
 def post_process():
 	logger.info("Creating hash digest")
@@ -1415,6 +1473,7 @@ def get_ship_by_id(value: int) -> dict:
 	return [game_data[i] for i in game_data if 'id' in game_data[i] and game_data[i]['id'] == value][0]
 
 def load():
+	get_google_sheets_creds()
 	load_game_params()
 	load_skill_list()
 	load_module_list()
@@ -1424,6 +1483,7 @@ def load():
 	update_ship_modules()
 	create_ship_tags()
 	load_ship_builds()
+	update_google_sheet_ships_list()
 	post_process()
 
 	global all_data_loaded_for_use
