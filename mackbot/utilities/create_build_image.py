@@ -97,7 +97,7 @@ def create_build_image(
 		(
 			SKILL_IMAGE_POS_INIT,
 			(
-				SKILL_IMAGE_POS_INIT[0] + ((60 + ITEMS_SPACING) * 6) - ITEMS_SPACING,
+				SKILL_IMAGE_POS_INIT[0] + ((60 + ITEMS_SPACING) * (5 if ship['type'] == 'Submarine' else 6)) - ITEMS_SPACING,
 				SKILL_IMAGE_POS_INIT[1] + (60 * 4)
 			)
 		),
