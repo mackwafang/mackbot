@@ -94,7 +94,7 @@ class Upgrade(commands.Cog):
 				if len(type_restriction) > 0:
 					# find the server emoji id for this emoji id
 					if len(server_emojis) == 0:
-						m = ''.join([i.title() + ', ' for i in sorted(type_restriction)])[:-2]
+						m = ', '.join([i.title() for i in sorted(type_restriction)])
 					else:
 						m = ''
 						for t in type_restriction:
@@ -110,19 +110,19 @@ class Upgrade(commands.Cog):
 				embed.add_field(name="Ship Type", value=m)
 
 				if len(tier_restriction) > 0:
-					m = ''.join([str(i) + ', ' for i in tier_restriction])[:-2]
+					m = ', '.join([f"{i}" for i in tier_restriction])
 				else:
 					m = "All tiers"
 				embed.add_field(name="Tier", value=m)
 
 				if len(nation_restriction) > 0:
-					m = ''.join([i + ', ' for i in sorted(nation_restriction)])[:-2]
+					m = ', '.join([i.replace("_", " ") for i in sorted(nation_restriction)])
 				else:
 					m = 'All nations'
 				embed.add_field(name="Nation", value=m)
 
 				if len(ship_restriction) > 0:
-					m = ''.join([i + ', ' for i in sorted(ship_restriction[:10])])[:-2]
+					m = ', '.join([i for i in sorted(ship_restriction[:10])])
 					if len(ship_restriction) > 10:
 						m += "...and more"
 					if len(m) > 0:
@@ -141,6 +141,9 @@ class Upgrade(commands.Cog):
 					logger.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
+
+			embed.set_footer(text="Note: Ship, type, and nation restrictions may not be correct as this is automated.")
+
 			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception in upgrade: {type(e)} {e}")
