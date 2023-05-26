@@ -140,6 +140,9 @@ class Upgrade(commands.Cog):
 					logger.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
 				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
+
+			embed.set_footer(text="Note: Ship, type, and nation restrictions may not be correct as this is automated.")
+
 			await interaction.response.send_message(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception in upgrade: {type(e)} {e}")

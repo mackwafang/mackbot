@@ -1298,18 +1298,19 @@ def load_ship_builds():
 	from googleapiclient.discovery import build
 	from googleapiclient.errors import HttpError
 
+	logger.info("Loading ship builds...")
 	try:
 		service = build('sheets', 'v4', credentials=_GOOGLE_SHEETS_CREDS)
 
 		# Call the Sheets API
 		sheet = service.spreadsheets()
-		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:Z').execute()
+		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:AA').execute()
 		values = result.get('values', [])
 
 		if not values:
 			print('No data found.')
 			return
-
+		logger.info(f"Found and validating {len(values) - 1} builds")
 		for row in values[1:]:
 			if len(row) == 0:
 				break
@@ -1317,8 +1318,8 @@ def load_ship_builds():
 			build_ship_name = row[0]
 			build_name = row[1]
 			build_upgrades = row[2:8]
-			build_skills = row[8:-1]
-			build_cmdr = row[-1]
+			build_skills = row[8:-2]
+			build_cmdr = row[-2]
 
 			# convert user name to utf8 ship name
 			if build_ship_name.lower() in ship_name_to_ascii:  # does name includes non-ascii character (outside printable ?
@@ -1390,16 +1391,21 @@ def load_ship_builds():
 				data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
 			elif total_skill_pts < 21:
 				data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
+
 			data['errors'] = tuple(set(data['errors']))
 			if data['errors']:
 				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
 				logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
 				for e in data['errors']:
-					print(f"Skill orders are:")
-					for skill in data["skills"]:
-						print(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
 					if e == BuildError.SKILLS_POTENTIALLY_MISSING:
-						print(f"Total skill points in this build: {total_skill_pts}")
+						logger.info(f"Total skill points in this build: {total_skill_pts}")
+
+				logger.info(f"Skill orders are:")
+				for skill in data["skills"]:
+					logger.info(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+
+				logger.info(f"read: {row}")
+				logger.info("-"*30)
 
 			build_id = sha256(str(data).encode()).hexdigest()
 			data['build_id'] = build_id

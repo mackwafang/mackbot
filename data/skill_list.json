@@ -967,7 +967,7 @@
     "x": 0,
     "y": 0,
     "category": "Attack",
-    "image": ""
+    "image": "trigger_pinger_reload_buff"
   },
   "97": {
     "tree": "Submarine",
@@ -977,7 +977,7 @@
     "x": 1,
     "y": 0,
     "category": "Attack",
-    "image": ""
+    "image": "torpedo_flooding_probability"
   },
   "98": {
     "tree": "Submarine",
@@ -985,9 +985,9 @@
     "description": "Reduces rudder shift time within 15 seconds of activation of the Hydrophone consumable.",
     "effect": "Rudder shift time: -10%\nDiving plane shift time: -10%",
     "x": 2,
-    "y": 1,
+    "y": 0,
     "category": "Attack",
-    "image": ""
+    "image": "trigger_cons_rudder_time_coeff"
   },
   "99": {
     "tree": "Submarine",
@@ -1017,7 +1017,7 @@
     "x": 0,
     "y": 1,
     "category": "Attack",
-    "image": ""
+    "image": "submarine_battery_capacity"
   },
   "102": {
     "tree": "Submarine",
@@ -1027,7 +1027,7 @@
     "x": 1,
     "y": 1,
     "category": "Attack",
-    "image": ""
+    "image": "trigger_seen_torpedo_reload"
   },
   "103": {
     "tree": "Submarine",
@@ -1067,7 +1067,7 @@
     "x": 0,
     "y": 2,
     "category": "Attack",
-    "image": ""
+    "image": "trigger_pinger_speed_buff"
   },
   "107": {
     "tree": "Submarine",
@@ -1077,7 +1077,7 @@
     "x": 1,
     "y": 2,
     "category": "Attack",
-    "image": ""
+    "image": "submarine_hold_sectors"
   },
   "108": {
     "tree": "Submarine",
@@ -1097,7 +1097,7 @@
     "x": 3,
     "y": 2,
     "category": "Defense",
-    "image": ""
+    "image": "submarine_danger_alert"
   },
   "110": {
     "tree": "Submarine",
@@ -1127,7 +1127,7 @@
     "x": 1,
     "y": 3,
     "category": "Attack",
-    "image": ""
+    "image": "submarine_torpedo_ping_damage"
   },
   "113": {
     "tree": "Submarine",
@@ -1137,17 +1137,17 @@
     "x": 2,
     "y": 3,
     "category": "Attack",
-    "image": ""
+    "image": "trigger_cons_sonar_time_coeff"
   },
   "114": {
     "tree": "Submarine",
-    "name": "Improved Battery Capacity",
+    "name": "Improved Battery Efficiency",
     "description": "Increase the dive capacity recharge rate while surface and with less than 50% dive capacity.",
     "effect": "Dive capacity recharge rate: +25%",
     "x": 3,
     "y": 3,
     "category": "Defense",
-    "image": ""
+    "image": "submarine_battery_burn_down"
   },
   "115": {
     "tree": "Submarine",
@@ -1157,6 +1157,6 @@
     "x": 4,
     "y": 3,
     "category": "Defense",
-    "image": ""
+    "image": "submarine_speed"
   }
 }
