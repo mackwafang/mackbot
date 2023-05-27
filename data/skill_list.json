@@ -231,7 +231,7 @@
   },
   "23": {
     "tree": "AirCarrier",
-    "name": "Enhanced Reaction",
+    "name": "Enhanced Reactions",
     "description": "Time for Patrol Fighters and Interceptors to start engaging enemy aircraft reduced.",
     "effect": "Time before attacking: -80%\nTime to Arrive: +50%\nAction time of consumable: +25%",
     "x": 5,
@@ -441,7 +441,7 @@
   },
   "44": {
     "tree": "Battleship",
-    "name": "Close Quarter Combat",
+    "name": "Close Quarters Combat",
     "description": "Improves main battery reload speed if there is an enemy spotted within the secondary battery range.",
     "effect": "Main battery reload: -10%",
     "x": 2,
@@ -1035,7 +1035,7 @@
     "description": "Increase ship's consumable action time.",
     "effect": "Ship's consumable action time: +5%",
     "x": 2,
-    "y": 2,
+    "y": 1,
     "category": "Attack",
     "image": "consumables_duration"
   },
@@ -1085,7 +1085,7 @@
     "description": "Reduces consumable cooldown time.",
     "effect": "Ship's consumable reload time: -5%",
     "x": 2,
-    "y": 0,
+    "y": 2,
     "category": "Attack",
     "image": "consumables_reload"
   },

@@ -1304,7 +1304,7 @@ def load_ship_builds():
 
 		# Call the Sheets API
 		sheet = service.spreadsheets()
-		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:AA').execute()
+		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!C:AA').execute()
 		values = result.get('values', [])
 
 		if not values:
