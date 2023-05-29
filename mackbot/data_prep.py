@@ -8,7 +8,7 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC
+from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC, UPGRADE_SLOTS_AT_TIER
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 from mackbot.utilities.bot_data import WG
@@ -437,7 +437,7 @@ def update_ship_modules():
 			"upgrades": [],
 			"tier": missing_ship_data['level'],
 			"next_ships": {},
-			"mod_slots": [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6][missing_ship_data['level'] - 1],
+			"mod_slots": UPGRADE_SLOTS_AT_TIER[missing_ship_data['level'] - 1],
 			"type": missing_ship_data['typeinfo']['species'],
 			"is_special": False,
 			"name": missing_ship_data["name"]
@@ -1292,8 +1292,22 @@ def load_consumable_list():
 
 
 def load_ship_builds():
-	global ship_build, ship_list, skill_list
+	global ship_build, ship_list, skill_list, upgrade_list
 	assert sheet_id is not None
+
+	if not len(ship_list):
+		logger.warning("Ship list is empty.")
+		load_ship_list()
+	if not len(skill_list):
+		logger.warning("Skill list is empty.")
+		load_skill_list()
+	if not len(upgrade_list):
+		logger.warning("Upgrade list is empty.")
+		load_upgrade_list()
+
+	if _GOOGLE_SHEETS_CREDS is None:
+		logger.info("Fetching Google Credentials")
+		get_google_sheets_creds()
 
 	from googleapiclient.discovery import build
 	from googleapiclient.errors import HttpError
@@ -1345,19 +1359,31 @@ def load_ship_builds():
 				"errors": [],
 			}
 			# converting upgrades
-			for u in build_upgrades:
+			for s, u in enumerate(build_upgrades):
 				try:
+					# blank slot
+					if not len(u):
+						continue
+
+					# any upgrade
 					if u == '*':
 						data['upgrades'].append(-1)
 						continue
 
+					# specified upgrade
 					for k, v in upgrade_abbr_list.items():
 						if u.lower() in [v['abbr'].lower(), v['upgrade'].lower()]:
+							upgrade_data = upgrade_list[str(v['upgrade_id'])]
+							if upgrade_data['slot'] != s + 1:
+								data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
 							data['upgrades'].append(v['upgrade_id'])
 							break
 				except IndexError:
 					logger.warning(f"Upgrade [{u}] is not an upgrade!")
-					data['errors'].append(BuildError.UPGRADE_INCORRECT)
+					data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
+
+			if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
+				data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
 
 			# converting skills
 			total_skill_pts = 0
@@ -1398,11 +1424,23 @@ def load_ship_builds():
 				logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
 				for e in data['errors']:
 					if e == BuildError.SKILLS_POTENTIALLY_MISSING:
-						logger.info(f"Total skill points in this build: {total_skill_pts}")
+						logger.warning(f"Total skill points in this build: {total_skill_pts}")
 
 				logger.info(f"Skill orders are:")
 				for skill in data["skills"]:
-					logger.info(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+					logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+
+				if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
+					logger.warning(f"Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']]} upgrades.")
+
+				if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
+					for s, upgrade_id in enumerate(data['upgrades']):
+						if upgrade_id == -1:
+							continue
+
+						upgrade_data = upgrade_list[str(upgrade_id)]
+						if upgrade_data['slot'] != s + 1:
+							logger.warning(f"Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
 
 				logger.info(f"read: {row}")
 				logger.info("-"*30)

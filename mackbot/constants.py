@@ -71,6 +71,8 @@ ROMAN_NUMERAL = (
 	':star:',
 )
 
+UPGRADE_SLOTS_AT_TIER = [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6]
+
 # barrel count names
 BARREL_COUNT_NAMES = {
 	1: "Single",
