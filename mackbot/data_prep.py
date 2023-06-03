@@ -12,6 +12,7 @@ from mackbot.constants import nation_dictionary, hull_classification_converter, 
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 from mackbot.utilities.bot_data import WG
+from mackbot.utilities.math import lerp
 from mackbot.wargaming.armory import get_armory_ships
 
 from google.auth.transport.requests import Request
@@ -98,19 +99,6 @@ try:
 	database_client = MongoClient(mongodb_host)
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected.")
-
-def lerp(a, b, t):
-	"""
-	Returns the linear interpolation between a and b given t
-	Args:
-		a ():
-		b ():
-		t ():
-
-	Returns:
-
-	"""
-	return ((1 - t) * a) + (t * b)
 
 def get_google_sheets_creds():
 	global _GOOGLE_SHEETS_CREDS
@@ -792,7 +780,7 @@ def update_ship_modules():
 						for turret_data in gun:  # for each turret
 							# add turret type and count
 							# find dispersion
-							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/
+							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/?do=findComment&comment=1629992
 							turret_name = game_data[turret_data['name']]['name']
 
 							if turret_name not in new_turret_data['turrets']:
@@ -804,16 +792,17 @@ def update_ship_modules():
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1
 
-							h_disp_at_ideal = turret_data['idealRadius'] * 30
-							range_for_ideal = turret_data['idealDistance'] * 30
+							h_disp_at_ideal = turret_data['idealRadius'] * 30 # Horizontal dispersion at idealDistance, in units of 30m
+							range_for_ideal = turret_data['idealDistance'] * 30 # Distance at which idealRadius applies, in units of 30m.
 							for r_i in range(5, 35, 5):
 								r = min(r_i * 1000, int(new_turret_data['range']))
 
 								if r > new_turret_data['taperDist']:
+									# minRadius: Horizontal dispersion at zero range, in units of 30m (also used for torp range)
 									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)
 								else:
 									h_disp = lerp(0, h_disp_at_ideal, r / range_for_ideal)
-								v_disp = h_disp * turret_data['radiusOnMax']
+								v_disp = h_disp * turret_data['radiusOnMax'] #Ratio of vertical to horizontal dispersion at maximum range
 
 								new_turret_data['dispersion_h'][str(r)] = round(h_disp)
 								new_turret_data['dispersion_v'][str(r)] = round(v_disp)
@@ -823,6 +812,11 @@ def update_ship_modules():
 							new_turret_data['shotDelay'] = turret_data['shotDelay']
 							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
 							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
+							new_turret_data['idealRadius'] = turret_data['idealRadius']
+							new_turret_data['idealDistance'] = turret_data['idealDistance']
+							new_turret_data['taperDist'] = turret_data['taperDist']
+							new_turret_data['minRadius'] = turret_data['minRadius']
+							new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
 
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:

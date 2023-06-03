@@ -7,11 +7,13 @@ import discord
 from discord import app_commands, Embed, File
 from discord.ext import commands
 from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
 from matplotlib.pyplot import figure
 
+from cogs.wows.show import ShowGroup
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import build_trajectory, get_impact_time_at_max_range, get_trajectory_at_range
+from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
 from mackbot.utilities.logger import logger
@@ -37,7 +39,7 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	UPGRADES = auto()
 
 SHELL_COLOR = {
-	'ap': 'gray',
+	'ap': 'white',
 	'he': 'yellow',
 	'sap': 'orange',
 	'cs': 'orange'
@@ -53,23 +55,23 @@ LINE_STYLES = (
 class Analyze(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.bot.tree.add_command(AnalyzeGroup(name="analyze", description="Analyze certain aspect of a warship"))
 
-	@app_commands.command(name='analyze', description='Get combat parameters of a warship')
+class AnalyzeGroup(app_commands.Group):
+	@app_commands.command(name='ship', description='Get combat parameters of a warship')
 	@app_commands.describe(
 		ship_name="Ship name",
-		parameters="Ship parameters for detailed report",
+		gun_range="Ship parameters for detailed report",
 	)
 	@app_commands.autocomplete(
 		ship_name=auto_complete_ship_name,
-		parameters=auto_complete_ship_parameters
+		gun_range=auto_complete_ship_parameters
 	)
-	async def analyze(self, interaction: discord.Interaction, ship_name: str, parameters: Optional[str]=""):
+	async def artillery(self, interaction: discord.Interaction, ship_name: str, gun_range: Optional[float]=-1):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 
 		"""
-
-		param_filter = parameters.lower()
 
 		try:
 			ship_data = get_ship_data(ship_name)
@@ -130,120 +132,87 @@ class Analyze(commands.Cog):
 
 			embed.set_thumbnail(url=images['small'])
 
-			# defines ship params filtering
+			if database_client is not None:
+				query_result = list(database_client.mackbot_db.module_list.find({
+					"module_id": {"$in": modules['artillery']}
+				}).sort("name", 1))
 
-			ship_filter = 0b111111111111  # assuming no filter is provided, display all
-			# grab filters
-			if len(param_filter) > 0:
-				ship_filter = 0  # filter is requested, disable all
-				s = ship_param_filter_regex.findall(param_filter)  # what am i looking for?
+				fire_control_range = list(database_client.mackbot_db.module_list.find({
+					"module_id": {"$in": modules['fire_control']}
+				}).sort("profile.fire_control.distance", 1))
+			# fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
+			else:
+				query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
+				fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
-				def is_filter_requested(x):
-					# check length of regex capture groups. if len > 0, request is valid
-					return 1 if len([i[x - 1] for i in s if len(i[x - 1]) > 0]) > 0 else 0
+			fig, ax = plt.subplots(1, figsize=(8, 3))
+			ax.set_facecolor('black')
+			plt.xlabel("Distance (m)")
+			plt.ylabel("Height (m)")
+			plt.title(f"{name}'s Main Battery Trajectory")
+			plt.grid()
 
-				# enables proper filter
-				ship_filter |= is_filter_requested(2) << SHIP_COMBAT_PARAM_FILTER.HULL
-				ship_filter |= is_filter_requested(3) << SHIP_COMBAT_PARAM_FILTER.GUNS
-				ship_filter |= is_filter_requested(4) << SHIP_COMBAT_PARAM_FILTER.ATBAS
-				ship_filter |= is_filter_requested(6) << SHIP_COMBAT_PARAM_FILTER.TORPS
-				ship_filter |= is_filter_requested(8) << SHIP_COMBAT_PARAM_FILTER.ROCKETS
-				ship_filter |= is_filter_requested(5) << SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER
-				ship_filter |= is_filter_requested(7) << SHIP_COMBAT_PARAM_FILTER.BOMBER
-				ship_filter |= is_filter_requested(9) << SHIP_COMBAT_PARAM_FILTER.ENGINE
-				ship_filter |= is_filter_requested(10) << SHIP_COMBAT_PARAM_FILTER.AA
-				ship_filter |= is_filter_requested(11) << SHIP_COMBAT_PARAM_FILTER.CONCEAL
-				ship_filter |= is_filter_requested(12) << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE
-				ship_filter |= is_filter_requested(13) << SHIP_COMBAT_PARAM_FILTER.UPGRADES
-				ship_filter |= is_filter_requested(14) << SHIP_COMBAT_PARAM_FILTER.ARMOR
-				ship_filter |= is_filter_requested(15) << SHIP_COMBAT_PARAM_FILTER.SONAR
+			for index, module in enumerate(query_result):
+				m = ""
 
-			def is_filtered(x):
-				return (ship_filter >> x) & 1 == 1
+				guns = module['profile']['artillery']
+				turret_data = module['profile']['artillery']['turrets']
+				total_salvo_count = 0
+				gun_range = guns['range'] if gun_range == -1 else gun_range
 
-			aircraft_modules = {
-				'fighter': "Fighters",
-				'torpedo_bomber': "Torpedo Bombers",
-				'dive_bomber': "Bombers",
-				'skip_bomber': "Skip Bombers"
-			}
-			aircraft_module_filtered = [
-				is_filtered(SHIP_COMBAT_PARAM_FILTER.ROCKETS),
-				is_filtered(SHIP_COMBAT_PARAM_FILTER.TORP_BOMBER),
-				is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER),
-				is_filtered(SHIP_COMBAT_PARAM_FILTER.BOMBER),
-			]
+				for turret_name in turret_data:
+					turret = turret_data[turret_name]
+					total_salvo_count += turret['count'] * turret['numBarrels']
+					m += f"**{turret_name}**\n"
 
-			# do guns analysis
-			if modules['artillery']:
-				if database_client is not None:
-					query_result = list(database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['artillery']}
-					}).sort("name", 1))
+				m += f"**Salvo**: {to_plural('shell', total_salvo_count)}\n\n"
 
-					fire_control_range = list(database_client.mackbot_db.module_list.find({
-						"module_id": {"$in": modules['fire_control']}
-					}).sort("profile.fire_control.distance", 1))
-				# fire_control_range = sorted([fc['profile']['fire_control']['distance'] for fc in fire_control_range])
-				else:
-					query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
-					fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
+				for ammo_type in guns['max_damage']:
+					if guns['max_damage'][ammo_type] > 0:
+						shell = build_trajectory(module, ammo_type)
+						impact_data = shell.getImpact()
+						traj_dist, traj_height, _ = get_trajectory_at_range(shell, gun_range)
+						time_to_impact = get_impact_time_at_range(impact_data, gun_range)
+						# time_to_impact = get_impact_time_at_max_range(impact_data, module)
+						gun_angle = get_angle_at_range(impact_data, gun_range)
+						dispersion_h, dispersion_v = calc_dispersion(module, gun_range)
 
-				fig, ax = plt.subplots(1, figsize=(8, 3))
-				ax.set_facecolor('black')
-				plt.xlabel("Distance (m)")
-				plt.ylabel("Height (m)")
-				plt.title(f"{name}'s Main Battery Trajectory")
-				plt.grid()
-
-				for index, module in enumerate(query_result):
-					m = ""
-
-					guns = module['profile']['artillery']
-					turret_data = module['profile']['artillery']['turrets']
-					for turret_name in turret_data:
-						turret = turret_data[turret_name]
-						m += f"**{turret_name}**\n"
-						m += f"**Salvo**: {to_plural('shells', turret['count'] * turret['numBarrels'])}\n"
-						m += "\n"
-
-					for ammo_type in guns['max_damage']:
-						if guns['max_damage'][ammo_type] > 0:
-							shell = build_trajectory(module, ammo_type)
-							impact_data = shell.getImpact()
-							traj_dist, traj_height, _ = get_trajectory_at_range(shell, guns['range'])
-							# time_to_impact = get_impact_time_at_range(impact_data, guns['range'])
-							time_to_impact = get_impact_time_at_max_range(impact_data, module)
-
-							m += f"__**{ammo_type.upper() if ammo_type != 'cs' else 'AP'}**__\n"
-							m += f"**Velocity**: {guns['speed'][ammo_type]:0.0f} m/s\n"
-							m += f"**Krupp**: {guns['krupp'][ammo_type]:0.0f}\n"
-							m += f"**Mass**: {guns['mass'][ammo_type]:0.0f} kg\n"
-							m += f"**Drag**: {guns['drag'][ammo_type]:0.0f}\n"
+						m += f"__**{ammo_type.upper() if ammo_type != 'cs' else 'AP'} ({guns['ammo_name'][ammo_type]})**__\n"
+						m += f"**Velocity**: {guns['speed'][ammo_type]:0.0f} m/s\n"
+						m += f"**Krupp**: {guns['krupp'][ammo_type]:0.0f}\n"
+						m += f"**Mass**: {guns['mass'][ammo_type]:0.0f} kg\n"
+						m += f"**Drag**: {guns['drag'][ammo_type]}\n"
+						if ammo_type != 'he':
 							m += f"**Fuse Time**: {guns['fuse_time'][ammo_type]}s\n"
-							m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
-							m += f"**Dispersion @ {guns['range']/1000:0.1f} km**: {guns['dispersion_h'][str(int(guns['range']))]}m x {guns['dispersion_v'][str(int(guns['range']))]}m\n"
-							m += f"**Time to impact @ {guns['range']/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
-							m += "\n"
+						m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
+						m += f"**Dispersion @ {gun_range/1000:0.1f} km**: {dispersion_h}m x {dispersion_v}m\n"
+						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
 
-							plt.plot(
-								traj_dist,
-								traj_height,
-								color=SHELL_COLOR[ammo_type],
-								label=f"{module['name']} {ammo_type.upper()}",
-								linestyle=LINE_STYLES[index]
-							)
+						plt.tight_layout()
+						plt.plot(
+							traj_dist,
+							[i / 1000 for i in traj_height],
+							color=SHELL_COLOR[ammo_type],
+							label=f"{module['name']} {ammo_type.upper()}",
+							linestyle=LINE_STYLES[index],
+							linewidth=2,
+						)
 
-					embed.add_field(name="__**Artillery**__", value=m, inline=False)
-					plt.legend()
-				# create hash
-				h = sha256(f'{name}'.encode()).hexdigest()
 
-				filename = f'./tmp/analysis_{h}.png'
-				plt.savefig(filename)
+				m += '-' * 15
+				m += "\n"
 
-				image_file = File(filename, filename=f"analysis_{h}.png")
-				embed.set_image(url=f'attachment://analysis_{h}.png')
+				embed.add_field(name="__**Artillery**__", value=m, inline=False)
+				plt.legend()
+
+			# create hash
+			h = sha256(f'{name}'.encode()).hexdigest()
+
+			filename = f'./tmp/analysis_{h}.png'
+			plt.savefig(filename)
+
+			image_file = File(filename, filename=f"analysis_{h}.png")
+			embed.set_image(url=f'attachment://analysis_{h}.png')
 
 			footer_message = "Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell"
 
@@ -267,7 +236,7 @@ class Analyze(commands.Cog):
 					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
 					embed.set_footer(text="Response expire in 10 seconds")
 					msg = await interaction.channel.send(embed=embed)
-					await correct_user_misspell(self.bot, interaction, Analyze, "analyze", closest_match[0], param_filter)
+					await correct_user_misspell(self.bot, interaction, Analyze, "analyze", closest_match[0], gun_range)
 					await msg.delete()
 				else:
 					await interaction.response.send_message(embed=embed)
