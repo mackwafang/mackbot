@@ -4,6 +4,7 @@ from typing import Optional
 from hashlib import sha256
 
 import discord
+import wows_shell
 from discord import app_commands, Embed, File
 from discord.ext import commands
 from matplotlib import pyplot as plt
@@ -13,7 +14,7 @@ from matplotlib.pyplot import figure
 from cogs.wows.show import ShowGroup
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion
+from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
 from mackbot.utilities.logger import logger
@@ -58,21 +59,15 @@ class Analyze(commands.Cog):
 		self.bot.tree.add_command(AnalyzeGroup(name="analyze", description="Analyze certain aspect of a warship"))
 
 class AnalyzeGroup(app_commands.Group):
-	@app_commands.command(name='ship', description='Get combat parameters of a warship')
+	@app_commands.command(name='artillery', description='Get combat parameters of a warship')
 	@app_commands.describe(
 		ship_name="Ship name",
-		gun_range="Ship parameters for detailed report",
+		gun_range="Desired gun range in kilometers",
 	)
 	@app_commands.autocomplete(
 		ship_name=auto_complete_ship_name,
-		gun_range=auto_complete_ship_parameters
 	)
-	async def artillery(self, interaction: discord.Interaction, ship_name: str, gun_range: Optional[float]=-1):
-		"""
-			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
-
-		"""
-
+	async def artillery(self, interaction: discord.Interaction, ship_name: str, gun_range: Optional[float]=-1.0):
 		try:
 			ship_data = get_ship_data(ship_name)
 			if ship_data is None:
@@ -158,7 +153,9 @@ class AnalyzeGroup(app_commands.Group):
 				guns = module['profile']['artillery']
 				turret_data = module['profile']['artillery']['turrets']
 				total_salvo_count = 0
-				gun_range = guns['range'] if gun_range == -1 else gun_range
+				fire_control_range = sorted([fc['profile']['fire_control']['max_range_coef'] for fc in fire_control_range])[-1]
+				max_gun_range = guns['range'] * fire_control_range
+				gun_range = guns['range'] if gun_range == -1 else min(max_gun_range, gun_range * 1000)
 
 				for turret_name in turret_data:
 					turret = turret_data[turret_name]
@@ -184,21 +181,24 @@ class AnalyzeGroup(app_commands.Group):
 						m += f"**Drag**: {guns['drag'][ammo_type]}\n"
 						if ammo_type != 'he':
 							m += f"**Fuse Time**: {guns['fuse_time'][ammo_type]}s\n"
-						m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
+							m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
+							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km**: {get_penetration_at_range(impact_data, gun_angle, gun_range / max_gun_range):0.0f}mm\n"
+						else:
+							m += f"**Prob. for Fires**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Dispersion @ {gun_range/1000:0.1f} km**: {dispersion_h}m x {dispersion_v}m\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
 
 						plt.tight_layout()
 						plt.plot(
 							traj_dist,
-							[i / 1000 for i in traj_height],
+							traj_height,
 							color=SHELL_COLOR[ammo_type],
 							label=f"{module['name']} {ammo_type.upper()}",
 							linestyle=LINE_STYLES[index],
 							linewidth=2,
 						)
 
-
+				ax.set_ylim(top=4500)
 				m += '-' * 15
 				m += "\n"
 
@@ -214,7 +214,8 @@ class AnalyzeGroup(app_commands.Group):
 			image_file = File(filename, filename=f"analysis_{h}.png")
 			embed.set_image(url=f'attachment://analysis_{h}.png')
 
-			footer_message = "Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell"
+			footer_message = "- Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell\n" \
+			                 "- Penetration values may not be very accurate. Take with a grain of salt."
 
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"

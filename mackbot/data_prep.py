@@ -814,7 +814,6 @@ def update_ship_modules():
 							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
 							new_turret_data['idealRadius'] = turret_data['idealRadius']
 							new_turret_data['idealDistance'] = turret_data['idealDistance']
-							new_turret_data['taperDist'] = turret_data['taperDist']
 							new_turret_data['minRadius'] = turret_data['minRadius']
 							new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
 
