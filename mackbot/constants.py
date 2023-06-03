@@ -14,7 +14,7 @@ EMPTY_LENGTH_CHAR = '\u200b'
 with open(os.path.join(os.getcwd(), "data", "nation_dictionary.json")) as f:
 	nation_dictionary = json.load(f)
 
-ship_types = {
+SHIP_TYPES = {
 	'Destroyer': 'Destroyer',
 	'AirCarrier': 'Aircraft Carrier',
 	'Aircraft Carrier': 'Aircraft Carrier',

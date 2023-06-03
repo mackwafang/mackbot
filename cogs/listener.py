@@ -49,6 +49,9 @@ class Listener(commands.Cog):
 	async def on_ready(self):
 		await self.client.change_presence(activity=discord.Game(self.command_prefix + ' help'))
 		logger.info(f"Logged on as {self.client.user} (ID: {self.client.user.id})")
+		# debug show commands
+		# for cog in self.client.cogs:
+		# 	print(cog)
 
 	@commands.Cog.listener()
 	async def on_command_error(self, context: commands.Context, error: commands.errors):

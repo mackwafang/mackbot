@@ -5,7 +5,7 @@ import discord
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
 from mackbot.enums import SHIP_COMBAT_PARAM_FILTER
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
@@ -35,12 +35,6 @@ class Ship(commands.Cog):
 	async def ship(self, interaction: discord.Interaction, ship_name: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
-
-			Discord usage:
-				mackbot ship [ship_name] [-p/--parameters parameters]
-					ship_name 		- name of requested warship
-					-p/--parameters - Optional. Filters only specific warship parameters
-										Parameters may include, but not limited to: guns, secondary, torpedoes, hull
 		"""
 		param_filter = parameters.lower()
 
@@ -66,7 +60,7 @@ class Ship(commands.Cog):
 			price_special = ship_data['price_special']
 			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
-			ship_type = ship_types[ship_type]
+			ship_type = SHIP_TYPES[ship_type]
 
 			logger.info(f"Ship {name} ({ship_data['ship_id']}) found")
 			if ship_type == 'Cruiser':
@@ -190,16 +184,6 @@ class Ship(commands.Cog):
 				for module in query_result:
 					hull = module['profile']['hull']
 					m += f"**{module['name']}:** **{number_separator(hull['health'], '.0f')} HP**\n"
-					# if hull['artillery_barrels'] > 0:
-					# 	m += f"{hull['artillery_barrels']} Main Turret{'s' if hull['artillery_barrels'] > 1 else ''}\n"
-					# if hull['torpedoes_barrels'] > 0:
-					# 	m += f"{hull['torpedoes_barrels']} Torpedoes Launcher{'s' if hull['torpedoes_barrels'] > 1 else ''}\n"
-					# if hull['atba_barrels'] > 0:
-					# 	m += f"{hull['atba_barrels']} Secondary Turret{'s' if hull['atba_barrels'] > 1 else ''}\n"
-					# if hull['anti_aircraft_barrels'] > 0:
-					# 	m += f"{hull['anti_aircraft_barrels']} AA Gun{'s' if hull['anti_aircraft_barrels'] > 1 else ''}\n"
-					# if hull['planes_amount'] is not None and ship_type == "Aircraft Carrier":
-					# 	m += f"{hull['planes_amount']} Aircraft\n"
 
 					if ship_type == 'Submarine':
 						m += f"{hull['battery']['capacity']} battery unit\n"

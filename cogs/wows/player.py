@@ -12,7 +12,7 @@ from discord.ext import commands
 
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.exceptions import NoShipFound
-from mackbot.constants import ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, ship_types, ICONS_EMOJI, ITEMS_TO_UPPER
+from mackbot.constants import ROMAN_NUMERAL, EMPTY_LENGTH_CHAR, SHIP_TYPES, ICONS_EMOJI, ITEMS_TO_UPPER
 from mackbot.utilities.game_data.game_data_finder import get_ship_data_by_id, get_ship_data
 from mackbot.utilities.game_data.warships_data import ship_list_simple
 from mackbot.utilities.discord.items_autocomplete import auto_complete_region, auto_complete_ship_name, auto_complete_battle_type, auto_complete_tier
@@ -257,7 +257,7 @@ class Player(commands.Cog):
 						# battle distribution by ship types
 						player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
 						m = ""
-						for s_t in sorted([i for i in ship_types if i != "Aircraft Carrier"]):
+						for s_t in sorted([i for i in SHIP_TYPES if i != "Aircraft Carrier"]):
 							try:
 								if s_t in list(player_ship_stats_df.index):
 									type_stat = player_ship_stats_df.loc[s_t]
@@ -269,7 +269,7 @@ class Player(commands.Cog):
 											"Destroyer": ICONS_EMOJI['dd'],
 											"Submarine": ICONS_EMOJI['ss']
 										}[s_t]
-										m += f"**{emoji}{ship_types[s_t]}s**\n"
+										m += f"**{emoji}{SHIP_TYPES[s_t]}s**\n"
 
 										type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
 										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
