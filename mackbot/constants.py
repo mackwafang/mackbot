@@ -9,6 +9,10 @@ DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
 EMPTY_LENGTH_CHAR = '\u200b'
 
+SUPERSCRIPT_CHAR = dict((i, chr(0x2070 + i)) for i in range(10))
+SUPERSCRIPT_CHAR[1] = '\u00b9'
+SUPERSCRIPT_CHAR[2] = '\u00b2'
+SUPERSCRIPT_CHAR[3] = '\u00b3'
 
 # dictionary to convert user input to output nations
 with open(os.path.join(os.getcwd(), "data", "nation_dictionary.json")) as f:

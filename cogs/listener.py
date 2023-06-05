@@ -12,6 +12,14 @@ class Listener(commands.Cog):
 		self.command_prefix = command_prefix
 
 	@commands.Cog.listener()
+	async def on_interaction(self, interaction: discord.Interaction):
+		if str(interaction.type) == "InteractionType.application_command":
+			logger.info(f"user {interaction.user} ({interaction.user.id}) at "
+	            f"[{interaction.guild.name[:25]:<25} ({interaction.guild_id}), {interaction.channel.name[:25]:<25} ({interaction.channel_id})] "
+	            f"queried {interaction.data}"
+            )
+
+	@commands.Cog.listener()
 	async def on_message(self, message: discord.Message):
 		# check for mackbot response testing by checking it only contains the ping
 		if message.content == f"<@{self.client.application_id}>":
@@ -35,15 +43,6 @@ class Listener(commands.Cog):
 			if args:
 				if args[0] in command_prefix and args[1] in command_list:
 					logger.info("User [{} ({})] via [{}] queried: {}".format(message.author, message.author.id, message.guild, message.content))
-
-
-
-	@commands.Cog.listener()
-	async def on_app_command_completion(self, interaction: discord.Interaction, command):
-		logger.info(f"user {interaction.user} ({interaction.user.id}) at "
-		            f"[{interaction.guild.name[:25]:<25} ({interaction.guild_id}), {interaction.channel.name[:25]:<25} ({interaction.channel_id})] "
-		            f"queried {interaction.data}"
-		)
 
 	@commands.Cog.listener()
 	async def on_ready(self):

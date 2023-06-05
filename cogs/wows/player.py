@@ -303,21 +303,23 @@ class Player(commands.Cog):
 							try:
 								if s_t in list(player_ship_stats_df.index):
 									type_stat = player_ship_stats_df.loc[s_t]
-									if type_stat['battles'] > 0:
-										emoji = {
-											"AirCarrier": ICONS_EMOJI['cv'],
-											"Battleship": ICONS_EMOJI['bb'],
-											"Cruiser":  ICONS_EMOJI['c'],
-											"Destroyer": ICONS_EMOJI['dd'],
-											"Submarine": ICONS_EMOJI['ss']
-										}[s_t]
-										m += f"**{emoji}{SHIP_TYPES[s_t]}s**\n"
+									emoji = {
+										"AirCarrier": ICONS_EMOJI['cv'],
+										"Battleship": ICONS_EMOJI['bb'],
+										"Cruiser": ICONS_EMOJI['c'],
+										"Destroyer": ICONS_EMOJI['dd'],
+										"Submarine": ICONS_EMOJI['ss']
+									}[s_t]
+									m += f"**{emoji}{SHIP_TYPES[s_t]}s**\n"
 
+									if type_stat['battles'] > 0:
 										type_average_kills = type_stat['kills'] / max(1, type_stat['battles'])
 										type_average_dmg = type_stat['damage'] / max(1, type_stat['battles'])
 										type_average_wr = type_stat['wins'] / max(1, type_stat['battles'])
 										m += f"{int(type_stat['battles'])} battle{'s' if type_stat['battles'] else ''} ({type_stat['battles'] / max(1, player_battle_stat['battles']):2.1%})\n"
 										m += f"{type_average_wr:0.2%} WR | {type_average_kills:0.2f} Kills | {number_separator(type_average_dmg, '.0f')} DMG\n\n"
+									else:
+										m += "No battles for this type.\n\n"
 							except KeyError:
 								traceback.print_exc()
 						embed.add_field(name=f"__**Stat by Ship Types**__", value=m)
@@ -333,10 +335,10 @@ class Player(commands.Cog):
 								tier_average_dmg = tier_stat['damage'] / max(1, tier_stat['battles'])
 								tier_average_wr = tier_stat['wins'] / max(1, tier_stat['battles'])
 
-								m += f"**{ROMAN_NUMERAL[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / player_battle_stat['battles']:2.1%})**\n"
+								m += f"**{ROMAN_NUMERAL[tier - 1]}: {number_separator(tier_stat['battles'], '.0f')} battles ({tier_stat['battles'] / max(1, player_battle_stat['battles']):2.1%})**\n"
 								m += f"{tier_average_wr:0.2%} WR | {tier_average_kills:0.2f} Kills | {number_separator(tier_average_dmg, '.0f')} DMG\n"
 							except KeyError:
-								m += f"**{list(ROMAN_NUMERAL)[tier - 1]}**: No battles\n"
+								m += f"**{list(ROMAN_NUMERAL)[tier - 1]}**: No ships at this tier\n"
 						embed.add_field(name=f"__**Average by Tier**__", value=m)
 					elif ship_tier_filter:
 						# list ships that the player has at this tier

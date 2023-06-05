@@ -1,11 +1,13 @@
 import os, json, pickle
 
+from numpy.random import seed
 from .logger import logger
 from mackbot.wargaming.wows import WOWS
 
 # actual stuff
 from ..constants import WOWS_REALMS
 
+seed(0)
 logger.info("Fetching WoWS Encyclopedia")
 # load important stuff
 with open(os.path.join(os.getcwd(), "data", "config.json")) as f:

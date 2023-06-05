@@ -1,24 +1,21 @@
-import re, traceback
-from typing import Optional
+import discord, re, traceback
+import numpy as np
 
+from numpy.random import normal
+from typing import Optional
 from hashlib import sha256
 
-import discord
-import wows_shell
 from discord import app_commands, Embed, File
 from discord.ext import commands
 from matplotlib import pyplot as plt
-from matplotlib.animation import FuncAnimation
-from matplotlib.pyplot import figure
+from matplotlib.patches import Ellipse
 
-from cogs.wows.show import ShowGroup
-from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary, SUPERSCRIPT_CHAR, SIGMA_SYMBOL
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range
+from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range, within_dispersion
 from mackbot.utilities.discord.formatting import number_separator
-from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
+from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 from mackbot.utilities.logger import logger
-from mackbot.utilities.regex import ship_param_filter_regex
 from mackbot.utilities.game_data.warships_data import database_client, module_list
 from mackbot.utilities.game_data.game_data_finder import get_ship_data
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
@@ -45,6 +42,12 @@ SHELL_COLOR = {
 	'sap': 'orange',
 	'cs': 'orange'
 }
+
+DISP_MARKERS = (
+	'x',
+	'o',
+	'd',
+)
 
 LINE_STYLES = (
 	'solid',
@@ -140,12 +143,16 @@ class AnalyzeGroup(app_commands.Group):
 				query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
 				fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
-			fig, ax = plt.subplots(1, figsize=(8, 3))
-			ax.set_facecolor('black')
-			plt.xlabel("Distance (m)")
-			plt.ylabel("Height (m)")
-			plt.title(f"{name}'s Main Battery Trajectory")
-			plt.grid()
+			fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6))
+			ax1.set_facecolor('black')
+			ax1.set_xlabel("Distance (m)")
+			ax1.set_ylabel("Height (m)")
+			ax1.grid()
+
+			ax2.set_facecolor('black')
+			ax2.set_xlabel("Horizontal Spread (m)")
+			ax2.set_ylabel("Vertical Spread (m)")
+			ax2.grid()
 
 			for index, module in enumerate(query_result):
 				m = ""
@@ -153,16 +160,20 @@ class AnalyzeGroup(app_commands.Group):
 				guns = module['profile']['artillery']
 				turret_data = module['profile']['artillery']['turrets']
 				total_salvo_count = 0
-				fire_control_range = sorted([fc['profile']['fire_control']['max_range_coef'] for fc in fire_control_range])[-1]
-				max_gun_range = guns['range'] * fire_control_range
+				fc_bonus = sorted([fc['profile']['fire_control']['max_range_coef'] for fc in fire_control_range])[-1]
+				max_gun_range = guns['range'] * fc_bonus
 				gun_range = guns['range'] if gun_range == -1 else min(max_gun_range, gun_range * 1000)
+				dispersion_h, dispersion_v = calc_dispersion(module, gun_range)
 
 				for turret_name in turret_data:
 					turret = turret_data[turret_name]
 					total_salvo_count += turret['count'] * turret['numBarrels']
 					m += f"**{turret_name}**\n"
 
-				m += f"**Salvo**: {to_plural('shell', total_salvo_count)}\n\n"
+				m += f"**Salvo**: {to_plural('shell', total_salvo_count)}\n"
+				m += f"**Precision**: {guns['sigma']}{SIGMA_SYMBOL}\n"
+				m += f"**Dispersion @ {gun_range / 1000:0.1f} km**: {dispersion_h}m x {dispersion_v}m\n"
+				m += "\n"
 
 				for ammo_type in guns['max_damage']:
 					if guns['max_damage'][ammo_type] > 0:
@@ -170,9 +181,7 @@ class AnalyzeGroup(app_commands.Group):
 						impact_data = shell.getImpact()
 						traj_dist, traj_height, _ = get_trajectory_at_range(shell, gun_range)
 						time_to_impact = get_impact_time_at_range(impact_data, gun_range)
-						# time_to_impact = get_impact_time_at_max_range(impact_data, module)
 						gun_angle = get_angle_at_range(impact_data, gun_range)
-						dispersion_h, dispersion_v = calc_dispersion(module, gun_range)
 
 						m += f"__**{ammo_type.upper() if ammo_type != 'cs' else 'AP'} ({guns['ammo_name'][ammo_type]})**__\n"
 						m += f"**Velocity**: {guns['speed'][ammo_type]:0.0f} m/s\n"
@@ -182,14 +191,13 @@ class AnalyzeGroup(app_commands.Group):
 						if ammo_type != 'he':
 							m += f"**Fuse Time**: {guns['fuse_time'][ammo_type]}s\n"
 							m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
-							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km**: {get_penetration_at_range(impact_data, gun_angle, gun_range / max_gun_range):0.0f}mm\n"
+							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km{SUPERSCRIPT_CHAR[2]}**: {get_penetration_at_range(impact_data, gun_angle, gun_range / max_gun_range):0.0f}mm\n"
 						else:
-							m += f"**Prob. for Fires**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
-						m += f"**Dispersion @ {gun_range/1000:0.1f} km**: {dispersion_h}m x {dispersion_v}m\n"
+							m += f"**Prob. for Fires{SUPERSCRIPT_CHAR[1]}**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
 
 						plt.tight_layout()
-						plt.plot(
+						ax1.plot(
 							traj_dist,
 							traj_height,
 							color=SHELL_COLOR[ammo_type],
@@ -198,12 +206,48 @@ class AnalyzeGroup(app_commands.Group):
 							linewidth=2,
 						)
 
-				ax.set_ylim(top=4500)
+						# get shell landing point distributions
+						ax1.set_title(f"{name}'s Main Battery Trajectory @ {gun_range/1000:0.1f} km")
+						ax2.set_title(f"{name}'s Main Battery Dispersion @ {gun_range/1000:0.1f} km{SUPERSCRIPT_CHAR[3]}")
+
+						# this looks gross
+						dispersion = [[], []]
+						for c in range(total_salvo_count * 3):
+							x, y = np.inf, np.inf
+							while abs(x) > (dispersion_h / 2) or abs(y) > (dispersion_v / 2) or not within_dispersion((x, y), (dispersion_h / 2, dispersion_v / 2)):
+								x = normal(scale=guns['sigma']) * dispersion_h / 2
+								y = normal(scale=guns['sigma']) * dispersion_v / 2
+
+							dispersion[0].append(x)
+							dispersion[1].append(y)
+
+						ellipse = Ellipse(
+							xy=(0,0),
+							width=dispersion_h,
+							height=dispersion_v,
+							angle=0,
+							edgecolor=SHELL_COLOR[ammo_type],
+							facecolor='none'
+						)
+						ax2.add_artist(ellipse)
+
+						ax2.scatter(
+							dispersion[0],
+							dispersion[1],
+							marker=DISP_MARKERS[index],
+							color=SHELL_COLOR[ammo_type],
+							label=f"{module['name']} {ammo_type.upper()}",
+						)
+
+					ax1.set_ylim(top=4500)
+					ax2.set_xlim(left=-400, right=400)
+					ax2.set_ylim(top=-200, bottom=200)
 				m += '-' * 15
 				m += "\n"
 
 				embed.add_field(name="__**Artillery**__", value=m, inline=False)
-				plt.legend()
+				ax1.legend()
+				# ax2.legend()
 
 			# create hash
 			h = sha256(f'{name}'.encode()).hexdigest()
@@ -215,7 +259,9 @@ class AnalyzeGroup(app_commands.Group):
 			embed.set_image(url=f'attachment://analysis_{h}.png')
 
 			footer_message = "- Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell\n" \
-			                 "- Penetration values may not be very accurate. Take with a grain of salt."
+			                 f"{SUPERSCRIPT_CHAR[1]} Assuming a shell hit a different location\n" \
+			                 f"{SUPERSCRIPT_CHAR[2]} Penetration values may not be very accurate\n" \
+			                 f"{SUPERSCRIPT_CHAR[3]} From firing 3 salvos of each ammo type\n" \
 
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"
