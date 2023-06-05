@@ -12,7 +12,7 @@ from matplotlib.patches import Ellipse
 
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary, SUPERSCRIPT_CHAR, SIGMA_SYMBOL
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range, within_dispersion
+from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range, within_dispersion, total_distance_traveled
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 from mackbot.utilities.logger import logger
@@ -195,6 +195,7 @@ class AnalyzeGroup(app_commands.Group):
 						else:
 							m += f"**Prob. for Fires{SUPERSCRIPT_CHAR[1]}**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
+						m += f"**Total Distance Traveled**: {total_distance_traveled([traj_dist, traj_height, _]):0.1f} km\n"
 
 						plt.tight_layout()
 						ax1.plot(

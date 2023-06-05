@@ -129,19 +129,23 @@ def encoder_check(c_type, c_characteristic):
 	if c_characteristic >> SHIP_CONSUMABLE_CHARACTERISTIC.TRAILING == 1:
 		assert(c_type == SHIP_CONSUMABLE.SMOKE)
 
-def decode(c_type: int, c_characteristic: int=0):
+def decode(c_type: int, c_characteristic: int=0, characteristic_only:bool=False):
 	"""
 	convert encoded consumable data to strings
 	Args:
 		c_type (int): consumable value
 		c_characteristic (int): consumable characteristic
-
+		characteristic_only (bool): only decode characteristic
 	Returns:
 		list of tuples - strings
 	"""
-	ct = ' '.join(SHIP_CONSUMABLE(c_type).name.split("_")).title()
-	cc = [' '.join(SHIP_CONSUMABLE_CHARACTERISTIC(c).name.split("_")).title() for c in SHIP_CONSUMABLE_CHARACTERISTIC if ((c_characteristic >> c) & 1) == 1]
-	return [ct] + [f"{i} {ct}" for i in cc]
+	if not characteristic_only:
+		ct = ' '.join(SHIP_CONSUMABLE(c_type).name.split("_")).title()
+		cc = [' '.join(SHIP_CONSUMABLE_CHARACTERISTIC(c).name.split("_")).title() for c in SHIP_CONSUMABLE_CHARACTERISTIC if ((c_characteristic >> c) & 1) == 1]
+		return [ct] + [f"{i} {ct}" for i in cc]
+	else:
+		cc = [' '.join(SHIP_CONSUMABLE_CHARACTERISTIC(c).name.split("_")).title() for c in SHIP_CONSUMABLE_CHARACTERISTIC if ((c_characteristic >> c) & 1) == 1]
+		return [f"{i}" for i in cc]
 
 def consumable_data_to_string(consumable_data):
 	"""

@@ -2,11 +2,12 @@ import re, traceback
 from typing import Optional
 
 import discord
+import mackbot.utilities.ship_consumable_code as ship_consumable_code
 from discord import app_commands, Embed
 from discord.ext import commands
 
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
-from mackbot.enums import SHIP_COMBAT_PARAM_FILTER
+from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SHIP_CONSUMABLE_CHARACTERISTIC
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.discord.formatting import number_separator
@@ -605,15 +606,22 @@ class Ship(commands.Cog):
 							action_time = consumable['workTime']
 							cd_time = consumable['reloadTime']
 
+							consumable_detail = ""
+							c_type, c_char = ship_consumable_code.encode(consumable)
+							if c_char:
+								consumable_subclass = ship_consumable_code.decode(c_type, c_char, True)
+								consumable_name += f" ({', '.join(consumable_subclass)})"
+
 							if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE) and charges != 'Infinite':
 								m += f"**{charges} x ** "
 							if ship_filter != (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):
 								m += f"**{consumable_name}**"
 
+
 							if ship_filter == (1 << SHIP_COMBAT_PARAM_FILTER.CONSUMABLE):  # shows detail of consumable
 								m = f"\n{consumable_description}\n"
 								m += "\n"
-								consumable_detail = ""
+
 								if consumable_type == 'airDefenseDisp':
 									consumable_detail = f'Continuous AA damage: +{consumable["areaDamageMultiplier"] * 100:0.0f}%\nFlak damage: +{consumable["bubbleDamageMultiplier"] * 100:0.0f}%'
 								if consumable_type == 'artilleryBoosters':
@@ -692,7 +700,9 @@ class Ship(commands.Cog):
 
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [/ship {ship_name} -p parameters]\n"
-			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n\n"
+			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n"
+			if is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
+				footer_message += f"For trajectory related information, use [/analyize artillery {ship_name}]\n\n"
 			footer_message += f"Tags: "
 			tags = []
 			for tag in ship_data['tags'].values():
