@@ -77,7 +77,6 @@ def upload_data(collection_name, index_name):
 		logger.warning(f"[upload_data] {collection_name} is not in the allowed list")
 		return
 	else:
-		logger.info(f"[upload_data] Uploading to {collection_name}")
 		# check data to remove and add
 		local_data = getattr(data_loader, collection_name)
 		items_in_local = set((local_data[i][index_name], local_data[i]['hash']) for i in local_data)
@@ -85,6 +84,9 @@ def upload_data(collection_name, index_name):
 
 		items_to_upload = items_in_local - items_in_db
 		items_to_remove = items_in_db - items_in_local
+
+		if items_to_upload or items_to_upload:
+			logger.info(f"[upload_data] Uploading to {collection_name}")
 
 		if items_to_remove:
 			print(f"Found {len(items_to_remove)} items to remove")

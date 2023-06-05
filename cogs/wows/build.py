@@ -4,7 +4,7 @@ from typing import Optional
 from discord import app_commands, Embed, SelectOption, File, Interaction
 from discord.errors import Forbidden
 from discord.ext import commands
-from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ITEMS_TO_UPPER
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ITEMS_TO_UPPER
 from mackbot.enums import SHIP_BUILD_FETCH_FROM, COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
@@ -69,7 +69,7 @@ class Build(commands.Cog):
 				embed = Embed(title=f"Build for {name}", description='')
 				embed.set_thumbnail(url=images['small'])
 
-				embed.description = f"**Tier {ROMAN_NUMERAL[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+				embed.description = f"**Tier {ROMAN_NUMERAL[tier - 1]} {nation_dictionary[nation]} {SHIP_TYPES[ship_type].title()}**"
 
 				m = ""
 				option_strings = []
@@ -114,7 +114,7 @@ class Build(commands.Cog):
 				embed.set_thumbnail(url=images['small'])
 				logger.info(f"returning build information for <{name}> in embeded format")
 				tier_string = ROMAN_NUMERAL[tier - 1]
-				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {ship_types[ship_type]}**\n'
+				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {SHIP_TYPES[ship_type]}**\n'
 
 				footer_message = ""
 				error_value_found = False
@@ -252,7 +252,7 @@ class Build(commands.Cog):
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = Embed(title=f"Build for {name}", description='')
-				embed.description = f"**Tier {list(ROMAN_NUMERAL)[tier - 1]} {nation_dictionary[nation]} {ship_types[ship_type].title()}**"
+				embed.description = f"**Tier {list(ROMAN_NUMERAL)[tier - 1]} {nation_dictionary[nation]} {SHIP_TYPES[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
 				m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)

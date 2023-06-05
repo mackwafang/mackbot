@@ -20,5 +20,6 @@
 	"compare": true,
 	"cook": true,
 	"support": true,
-	"faq": true
+	"faq": true,
+	"analyze": true
 }

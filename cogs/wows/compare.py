@@ -5,7 +5,7 @@ from discord.ext import commands
 from itertools import zip_longest
 
 from .bot_help import BotHelp
-from mackbot.constants import ship_types, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
 from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_module_data

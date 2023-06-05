@@ -8,10 +8,11 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC
+from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC, UPGRADE_SLOTS_AT_TIER
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
 from mackbot.utilities.bot_data import WG
+from mackbot.utilities.math import lerp
 from mackbot.wargaming.armory import get_armory_ships
 
 from google.auth.transport.requests import Request
@@ -98,19 +99,6 @@ try:
 	database_client = MongoClient(mongodb_host)
 except ConnectionError:
 	logger.warning("MongoDB cannot be connected.")
-
-def lerp(a, b, t):
-	"""
-	Returns the linear interpolation between a and b given t
-	Args:
-		a ():
-		b ():
-		t ():
-
-	Returns:
-
-	"""
-	return ((1 - t) * a) + (t * b)
 
 def get_google_sheets_creds():
 	global _GOOGLE_SHEETS_CREDS
@@ -437,7 +425,7 @@ def update_ship_modules():
 			"upgrades": [],
 			"tier": missing_ship_data['level'],
 			"next_ships": {},
-			"mod_slots": [1, 1, 2, 2, 3, 4, 4, 5, 6, 6, 6][missing_ship_data['level'] - 1],
+			"mod_slots": UPGRADE_SLOTS_AT_TIER[missing_ship_data['level'] - 1],
 			"type": missing_ship_data['typeinfo']['species'],
 			"is_special": False,
 			"name": missing_ship_data["name"]
@@ -792,7 +780,7 @@ def update_ship_modules():
 						for turret_data in gun:  # for each turret
 							# add turret type and count
 							# find dispersion
-							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/
+							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/?do=findComment&comment=1629992
 							turret_name = game_data[turret_data['name']]['name']
 
 							if turret_name not in new_turret_data['turrets']:
@@ -804,16 +792,17 @@ def update_ship_modules():
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1
 
-							h_disp_at_ideal = turret_data['idealRadius'] * 30
-							range_for_ideal = turret_data['idealDistance'] * 30
+							h_disp_at_ideal = turret_data['idealRadius'] * 30 # Horizontal dispersion at idealDistance, in units of 30m
+							range_for_ideal = turret_data['idealDistance'] * 30 # Distance at which idealRadius applies, in units of 30m.
 							for r_i in range(5, 35, 5):
 								r = min(r_i * 1000, int(new_turret_data['range']))
 
 								if r > new_turret_data['taperDist']:
+									# minRadius: Horizontal dispersion at zero range, in units of 30m (also used for torp range)
 									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)
 								else:
 									h_disp = lerp(0, h_disp_at_ideal, r / range_for_ideal)
-								v_disp = h_disp * turret_data['radiusOnMax']
+								v_disp = h_disp * turret_data['radiusOnMax'] #Ratio of vertical to horizontal dispersion at maximum range
 
 								new_turret_data['dispersion_h'][str(r)] = round(h_disp)
 								new_turret_data['dispersion_v'][str(r)] = round(v_disp)
@@ -823,6 +812,10 @@ def update_ship_modules():
 							new_turret_data['shotDelay'] = turret_data['shotDelay']
 							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
 							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
+							new_turret_data['idealRadius'] = turret_data['idealRadius']
+							new_turret_data['idealDistance'] = turret_data['idealDistance']
+							new_turret_data['minRadius'] = turret_data['minRadius']
+							new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
 
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:
@@ -1292,8 +1285,22 @@ def load_consumable_list():
 
 
 def load_ship_builds():
-	global ship_build, ship_list, skill_list
+	global ship_build, ship_list, skill_list, upgrade_list
 	assert sheet_id is not None
+
+	if not len(ship_list):
+		logger.warning("Ship list is empty.")
+		load_ship_list()
+	if not len(skill_list):
+		logger.warning("Skill list is empty.")
+		load_skill_list()
+	if not len(upgrade_list):
+		logger.warning("Upgrade list is empty.")
+		load_upgrade_list()
+
+	if _GOOGLE_SHEETS_CREDS is None:
+		logger.info("Fetching Google Credentials")
+		get_google_sheets_creds()
 
 	from googleapiclient.discovery import build
 	from googleapiclient.errors import HttpError
@@ -1304,7 +1311,7 @@ def load_ship_builds():
 
 		# Call the Sheets API
 		sheet = service.spreadsheets()
-		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:AA').execute()
+		result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!C:AA').execute()
 		values = result.get('values', [])
 
 		if not values:
@@ -1345,19 +1352,31 @@ def load_ship_builds():
 				"errors": [],
 			}
 			# converting upgrades
-			for u in build_upgrades:
+			for s, u in enumerate(build_upgrades):
 				try:
+					# blank slot
+					if not len(u):
+						continue
+
+					# any upgrade
 					if u == '*':
 						data['upgrades'].append(-1)
 						continue
 
+					# specified upgrade
 					for k, v in upgrade_abbr_list.items():
 						if u.lower() in [v['abbr'].lower(), v['upgrade'].lower()]:
+							upgrade_data = upgrade_list[str(v['upgrade_id'])]
+							if upgrade_data['slot'] != s + 1:
+								data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
 							data['upgrades'].append(v['upgrade_id'])
 							break
 				except IndexError:
 					logger.warning(f"Upgrade [{u}] is not an upgrade!")
-					data['errors'].append(BuildError.UPGRADE_INCORRECT)
+					data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
+
+			if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
+				data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
 
 			# converting skills
 			total_skill_pts = 0
@@ -1398,11 +1417,23 @@ def load_ship_builds():
 				logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
 				for e in data['errors']:
 					if e == BuildError.SKILLS_POTENTIALLY_MISSING:
-						logger.info(f"Total skill points in this build: {total_skill_pts}")
+						logger.warning(f"Total skill points in this build: {total_skill_pts}")
 
 				logger.info(f"Skill orders are:")
 				for skill in data["skills"]:
-					logger.info(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+					logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+
+				if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
+					logger.warning(f"Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']]} upgrades.")
+
+				if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
+					for s, upgrade_id in enumerate(data['upgrades']):
+						if upgrade_id == -1:
+							continue
+
+						upgrade_data = upgrade_list[str(upgrade_id)]
+						if upgrade_data['slot'] != s + 1:
+							logger.warning(f"Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
 
 				logger.info(f"read: {row}")
 				logger.info("-"*30)
