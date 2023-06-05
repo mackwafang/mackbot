@@ -701,7 +701,7 @@ class Ship(commands.Cog):
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
 			footer_message += f"For details specific parameters, use [/ship {ship_name} -p parameters]\n"
 			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n"
-			if is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
+			if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
 				footer_message += f"For trajectory related information, use [/analyize artillery {ship_name}]\n\n"
 			footer_message += f"Tags: "
 			tags = []
