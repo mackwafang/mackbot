@@ -11,3 +11,4 @@ protobuf>=3.18.3
 inflect~=6.0.2
 requests~=2.31.0
 matplotlib~=3.7.1
+wows-shell
