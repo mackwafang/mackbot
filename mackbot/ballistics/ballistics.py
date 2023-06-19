@@ -1,10 +1,8 @@
 import numpy as np
 
-# from wows_shell import *
-from mackbot.utilities.math import lerp
-from mackbot.utilities.logger import logger
+# shell calc from https://github.com/WoWs-Builder-Team/WoWs-ShipBuilder/blob/development/WoWsShipBuilder.Common/Features/BallisticCharts/BallisticHelper.cs
 
-data = {"_id":{"$oid":"647b7b349e60264088778875"},"profile":{"artillery":{"shotDelay":30,"caliber":0.46,"numBarrels":3,"burn_probability":35,"sigma":2.1,"range":26630,"dispersion_h":{"5000":50,"10000":156,"15000":192,"20000":228,"25000":264,"26630":276},"dispersion_v":{"5000":40,"10000":125,"15000":154,"20000":182,"25000":211,"26630":221},"transverse_speed":3,"pen":{"he":77,"ap":0,"cs":0},"max_damage":{"he":7300,"ap":14800,"cs":0},"gun_dpm":{"he":131400,"ap":266400,"cs":0},"speed":{"he":805,"ap":780,"cs":0},"krupp":{"he":240,"ap":2574,"cs":0},"mass":{"he":1360,"ap":1460,"cs":0},"drag":{"he":0.543,"ap":0.292,"cs":0},"ammo_name":{"he":"460 mm HE Type0","ap":"460 mm AP/APC Type91","cs":""},"normalization":{"he":8,"ap":6,"cs":0},"fuse_time":{"he":0.001,"ap":0.033,"cs":0},"fuse_time_threshold":{"he":2,"ap":77,"cs":0},"ricochet":{"he":91,"ap":45,"cs":0},"ricochet_always":{"he":60,"ap":60,"cs":0},"turrets":{"460 mm/45 Type 94 in a triple turret":{"numBarrels":3,"count":3,"armor":{"65568":250,"65569":270,"65571":190,"65635":135,"65636":650}}},"taperDist":5000,"idealRadius":10,"idealDistance":1000,"minRadius":2.8,"radiusOnMax":0.8}},"name":"460 mm/45 Type 94 in a triple turret","image":"https://glossary-wows-global.gcdn.co/icons/module/icon_module_Artillery_dea4595bc2cd93d9ce334c9b5a8d3d0738bd57088de2a5ac144aba65e5113e02.png","tag":"PJUA911_B10_ART_STOCK","module_id_str":"PJUA911","module_id":{"$numberLong":"3339693776"},"type":"Artillery","price_credit":2300000,"hash":"90a779a7a0bb48a6da1dac0cd182fe4e5665e65697e9b46b1006a0bdfe28a6cf"}
+gun_data = {"_id":{"$oid":"647b7b349e60264088778875"},"profile":{"artillery":{"shotDelay":30,"caliber":0.46,"numBarrels":3,"burn_probability":35,"sigma":2.1,"range":26630,"dispersion_h":{"5000":50,"10000":156,"15000":192,"20000":228,"25000":264,"26630":276},"dispersion_v":{"5000":40,"10000":125,"15000":154,"20000":182,"25000":211,"26630":221},"transverse_speed":3,"pen":{"he":77,"ap":0,"cs":0},"max_damage":{"he":7300,"ap":14800,"cs":0},"gun_dpm":{"he":131400,"ap":266400,"cs":0},"speed":{"he":805,"ap":780,"cs":0},"krupp":{"he":240,"ap":2574,"cs":0},"mass":{"he":1360,"ap":1460,"cs":0},"drag":{"he":0.543,"ap":0.292,"cs":0},"ammo_name":{"he":"460 mm HE Type0","ap":"460 mm AP/APC Type91","cs":""},"normalization":{"he":8,"ap":6,"cs":0},"fuse_time":{"he":0.001,"ap":0.033,"cs":0},"fuse_time_threshold":{"he":2,"ap":77,"cs":0},"ricochet":{"he":91,"ap":45,"cs":0},"ricochet_always":{"he":60,"ap":60,"cs":0},"turrets":{"460 mm/45 Type 94 in a triple turret":{"numBarrels":3,"count":3,"armor":{"65568":250,"65569":270,"65571":190,"65635":135,"65636":650}}},"taperDist":5000,"idealRadius":10,"idealDistance":1000,"minRadius":2.8,"radiusOnMax":0.8}},"name":"460 mm/45 Type 94 in a triple turret","image":"https://glossary-wows-global.gcdn.co/icons/module/icon_module_Artillery_dea4595bc2cd93d9ce334c9b5a8d3d0738bd57088de2a5ac144aba65e5113e02.png","tag":"PJUA911_B10_ART_STOCK","module_id_str":"PJUA911","module_id":{"$numberLong":"3339693776"},"type":"Artillery","price_credit":2300000,"hash":"90a779a7a0bb48a6da1dac0cd182fe4e5665e65697e9b46b1006a0bdfe28a6cf"}
 
 # physical constants
 G = 9.8                     # gravitational constant        (m/s^2)
@@ -56,7 +54,45 @@ class Ballistic:
         self.coordinates = coordinates.copy()
 
     def __str__(self):
-        return f"pen: {self.penetration:0.2f}mm, velocity: {self.velocity}m/s, time: {self.flight_time}s, impact angle: {self.impact_angle}deg"
+        return f"pen: {self.penetration:0.2f}mm, velocity: {self.velocity}m/s, time: {self.flight_time:0.2f}s, impact angle: {self.impact_angle:0.2f}deg, dist: {self.coordinates[-1][0]:0.1f}"
+
+class TrajectoryData:
+    def __init__(self, trajectory: dict):
+        """
+        data container for calc_ballistic
+        Args:
+            trajectory (dict): dict form calc_ballistic
+        """
+
+        self.data = trajectory.copy()
+
+    def find_gun_angle_at_max_range(self):
+        return list(self.data.keys())[-1]
+
+    def get_trajectory_at_range(self, dist: float):
+        """
+        return trajectory data at specified range
+        Args:
+            dist (float): desired distance in meters
+
+        Returns:
+            (gun_angle, Ballistic)
+        """
+        for gun_angle, traj in self.data.items():
+            if traj.coordinates[-1][0] >= dist:
+                return gun_angle, traj
+        return gun_angle, traj
+
+    def get_trajectory_at_max_range(self):
+        """
+        return trajectory data at max range
+        Args:
+
+        Returns:
+            (gun_angle, Ballistic)
+        """
+        angle = self.find_gun_angle_at_max_range()
+        return angle, self.data[angle]
 
 def calc_pen(velocity: float, diameter: float, mass: float, krupp: float):
     """
@@ -91,16 +127,16 @@ def get_normalization_angles(caliber: float):
         return 6 * np.pi / 180
     return 15 * np.pi / 180
 
-def calc_ballistic(shell: Shell, dist: float, ammo_type: str):
+def calc_ballistic(shell: Shell, max_range: float, ammo_type: str):
     """
     calculate ballistic trajectory of all possible gun angle (0 - 60deg)
     Args:
         shell (Shell): shell data genereated from Shell()
-        dist (float): desired distance in meters
+        max_range (float): maximum distance in meters
         ammo_type (str): ammo_type
 
     Returns:
-        dict - pairs <gun angle in rad, Ballistic>
+        TrajectoryData - trajectory data
     """
     assert ammo_type in ['he', 'cs', 'ap']
 
@@ -143,13 +179,12 @@ def calc_ballistic(shell: Shell, dist: float, ammo_type: str):
         impact_angle = np.arctan2(np.abs(v_y), np.abs(v_x)) * (180 / np.pi)
         pen = shell.pen[ammo_type] if ammo_type != 'ap' else calc_pen(v_impact, shell.caliber, shell.mass['ap'], shell.krupp['ap'])
 
-        if x > dist or x < last_range:
+        if x > max_range or x < last_range:
             break
 
         ballistic = Ballistic(pen, v_impact, t / TIMESCALE, impact_angle, coord)
         gun_angle_dict[angle] = ballistic
-
-    return gun_angle_dict
+    return TrajectoryData(gun_angle_dict)
 
 def calc_dispersion(gun_module: dict, gun_range: float):
     """
@@ -187,17 +222,19 @@ def total_distance_traveled(traj: np.array):
     """
     Find total distance traveled by a salvo
     Args:
-        traj (np.array): data generated by build_trajectory
+        traj (np.array): data generated by TrajectoryData.coordinates
 
     Returns:
         float
     """
-    dist, height, _ = traj
     d = 0
-    for index, (x, y) in enumerate(zip(dist, height)):
+    prev_x, prev_y = 0, 0
+    for index, (x, y) in enumerate(traj):
         if index == 0:
             pass
-        d += np.sqrt(((x - dist[index - 1]) ** 2) + ((y - height[index - 1]) ** 2))
+        d += np.sqrt(((x - prev_x) ** 2) + ((y - prev_y) ** 2))
+        prev_x = x
+        prev_y = y
     return d / 1000
 
 def within_dispersion(point: tuple, dispersion: tuple):

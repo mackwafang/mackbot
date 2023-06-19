@@ -12,7 +12,7 @@ from matplotlib.patches import Ellipse
 
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary, SUPERSCRIPT_CHAR, SIGMA_SYMBOL
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import build_trajectory, get_trajectory_at_range, get_impact_time_at_range, get_angle_at_range, calc_dispersion, get_penetration_at_range, within_dispersion, total_distance_traveled
+from mackbot.ballistics.ballistics import Shell, calc_ballistic, calc_dispersion, within_dispersion, total_distance_traveled
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 from mackbot.utilities.logger import logger
@@ -71,6 +71,9 @@ class AnalyzeGroup(app_commands.Group):
 		ship_name=auto_complete_ship_name,
 	)
 	async def artillery(self, interaction: discord.Interaction, ship_name: str, gun_range: Optional[float]=-1.0):
+
+		await interaction.response.defer(ephemeral=False, thinking=True)
+
 		try:
 			ship_data = get_ship_data(ship_name)
 			if ship_data is None:
@@ -177,11 +180,14 @@ class AnalyzeGroup(app_commands.Group):
 
 				for ammo_type in guns['max_damage']:
 					if guns['max_damage'][ammo_type] > 0:
-						shell = build_trajectory(module, ammo_type)
-						impact_data = shell.getImpact()
-						traj_dist, traj_height, _ = get_trajectory_at_range(shell, gun_range)
-						time_to_impact = get_impact_time_at_range(impact_data, gun_range)
-						gun_angle = get_angle_at_range(impact_data, gun_range)
+						shell = Shell(module)
+						trajectory_data = calc_ballistic(shell, max_gun_range, ammo_type)
+						gun_angle, trajectory_data_at_range = trajectory_data.get_trajectory_at_range(gun_range)
+						traj_dist = trajectory_data_at_range.coordinates[:, 0]
+						traj_height = trajectory_data_at_range.coordinates[:, 1]
+						time_to_impact = trajectory_data_at_range.flight_time
+						penetration_at_range = trajectory_data_at_range.penetration
+
 
 						m += f"__**{ammo_type.upper() if ammo_type != 'cs' else 'AP'} ({guns['ammo_name'][ammo_type]})**__\n"
 						m += f"**Velocity**: {guns['speed'][ammo_type]:0.0f} m/s\n"
@@ -191,11 +197,11 @@ class AnalyzeGroup(app_commands.Group):
 						if ammo_type != 'he':
 							m += f"**Fuse Time**: {guns['fuse_time'][ammo_type]}s\n"
 							m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
-							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km{SUPERSCRIPT_CHAR[2]}**: {get_penetration_at_range(impact_data, gun_angle, gun_range / max_gun_range):0.0f}mm\n"
+							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km{SUPERSCRIPT_CHAR[2]}**: {penetration_at_range:0.0f}mm\n"
 						else:
 							m += f"**Prob. for Fires{SUPERSCRIPT_CHAR[1]}**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
-						m += f"**Total Distance Traveled**: {total_distance_traveled([traj_dist, traj_height, _]):0.1f} km\n"
+						m += f"**Total Distance Traveled**: {total_distance_traveled(trajectory_data_at_range.coordinates):0.1f} km\n"
 
 						plt.tight_layout()
 						ax1.plot(
@@ -216,8 +222,8 @@ class AnalyzeGroup(app_commands.Group):
 				for c in range(total_salvo_count * 10):
 					x, y = np.inf, np.inf
 					while abs(x) > dispersion_h or abs(y) > dispersion_v or not within_dispersion((x, y), (dispersion_h, dispersion_v)):
-						x = normal(scale=1 / guns['sigma']) * dispersion_h
-						y = normal(scale=1 / guns['sigma']) * dispersion_v
+						x = normal(scale=guns['sigma']) * dispersion_h
+						y = normal(scale=guns['sigma']) * dispersion_v
 
 					dispersion[0].append(x)
 					dispersion[1].append(y)
@@ -238,7 +244,7 @@ class AnalyzeGroup(app_commands.Group):
 					color='white',
 				)
 
-				ax1.set_ylim(top=4500)
+				# ax1.set_ylim(top=4500)
 				ax2.set_xlim(left=-dispersion_h, right=dispersion_h)
 				ax2.set_ylim(top=-dispersion_v, bottom=dispersion_v)
 				m += '-' * 15
@@ -257,7 +263,7 @@ class AnalyzeGroup(app_commands.Group):
 			image_file = File(filename, filename=f"analysis_{h}.png")
 			embed.set_image(url=f'attachment://analysis_{h}.png')
 
-			footer_message = "- Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell\n" \
+			footer_message = "- Ballistics Formulas are from WoWs-ShipBuilder\n" \
 			                 f"{SUPERSCRIPT_CHAR[1]} Assuming a shell hit a different location\n" \
 			                 f"{SUPERSCRIPT_CHAR[2]} Penetration values may not be very accurate\n" \
 			                 f"{SUPERSCRIPT_CHAR[3]} From firing 10 salvos\n" \
@@ -265,7 +271,7 @@ class AnalyzeGroup(app_commands.Group):
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
-			await interaction.response.send_message(embed=embed, file=image_file)
+			await interaction.followup.send(embed=embed, file=image_file)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			traceback.print_exc()
