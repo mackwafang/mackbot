@@ -162,7 +162,7 @@ class AnalyzeGroup(app_commands.Group):
 				total_salvo_count = 0
 				fc_bonus = sorted([fc['profile']['fire_control']['max_range_coef'] for fc in fire_control_range])[-1]
 				max_gun_range = guns['range'] * fc_bonus
-				gun_range = guns['range'] if gun_range == -1 else min(max_gun_range, gun_range * 1000)
+				gun_range = guns['range'] if gun_range == -1 else gun_range * 1000
 				dispersion_h, dispersion_v = calc_dispersion(module, gun_range)
 
 				for turret_name in turret_data:
@@ -172,7 +172,7 @@ class AnalyzeGroup(app_commands.Group):
 
 				m += f"**Salvo**: {to_plural('shell', total_salvo_count)}\n"
 				m += f"**Precision**: {guns['sigma']}{SIGMA_SYMBOL}\n"
-				m += f"**Dispersion @ {gun_range / 1000:0.1f} km**: {dispersion_h}m x {dispersion_v}m\n"
+				m += f"**Dispersion @ {gun_range / 1000:0.1f} km**: {dispersion_h:0.0f}m x {dispersion_v:0.0f}m\n"
 				m += "\n"
 
 				for ammo_type in guns['max_damage']:
@@ -211,38 +211,36 @@ class AnalyzeGroup(app_commands.Group):
 						ax1.set_title(f"{name}'s Main Battery Trajectory @ {gun_range/1000:0.1f} km")
 						ax2.set_title(f"{name}'s Main Battery Dispersion @ {gun_range/1000:0.1f} km{SUPERSCRIPT_CHAR[3]}")
 
-						# this looks gross
-						dispersion = [[], []]
-						for c in range(total_salvo_count * 3):
-							x, y = np.inf, np.inf
-							while abs(x) > (dispersion_h / 2) or abs(y) > (dispersion_v / 2) or not within_dispersion((x, y), (dispersion_h / 2, dispersion_v / 2)):
-								x = normal(scale=guns['sigma']) * dispersion_h / 2
-								y = normal(scale=guns['sigma']) * dispersion_v / 2
+				# this looks gross
+				dispersion = [[], []]
+				for c in range(total_salvo_count * 10):
+					x, y = np.inf, np.inf
+					while abs(x) > dispersion_h or abs(y) > dispersion_v or not within_dispersion((x, y), (dispersion_h, dispersion_v)):
+						x = normal(scale=1 / guns['sigma']) * dispersion_h
+						y = normal(scale=1 / guns['sigma']) * dispersion_v
 
-							dispersion[0].append(x)
-							dispersion[1].append(y)
+					dispersion[0].append(x)
+					dispersion[1].append(y)
 
-						ellipse = Ellipse(
-							xy=(0,0),
-							width=dispersion_h,
-							height=dispersion_v,
-							angle=0,
-							edgecolor=SHELL_COLOR[ammo_type],
-							facecolor='none'
-						)
-						ax2.add_artist(ellipse)
+				ellipse = Ellipse(
+					xy=(0,0),
+					width=dispersion_h * 2,
+					height=dispersion_v * 2,
+					angle=0,
+					edgecolor='white',
+					facecolor='none'
+				)
+				ax2.add_artist(ellipse)
+				ax2.scatter(
+					dispersion[0],
+					dispersion[1],
+					marker=DISP_MARKERS[index],
+					color='white',
+				)
 
-						ax2.scatter(
-							dispersion[0],
-							dispersion[1],
-							marker=DISP_MARKERS[index],
-							color=SHELL_COLOR[ammo_type],
-							label=f"{module['name']} {ammo_type.upper()}",
-						)
-
-					ax1.set_ylim(top=4500)
-					ax2.set_xlim(left=-400, right=400)
-					ax2.set_ylim(top=-200, bottom=200)
+				ax1.set_ylim(top=4500)
+				ax2.set_xlim(left=-dispersion_h, right=dispersion_h)
+				ax2.set_ylim(top=-dispersion_v, bottom=dispersion_v)
 				m += '-' * 15
 				m += "\n"
 
@@ -262,7 +260,7 @@ class AnalyzeGroup(app_commands.Group):
 			footer_message = "- Ballistics Tools are provided by jcw780: https://github.com/jcw780/wows_shell\n" \
 			                 f"{SUPERSCRIPT_CHAR[1]} Assuming a shell hit a different location\n" \
 			                 f"{SUPERSCRIPT_CHAR[2]} Penetration values may not be very accurate\n" \
-			                 f"{SUPERSCRIPT_CHAR[3]} From firing 3 salvos of each ammo type\n" \
+			                 f"{SUPERSCRIPT_CHAR[3]} From firing 10 salvos\n" \
 
 			if is_test_ship:
 				footer_message += f"*Test ship is subject to change before her release\n"
