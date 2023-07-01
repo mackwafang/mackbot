@@ -10,7 +10,7 @@ T0 = 288.15                 # temperature at sea level      (K)
 L = 0.0065                  # atmospheric lapse rate        (C/m)
 P0 = 101325                 # preasure at sea level         (Pa)
 R = 8.31447                 # ideal gas constant            (J / (mol K))
-M = 0.289644                # molarity of air at sea level  (kg / mol)
+M = 0.0289644               # molarity of air at sea level  (kg / mol)
 
 # cacluation params
 MAX_ANGLES = 600            # max angle                     (degrees)
@@ -106,7 +106,7 @@ def calc_pen(velocity: float, diameter: float, mass: float, krupp: float):
     Returns:
         penetration value in mm
     """
-    return 0.00046905491615181766 * np.power(velocity, 1.4822064892953855) * np.power(diameter, -0.6521) * np.power(mass, 0.5506) * (krupp / 2400);
+    return 0.00046905491615181766 * np.power(velocity, 1.4822064892953855) * np.power(diameter, -0.6521) * np.power(mass, 0.5506) * (krupp / 2400)
 
 def get_normalization_angles(caliber: float):
     """
@@ -157,7 +157,8 @@ def calc_ballistic(shell: Shell, max_range: float, ammo_type: str):
 
         # variable init
         x, y, t = 0, 0, 0
-        v_x, v_y = shell.v0[ammo_type] * np.cos(angle), shell.v0[ammo_type] * np.sin(angle)
+        v_x = shell.v0[ammo_type] * np.cos(angle)
+        v_y = shell.v0[ammo_type] * np.sin(angle)
 
         # calcuate trajectory that this gun angle
         while y >= 0:
@@ -216,7 +217,7 @@ def calc_dispersion(gun_module: dict, gun_range: float):
         v_coef = gun_data['radiusOnZero'] + (gun_data['radiusOnDelim'] - gun_data['radiusOnZero']) * (r - delim_dist) / (max_gun_range - delim_dist)
     v_disp = h_disp * v_coef
 
-    return round(h_disp * 30), round(v_disp * 30)
+    return round(h_disp * 30) * 2, round(v_disp * 30) * 2
 
 def total_distance_traveled(traj: np.array):
     """

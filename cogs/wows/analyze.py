@@ -1,3 +1,5 @@
+import os.path
+
 import discord, re, traceback
 import numpy as np
 
@@ -12,7 +14,7 @@ from matplotlib.patches import Ellipse
 
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, DEGREE_SYMBOL, nation_dictionary, SUPERSCRIPT_CHAR, SIGMA_SYMBOL
 from mackbot.exceptions import *
-from mackbot.ballistics.ballistics import Shell, calc_ballistic, calc_dispersion, within_dispersion, total_distance_traveled
+from mackbot.ballistics.ballistics import Shell, calc_ballistic, calc_dispersion, within_dispersion, total_distance_traveled, TIMESCALE
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
 from mackbot.utilities.logger import logger
@@ -146,6 +148,7 @@ class AnalyzeGroup(app_commands.Group):
 				query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
 				fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
+
 			fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6))
 			ax1.set_facecolor('black')
 			ax1.set_xlabel("Distance (m)")
@@ -199,6 +202,7 @@ class AnalyzeGroup(app_commands.Group):
 							m += f"**Ricochet**: {guns['ricochet'][ammo_type]}{DEGREE_SYMBOL}-{guns['ricochet_always'][ammo_type]}{DEGREE_SYMBOL}\n"
 							m += f"**Approx. Penetration @ {gun_range / 1000:0.1f} km{SUPERSCRIPT_CHAR[2]}**: {penetration_at_range:0.0f}mm\n"
 						else:
+							m += f"**Penetration @ {gun_range / 1000:0.1f} km**:{guns['pen']['he']:0.0f}mm\n"
 							m += f"**Prob. for Fires{SUPERSCRIPT_CHAR[1]}**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
 						m += f"**Total Distance Traveled**: {total_distance_traveled(trajectory_data_at_range.coordinates):0.1f} km\n"
@@ -221,17 +225,17 @@ class AnalyzeGroup(app_commands.Group):
 				dispersion = [[], []]
 				for c in range(total_salvo_count * 10):
 					x, y = np.inf, np.inf
-					while abs(x) > dispersion_h or abs(y) > dispersion_v or not within_dispersion((x, y), (dispersion_h, dispersion_v)):
-						x = normal(scale=guns['sigma']) * dispersion_h
-						y = normal(scale=guns['sigma']) * dispersion_v
+					while abs(x) > dispersion_h / 2 or abs(y) > dispersion_v / 2 or not within_dispersion((x, y), (dispersion_h / 2, dispersion_v / 2)):
+						x = normal(0, 1/guns['sigma']) * dispersion_h / 2
+						y = normal(0, 1/guns['sigma']) * dispersion_v / 2
 
 					dispersion[0].append(x)
 					dispersion[1].append(y)
 
 				ellipse = Ellipse(
 					xy=(0,0),
-					width=dispersion_h * 2,
-					height=dispersion_v * 2,
+					width=dispersion_h,
+					height=dispersion_v,
 					angle=0,
 					edgecolor='white',
 					facecolor='none'
@@ -245,8 +249,8 @@ class AnalyzeGroup(app_commands.Group):
 				)
 
 				# ax1.set_ylim(top=4500)
-				ax2.set_xlim(left=-dispersion_h, right=dispersion_h)
-				ax2.set_ylim(top=-dispersion_v, bottom=dispersion_v)
+				ax2.set_xlim(left=-dispersion_h / 2, right=dispersion_h / 2)
+				ax2.set_ylim(top=-dispersion_v / 2, bottom=dispersion_v / 2)
 				m += '-' * 15
 				m += "\n"
 
@@ -256,7 +260,6 @@ class AnalyzeGroup(app_commands.Group):
 
 			# create hash
 			h = sha256(f'{name}'.encode()).hexdigest()
-
 			filename = f'./tmp/analysis_{h}.png'
 			plt.savefig(filename)
 
