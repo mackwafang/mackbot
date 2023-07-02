@@ -3,7 +3,7 @@ import os.path
 import discord, re, traceback
 import numpy as np
 
-from numpy.random import normal
+from numpy.random import normal, seed
 from typing import Optional
 from hashlib import sha256
 
@@ -148,6 +148,10 @@ class AnalyzeGroup(app_commands.Group):
 				query_result = [module_list[str(m)] for m in sorted(modules['artillery'], key=lambda x: module_list[str(x)]['name'])]
 				fire_control_range = sorted(modules['fire_control'], key=lambda x: module_list[str(x)]['profile']['fire_control']['distance'])
 
+			# create hash
+			h = sha256(f'{name}_{gun_range}'.encode()).hexdigest()
+			filename = f'./tmp/analysis_{h}.png'
+			image_cached = os.path.exists(filename)
 
 			fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 6))
 			ax1.set_facecolor('black')
@@ -206,62 +210,66 @@ class AnalyzeGroup(app_commands.Group):
 							m += f"**Prob. for Fires{SUPERSCRIPT_CHAR[1]}**: {', '.join('**{} :fire:** ({:0.1%})'.format(i, (guns['burn_probability'] / 100) ** i) for i in range(1, 5))}\n"
 						m += f"**Time to impact @ {gun_range/1000:0.1f} km**: {time_to_impact:0.1f}s\n"
 						m += f"**Total Distance Traveled**: {total_distance_traveled(trajectory_data_at_range.coordinates):0.1f} km\n"
+						m += "\n"
 
-						plt.tight_layout()
-						ax1.plot(
-							traj_dist,
-							traj_height,
-							color=SHELL_COLOR[ammo_type],
-							label=f"{module['name']} {ammo_type.upper()}",
-							linestyle=LINE_STYLES[index],
-							linewidth=2,
-						)
+						if not image_cached:
+							plt.tight_layout()
+							ax1.plot(
+								traj_dist,
+								traj_height,
+								color=SHELL_COLOR[ammo_type],
+								label=f"{module['name']} {ammo_type.upper()}",
+								linestyle=LINE_STYLES[index],
+								linewidth=2,
+							)
 
-						# get shell landing point distributions
-						ax1.set_title(f"{name}'s Main Battery Trajectory @ {gun_range/1000:0.1f} km")
-						ax2.set_title(f"{name}'s Main Battery Dispersion @ {gun_range/1000:0.1f} km{SUPERSCRIPT_CHAR[3]}")
+							# get shell landing point distributions
+							ax1.set_title(f"{name}'s Main Battery Trajectory @ {gun_range/1000:0.1f} km")
+							ax2.set_title(f"{name}'s Main Battery Dispersion @ {gun_range/1000:0.1f} km{SUPERSCRIPT_CHAR[3]}")
 
-				# this looks gross
-				dispersion = [[], []]
-				for c in range(total_salvo_count * 10):
-					x, y = np.inf, np.inf
-					while abs(x) > dispersion_h / 2 or abs(y) > dispersion_v / 2 or not within_dispersion((x, y), (dispersion_h / 2, dispersion_v / 2)):
-						x = normal(0, 1/guns['sigma']) * dispersion_h / 2
-						y = normal(0, 1/guns['sigma']) * dispersion_v / 2
+				if not image_cached:
+					# this looks gross
+					dispersion = [[], []]
+					seed(0)
+					for c in range(total_salvo_count * 10):
+						x, y = np.inf, np.inf
+						while not within_dispersion((x, y), (dispersion_h / 2, dispersion_v / 2)):
+							x = normal(0, 1/guns['sigma']) * dispersion_h / 2
+							y = normal(0, 1/guns['sigma']) * dispersion_v / 2
 
-					dispersion[0].append(x)
-					dispersion[1].append(y)
+						dispersion[0].append(x)
+						dispersion[1].append(y)
 
-				ellipse = Ellipse(
-					xy=(0,0),
-					width=dispersion_h,
-					height=dispersion_v,
-					angle=0,
-					edgecolor='white',
-					facecolor='none'
-				)
-				ax2.add_artist(ellipse)
-				ax2.scatter(
-					dispersion[0],
-					dispersion[1],
-					marker=DISP_MARKERS[index],
-					color='white',
-				)
+					ellipse = Ellipse(
+						xy=(0,0),
+						width=dispersion_h,
+						height=dispersion_v,
+						angle=0,
+						edgecolor='white',
+						facecolor='none'
+					)
+					ax2.add_artist(ellipse)
+					ax2.scatter(
+						dispersion[0],
+						dispersion[1],
+						marker=DISP_MARKERS[index],
+						color='white',
+					)
 
-				# ax1.set_ylim(top=4500)
-				ax2.set_xlim(left=-dispersion_h / 2, right=dispersion_h / 2)
-				ax2.set_ylim(top=-dispersion_v / 2, bottom=dispersion_v / 2)
-				m += '-' * 15
-				m += "\n"
+					# ax1.set_ylim(top=4500)
+					# ax2.set_xlim(left=-dispersion_h / 2, right=dispersion_h / 2)
+					# ax2.set_ylim(top=-dispersion_v / 2, bottom=dispersion_v / 2)
+					ax2.set_xlim(left=-300, right=300)
+					ax2.set_ylim(top=-200, bottom=200)
+					m += '-' * 15
+					m += "\n"
 
+					ax1.legend()
+					# ax2.legend()
 				embed.add_field(name="__**Artillery**__", value=m, inline=False)
-				ax1.legend()
-				# ax2.legend()
 
-			# create hash
-			h = sha256(f'{name}'.encode()).hexdigest()
-			filename = f'./tmp/analysis_{h}.png'
-			plt.savefig(filename)
+			if not image_cached:
+				plt.savefig(filename)
 
 			image_file = File(filename, filename=f"analysis_{h}.png")
 			embed.set_image(url=f'attachment://analysis_{h}.png')
