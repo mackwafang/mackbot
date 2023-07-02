@@ -780,7 +780,7 @@ def update_ship_modules():
 						for turret_data in gun:  # for each turret
 							# add turret type and count
 							# find dispersion
-							# see https://forum.worldofwarships.eu/topic/73542-unified-thread-for-accuracy-dispersion-in-wows/?do=findComment&comment=1629992
+							# see https://www.reddit.com/r/WorldOfWarships/comments/l1dpzt/reverse_engineered_dispersion_ellipse_including/
 							turret_name = game_data[turret_data['name']]['name']
 
 							if turret_name not in new_turret_data['turrets']:
@@ -792,20 +792,27 @@ def update_ship_modules():
 							else:
 								new_turret_data['turrets'][turret_name]['count'] += 1
 
-							h_disp_at_ideal = turret_data['idealRadius'] * 30 # Horizontal dispersion at idealDistance, in units of 30m
-							range_for_ideal = turret_data['idealDistance'] * 30 # Distance at which idealRadius applies, in units of 30m.
+							max_gun_range = new_turret_data['range'] / 30
+							taper_dist = new_turret_data['taperDist'] / 30
+							delim_dist = turret_data['delim'] * max_gun_range
+							h_disp_at_ideal = turret_data['idealRadius']  # * 30  # Horizontal dispersion at idealDistance, in units of 30m
+							range_for_ideal = turret_data['idealDistance']  # * 30  # Distance at which idealRadius applies, in units of 30m.
+							min_radius = turret_data['minRadius']  # * 30
 							for r_i in range(5, 35, 5):
-								r = min(r_i * 1000, int(new_turret_data['range']))
-
-								if r > new_turret_data['taperDist']:
-									# minRadius: Horizontal dispersion at zero range, in units of 30m (also used for torp range)
-									h_disp = lerp(turret_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal)
+								r_i = min(r_i * 1000, int(new_turret_data['range'])) / 30
+								if r_i <= taper_dist:
+									h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius * (r_i / taper_dist)  # lerp(gun_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal))
 								else:
-									h_disp = lerp(0, h_disp_at_ideal, r / range_for_ideal)
-								v_disp = h_disp * turret_data['radiusOnMax'] #Ratio of vertical to horizontal dispersion at maximum range
+									h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius
 
-								new_turret_data['dispersion_h'][str(r)] = round(h_disp)
-								new_turret_data['dispersion_v'][str(r)] = round(v_disp)
+								if r_i <= delim_dist:
+									v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i / delim_dist)
+								else:
+									v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i - delim_dist) / (max_gun_range - delim_dist)
+								v_disp = h_disp * v_coef
+
+								new_turret_data['dispersion_h'][str(round(r_i * 30))] = round(h_disp * 30)
+								new_turret_data['dispersion_v'][str(round(r_i * 30))] = round(v_disp * 30)
 
 							# get caliber, reload, and number of guns per turret
 							new_turret_data['caliber'] = turret_data['barrelDiameter']
@@ -816,6 +823,9 @@ def update_ship_modules():
 							new_turret_data['idealDistance'] = turret_data['idealDistance']
 							new_turret_data['minRadius'] = turret_data['minRadius']
 							new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
+							new_turret_data['radiusOnZero'] = turret_data['radiusOnZero']
+							new_turret_data['radiusOnDelim'] = turret_data['radiusOnDelim']
+							new_turret_data['delim'] = turret_data['delim']
 
 							# get some information about the shells fired by the turret
 							for a in turret_data['ammoList']:

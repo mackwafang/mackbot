@@ -155,7 +155,7 @@ class Compare(commands.Cog):
 								if artillery['max_damage']['he']:
 									m += f"{number_separator(artillery['max_damage']['he'])}\n"
 									m += f"{number_separator(artillery['gun_dpm']['he'])}\n"
-									m += f"{ICONS_EMOJI['penetration']} {artillery['pen']['he']}mm | :fire: {artillery['burn_probability']}% | {artillery['speed']['he']:0.0f}m/s\n"
+									m += f"{ICONS_EMOJI['penetration']} {artillery['pen']['he']}mm | :fire: {artillery['burn_probability']}%\n"
 								else:
 									m += "-\n"
 									m += "-\n"
@@ -164,7 +164,7 @@ class Compare(commands.Cog):
 								if artillery['max_damage']['ap']:
 									m += f"{number_separator(artillery['max_damage']['ap'])}\n"
 									m += f"{number_separator(artillery['gun_dpm']['ap'])}\n"
-									m += f"{artillery['ricochet']['ap']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['ap']}{DEGREE_SYMBOL} | {artillery['speed']['ap']:0.0f}m/s\n"
+									m += f"{artillery['ricochet']['ap']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['ap']}{DEGREE_SYMBOL}\n"
 								else:
 									m += "-\n"
 									m += "-\n"
@@ -173,7 +173,7 @@ class Compare(commands.Cog):
 								if artillery['max_damage']['cs']:
 									m += f"{number_separator(artillery['max_damage']['cs'])} ({ICONS_EMOJI['penetration']} {artillery['pen']['cs']}mm)\n"
 									m += f"{number_separator(artillery['gun_dpm']['cs'])}\n"
-									m += f"{artillery['ricochet']['cs']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['cs']}{DEGREE_SYMBOL} | {artillery['speed']['cs']:0.0f}m/s\n"
+									m += f"{artillery['ricochet']['cs']}{DEGREE_SYMBOL}-{artillery['ricochet_always']['cs']}{DEGREE_SYMBOL}\n"
 								else:
 									m += "-\n"
 									m += "-\n"
