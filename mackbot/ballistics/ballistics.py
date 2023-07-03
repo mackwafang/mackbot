@@ -81,7 +81,8 @@ class TrajectoryData:
         for gun_angle, traj in self.data.items():
             if traj.coordinates[-1][0] >= dist:
                 return gun_angle, traj
-        return gun_angle, traj
+        else:
+            return gun_angle, traj
 
     def get_trajectory_at_max_range(self):
         """

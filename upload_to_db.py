@@ -87,6 +87,7 @@ def upload_data(collection_name, index_name):
 
 		if items_to_upload or items_to_upload:
 			logger.info(f"[upload_data] Uploading to {collection_name}")
+			logger.info(f"[upload_data] {abs(items_to_upload - items_to_remove)} items different")
 
 		if items_to_remove:
 			print(f"Found {len(items_to_remove)} items to remove")

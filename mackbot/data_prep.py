@@ -1,4 +1,4 @@
-import traceback, json, logging, os, pickle, io, requests
+import traceback, json, pickle, io, threading, os
 
 from hashlib import sha256
 from pymongo import MongoClient
@@ -8,11 +8,12 @@ from enum import IntEnum, auto
 from tqdm import tqdm
 from pprint import pprint
 
-from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_MODIFIER_DESC, UPGRADE_SLOTS_AT_TIER
+from mackbot.ballistics import ballistics
+from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_SLOTS_AT_TIER
 from mackbot.exceptions import BuildError
-from mackbot.utilities.ship_consumable_code import consumable_data_to_string, encode, characteristic_rules
+from mackbot.utilities.ship_consumable_code import consumable_data_to_string
 from mackbot.utilities.bot_data import WG
-from mackbot.utilities.math import lerp
+from mackbot.utilities.logger import *
 from mackbot.wargaming.armory import get_armory_ships
 
 from google.auth.transport.requests import Request
@@ -33,6 +34,8 @@ consumable_list = {}
 ship_build = {}
 
 _GOOGLE_SHEETS_CREDS = None
+N_THREADS = 4
+DEBUG = True
 
 all_data_loaded_for_use = False
 
@@ -67,24 +70,20 @@ class TqdmToLogger(io.StringIO):
 	def flush(self):
 		self.logger.log(self.level, self.buf)
 
-stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('[%(asctime)s] [%(name)-8s] [%(module)s.%(funcName)s] [%(levelname)-5s] %(message)s')
-
-stream_handler.setFormatter(formatter)
-
-logger = logging.getLogger("mackbot_data_loader")
-logger.addHandler(stream_handler)
-logger.setLevel(logging.INFO)
-
-
 # load config
 with open(os.path.join("data", "config.json")) as f:
 	data = json.load(f)
 
+# database stuff
 mongodb_host = data['mongodb_host']
 sheet_id = data['sheet_id']
 
+# bote info
 WOWS_INFO = WG['na'].encyclopedia_info()
+
+# queue for parallel processing ships
+ship_list_queue = []
+ballistics_cache = {}
 
 ship_types = WOWS_INFO['ship_types']
 ship_types["Aircraft Carrier"] = "Aircraft Carrier"
@@ -123,7 +122,6 @@ def get_google_sheets_creds():
 		# Save the credentials for the next run
 		with open('token.json', 'w') as token:
 			token.write(_GOOGLE_SHEETS_CREDS.to_json())
-
 
 def check_skill_order_valid(skills: list) -> bool:
 	"""
@@ -211,7 +209,7 @@ def load_ship_list():
 	"""
 	logger.info("Fetching Ship List")
 	global ship_list
-	ship_list_file_name = 'ship_list'
+	ship_list_file_name = 'ship_list.pickle'
 	ship_list_file_dir = os.path.join("data", ship_list_file_name)
 
 	fetch_ship_list_from_wg = False
@@ -1125,7 +1123,6 @@ def update_ship_modules():
 				logger.error("Update your GameParams JSON file(s)")
 			traceback.print_exc()
 
-
 def create_ship_tags():
 	global ship_list
 	# generate ship tags for searching purpose via the "show ships" command
@@ -1292,7 +1289,6 @@ def load_consumable_list():
 	for consumable in consumable_list:
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']
-
 
 def load_ship_builds():
 	global ship_build, ship_list, skill_list, upgrade_list
@@ -1505,8 +1501,64 @@ def update_google_sheet_ships_list():
 	except HttpError as err:
 		print(err)
 
-# result = sheet.values().get(spreadsheetId=sheet_id, range='ship_builds!B:Z').execute()
-	# values = result.get('values', [])
+def _init_ship_list_queue():
+	"""
+	initiate queue for multithreading
+	Returns:
+		None
+	"""
+	if not ship_list:
+		load_ship_list()
+
+	global ship_list_queue
+	ship_list_queue = [i for i in ship_list]
+
+def _create_ballistic_cache_helper(thread_id: int):
+	last_len_read = len(ship_list_queue)
+	while ship_list_queue:
+		if thread_id == 0:
+		# this thread displays about how many items left
+			if len(ship_list_queue) != last_len_read:
+				logger.info(f"{len(ship_list_queue)} items remaining")
+				last_len_read = len(ship_list_queue)
+		else:
+			ship = ship_list_queue.pop(0)
+			artillery_modules = ship_list[ship]['modules']['artillery']
+
+			for module in artillery_modules:
+				if DEBUG:
+					logger.info(f"Thread {thread_id}: creating ballisitc data for {module}")
+
+				module_data = module_list[str(module)]
+
+				for ammo_type in [k for k, v in module_data['profile']['artillery']['max_damage'].items() if v > 0]:
+					shell = ballistics.Shell(module_data)
+
+					gun_range = module_data['profile']['artillery']['range']
+					trajectory_data = ballistics.calc_ballistic(shell, gun_range, ammo_type)
+					ballistics_cache[str(module)] = trajectory_data
+
+def create_ballistic_cache():
+	threads = []
+	_init_ship_list_queue()
+	if not module_list:
+		load_module_list()
+		update_ship_modules()
+
+	# create thread
+	for ti in range(N_THREADS + 1):
+		thread = threading.Thread(target=_create_ballistic_cache_helper, args=(ti, ), daemon=True)
+		threads.append(thread)
+		logger.info(f"Created thread {ti}")
+		thread.start()
+
+	# done
+	for ti in range(N_THREADS + 1):
+		threads[ti].join()
+		logger.info(f"Created thread {ti} done.")
+
+	with open(os.path.join("data", "ballistics.pickle")) as f:
+		pickle.dump(ballistics_cache, f)
 
 
 def post_process():
