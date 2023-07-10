@@ -34,7 +34,7 @@ consumable_list = {}
 ship_build = {}
 
 _GOOGLE_SHEETS_CREDS = None
-N_THREADS = 4
+N_THREADS = 16
 DEBUG = True
 
 all_data_loaded_for_use = False
@@ -209,7 +209,7 @@ def load_ship_list():
 	"""
 	logger.info("Fetching Ship List")
 	global ship_list
-	ship_list_file_name = 'ship_list.pickle'
+	ship_list_file_name = 'ship_list'
 	ship_list_file_dir = os.path.join("data", ship_list_file_name)
 
 	fetch_ship_list_from_wg = False
@@ -1513,41 +1513,58 @@ def _init_ship_list_queue():
 	global ship_list_queue
 	ship_list_queue = [i for i in ship_list]
 
-def _create_ballistic_cache_helper(thread_id: int):
-	last_len_read = len(ship_list_queue)
+def _create_ballistic_cache_helper(thread_id: int, cached_ballistic_data=None):
 	while ship_list_queue:
-		if thread_id == 0:
-		# this thread displays about how many items left
-			if len(ship_list_queue) != last_len_read:
-				logger.info(f"{len(ship_list_queue)} items remaining")
-				last_len_read = len(ship_list_queue)
-		else:
-			ship = ship_list_queue.pop(0)
-			artillery_modules = ship_list[ship]['modules']['artillery']
+		# to do each artillery module and find its ballistic data
+		ship = ship_list_queue.pop(0)
+		artillery_modules = ship_list[ship]['modules']['artillery']
 
-			for module in artillery_modules:
-				if DEBUG:
-					logger.info(f"Thread {thread_id}: creating ballisitc data for {module}")
+		for module in artillery_modules:
+			if DEBUG:
+				logger.info(f"Thread {thread_id}: creating ballisitc data for {module}")
 
-				module_data = module_list[str(module)]
+			module_data = module_list[str(module)]
 
-				for ammo_type in [k for k, v in module_data['profile']['artillery']['max_damage'].items() if v > 0]:
-					shell = ballistics.Shell(module_data)
+			for ammo_type in [k for k, v in module_data['profile']['artillery']['max_damage'].items() if v > 0]:
+				shell = ballistics.Shell(module_data)
+				gun_range = module_data['profile']['artillery']['range']
+				module_data_hash = sha256(f"{json.dumps(module_data)}_{gun_range}_{ammo_type}".encode()).hexdigest()
 
-					gun_range = module_data['profile']['artillery']['range']
-					trajectory_data = ballistics.calc_ballistic(shell, gun_range, ammo_type)
-					ballistics_cache[str(module)] = trajectory_data
+				# check cached item, is hash different?
+				if cached_ballistic_data is not None:
+					if str(module) in cached_ballistic_data:
+						if cached_ballistic_data[str(module)][ammo_type]['hash'] == module_data_hash:
+							# hash same, we skip
+							continue
+
+				# hash differs or modules does not exists or cache does not exists
+				trajectory_data = ballistics.calc_ballistic(shell, gun_range, ammo_type)
+				ballistics_cache[str(module)] = {
+					ammo_type: {
+						"ballistic": trajectory_data,
+						"hash": module_data_hash,
+						"at_range": gun_range,
+					}
+				}
+
+		logger.info(f"{len(ship_list_queue)} items remaining")
 
 def create_ballistic_cache():
 	threads = []
+	cache_file_dir = os.path.join("data", "ballistics")
+	cached_ballisitc_data = None
 	_init_ship_list_queue()
 	if not module_list:
 		load_module_list()
 		update_ship_modules()
 
+	if os.path.isfile(cache_file_dir):
+		with open(cache_file_dir, 'rb') as f:
+			cached_ballisitc_data = json.load(f)
+
 	# create thread
 	for ti in range(N_THREADS + 1):
-		thread = threading.Thread(target=_create_ballistic_cache_helper, args=(ti, ), daemon=True)
+		thread = threading.Thread(target=_create_ballistic_cache_helper, args=(ti, cached_ballisitc_data), daemon=True)
 		threads.append(thread)
 		logger.info(f"Created thread {ti}")
 		thread.start()
@@ -1557,7 +1574,8 @@ def create_ballistic_cache():
 		threads[ti].join()
 		logger.info(f"Created thread {ti} done.")
 
-	with open(os.path.join("data", "ballistics.pickle")) as f:
+	logger.info("Creating cache file...")
+	with open(cache_file_dir, 'wb') as f:
 		pickle.dump(ballistics_cache, f)
 
 

@@ -183,6 +183,7 @@ def calc_ballistic(shell: Shell, max_range: float, ammo_type: str):
 
         if x > max_range or x < last_range:
             break
+        coord = coord[::max(1, int(len(coord) * 0.1))] # an attempt to reduce space
 
         ballistic = Ballistic(pen, v_impact, t / TIMESCALE, impact_angle, coord)
         gun_angle_dict[angle] = ballistic
