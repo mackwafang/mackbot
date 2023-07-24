@@ -10,6 +10,7 @@ from pprint import pprint
 
 from mackbot.ballistics import ballistics
 from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_SLOTS_AT_TIER
+from mackbot.enums import SUPER_SHIP_SPECIAL_TYPE
 from mackbot.exceptions import BuildError
 from mackbot.utilities.ship_consumable_code import consumable_data_to_string
 from mackbot.utilities.bot_data import WG
@@ -482,6 +483,37 @@ def update_ship_modules():
 			ship_list[s]['is_special'] = module_data['group'] in ('ultimate', 'clan', 'coopOnly', 'upgradeableExclusive', 'upgradeableUltimate', 'earlyAccess')
 			# is this a test boat?
 			ship_list[s]['is_test_ship'] = module_data['group'] == 'demoWithoutStats'
+			ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.NONE
+			ship_list[s]['special'] = {}
+
+			# get supership (non-cv) combat instruction
+			has_combat_instruction = 'A_Specials' in module_data
+			has_alt_fire_mode = False
+			if module_data['typeinfo']['species'] != 'AirCarrier':
+				has_alt_fire_mode = 'SwitchableModeArtilleryModule' in module_data['A_Artillery']
+			if has_combat_instruction:
+				ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
+				special_module = module_data['A_Specials']['RageMode']
+				ship_list[s]['special'] = {
+					# 'description': # TODO: Find translator lookup table
+					'duration': special_module['boostDuration'],
+					'gauge_decrement_delay': special_module['decrementDelay'],
+					'gauge_decrement_count': special_module['decrementCount'],
+					'gauge_decrement_period': special_module['decrementPeriod'],
+					'auto_use': special_module['isAutoUsage'],
+					'modifiers': special_module['modifiers'].copy(),
+					'trigger': special_module['GameLogicTrigger']['Action'].copy()
+				}
+
+			if has_alt_fire_mode:
+				ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.ALT_FIRE
+				special_module = module_data['A_Artillery']['SwitchableModeArtilleryModule']
+				ship_list[s]['special'] = {
+					'burst_reload': special_module['burstReloadTime'],
+					'reload': special_module['fullReloadTime'],
+					'salvo_count': special_module['shotsCount'],
+				}
+
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
 				# tries to get data from module list
@@ -764,7 +796,7 @@ def update_ship_modules():
 							'fuse_time_threshold': {'he': 0, 'ap': 0, 'cs': 0},
 							'ricochet': {'he': 0, 'ap': 0, 'cs': 0},
 							'ricochet_always': {'he': 0, 'ap': 0, 'cs': 0},
-							'turrets': {}
+							'turrets': {},
 						}
 						if 'artillery' not in module_list[module_id]['profile']:
 							module_list[module_id]['profile']['artillery'] = {}
@@ -1560,7 +1592,7 @@ def create_ballistic_cache():
 
 	if os.path.isfile(cache_file_dir):
 		with open(cache_file_dir, 'rb') as f:
-			cached_ballisitc_data = json.load(f)
+			cached_ballisitc_data = pickle.load(f)
 
 	# create thread
 	for ti in range(N_THREADS + 1):

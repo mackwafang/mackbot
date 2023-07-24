@@ -6,8 +6,8 @@ import mackbot.utilities.ship_consumable_code as ship_consumable_code
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
-from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SHIP_CONSUMABLE_CHARACTERISTIC
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING, UPGRADE_MODIFIER_DESC
+from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SUPER_SHIP_SPECIAL_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.discord.formatting import number_separator
@@ -61,6 +61,8 @@ class Ship(commands.Cog):
 			price_special = ship_data['price_special']
 			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
+			special_type = ship_data['special_type']
+			special_data = ship_data['special']
 			ship_type = SHIP_TYPES[ship_type]
 
 			logger.info(f"Ship {name} ({ship_data['ship_id']}) found")
@@ -185,6 +187,11 @@ class Ship(commands.Cog):
 				for module in query_result:
 					hull = module['profile']['hull']
 					m += f"**{module['name']}:** **{number_separator(hull['health'], '.0f')} HP**\n"
+					m += {
+						SUPER_SHIP_SPECIAL_TYPE.NONE: "",
+						SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION: "Has Combat Instruction\n",
+						SUPER_SHIP_SPECIAL_TYPE.ALT_FIRE: "Has Alternative Fire Mode\n",
+					}[special_type]
 
 					if ship_type == 'Submarine':
 						m += f"{hull['battery']['capacity']} battery unit\n"
@@ -196,6 +203,9 @@ class Ship(commands.Cog):
 						m += f"{hull['turnRadius']}m turn radius\n\n"
 					m += '\n'
 				embed.add_field(name="__**Hull**__", value=m, inline=True)
+
+				if special_type == SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION:
+					embed.add_field(name="__**Combat Instruction**__", value=m, inline=True)
 
 				# air support info
 				m = ''

@@ -50,3 +50,8 @@ class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	UPGRADES = auto()
 	ARMOR = auto()
 	SONAR = auto()
+
+class SUPER_SHIP_SPECIAL_TYPE(IntEnum):
+	NONE = 0
+	COMBAT_INSTRUCTION = auto()
+	ALT_FIRE = auto()
