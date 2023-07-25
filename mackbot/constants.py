@@ -275,3 +275,7 @@ ARMOR_ID_TO_STRING = {
 		# "65584": "Torpedo Protection Side Plating",
 	},
 }
+
+SPECIAL_INSTRUCTION_TRIGGER_TYPE = {
+	"main_gun_hit": "Main Artillery Hit",
+}

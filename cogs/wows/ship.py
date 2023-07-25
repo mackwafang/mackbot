@@ -6,8 +6,8 @@ import mackbot.utilities.ship_consumable_code as ship_consumable_code
 from discord import app_commands, Embed
 from discord.ext import commands
 
-from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING
-from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SHIP_CONSUMABLE_CHARACTERISTIC
+from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING, UPGRADE_MODIFIER_DESC, SPECIAL_INSTRUCTION_TRIGGER_TYPE
+from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SUPER_SHIP_SPECIAL_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.discord.formatting import number_separator
@@ -61,6 +61,8 @@ class Ship(commands.Cog):
 			price_special = ship_data['price_special']
 			price_special_type = ship_data['price_special_type']
 			price_xp = ship_data['price_xp']
+			special_type = ship_data['special_type']
+			special_data = ship_data['special']
 			ship_type = SHIP_TYPES[ship_type]
 
 			logger.info(f"Ship {name} ({ship_data['ship_id']}) found")
@@ -242,6 +244,36 @@ class Ship(commands.Cog):
 						m += '\n'
 				if m:
 					embed.add_field(name="__**ASW**__", value=m, inline=True)
+
+			if special_type != 0:
+				if special_type == SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION:
+					m = ""
+					trigger_type_str = SPECIAL_INSTRUCTION_TRIGGER_TYPE[special_data['trigger']['progressName']].lower()
+					m += "Combat Instruction\n\n"
+					m += f"Increase gauge on {trigger_type_str}\n"
+					m += f"{special_data['duration']:0.0f}s duration\n"
+					m += f"Increase gauge by {special_data['gauge_increment_count']:0.0f}% per {trigger_type_str}\n"
+					m += f"Decrease gauge by {special_data['gauge_decrement_count']:0.0f}%/{special_data['gauge_decrement_period']:0.0f}s after {special_data['gauge_decrement_delay']:0.0f}s of idle\n"
+					m += f"Upon activation, your ship receives:\n"
+					for modifier_type, modifier_value in special_data['modifiers'].items():
+						m += f"- {UPGRADE_MODIFIER_DESC[modifier_type]['description']}: "
+						if UPGRADE_MODIFIER_DESC[modifier_type]['unit'] != "%":
+							# not percentage modifier
+							m += f"{modifier_value:2.0f}{UPGRADE_MODIFIER_DESC[modifier_type]['unit']}\n"
+						else:
+							if type(modifier_value) == dict:
+								modifier_value = list(modifier_value.values())[0]
+							s = '+' if (modifier_value - 1) > 0 else ''
+							m += f"{s}{modifier_value - 1:2.{0 if (modifier_value * 100).is_integer() else 1}%}\n"
+				if special_type == SUPER_SHIP_SPECIAL_TYPE.ALT_FIRE:
+					m = ""
+					m += "Alternative Firing Mode\n\n"
+					m += f"Burst Delay: {special_data['burst_reload']:0.0f}s\n"
+					m += f"Reload: {special_data['reload']:0.0f}s\n"
+					m += f"Salvo: {to_plural('salvo', special_data['salvo_count'])}\n"
+
+				embed.add_field(name="__**Special Mechanic**__", value=m, inline=False)
+
 
 			# guns info
 			if len(modules['artillery']) and is_filtered(SHIP_COMBAT_PARAM_FILTER.GUNS):
