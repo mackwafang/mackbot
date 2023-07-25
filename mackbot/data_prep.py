@@ -450,31 +450,30 @@ def update_ship_modules():
 			# grab consumables
 			ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
 
-			ship_upgrade_info = module_data['ShipUpgradeInfo']  # get upgradable modules
+			ship_upgrade_info = dict((k,v) for k, v in module_data['ShipUpgradeInfo'].items() if type(v) == dict)  # get upgradable modules
 
 			# get next ship in the researchable lines
 			for _k, _data in ship_upgrade_info.items():
-				if type(_data) == dict:
-					if _data['nextShips']:
-						for next_ship in _data['nextShips']:
-							next_ship_id = str(game_data[next_ship]['id'])
-							ship_list[s]['next_ships'][next_ship_id] = 0
-							# add this ship as the predecessor
-							if next_ship_id in ship_list:
-								ship_list[next_ship_id]['prev_ship'] = s
+				if _data['nextShips']:
+					for next_ship in _data['nextShips']:
+						next_ship_id = str(game_data[next_ship]['id'])
+						ship_list[s]['next_ships'][next_ship_id] = 0
+						# add this ship as the predecessor
+						if next_ship_id in ship_list:
+							ship_list[next_ship_id]['prev_ship'] = s
 
 			del _k, _data
 
 			# get credit and xp cost for ship research
 			if s in armory_ship_data:
-				ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
+				ship_list[s]['price_credit'] = module_data['ShipUpgradeInfo']['costCR']
 				ship_list[s]['price_xp'] = 0
 				ship_list[s]['price_special'] = armory_ship_data[s]['value']
 				ship_list[s]['price_special_type'] = armory_ship_data[s]['currency_type']
 			else:
-				ship_list[s]['price_credit'] = ship_upgrade_info['costCR']
-				ship_list[s]['price_xp'] = ship_upgrade_info['costXP']
-				ship_list[s]['price_special'] = ship_upgrade_info['costGold']
+				ship_list[s]['price_credit'] = module_data['ShipUpgradeInfo']['costCR']
+				ship_list[s]['price_xp'] = module_data['ShipUpgradeInfo']['costXP']
+				ship_list[s]['price_special'] = module_data['ShipUpgradeInfo']['costGold']
 				ship_list[s]['price_special_type'] = ""
 
 			# is this a premium boat?
@@ -487,667 +486,668 @@ def update_ship_modules():
 			ship_list[s]['special'] = {}
 
 			# get supership (non-cv) combat instruction
-			has_combat_instruction = 'A_Specials' in module_data
-			has_alt_fire_mode = False
-			if module_data['typeinfo']['species'] != 'AirCarrier':
-				has_alt_fire_mode = 'SwitchableModeArtilleryModule' in module_data['A_Artillery']
-			if has_combat_instruction:
-				ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
-				special_module = module_data['A_Specials']['RageMode']
-				ship_list[s]['special'] = {
-					# 'description': # TODO: Find translator lookup table
-					'duration': special_module['boostDuration'],
-					'gauge_decrement_delay': special_module['decrementDelay'],
-					'gauge_decrement_count': special_module['decrementCount'],
-					'gauge_decrement_period': special_module['decrementPeriod'],
-					'auto_use': special_module['isAutoUsage'],
-					'modifiers': special_module['modifiers'].copy(),
-					'trigger': special_module['GameLogicTrigger']['Action'].copy()
-				}
+			if ship['ship_id'] != 3762206032: # this ship breaks convention, i aint spending time to fix it
+				# barf, this looks gross
+				# me big brain
+				if module_data['typeinfo']['species'] != 'AirCarrier':
+					for _info in ship_upgrade_info:
+						if ship_upgrade_info[_info]['ucType'] == '_Artillery':
+							for component in ship_upgrade_info[_info]['components']['artillery']:
+								if 'SwitchableModeArtilleryModule' in module_data[component]:
+									ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.ALT_FIRE
+									special_module = module_data[component]['SwitchableModeArtilleryModule']
+									ship_list[s]['special'] = {
+										'burst_reload': special_module['burstReloadTime'],
+										'reload': special_module['fullReloadTime'],
+										'salvo_count': special_module['shotsCount'],
+									}
+									break
 
-			if has_alt_fire_mode:
-				ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.ALT_FIRE
-				special_module = module_data['A_Artillery']['SwitchableModeArtilleryModule']
-				ship_list[s]['special'] = {
-					'burst_reload': special_module['burstReloadTime'],
-					'reload': special_module['fullReloadTime'],
-					'salvo_count': special_module['shotsCount'],
-				}
-
+				if 'A_Specials' in module_data:
+					ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
+					special_module = module_data['A_Specials']['RageMode']
+					ship_list[s]['special'] = {
+						'duration': special_module['boostDuration'],
+						'gauge_decrement_delay': special_module['decrementDelay'],
+						'gauge_decrement_count': special_module['decrementCount'],
+						'gauge_decrement_period': special_module['decrementPeriod'],
+						'gauge_increment_count': special_module['GameLogicTrigger']['Action']['progress'],
+						'auto_use': special_module['isAutoUsage'],
+						'modifiers': special_module['modifiers'].copy(),
+						'trigger': special_module['GameLogicTrigger']['Action'].copy()
+					}
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
 				# tries to get data from module list
-				if type(ship_upgrade_info[_info]) == dict:  # if there are data
-					try:
-						module_id = find_module_by_tag(_info)
-						if module_id is not None:
-							# module found
-							if ship_upgrade_info[_info]['ucType'] == "_SkipBomber":
-								module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
-								module_id = str(game_data[module]['id'])
-								del module
-						else:
-							# module not found add it to module list
-							# find module id in game data
-							module_info = game_data[_info]
-							new_module_list_data = {
-								"profile": {},
-								"name": module_info['name'],
-								"image": None,
-								"tag": _info,
-								"module_id_str": module_info['index'],
-								"module_id": module_info['id'],
-								"type": module_info['ucType'],
-								"price_credit": module_info['costCR'],
-							}
-							module_list[str(module_info['id'])] = new_module_list_data.copy()
-							module_id = str(module_info['id'])
-					except IndexError as e:
-						# we did an oopsie
-						continue
+				try:
+					module_id = find_module_by_tag(_info)
+					if module_id is not None:
+						# module found
+						if ship_upgrade_info[_info]['ucType'] == "_SkipBomber":
+							module = module_data[ship_upgrade_info[_info]['components']['skipBomber'][0]]['planes'][0]
+							module_id = str(game_data[module]['id'])
+							del module
+					else:
+						# module not found add it to module list
+						# find module id in game data
+						module_info = game_data[_info]
+						new_module_list_data = {
+							"profile": {},
+							"name": module_info['name'],
+							"image": None,
+							"tag": _info,
+							"module_id_str": module_info['index'],
+							"module_id": module_info['id'],
+							"type": module_info['ucType'],
+							"price_credit": module_info['costCR'],
+						}
+						module_list[str(module_info['id'])] = new_module_list_data.copy()
+						module_id = str(module_info['id'])
+				except IndexError as e:
+					# we did an oopsie
+					continue
 
-					# update module list items with more information
-					if ship_upgrade_info[_info]['ucType'] == '_Hull':
-						# get secondary information
-						if int(module_id) not in ship['modules']['hull']:
-							ship['modules']['hull'].append(int(module_id))
-						hull = module_data[ship_upgrade_info[_info]['components']['hull'][0]]
-						if 'hull' not in module_list[module_id]['profile']:
-							module_list[module_id]['profile']['hull'] = {
-								"rudderTime": 0,
-								"turnRadius": 0,
-								'detect_distance_by_ship': 0,
-								'detect_distance_by_plane': 0,
-							}
-						# standard information
-						module_list[module_id]['profile']['hull']['health'] = hull['health']
-						module_list[module_id]['profile']['hull']['rudderTime'] = hull['rudderTime']
-						module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
-						module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
-						module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
-						module_list[module_id]['profile']['hull']['armor'] = dict((k,v) for k, v in hull['armor'].items() if v > 0)
+				# update module list items with more information
+				if ship_upgrade_info[_info]['ucType'] == '_Hull':
+					# get secondary information
+					if int(module_id) not in ship['modules']['hull']:
+						ship['modules']['hull'].append(int(module_id))
+					hull = module_data[ship_upgrade_info[_info]['components']['hull'][0]]
+					if 'hull' not in module_list[module_id]['profile']:
+						module_list[module_id]['profile']['hull'] = {
+							"rudderTime": 0,
+							"turnRadius": 0,
+							'detect_distance_by_ship': 0,
+							'detect_distance_by_plane': 0,
+						}
+					# standard information
+					module_list[module_id]['profile']['hull']['health'] = hull['health']
+					module_list[module_id]['profile']['hull']['rudderTime'] = hull['rudderTime']
+					module_list[module_id]['profile']['hull']['turnRadius'] = hull['turningRadius']
+					module_list[module_id]['profile']['hull']['detect_distance_by_ship'] = hull['visibilityFactor']
+					module_list[module_id]['profile']['hull']['detect_distance_by_plane'] = hull['visibilityFactorByPlane']
+					module_list[module_id]['profile']['hull']['armor'] = dict((k,v) for k, v in hull['armor'].items() if v > 0)
 
-						# submarines information
-						if ship['type'] == 'Submarine':
-							if 'SubmarineBattery' in hull:
-								module_list[module_id]['profile']['hull']['battery'] = hull['SubmarineBattery'].copy()
-							module_list[module_id]['profile']['hull']['oilLeakDuration'] = hull['oilLeakDuration']
+					# submarines information
+					if ship['type'] == 'Submarine':
+						if 'SubmarineBattery' in hull:
+							module_list[module_id]['profile']['hull']['battery'] = hull['SubmarineBattery'].copy()
+						module_list[module_id]['profile']['hull']['oilLeakDuration'] = hull['oilLeakDuration']
 
 
-						# secondary battery information
-						if len(ship_upgrade_info[_info]['components']['atba']) > 0:
-							module_list[module_id]['profile']['atba'] = {
-								'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
-							}
+					# secondary battery information
+					if len(ship_upgrade_info[_info]['components']['atba']) > 0:
+						module_list[module_id]['profile']['atba'] = {
+							'hull': ship_upgrade_info[_info]['components']['atba'][0][0],
+						}
 
-							atba = ship_upgrade_info[_info]['components']['atba'][0]
-							atba = module_data[atba]
-							atba_guns = {'turret': {}}
-							for t in [i for i in atba if 'HP' in i]:
-								# gather all known secondary turrets
-								turret = atba[t]
-								if turret['name'] in atba_guns['turret']:
-									atba_guns['turret'][turret['name']] += [turret]
-								else:
-									atba_guns['turret'][turret['name']] = [turret]
+						atba = ship_upgrade_info[_info]['components']['atba'][0]
+						atba = module_data[atba]
+						atba_guns = {'turret': {}}
+						for t in [i for i in atba if 'HP' in i]:
+							# gather all known secondary turrets
+							turret = atba[t]
+							if turret['name'] in atba_guns['turret']:
+								atba_guns['turret'][turret['name']] += [turret]
 							else:
-								# compile the secondary guns data
-								for t in atba_guns['turret']:
-									turret_data = atba_guns['turret'][t][0]
-									atba_guns[t] = {
-										'name': game_data[turret_data['name']]['name'],
-										'shotDelay': turret_data['shotDelay'],
-										'numBarrels': turret_data['numBarrels'],
-										'caliber': turret_data['barrelDiameter'],
-										'count': len(atba_guns['turret'][t]),
-										'gun_dpm': 0,
-										'max_damage_sap': 0,
-										'burn_probability': 0,
-									}
-									for a in turret_data['ammoList']:
-										ammo = game_data[a]
-										atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * len(atba_guns['turret'][t]) * turret_data['numBarrels'] * (60 / turret_data['shotDelay'])
-										atba_guns[t]['ammoType'] = ammo['ammoType']
-										atba_guns[t]['max_damage'] = ammo['alphaDamage']
-										if ammo['ammoType'] == 'HE':
-											atba_guns[t]['burn_probability'] = ammo['burnProb']
-											atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
-										if ammo['ammoType'] == 'CS':
-											atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
-							del atba_guns['turret']
-							module_list[module_id]['profile']['atba'] = atba_guns
-							module_list[module_id]['profile']['atba']['range'] = atba['maxDist']
+								atba_guns['turret'][turret['name']] = [turret]
+						else:
+							# compile the secondary guns data
+							for t in atba_guns['turret']:
+								turret_data = atba_guns['turret'][t][0]
+								atba_guns[t] = {
+									'name': game_data[turret_data['name']]['name'],
+									'shotDelay': turret_data['shotDelay'],
+									'numBarrels': turret_data['numBarrels'],
+									'caliber': turret_data['barrelDiameter'],
+									'count': len(atba_guns['turret'][t]),
+									'gun_dpm': 0,
+									'max_damage_sap': 0,
+									'burn_probability': 0,
+								}
+								for a in turret_data['ammoList']:
+									ammo = game_data[a]
+									atba_guns[t]['gun_dpm'] += ammo['alphaDamage'] * len(atba_guns['turret'][t]) * turret_data['numBarrels'] * (60 / turret_data['shotDelay'])
+									atba_guns[t]['ammoType'] = ammo['ammoType']
+									atba_guns[t]['max_damage'] = ammo['alphaDamage']
+									if ammo['ammoType'] == 'HE':
+										atba_guns[t]['burn_probability'] = ammo['burnProb']
+										atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
+									if ammo['ammoType'] == 'CS':
+										atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
+						del atba_guns['turret']
+						module_list[module_id]['profile']['atba'] = atba_guns
+						module_list[module_id]['profile']['atba']['range'] = atba['maxDist']
 
-						# getting aa information and calculate mbAA
-						if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
-							module_list[module_id]['profile']['anti_air'] = {
-								'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
-								'near': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
-								'medium': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
-								'far': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
-								'flak': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
-							}
+					# getting aa information and calculate mbAA
+					if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
+						module_list[module_id]['profile']['anti_air'] = {
+							'hull': ship_upgrade_info[_info]['components']['airDefense'][0][0],
+							'near': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+							'medium': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+							'far': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+							'flak': {'damage': 0, 'damage_with_dfaa': 0, 'hitChance': 0},
+						}
 
-							min_aa_range = inf
-							max_aa_range = -inf
+						min_aa_range = inf
+						max_aa_range = -inf
 
-							# grab anti-air guns information
-							aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
-							aa_defense = module_data[aa_defense]
+						# grab anti-air guns information
+						aa_defense = ship_upgrade_info[_info]['components']['airDefense'][0]
+						aa_defense = module_data[aa_defense]
 
-							has_dfaa = False
-							dfaa_stats = {}
-							for c in ship_list[s]['consumables']:
-								for c_index, c_type in ship_list[s]['consumables'][c]['abils']:
-									if "AirDefenseDisp" in c_index:
-										has_dfaa = True
-										dfaa_stats = game_data[c_index][c_type]
-										break
+						has_dfaa = False
+						dfaa_stats = {}
+						for c in ship_list[s]['consumables']:
+							for c_index, c_type in ship_list[s]['consumables'][c]['abils']:
+								if "AirDefenseDisp" in c_index:
+									has_dfaa = True
+									dfaa_stats = game_data[c_index][c_type]
+									break
 
-							if has_dfaa:
-								module_list[module_id]['profile']['anti_air']['dfaa_stat'] = dfaa_stats.copy()
+						if has_dfaa:
+							module_list[module_id]['profile']['anti_air']['dfaa_stat'] = dfaa_stats.copy()
 
-							# finding details of passive AA
-							for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
-								aa_data = aa_defense[a]
-								if aa_data['type'] == 'near':
-									module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-									module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
-									module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+						# finding details of passive AA
+						for a in [a for a in aa_defense if 'med' in a.lower() or 'near' in a.lower()]:
+							aa_data = aa_defense[a]
+							if aa_data['type'] == 'near':
+								module_list[module_id]['profile']['anti_air']['near']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
+								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
+								if has_dfaa:
+									module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['near']['damage'] * dfaa_stats['areaDamageMultiplier']
+							if aa_data['type'] == 'medium':
+								module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
+								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
+								if has_dfaa:
+									module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['medium']['damage'] * dfaa_stats['areaDamageMultiplier']
+							min_aa_range = min(min_aa_range, aa_data['minDistance'])
+							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
+						# getting flak guns info
+						aa_defense_far = []
+						for item in ['atba', 'artillery']:
+							try:
+								aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
+							except IndexError:
+								pass
+
+						for aa_component in aa_defense_far:
+							for a in [a for a in aa_component if 'Far' in a]:
+								aa_data = aa_component[a]
+								if 'Bubbles' not in a:
+									# long range passive AA
+									module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
+									module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
 									if has_dfaa:
-										module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['near']['damage'] * dfaa_stats['areaDamageMultiplier']
-								if aa_data['type'] == 'medium':
-									module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-									module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
-									module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
+										module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['far']['damage'] * dfaa_stats['areaDamageMultiplier']
+								else:
+									# flaks
+									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
+									module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
+									module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
+									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
+									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
 									if has_dfaa:
-										module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['medium']['damage'] * dfaa_stats['areaDamageMultiplier']
+										module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['bubbleDamageMultiplier']
+
 								min_aa_range = min(min_aa_range, aa_data['minDistance'])
 								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-							# getting flak guns info
-							aa_defense_far = []
-							for item in ['atba', 'artillery']:
-								try:
-									aa_defense_far += [module_data[ship_upgrade_info[_info]['components'][item][0]]]
-								except IndexError:
-									pass
 
-							for aa_component in aa_defense_far:
-								for a in [a for a in aa_component if 'Far' in a]:
-									aa_data = aa_component[a]
-									if 'Bubbles' not in a:
-										# long range passive AA
-										module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
-										module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
-										if has_dfaa:
-											module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['far']['damage'] * dfaa_stats['areaDamageMultiplier']
-									else:
-										# flaks
-										module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
-										module_list[module_id]['profile']['anti_air']['flak']['damage'] += int(aa_data['bubbleDamage'] * (aa_data['bubbleDuration'] * 2 + 1))  # but why though
-										module_list[module_id]['profile']['anti_air']['flak']['min_range'] = aa_data['minDistance']
-										module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
-										module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
-										if has_dfaa:
-											module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['bubbleDamageMultiplier']
+						module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
+						module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
 
-									min_aa_range = min(min_aa_range, aa_data['minDistance'])
-									max_aa_range = max(max_aa_range, aa_data['maxDistance'])
-
-							module_list[module_id]['profile']['anti_air']['min_range'] = min_aa_range
-							module_list[module_id]['profile']['anti_air']['max_range'] = max_aa_range
-
-							# calculate mbAA rating
-							near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
-							mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
-							far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
-							combined_aa_damage = near_damage + mid_damage + far_damage
+						# calculate mbAA rating
+						near_damage = module_list[module_id]['profile']['anti_air']['near']['damage'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
+						mid_damage = module_list[module_id]['profile']['anti_air']['medium']['damage'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
+						far_damage = module_list[module_id]['profile']['anti_air']['far']['damage'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
+						combined_aa_damage = near_damage + mid_damage + far_damage
 
 
-							near_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
-							mid_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
-							far_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
-							combined_aa_damage_with_dfaa = near_damage_with_dfaa + mid_damage_with_dfaa + far_damage_with_dfaa
+						near_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['near']['hitChance']
+						mid_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['medium']['hitChance'] * 1.5
+						far_damage_with_dfaa = module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] * module_list[module_id]['profile']['anti_air']['far']['hitChance'] * 2
+						combined_aa_damage_with_dfaa = near_damage_with_dfaa + mid_damage_with_dfaa + far_damage_with_dfaa
 
-							aa_rating = 0
-							aa_rating_with_dfaa = 0
-							# aa rating scaling with range
-							if combined_aa_damage > 0:
-								aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)  # why 5800m? because thats the range of most ships' aa
-								if aa_range_scaling > 1:
-									aa_range_scaling = aa_range_scaling ** 2
-								aa_rating += combined_aa_damage * aa_range_scaling
-								aa_rating_with_dfaa += combined_aa_damage_with_dfaa * aa_range_scaling
+						aa_rating = 0
+						aa_rating_with_dfaa = 0
+						# aa rating scaling with range
+						if combined_aa_damage > 0:
+							aa_range_scaling = max(1, module_list[module_id]['profile']['anti_air']['max_range'] / 5800)  # why 5800m? because thats the range of most ships' aa
+							if aa_range_scaling > 1:
+								aa_range_scaling = aa_range_scaling ** 2
+							aa_rating += combined_aa_damage * aa_range_scaling
+							aa_rating_with_dfaa += combined_aa_damage_with_dfaa * aa_range_scaling
 
-							# aa rating scaling with flak
-							if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
-								flak_data = module_list[module_id]['profile']['anti_air']['flak']
-								aa_rating += (flak_data['count'] * flak_data['hitChance']) * 5
-								aa_rating_with_dfaa += (flak_data['count'] * flak_data['hitChance']) * 5
+						# aa rating scaling with flak
+						if module_list[module_id]['profile']['anti_air']['flak']['damage'] > 0:
+							flak_data = module_list[module_id]['profile']['anti_air']['flak']
+							aa_rating += (flak_data['count'] * flak_data['hitChance']) * 5
+							aa_rating_with_dfaa += (flak_data['count'] * flak_data['hitChance']) * 5
 
-							# aa rating scaling with tier
-							module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(aa_rating / int(min(10, tier))) for tier in range(1, 12))
-							module_list[module_id]['profile']['anti_air']['rating_with_dfaa'] = tuple(int(aa_rating_with_dfaa / int(min(10, tier))) for tier in range(1, 12))
+						# aa rating scaling with tier
+						module_list[module_id]['profile']['anti_air']['rating'] = tuple(int(aa_rating / int(min(10, tier))) for tier in range(1, 12))
+						module_list[module_id]['profile']['anti_air']['rating_with_dfaa'] = tuple(int(aa_rating_with_dfaa / int(min(10, tier))) for tier in range(1, 12))
 
-						# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
-						if 'airSupport' in ship_upgrade_info[_info]['components']:
-							if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
-								airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
-								plane = game_data[airsup_info['planeName']]
-								projectile = game_data[plane['bombName']]
-								module_list[module_id]['profile']['airSupport'] = {
-									'chargesNum': airsup_info['chargesNum'],
-									'reloadTime': int(airsup_info['reloadTime']),
-									'maxDist': airsup_info['maxDist'],
-									'max_damage': int(projectile['alphaDamage']),
-									'burn_probability': int(projectile['burnProb'] * 100),
-									'bomb_pen': int(projectile['alphaPiercingHE']),
-									'squad_size': int(plane['numPlanesInSquadron']),
-									'payload': int(plane['attackCount']),
-									'range': airsup_info['maxDist'],
-								}
+					# add airstrike information for ships with airstrikes (dutch cruisers, heavy cruisers, battleships)
+					if 'airSupport' in ship_upgrade_info[_info]['components']:
+						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
+							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
+							plane = game_data[airsup_info['planeName']]
+							projectile = game_data[plane['bombName']]
+							module_list[module_id]['profile']['airSupport'] = {
+								'chargesNum': airsup_info['chargesNum'],
+								'reloadTime': int(airsup_info['reloadTime']),
+								'maxDist': airsup_info['maxDist'],
+								'max_damage': int(projectile['alphaDamage']),
+								'burn_probability': int(projectile['burnProb'] * 100),
+								'bomb_pen': int(projectile['alphaPiercingHE']),
+								'squad_size': int(plane['numPlanesInSquadron']),
+								'payload': int(plane['attackCount']),
+								'range': airsup_info['maxDist'],
+							}
 
-						# depth charges armaments
-						if 'depthCharges' in ship_upgrade_info[_info]['components']:
-							if ship_upgrade_info[_info]['components']['depthCharges']:
-								asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
-								asw_data = {
-									'chargesNum': asw_info['maxPacks'],
-									'payload': 0,
-									'max_damage': 0,
-									'reloadTime': asw_info['reloadTime'],
-								}
-								# for each available launchers
-								for asw_launcher in [i for i in asw_info.keys() if 'HP' in i]:
-									asw_launcher_data = asw_info[asw_launcher]
-									asw_data['payload'] += asw_launcher_data['numBombs']
-									# look at depth charge data
-									for depth_charge in asw_launcher_data['ammoList']:
-										depth_charge_data = game_data[depth_charge]
-										asw_data['max_damage'] = int(depth_charge_data['alphaDamage'])
-									module_list[module_id]['profile']['asw'] = asw_data.copy()
-						continue
+					# depth charges armaments
+					if 'depthCharges' in ship_upgrade_info[_info]['components']:
+						if ship_upgrade_info[_info]['components']['depthCharges']:
+							asw_info = module_data[ship_upgrade_info[_info]['components']['depthCharges'][0]]
+							asw_data = {
+								'chargesNum': asw_info['maxPacks'],
+								'payload': 0,
+								'max_damage': 0,
+								'reloadTime': asw_info['reloadTime'],
+							}
+							# for each available launchers
+							for asw_launcher in [i for i in asw_info.keys() if 'HP' in i]:
+								asw_launcher_data = asw_info[asw_launcher]
+								asw_data['payload'] += asw_launcher_data['numBombs']
+								# look at depth charge data
+								for depth_charge in asw_launcher_data['ammoList']:
+									depth_charge_data = game_data[depth_charge]
+									asw_data['max_damage'] = int(depth_charge_data['alphaDamage'])
+								module_list[module_id]['profile']['asw'] = asw_data.copy()
+					continue
 
-					if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
-						if int(module_id) not in ship['modules']['artillery']:
-							ship['modules']['artillery'].append(int(module_id))
+				if ship_upgrade_info[_info]['ucType'] == '_Artillery':  # guns, guns, guns!
+					if int(module_id) not in ship['modules']['artillery']:
+						ship['modules']['artillery'].append(int(module_id))
 
-						# get turret parameter
-						new_turret_data = {
-							'shotDelay': 0,
-							'caliber': 0,
-							'numBarrels': 0,
-							'burn_probability': 0,
-							'sigma': 0,
-							'range': 0,
-							'dispersion_h': {},
-							'dispersion_v': {},
-							'transverse_speed': 0,
-							'pen': {'he': 0, 'ap': 0, 'cs': 0},
-							'max_damage': {'he': 0, 'ap': 0, 'cs': 0},
-							'gun_dpm': {'he': 0, 'ap': 0, 'cs': 0},
-							'speed': {'he': 0, 'ap': 0, 'cs': 0},
-							'krupp': {'he': 0, 'ap': 0, 'cs': 0},
-							'mass': {'he': 0, 'ap': 0, 'cs': 0},
-							'drag': {'he': 0, 'ap': 0, 'cs': 0},
-							'ammo_name': {'he': '', 'ap': '', 'cs': ''},
-							'normalization': {'he': 0, 'ap': 0, 'cs': 0},
-							'fuse_time': {'he': 0, 'ap': 0, 'cs': 0},
-							'fuse_time_threshold': {'he': 0, 'ap': 0, 'cs': 0},
-							'ricochet': {'he': 0, 'ap': 0, 'cs': 0},
-							'ricochet_always': {'he': 0, 'ap': 0, 'cs': 0},
-							'turrets': {},
-						}
-						if 'artillery' not in module_list[module_id]['profile']:
-							module_list[module_id]['profile']['artillery'] = {}
+					# get turret parameter
+					new_turret_data = {
+						'shotDelay': 0,
+						'caliber': 0,
+						'numBarrels': 0,
+						'burn_probability': 0,
+						'sigma': 0,
+						'range': 0,
+						'dispersion_h': {},
+						'dispersion_v': {},
+						'transverse_speed': 0,
+						'pen': {'he': 0, 'ap': 0, 'cs': 0},
+						'max_damage': {'he': 0, 'ap': 0, 'cs': 0},
+						'gun_dpm': {'he': 0, 'ap': 0, 'cs': 0},
+						'speed': {'he': 0, 'ap': 0, 'cs': 0},
+						'krupp': {'he': 0, 'ap': 0, 'cs': 0},
+						'mass': {'he': 0, 'ap': 0, 'cs': 0},
+						'drag': {'he': 0, 'ap': 0, 'cs': 0},
+						'ammo_name': {'he': '', 'ap': '', 'cs': ''},
+						'normalization': {'he': 0, 'ap': 0, 'cs': 0},
+						'fuse_time': {'he': 0, 'ap': 0, 'cs': 0},
+						'fuse_time_threshold': {'he': 0, 'ap': 0, 'cs': 0},
+						'ricochet': {'he': 0, 'ap': 0, 'cs': 0},
+						'ricochet_always': {'he': 0, 'ap': 0, 'cs': 0},
+						'turrets': {},
+					}
+					if 'artillery' not in module_list[module_id]['profile']:
+						module_list[module_id]['profile']['artillery'] = {}
 
-						gun = ship_upgrade_info[_info]['components']['artillery'][0]
-						new_turret_data['sigma'] = module_data[gun]['sigmaCount']
-						new_turret_data['range'] = module_data[gun]['maxDist']
-						new_turret_data['taperDist'] = module_data[gun]['taperDist']
+					gun = ship_upgrade_info[_info]['components']['artillery'][0]
+					new_turret_data['sigma'] = module_data[gun]['sigmaCount']
+					new_turret_data['range'] = module_data[gun]['maxDist']
+					new_turret_data['taperDist'] = module_data[gun]['taperDist']
 
-						gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
-						for turret_data in gun:  # for each turret
-							# add turret type and count
-							# find dispersion
-							# see https://www.reddit.com/r/WorldOfWarships/comments/l1dpzt/reverse_engineered_dispersion_ellipse_including/
-							turret_name = game_data[turret_data['name']]['name']
+					gun = [module_data[gun][turret] for turret in [g for g in module_data[gun] if 'HP' in g]]
+					for turret_data in gun:  # for each turret
+						# add turret type and count
+						# find dispersion
+						# see https://www.reddit.com/r/WorldOfWarships/comments/l1dpzt/reverse_engineered_dispersion_ellipse_including/
+						turret_name = game_data[turret_data['name']]['name']
 
-							if turret_name not in new_turret_data['turrets']:
-								new_turret_data['turrets'][turret_name] = {
-									'numBarrels': int(turret_data['numBarrels']),
-									'count': 1,
-									'armor': dict((k,v) for k, v in turret_data['armor'].items() if v > 0),
-								}
+						if turret_name not in new_turret_data['turrets']:
+							new_turret_data['turrets'][turret_name] = {
+								'numBarrels': int(turret_data['numBarrels']),
+								'count': 1,
+								'armor': dict((k,v) for k, v in turret_data['armor'].items() if v > 0),
+							}
+						else:
+							new_turret_data['turrets'][turret_name]['count'] += 1
+
+						max_gun_range = new_turret_data['range'] / 30
+						taper_dist = new_turret_data['taperDist'] / 30
+						delim_dist = turret_data['delim'] * max_gun_range
+						h_disp_at_ideal = turret_data['idealRadius']  # * 30  # Horizontal dispersion at idealDistance, in units of 30m
+						range_for_ideal = turret_data['idealDistance']  # * 30  # Distance at which idealRadius applies, in units of 30m.
+						min_radius = turret_data['minRadius']  # * 30
+						for r_i in range(5, 35, 5):
+							r_i = min(r_i * 1000, int(new_turret_data['range'])) / 30
+							if r_i <= taper_dist:
+								h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius * (r_i / taper_dist)  # lerp(gun_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal))
 							else:
-								new_turret_data['turrets'][turret_name]['count'] += 1
+								h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius
 
-							max_gun_range = new_turret_data['range'] / 30
-							taper_dist = new_turret_data['taperDist'] / 30
-							delim_dist = turret_data['delim'] * max_gun_range
-							h_disp_at_ideal = turret_data['idealRadius']  # * 30  # Horizontal dispersion at idealDistance, in units of 30m
-							range_for_ideal = turret_data['idealDistance']  # * 30  # Distance at which idealRadius applies, in units of 30m.
-							min_radius = turret_data['minRadius']  # * 30
-							for r_i in range(5, 35, 5):
-								r_i = min(r_i * 1000, int(new_turret_data['range'])) / 30
-								if r_i <= taper_dist:
-									h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius * (r_i / taper_dist)  # lerp(gun_data['minRadius'] * 30, h_disp_at_ideal, r / range_for_ideal))
-								else:
-									h_disp = r_i * (h_disp_at_ideal - min_radius) / range_for_ideal + min_radius
-
-								if r_i <= delim_dist:
-									v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i / delim_dist)
-								else:
-									v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i - delim_dist) / (max_gun_range - delim_dist)
-								v_disp = h_disp * v_coef
-
-								new_turret_data['dispersion_h'][str(round(r_i * 30))] = round(h_disp * 30)
-								new_turret_data['dispersion_v'][str(round(r_i * 30))] = round(v_disp * 30)
-
-							# get caliber, reload, and number of guns per turret
-							new_turret_data['caliber'] = turret_data['barrelDiameter']
-							new_turret_data['shotDelay'] = turret_data['shotDelay']
-							new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
-							new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
-							new_turret_data['idealRadius'] = turret_data['idealRadius']
-							new_turret_data['idealDistance'] = turret_data['idealDistance']
-							new_turret_data['minRadius'] = turret_data['minRadius']
-							new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
-							new_turret_data['radiusOnZero'] = turret_data['radiusOnZero']
-							new_turret_data['radiusOnDelim'] = turret_data['radiusOnDelim']
-							new_turret_data['delim'] = turret_data['delim']
-
-							# get some information about the shells fired by the turret
-							for a in turret_data['ammoList']:
-								ammo = game_data[a]
-								if ammo['ammoType'] == 'HE':
-									new_turret_data['burn_probability'] = int(ammo['burnProb'] * 100)
-									new_turret_data['pen']['he'] = int(ammo['alphaPiercingHE'])
-									new_turret_data['max_damage']['he'] = int(ammo['alphaDamage'])
-									new_turret_data['gun_dpm']['he'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-									new_turret_data['speed']['he'] = ammo['bulletSpeed']
-									new_turret_data['krupp']['he'] = ammo['bulletKrupp']
-									new_turret_data['mass']['he'] = ammo['bulletMass']
-									new_turret_data['drag']['he'] = ammo['bulletAirDrag']
-									new_turret_data['normalization']['he'] = ammo['bulletCapNormalizeMaxAngle']
-									new_turret_data['fuse_time']['he'] = ammo['bulletDetonator']
-									new_turret_data['fuse_time_threshold']['he'] = ammo['bulletDetonatorThreshold']
-									new_turret_data['ricochet']['he'] = ammo['bulletRicochetAt']
-									new_turret_data['ricochet_always']['he'] = ammo['bulletAlwaysRicochetAt']
-									new_turret_data['ammo_name']['he'] = ammo['name']
-								if ammo['ammoType'] == 'CS':  # SAP rounds
-									new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
-									new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
-									new_turret_data['gun_dpm']['cs'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-									new_turret_data['speed']['cs'] = ammo['bulletSpeed']
-									new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
-									new_turret_data['mass']['cs'] = ammo['bulletMass']
-									new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
-									new_turret_data['normalization']['cs'] = ammo['bulletCapNormalizeMaxAngle']
-									new_turret_data['fuse_time']['cs'] = ammo['bulletDetonator']
-									new_turret_data['fuse_time_threshold']['cs'] = ammo['bulletDetonatorThreshold']
-									new_turret_data['ricochet']['cs'] = ammo['bulletRicochetAt']
-									new_turret_data['ricochet_always']['cs'] = ammo['bulletAlwaysRicochetAt']
-									new_turret_data['ammo_name']['cs'] = ammo['name']
-								if ammo['ammoType'] == 'AP':
-									new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
-									new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
-									new_turret_data['speed']['ap'] = ammo['bulletSpeed']
-									new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
-									new_turret_data['mass']['ap'] = ammo['bulletMass']
-									new_turret_data['drag']['ap'] = ammo['bulletAirDrag']
-									new_turret_data['normalization']['ap'] = ammo['bulletCapNormalizeMaxAngle']
-									new_turret_data['fuse_time']['ap'] = ammo['bulletDetonator']
-									new_turret_data['fuse_time_threshold']['ap'] = ammo['bulletDetonatorThreshold']
-									new_turret_data['ricochet']['ap'] = ammo['bulletRicochetAt']
-									new_turret_data['ricochet_always']['ap'] = ammo['bulletAlwaysRicochetAt']
-									new_turret_data['ammo_name']['ap'] = ammo['name']
-
-							module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
-						continue
-
-					if ship_upgrade_info[_info]['ucType'] == '_Suo':  # Fire control system
-						if int(module_id) not in ship['modules']['fire_control']:
-							ship['modules']['fire_control'].append(int(module_id))
-
-						component = ship_upgrade_info[_info]['components']['fireControl'][0]
-						component = module_data[component]
-						module_list[module_id]['profile']['fire_control']['max_range_coef'] = component['maxDistCoef']
-						continue
-
-					if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
-						if int(module_id) not in ship['modules']['torpedoes']:
-							ship['modules']['torpedoes'].append(int(module_id))
-						# get torps parameter
-						gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
-						gun = module_data[gun]
-						new_turret_data = {
-							'turrets': {}
-						}
-
-						turret_data = None
-						for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
-							turret_data = gun[g]
-							# add turret type and count
-							turret_name = game_data[turret_data['name']]['name']
-							if turret_name not in new_turret_data['turrets']:
-								new_turret_data['turrets'][turret_name] = {
-									'numBarrels': int(turret_data['numBarrels']),
-									'count': 1,
-								}
+							if r_i <= delim_dist:
+								v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i / delim_dist)
 							else:
-								new_turret_data['turrets'][turret_name]['count'] += 1
+								v_coef = turret_data['radiusOnZero'] + (turret_data['radiusOnDelim'] - turret_data['radiusOnZero']) * (r_i - delim_dist) / (max_gun_range - delim_dist)
+							v_disp = h_disp * v_coef
 
-						projectile = game_data[turret_data['ammoList'][0]]
-						new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+							new_turret_data['dispersion_h'][str(round(r_i * 30))] = round(h_disp * 30)
+							new_turret_data['dispersion_v'][str(round(r_i * 30))] = round(v_disp * 30)
+
+						# get caliber, reload, and number of guns per turret
+						new_turret_data['caliber'] = turret_data['barrelDiameter']
 						new_turret_data['shotDelay'] = turret_data['shotDelay']
-						new_turret_data['max_damage'] = int(projectile['alphaDamage'] / 3 + projectile['damage'])
-						new_turret_data['flood_chance'] = int(projectile['uwCritical'] * 100)
-						new_turret_data['torpedo_speed'] = projectile['speed']
-						new_turret_data['is_deep_water'] = projectile['isDeepWater']
-						new_turret_data['range'] = projectile['maxDist'] * 30 / 1000
-						new_turret_data['spotting_range'] = projectile['visibilityFactor']
-						if ship['type'] == 'Submarine':
-							new_turret_data['loaders'] = {}
-							if 'loaders' in gun:
-								for tubes, location in gun['loaders']:
-									for l in location:
-										if str(l) not in new_turret_data['loaders']:
-											new_turret_data['loaders'][str(l)] = [tubes]
-										else:
-											new_turret_data['loaders'][str(l)].append(tubes)
-							if 'SubmarineTorpedoParams' in projectile:
-								new_turret_data['shutoff_distance'] = projectile['SubmarineTorpedoParams']['dropTargetAtDistance']
+						new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+						new_turret_data['transverse_speed'] = turret_data['rotationSpeed'][0]
+						new_turret_data['idealRadius'] = turret_data['idealRadius']
+						new_turret_data['idealDistance'] = turret_data['idealDistance']
+						new_turret_data['minRadius'] = turret_data['minRadius']
+						new_turret_data['radiusOnMax'] = turret_data['radiusOnMax']
+						new_turret_data['radiusOnZero'] = turret_data['radiusOnZero']
+						new_turret_data['radiusOnDelim'] = turret_data['radiusOnDelim']
+						new_turret_data['delim'] = turret_data['delim']
 
-						module_list[module_id]['profile']['torpedoes'] = new_turret_data.copy()
-						continue
+						# get some information about the shells fired by the turret
+						for a in turret_data['ammoList']:
+							ammo = game_data[a]
+							if ammo['ammoType'] == 'HE':
+								new_turret_data['burn_probability'] = int(ammo['burnProb'] * 100)
+								new_turret_data['pen']['he'] = int(ammo['alphaPiercingHE'])
+								new_turret_data['max_damage']['he'] = int(ammo['alphaDamage'])
+								new_turret_data['gun_dpm']['he'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								new_turret_data['speed']['he'] = ammo['bulletSpeed']
+								new_turret_data['krupp']['he'] = ammo['bulletKrupp']
+								new_turret_data['mass']['he'] = ammo['bulletMass']
+								new_turret_data['drag']['he'] = ammo['bulletAirDrag']
+								new_turret_data['normalization']['he'] = ammo['bulletCapNormalizeMaxAngle']
+								new_turret_data['fuse_time']['he'] = ammo['bulletDetonator']
+								new_turret_data['fuse_time_threshold']['he'] = ammo['bulletDetonatorThreshold']
+								new_turret_data['ricochet']['he'] = ammo['bulletRicochetAt']
+								new_turret_data['ricochet_always']['he'] = ammo['bulletAlwaysRicochetAt']
+								new_turret_data['ammo_name']['he'] = ammo['name']
+							if ammo['ammoType'] == 'CS':  # SAP rounds
+								new_turret_data['pen']['cs'] = int(ammo['alphaPiercingCS'])
+								new_turret_data['max_damage']['cs'] = int(ammo['alphaDamage'])
+								new_turret_data['gun_dpm']['cs'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								new_turret_data['speed']['cs'] = ammo['bulletSpeed']
+								new_turret_data['krupp']['cs'] = ammo['bulletKrupp']
+								new_turret_data['mass']['cs'] = ammo['bulletMass']
+								new_turret_data['drag']['cs'] = ammo['bulletAirDrag']
+								new_turret_data['normalization']['cs'] = ammo['bulletCapNormalizeMaxAngle']
+								new_turret_data['fuse_time']['cs'] = ammo['bulletDetonator']
+								new_turret_data['fuse_time_threshold']['cs'] = ammo['bulletDetonatorThreshold']
+								new_turret_data['ricochet']['cs'] = ammo['bulletRicochetAt']
+								new_turret_data['ricochet_always']['cs'] = ammo['bulletAlwaysRicochetAt']
+								new_turret_data['ammo_name']['cs'] = ammo['name']
+							if ammo['ammoType'] == 'AP':
+								new_turret_data['max_damage']['ap'] = int(ammo['alphaDamage'])
+								new_turret_data['gun_dpm']['ap'] += int(ammo['alphaDamage'] * turret_data['numBarrels'] * 60 / turret_data['shotDelay'])
+								new_turret_data['speed']['ap'] = ammo['bulletSpeed']
+								new_turret_data['krupp']['ap'] = ammo['bulletKrupp']
+								new_turret_data['mass']['ap'] = ammo['bulletMass']
+								new_turret_data['drag']['ap'] = ammo['bulletAirDrag']
+								new_turret_data['normalization']['ap'] = ammo['bulletCapNormalizeMaxAngle']
+								new_turret_data['fuse_time']['ap'] = ammo['bulletDetonator']
+								new_turret_data['fuse_time_threshold']['ap'] = ammo['bulletDetonatorThreshold']
+								new_turret_data['ricochet']['ap'] = ammo['bulletRicochetAt']
+								new_turret_data['ricochet_always']['ap'] = ammo['bulletAlwaysRicochetAt']
+								new_turret_data['ammo_name']['ap'] = ammo['name']
 
-					if ship_upgrade_info[_info]['ucType'] == '_Sonar':  # submarine pingers
-						if int(module_id) not in ship['modules']['sonar']:
-							ship['modules']['sonar'].append(int(module_id))
-						# get torps parameter
-						gun = ship_upgrade_info[_info]['components']['pinger'][0]
-						gun = module_data[gun]
-						new_turret_data = {
-							"shotDelay": gun['waveReloadTime'],
-							"range": gun['waveDistance'],
-							"speed": gun['waveParams'][0]['waveSpeed'][0],
-							"ping_effect_duration": [sector['lifetime'] for sector in gun['sectorParams']],
-							"ping_effect_width": [sector['width'] for sector in gun['sectorParams']],
+						module_list[module_id]['profile']['artillery'] = new_turret_data.copy()
+					continue
+
+				if ship_upgrade_info[_info]['ucType'] == '_Suo':  # Fire control system
+					if int(module_id) not in ship['modules']['fire_control']:
+						ship['modules']['fire_control'].append(int(module_id))
+
+					component = ship_upgrade_info[_info]['components']['fireControl'][0]
+					component = module_data[component]
+					module_list[module_id]['profile']['fire_control']['max_range_coef'] = component['maxDistCoef']
+					continue
+
+				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
+					if int(module_id) not in ship['modules']['torpedoes']:
+						ship['modules']['torpedoes'].append(int(module_id))
+					# get torps parameter
+					gun = ship_upgrade_info[_info]['components']['torpedoes'][0]
+					gun = module_data[gun]
+					new_turret_data = {
+						'turrets': {}
+					}
+
+					turret_data = None
+					for g in [turret for turret in [g for g in gun if 'HP' in g]]:  # for each launcher
+						turret_data = gun[g]
+						# add turret type and count
+						turret_name = game_data[turret_data['name']]['name']
+						if turret_name not in new_turret_data['turrets']:
+							new_turret_data['turrets'][turret_name] = {
+								'numBarrels': int(turret_data['numBarrels']),
+								'count': 1,
+							}
+						else:
+							new_turret_data['turrets'][turret_name]['count'] += 1
+
+					projectile = game_data[turret_data['ammoList'][0]]
+					new_turret_data['numBarrels'] = int(turret_data['numBarrels'])
+					new_turret_data['shotDelay'] = turret_data['shotDelay']
+					new_turret_data['max_damage'] = int(projectile['alphaDamage'] / 3 + projectile['damage'])
+					new_turret_data['flood_chance'] = int(projectile['uwCritical'] * 100)
+					new_turret_data['torpedo_speed'] = projectile['speed']
+					new_turret_data['is_deep_water'] = projectile['isDeepWater']
+					new_turret_data['range'] = projectile['maxDist'] * 30 / 1000
+					new_turret_data['spotting_range'] = projectile['visibilityFactor']
+					if ship['type'] == 'Submarine':
+						new_turret_data['loaders'] = {}
+						if 'loaders' in gun:
+							for tubes, location in gun['loaders']:
+								for l in location:
+									if str(l) not in new_turret_data['loaders']:
+										new_turret_data['loaders'][str(l)] = [tubes]
+									else:
+										new_turret_data['loaders'][str(l)].append(tubes)
+						if 'SubmarineTorpedoParams' in projectile:
+							new_turret_data['shutoff_distance'] = projectile['SubmarineTorpedoParams']['dropTargetAtDistance']
+
+					module_list[module_id]['profile']['torpedoes'] = new_turret_data.copy()
+					continue
+
+				if ship_upgrade_info[_info]['ucType'] == '_Sonar':  # submarine pingers
+					if int(module_id) not in ship['modules']['sonar']:
+						ship['modules']['sonar'].append(int(module_id))
+					# get torps parameter
+					gun = ship_upgrade_info[_info]['components']['pinger'][0]
+					gun = module_data[gun]
+					new_turret_data = {
+						"shotDelay": gun['waveReloadTime'],
+						"range": gun['waveDistance'],
+						"speed": gun['waveParams'][0]['waveSpeed'][0],
+						"ping_effect_duration": [sector['lifetime'] for sector in gun['sectorParams']],
+						"ping_effect_width": [sector['width'] for sector in gun['sectorParams']],
+					}
+					module_list[module_id]['profile']['sonar'] = new_turret_data.copy()
+					continue
+
+				if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
+					ship['modules']['fighter'].append(int(module_id))
+					planes = ship_upgrade_info[_info]['components']['fighter'][0]
+					planes = module_data[planes]['planes']
+					module_list[module_id] = {}
+					module_list[module_id]['module_id'] = int(module_id)
+					module_list[module_id]['module_id_str'] = plane['index']
+					module_list[module_id]['type'] = 'Fighter'
+					module_list[module_id]["squadron"] = [{} for _ in planes]
+
+					for p_i, p in enumerate(planes):
+						plane = game_data[p]  # get rocket params
+						# adding missing information for tactical squadrons
+						projectile = game_data[plane['bombName']]
+
+						module_list[module_id]["squadron"][p_i] = {
+							'name': plane['name'],
+							'attack_size': plane['attackerSize'],
+							'squad_size': plane['numPlanesInSquadron'],
+							'speed_multiplier': plane['speedMax'],
+							'hangarSettings': plane['hangarSettings'].copy(),
+							'attack_cooldown': plane['attackCooldown'],
+							'spotting_range': plane['visibilityFactor'],
+							'spotting_range_plane': plane['visibilityFactorByPlane'],
+							'consumables': plane['PlaneAbilities'],
+							'profile': {
+								"fighter": {
+									'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
+									'max_damage': int(projectile['alphaDamage']),
+									'rocket_type': projectile['ammoType'],
+									'burn_probability': int(projectile['burnProb'] * 100),
+									'rocket_pen': int(projectile['alphaPiercingHE']),
+									'max_health': int(plane['maxHealth']),
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+									'payload': int(plane['attackCount']),
+									'payload_name': projectile['name']
+								}
+							}
 						}
-						module_list[module_id]['profile']['sonar'] = new_turret_data.copy()
-						continue
+					continue
 
-					if ship_upgrade_info[_info]['ucType'] == '_Fighter':  # rawkets
-						ship['modules']['fighter'].append(int(module_id))
-						planes = ship_upgrade_info[_info]['components']['fighter'][0]
-						planes = module_data[planes]['planes']
-						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = int(module_id)
-						module_list[module_id]['module_id_str'] = plane['index']
-						module_list[module_id]['type'] = 'Fighter'
-						module_list[module_id]["squadron"] = [{} for _ in planes]
-
-						for p_i, p in enumerate(planes):
-							plane = game_data[p]  # get rocket params
-							# adding missing information for tactical squadrons
-							projectile = game_data[plane['bombName']]
-
-							module_list[module_id]["squadron"][p_i] = {
-								'name': plane['name'],
-								'attack_size': plane['attackerSize'],
-								'squad_size': plane['numPlanesInSquadron'],
-								'speed_multiplier': plane['speedMax'],
-								'hangarSettings': plane['hangarSettings'].copy(),
-								'attack_cooldown': plane['attackCooldown'],
-								'spotting_range': plane['visibilityFactor'],
-								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'consumables': plane['PlaneAbilities'],
-								'profile': {
-									"fighter": {
-										'aiming_time': plane['aimingHeight'] / plane['aimingTime'], # time from one click the fire button to when the rocket fires
-										'max_damage': int(projectile['alphaDamage']),
-										'rocket_type': projectile['ammoType'],
-										'burn_probability': int(projectile['burnProb'] * 100),
-										'rocket_pen': int(projectile['alphaPiercingHE']),
-										'max_health': int(plane['maxHealth']),
-										'cruise_speed': int(plane['speedMoveWithBomb']),
-										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-										'payload': int(plane['attackCount']),
-										'payload_name': projectile['name']
-									}
+				if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
+					if int(module_id) not in ship['modules']['torpedo_bomber']:
+						ship['modules']['torpedo_bomber'].append(int(module_id))
+					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
+					planes = module_data[planes]['planes']
+					module_list[module_id] = {}
+					module_list[module_id]['module_id'] = int(module_id)
+					module_list[module_id]['module_id_str'] = plane['index']
+					module_list[module_id]['type'] = 'Torpedo Bomber'
+					module_list[module_id]["squadron"] = [{} for _ in planes]
+					for p_i, p in enumerate(planes):
+						plane = game_data[p]  # get params
+						# adding missing information for tactical squadrons
+						projectile = game_data[plane['bombName']]
+						module_list[module_id]["squadron"][p_i] = {
+							'name': plane['name'],
+							'attack_size': plane['attackerSize'],
+							'squad_size': plane['numPlanesInSquadron'],
+							'speed_multiplier': plane['speedMax'],
+							'hangarSettings': plane['hangarSettings'].copy(),
+							'attack_cooldown': plane['attackCooldown'],
+							'spotting_range': plane['visibilityFactor'],
+							'spotting_range_plane': plane['visibilityFactorByPlane'],
+							'consumables': plane['PlaneAbilities'],
+							'profile': {
+								"torpedo_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+									'max_damage': int((projectile['alphaDamage'] / 3) + projectile['damage']),
+									'max_health': int(plane['maxHealth']),
+									'flood_chance': int(projectile['uwCritical'] * 100),
+									'torpedo_speed': projectile['speed'],
+									'is_deep_water': projectile['isDeepWater'],
+									'range': projectile['maxDist'] * 30 / 1000,
+									'payload': int(plane['projectilesPerAttack']),
+									'payload_name': projectile['name'],
+									'arming_range': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
 								}
 							}
-						continue
+						}
+					continue
 
-					if ship_upgrade_info[_info]['ucType'] == '_TorpedoBomber':
-						if int(module_id) not in ship['modules']['torpedo_bomber']:
-							ship['modules']['torpedo_bomber'].append(int(module_id))
-						planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
-						planes = module_data[planes]['planes']
-						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = int(module_id)
-						module_list[module_id]['module_id_str'] = plane['index']
-						module_list[module_id]['type'] = 'Torpedo Bomber'
-						module_list[module_id]["squadron"] = [{} for _ in planes]
-						for p_i, p in enumerate(planes):
-							plane = game_data[p]  # get params
-							# adding missing information for tactical squadrons
-							projectile = game_data[plane['bombName']]
-							module_list[module_id]["squadron"][p_i] = {
-								'name': plane['name'],
-								'attack_size': plane['attackerSize'],
-								'squad_size': plane['numPlanesInSquadron'],
-								'speed_multiplier': plane['speedMax'],
-								'hangarSettings': plane['hangarSettings'].copy(),
-								'attack_cooldown': plane['attackCooldown'],
-								'spotting_range': plane['visibilityFactor'],
-								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'consumables': plane['PlaneAbilities'],
-								'profile': {
-									"torpedo_bomber": {
-										'cruise_speed': int(plane['speedMoveWithBomb']),
-										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-										'max_damage': int((projectile['alphaDamage'] / 3) + projectile['damage']),
-										'max_health': int(plane['maxHealth']),
-										'flood_chance': int(projectile['uwCritical'] * 100),
-										'torpedo_speed': projectile['speed'],
-										'is_deep_water': projectile['isDeepWater'],
-										'range': projectile['maxDist'] * 30 / 1000,
-										'payload': int(plane['projectilesPerAttack']),
-										'payload_name': projectile['name'],
-										'arming_range': int(projectile['speed'] / 1.944) * projectile['armingTime'] * 5.2
-									}
+				if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
+					if int(module_id) not in ship['modules']['dive_bomber']:
+						ship['modules']['dive_bomber'].append(int(module_id))
+					planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
+					planes = module_data[planes]['planes']
+					module_list[module_id] = {}
+					module_list[module_id]['module_id'] = int(module_id)
+					module_list[module_id]['module_id_str'] = plane['index']
+					module_list[module_id]['type'] = 'Dive Bomber'
+					module_list[module_id]["squadron"] = [{} for _ in planes]
+
+					for p_i, p in enumerate(planes):
+						plane = game_data[p]  # get params
+						# adding missing information for tactical squadrons
+						projectile = game_data[plane['bombName']]
+
+						module_list[module_id]["squadron"][p_i] = {
+							'name': plane['name'],
+							'attack_size': plane['attackerSize'],
+							'squad_size': plane['numPlanesInSquadron'],
+							'speed_multiplier': plane['speedMax'],
+							'hangarSettings': plane['hangarSettings'].copy(),
+							'attack_cooldown': plane['attackCooldown'],
+							'spotting_range': plane['visibilityFactor'],
+							'spotting_range_plane': plane['visibilityFactorByPlane'],
+							'consumables': plane['PlaneAbilities'],
+							'profile': {
+								"dive_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+									'max_damage': projectile['alphaDamage'],
+									'burn_probability': projectile['burnProb'] * 100,
+									'max_health': int(plane['maxHealth']),
+									'payload': int(plane['attackCount']),
+									'payload_name': projectile['name'],
+									'bomb_type': projectile['ammoType'],
+									'bomb_pen': int(projectile['alphaPiercingHE']),
 								}
 							}
-						continue
+						}
+					continue
 
-					if ship_upgrade_info[_info]['ucType'] == '_DiveBomber':
-						if int(module_id) not in ship['modules']['dive_bomber']:
-							ship['modules']['dive_bomber'].append(int(module_id))
-						planes = ship_upgrade_info[_info]['components']['diveBomber'][0]
-						planes = module_data[planes]['planes']
-						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = int(module_id)
-						module_list[module_id]['module_id_str'] = plane['index']
-						module_list[module_id]['type'] = 'Dive Bomber'
-						module_list[module_id]["squadron"] = [{} for _ in planes]
+				if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
+					if int(module_id) not in ship['modules']['skip_bomber']:
+						ship['modules']['skip_bomber'].append(int(module_id))
+					planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
+					planes = module_data[planes]['planes']
+					module_list[module_id] = {}
+					module_list[module_id]['module_id'] = int(module_id)
+					module_list[module_id]['module_id_str'] = plane['index']
+					module_list[module_id]['type'] = 'Skip Bomber'
+					module_list[module_id]["squadron"] = [{} for _ in planes]
 
-						for p_i, p in enumerate(planes):
-							plane = game_data[p]  # get params
-							# adding missing information for tactical squadrons
-							projectile = game_data[plane['bombName']]
+					for p_i, p in enumerate(planes):
+						plane = game_data[p]  # get params
+						# adding missing information for tactical squadrons
+						projectile = game_data[plane['bombName']]
+						ship_list[s]['modules']['skip_bomber'] += [plane['id']]
 
-							module_list[module_id]["squadron"][p_i] = {
-								'name': plane['name'],
-								'attack_size': plane['attackerSize'],
-								'squad_size': plane['numPlanesInSquadron'],
-								'speed_multiplier': plane['speedMax'],
-								'hangarSettings': plane['hangarSettings'].copy(),
-								'attack_cooldown': plane['attackCooldown'],
-								'spotting_range': plane['visibilityFactor'],
-								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'consumables': plane['PlaneAbilities'],
-								'profile': {
-									"dive_bomber": {
-										'cruise_speed': int(plane['speedMoveWithBomb']),
-										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-										'max_damage': projectile['alphaDamage'],
-										'burn_probability': projectile['burnProb'] * 100,
-										'max_health': int(plane['maxHealth']),
-										'payload': int(plane['attackCount']),
-										'payload_name': projectile['name'],
-										'bomb_type': projectile['ammoType'],
-										'bomb_pen': int(projectile['alphaPiercingHE']),
-									}
+						module_list[module_id]["squadron"][p_i] = {
+							'name': plane['name'],
+							'attack_size': plane['attackerSize'],
+							'squad_size': plane['numPlanesInSquadron'],
+							'speed_multiplier': plane['speedMax'],
+							'hangarSettings': plane['hangarSettings'].copy(),
+							'attack_cooldown': plane['attackCooldown'],
+							'spotting_range': plane['visibilityFactor'],
+							'spotting_range_plane': plane['visibilityFactorByPlane'],
+							'module_id': module_id,
+							'module_id_str': plane['index'],
+							'consumables': plane['PlaneAbilities'],
+							'profile': {
+								"skip_bomber": {
+									'cruise_speed': int(plane['speedMoveWithBomb']),
+									'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
+									'max_damage': int(projectile['alphaDamage']),
+									'burn_probability': projectile['burnProb'] * 100,
+									'max_health': int(plane['maxHealth']),
+									'payload': int(plane['attackCount']),
+									'payload_name': projectile['name'],
+									'bomb_pen': int(projectile['alphaPiercingHE']),
+									'bomb_type': projectile['ammoType'],
 								}
 							}
-						continue
-
-					if ship_upgrade_info[_info]['ucType'] == '_SkipBomber':
-						if int(module_id) not in ship['modules']['skip_bomber']:
-							ship['modules']['skip_bomber'].append(int(module_id))
-						planes = ship_upgrade_info[_info]['components']['skipBomber'][0]
-						planes = module_data[planes]['planes']
-						module_list[module_id] = {}
-						module_list[module_id]['module_id'] = int(module_id)
-						module_list[module_id]['module_id_str'] = plane['index']
-						module_list[module_id]['type'] = 'Skip Bomber'
-						module_list[module_id]["squadron"] = [{} for _ in planes]
-
-						for p_i, p in enumerate(planes):
-							plane = game_data[p]  # get params
-							# adding missing information for tactical squadrons
-							projectile = game_data[plane['bombName']]
-							ship_list[s]['modules']['skip_bomber'] += [plane['id']]
-
-							module_list[module_id]["squadron"][p_i] = {
-								'name': plane['name'],
-								'attack_size': plane['attackerSize'],
-								'squad_size': plane['numPlanesInSquadron'],
-								'speed_multiplier': plane['speedMax'],
-								'hangarSettings': plane['hangarSettings'].copy(),
-								'attack_cooldown': plane['attackCooldown'],
-								'spotting_range': plane['visibilityFactor'],
-								'spotting_range_plane': plane['visibilityFactorByPlane'],
-								'module_id': module_id,
-								'module_id_str': plane['index'],
-								'consumables': plane['PlaneAbilities'],
-								'profile': {
-									"skip_bomber": {
-										'cruise_speed': int(plane['speedMoveWithBomb']),
-										'max_speed': int(plane['speedMoveWithBomb'] * plane['speedMax']),
-										'max_damage': int(projectile['alphaDamage']),
-										'burn_probability': projectile['burnProb'] * 100,
-										'max_health': int(plane['maxHealth']),
-										'payload': int(plane['attackCount']),
-										'payload_name': projectile['name'],
-										'bomb_pen': int(projectile['alphaPiercingHE']),
-										'bomb_type': projectile['ammoType'],
-									}
-								}
-							}
-						continue
+						}
 		except Exception as e:
 			logger.error("at ship id " + s)
 			if not type(e) == KeyError:
