@@ -23,6 +23,7 @@ from mackbot.utilities.game_data.game_data_finder import get_ship_data
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.to_plural import to_plural
+from mackbot.utilities.game_data.warships_data import BALLISTIC_DATA
 
 class SHIP_COMBAT_PARAM_FILTER(IntEnum):
 	HULL = 0
@@ -187,14 +188,17 @@ class AnalyzeGroup(app_commands.Group):
 
 				for ammo_type in guns['max_damage']:
 					if guns['max_damage'][ammo_type] > 0:
-						shell = Shell(module)
-						trajectory_data = calc_ballistic(shell, max_gun_range, ammo_type)
+						# shell = Shell(module)
+						# trajectory_data = calc_ballistic(shell, max_gun_range, ammo_type)
+
+						# uses cached data
+						trajectory_data = BALLISTIC_DATA[str(module['module_id'])][ammo_type]['ballistic']
 						gun_angle, trajectory_data_at_range = trajectory_data.get_trajectory_at_range(gun_range)
+
 						traj_dist = trajectory_data_at_range.coordinates[:, 0]
 						traj_height = trajectory_data_at_range.coordinates[:, 1]
 						time_to_impact = trajectory_data_at_range.flight_time
 						penetration_at_range = trajectory_data_at_range.penetration
-
 
 						m += f"__**{ammo_type.upper() if ammo_type != 'cs' else 'AP'} ({guns['ammo_name'][ammo_type]})**__\n"
 						m += f"**Velocity**: {guns['speed'][ammo_type]:0.0f} m/s\n"

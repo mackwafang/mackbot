@@ -1546,14 +1546,14 @@ def _init_ship_list_queue():
 	ship_list_queue = [i for i in ship_list]
 
 def _create_ballistic_cache_helper(thread_id: int, cached_ballistic_data=None):
+	global ballistics_cache
+
 	while ship_list_queue:
 		# to do each artillery module and find its ballistic data
 		ship = ship_list_queue.pop(0)
 		artillery_modules = ship_list[ship]['modules']['artillery']
 
 		for module in artillery_modules:
-			if DEBUG:
-				logger.info(f"Thread {thread_id}: creating ballisitc data for {module}")
 
 			module_data = module_list[str(module)]
 
@@ -1565,18 +1565,23 @@ def _create_ballistic_cache_helper(thread_id: int, cached_ballistic_data=None):
 				# check cached item, is hash different?
 				if cached_ballistic_data is not None:
 					if str(module) in cached_ballistic_data:
-						if cached_ballistic_data[str(module)][ammo_type]['hash'] == module_data_hash:
-							# hash same, we skip
-							continue
+						if ammo_type in cached_ballistic_data[str(module)]:
+							if cached_ballistic_data[str(module)][ammo_type]['hash'] == module_data_hash:
+								# hash same, we skip
+								continue
+
+				if DEBUG:
+					logger.info(f"Thread {thread_id}: creating ballisitc data for {module}'s {ammo_type} round")
 
 				# hash differs or modules does not exists or cache does not exists
 				trajectory_data = ballistics.calc_ballistic(shell, gun_range, ammo_type)
-				ballistics_cache[str(module)] = {
-					ammo_type: {
-						"ballistic": trajectory_data,
-						"hash": module_data_hash,
-						"at_range": gun_range,
-					}
+				if str(module) not in ballistics_cache:
+					ballistics_cache[str(module)] = {}
+
+				ballistics_cache[str(module)][ammo_type] = {
+					"ballistic": trajectory_data,
+					"hash": module_data_hash,
+					"at_range": gun_range,
 				}
 
 		logger.info(f"{len(ship_list_queue)} items remaining")

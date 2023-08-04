@@ -1,3 +1,5 @@
+import os.path
+import pickle
 
 from pymongo import MongoClient
 
@@ -21,6 +23,7 @@ consumable_list = {}
 ship_list_simple = {}
 upgrade_list_simple = {}
 skill_list_simple = {}
+BALLISTIC_DATA = {}
 
 # define database stuff
 database_client = None
@@ -91,3 +94,7 @@ except ConnectionError:
 			"type": ship['type'],
 			"emoji": ICONS_EMOJI[hull_classification_converter[ship['type']].lower() + ('_prem' if ship['is_premium'] else '')]
 		}
+
+# get cached ballisit data
+with open(os.path.join("data", "ballistics"), 'rb') as f:
+	BALLISTIC_DATA = pickle.load(f)
