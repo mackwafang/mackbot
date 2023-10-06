@@ -73,17 +73,18 @@ class Upgrade(commands.Cog):
 			if len(profile) > 0:
 				m = ""
 				for effect in profile:
-					modifier_string_data = UPGRADE_MODIFIER_DESC[effect]
-					value = profile[effect]
-					m += modifier_string_data['description'] + ": "
-					if modifier_string_data['unit'] != "%":
-						# not percentage modifier
-						m += f"{value:2.0f}{modifier_string_data['unit']}\n"
-					else:
-						if type(value) == dict:
-							value = list(value.values())[0]
-						s = '+' if (value - 1) > 0 else ''
-						m += f"{s}{value - 1:2.{0 if (value*100).is_integer() else 1}%}\n"
+					if effect in UPGRADE_MODIFIER_DESC:
+						modifier_string_data = UPGRADE_MODIFIER_DESC[effect]
+						value = profile[effect]
+						m += modifier_string_data['description'] + ": "
+						if modifier_string_data['unit'] != "%":
+							# not percentage modifier
+							m += f"{value:2.0f}{modifier_string_data['unit']}\n"
+						else:
+							if type(value) == dict:
+								value = list(value.values())[0]
+							s = '+' if (value - 1) > 0 else ''
+							m += f"{s}{value - 1:2.{0 if (value*10*10).is_integer() else 1}%}\n"
 
 				embed.add_field(name='Effect', value=m, inline=False)
 			else:

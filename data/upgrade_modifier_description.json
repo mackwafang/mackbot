@@ -31,10 +31,6 @@
     "description": "Secondary battery maximum dispersion",
     "unit": "%"
   },
-  "diveBomberMinSpeedMultiplier": {
-    "description": "",
-    "unit": "%"
-  },
   "planeSpawnTime": {
     "description": "Aircraft preparation time",
     "unit": "%"
@@ -86,10 +82,6 @@
   },
   "AAMaxHP": {
     "description": "AA guns health",
-    "unit": "%"
-  },
-  "diveBomberMaxSpeedMultiplier": {
-    "description": "Dive bomber max speed",
     "unit": "%"
   },
   "GMShotDelay": {
@@ -208,10 +200,6 @@
   },
   "shootShift": {
     "description": "Dispersion of shells from enemies targeting you",
-    "unit": "%"
-  },
-  "visibilityForSubmarineCoeff": {
-    "description": "Submarine detection range",
     "unit": "%"
   },
   "asMaxHealthCoeff": {
