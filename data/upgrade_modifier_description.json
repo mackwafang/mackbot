@@ -1,4 +1,8 @@
 {
+  "allConsumableReloadTime": {
+    "description": "Consumables cooldown time",
+    "unit": "%"
+  },
   "scoutWorkTimeCoeff": {
     "description": "Spotting aircraft action time",
     "unit": "%"
