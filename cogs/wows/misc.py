@@ -46,7 +46,7 @@ class Misc(commands.Cog):
 					return x * EXCHANGE_RATE_DOUB_TO_DOLLAR
 
 				logger.info(f"converting {dollar} dollars -> doubloons")
-				embed = Embed(title="Doubloon Conversion (Dollars -> Doubloons)")
+				embed = Embed(description="## Doubloon Conversion (Dollars -> Doubloons)")
 				embed.add_field(name=f"Requested Dollars", value=f"{number_separator(dollar, '.2f')}$")
 				embed.add_field(name=f"Doubloons", value=f"Approx. {number_separator(dollar_formula(dollar), '.0f')} Doubloons")
 			else:
@@ -58,7 +58,7 @@ class Misc(commands.Cog):
 					return x / EXCHANGE_RATE_DOUB_TO_DOLLAR
 
 				logger.info(f"converting {doub} doubloons -> dollars")
-				embed = Embed(title="Doubloon Conversion (Doubloons -> Dollars)")
+				embed = Embed(description="## Doubloon Conversion (Doubloons -> Dollars)")
 				embed.add_field(name=f"Requested Doubloons", value=f"{number_separator(doub, '.0f')} Doubloons")
 				embed.add_field(name=f"Price: ", value=f"{number_separator(doub_formula(doub), '.2f')}$")
 				footer_message = f"Current exchange rate: {EXCHANGE_RATE_DOUB_TO_DOLLAR} Doubloons : 1 USD"

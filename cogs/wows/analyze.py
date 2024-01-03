@@ -87,9 +87,7 @@ class AnalyzeGroup(app_commands.Group):
 			images = ship_data['images']
 			ship_type = ship_data['type']
 			tier = ship_data['tier']
-			consumables = ship_data['consumables']
 			modules = ship_data['modules']
-			upgrades = ship_data['upgrades']
 			is_prem = ship_data['is_premium']
 			is_test_ship = ship_data['is_test_ship']
 			price_gold = ship_data['price_gold']
@@ -122,7 +120,7 @@ class AnalyzeGroup(app_commands.Group):
 				else:
 					ship_type = "Battlecruiser"
 			test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
-			embed = Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
+			embed = Embed(description=f"## {ship_type} {name} {test_ship_status_string}")
 			image_embeds = []
 
 			tier_string = ROMAN_NUMERAL[tier - 1]

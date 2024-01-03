@@ -110,7 +110,7 @@ class Build(commands.Cog):
 				build_hash = build['hash']
 
 			if send_text_build:
-				embed = Embed(title=f"{build_name.title()} Build for {name}", description='')
+				embed = Embed(description=f"## {build_name.title()} Build for {name}")
 				embed.set_thumbnail(url=images['small'])
 				logger.info(f"returning build information for <{name}> in embeded format")
 				tier_string = ROMAN_NUMERAL[tier - 1]

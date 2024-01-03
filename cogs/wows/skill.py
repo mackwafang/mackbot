@@ -1,5 +1,6 @@
 import traceback
 
+import discord
 from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
@@ -24,7 +25,7 @@ class Skill(commands.Cog):
 	async def skill(self, interaction: Interaction, skill_name: str):
 		# get information on requested skill
 		try:
-			embed = Embed(title=f"{skill_name.title()}", description="")
+			embed = Embed(description=f"## {skill_name.title()}")
 			skill_data = get_skill_data(skill_name)
 			for skill in skill_data:
 				name = skill['name']
@@ -34,16 +35,19 @@ class Skill(commands.Cog):
 				column = skill['x'] + 1
 				tier = skill['y'] + 1
 				category = skill['category']
+				image = skill['image']
 
-				# embed.set_thumbnail(url=icon)
+				skill_image = discord.File(f"./data/cmdr_skills_images/{image}.png", "icon.png")
+				embed.set_thumbnail(url="attachment://icon.png")
+
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
 				    f"{description}\n{effect}\n\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
-				embed.description = f"{name} may refer to a skill in one of these trees."
+				embed.description = f"## {name}\n May refer to a skill in one of these trees."
 
-			await interaction.response.send_message(embed=embed)
+			await interaction.response.send_message(embed=embed, file=skill_image)
 
 		except Exception as e:
 			logger.info(f"Exception in skill {type(e)}: {e}. No skill found for {skill_name}")

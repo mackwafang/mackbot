@@ -21,7 +21,7 @@ class BotHelp(commands.Cog):
 				# look for help content and tries to find its index
 				help_content = help_dictionary[help_dictionary_index[help_key]]
 				if help_key.split()[0] in command_list:
-					embed = discord.Embed(title=f"The {help_key} command")
+					embed = discord.Embed(description=f"## The {help_key} command")
 
 					embed.add_field(name="Usage", value=f"/{help_key} {help_content['usage']}", inline=False)
 					embed.add_field(name="Description", value='\n'.join(i for i in help_content['description']), inline=False)

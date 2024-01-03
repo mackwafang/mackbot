@@ -57,7 +57,7 @@ class Upgrade(commands.Cog):
 			elif is_special == 'Coal':
 				embed_title = "Coal Ship Upgrade"
 
-			embed = Embed(title=embed_title, description="")
+			embed = Embed(description=f"## {embed_title}")
 			embed.set_thumbnail(url=image)
 			# get server emoji
 			if interaction.guild is not None:

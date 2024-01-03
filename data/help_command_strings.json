@@ -1,13 +1,13 @@
 {
 	"build": {
 		"brief": "Get a basic build",
-		"usage": " [options] ship_name",
+		"usage": " ship_name [text_only]",
 		"description": [
 			"Display a basic warships build",
 			"mackbot may prompt you for a secondary response if it founds multiple builds."
 		],
 		"options": {
-			"-t, --text": "Provide an text version of the requested item instead."
+			"text": "Provide an text version of the requested item instead."
 		}
 	},
 	"ship": {
@@ -17,52 +17,43 @@
 			"Display characteristics of a requested warship.",
 			"",
 			"For more detailed information of a specific parameter, enclose the parameter names in a pair of parenthesis after the ship name.",
-			"Example:",
-			"\tmackbot ship midway (Return information about US CV Midway)",
-			"\tmackbot ship midway -p bombers (Return detailed information about Midway's dive bombers)",
-			"",
 			"About Mackbot's AA rating:",
 			"\tMackbot's AA rating (mAAr) is a value based on the continuous damage, flak, and range of a warship's AA and is scaled to the warship's tier."
 		],
 		"options": {
-			"<-p, --parameters> parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
+			"parameters": "Display specific ship parameter (i.e. guns, torpedoes, torpedo bombers)."
 		}
 	},
 	"compare": {
 		"brief": "Compare combat parameter of two warships",
-		"usage": " ship1 [&/and] ship2",
+		"usage": " ship1 ship2",
 		"description": [
 			"Compares a combat parameter of two ships.",
 			"mackbot will prompt for a specific parameter",
 			"",
-			"Example:",
-			"\tmackbot compare yamato and montana (returns the comparison between Yamato and Montana)",
 			"Note: Both warships must contains the same parameters. (i.e. you can't compare the torpedoes of Des Moines and Zao because the Des Moines does not have torpedoes)"
 		]
 	},
 	"skill": {
 		"brief": "Get information about a commander skill",
-		"usage": "ship_type skill_name",
+		"usage": "skill_name",
 		"description": [
 			"Display information about a commander skill.",
-			"",
-			"ship_type: Can take full ship type name or abbreviation (e.g. \"bb\" or \"battleship\")",
-			"Example:",
-			"\tmackbot skill cv air supremacy (returns information about the carrier skill air supremacy)"
+			"If a skill exists in multiple trees, it will return the detail of the skill in each tree"
 		]
 	},
 	"show": {
 		"brief": "show all items of a specified category",
-		"usage": "category arguments",
+		"usage": "category",
 		"description": [
 			"Show all items of a specified category.",
 			"",
 			"Showings may returns in multiple pages. Add \"page x\" to access other pages.",
 			"",
-			"Categories:",
-			"**skills**",
-			"**ships**",
-			"**upgrades**"
+			"See also:",
+			"- **show skills**",
+			"- **show ships**",
+			"- **show upgrades**"
 		]
 	},
 	"show skills": {
@@ -101,12 +92,12 @@
 				"- **Consumable**: Add the keyword **consumables:\"items\"**. The pair of quotation marks must be present in order to consumable filter to work. Multiple consumables can be used.",
 				"Please note that this option returns what consumables that are available to the ship, rather what it can take into battle (i.e. querying smoke and radar will return British light cruisers, as those consumables are available to them)",
 				"- consumables may include:",
-				"(limited or quick charge) damage control",
-				"(long or short) (range or duration) (hydro or radar)",
-				"(high charge or trailing) smoke",
-				"engine boost",
-				"(unlimited charge) dfaa",
-				"(super) heal",
+				"  - (limited or quick charge) damage control",
+				"  - (long or short) (range or duration) (hydro or radar)",
+				"  - (high charge or trailing) smoke",
+				"  - engine boost",
+				"  - (unlimited charge) dfaa",
+				"  - (super) heal",
 				"",
 				"**Gun caliber**: use **guns:[comparator][number]mm**",
 				"gun caliber options: comparator: <, >, <=, >=, ==.",
@@ -122,8 +113,8 @@
 			"This command can take either the full name or an abbreviation of an upgrade, or a ship's name, if it have a legendary upgrade.",
 			"",
 			"Example:",
-			"\tmackbot upgrade csm1 (Get detailed information about Concealment System Modification 1)",
-			"\tmackbot upgrade midway (Get detailed information about Midway's legendary upgrade, Modified External Hardpoints)"
+			"- **mackbot upgrade csm1** (Get detailed information about Concealment System Modification 1)",
+			"- **mackbot upgrade midway** (Get detailed information about Midway's legendary upgrade, Modified External Hardpoints)"
 		]
 	},
 	"commander": {
@@ -147,8 +138,8 @@
 			"Get the money conversion value of doubloons to USD or vice versa.",
 			"",
 			"Example:",
-			"\tmackbot doubloons 1000 (Get the amount of USD for 1000 doubloons)",
-			"\tmackbot doubloons 10 $ (Get the amount of doubloons for 10 USD)"
+			"- **mackbot doubloons 1000** (Get the amount of USD for 1000 doubloons)",
+			"- **mackbot doubloons 10 $** (Get the amount of doubloons for 10 USD)"
 		],
 		"options": {
 			"<doubloons>": "The number of doubloons in USD to request conversion.",
@@ -177,17 +168,13 @@
 		"brief": "Provide general information about a player",
 		"usage": "player_name [options]",
 		"description": [
-			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)",
-			"",
-			"Usage example:",
-			"\tmackbot player username (Get information about your account)",
-			"\tmackbot player username div2 (Get information about your 2-man division)"
+			"Provide general information about a player (i.e. battle count, average frags, average damage, etc.)"
 		],
 		"options": {
-			"--type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
-			"--region <type>": "Select region where player is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**",
-			"--ship <ship_name>": "Display which ship to display.",
-			"--tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
+			"type <type>": "Filter battle type. Acceptable values: solo, div2, div3. Defaulted to solo.",
+			"region <type>": "Select region where player is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**",
+			"ship <ship_name>": "Display which ship to display.",
+			"tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
 		}
 	},
 	"clan": {
@@ -197,7 +184,7 @@
 			"Show clan information"
 		],
 		"options": {
-			"--region <type>": "Select region where clan is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**"
+			"region <type>": "Select region where clan is located. Acceptable values: **na**, **eu**, **asia**, **ru**. Defaults to **na**"
 		}
 	},
 	"invite": {

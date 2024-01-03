@@ -49,7 +49,7 @@ class Clan(commands.Cog):
 				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_markdown(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
 				view = UserSelection(interaction.user, 15, "Select a clan", clan_options)
 
-				embed = Embed(title=f"Search result for clan {search_term}", description="")
+				embed = Embed(description=f"## Search result for clan {search_term}\n")
 				embed.description += "**mackbot found the following clans**\n"
 				embed.description += '\n'.join(i.label for i in clan_options)
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
@@ -72,7 +72,7 @@ class Clan(commands.Cog):
 			clan_id = clan_detail['clan_id']
 			clan_ladder = clan_ranking(clan_id, clan_region)
 
-			embed = Embed(title=f"Search result for clan {clan_detail['name']}", description="", color=clan_ladder['color'])
+			embed = Embed(description=f"## [{clan_detail['tag']}] {clan_detail['name']}", color=clan_ladder['color'])
 			embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
 			clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
@@ -94,7 +94,7 @@ class Clan(commands.Cog):
 			m += f"**Members: ** {clan_detail['members_count']}\n"
 			m += f"**Region: ** {clan_region.upper()}\n"
 			m += f"**League: **{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]}\n"
-			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
+			embed.add_field(name=f"__**Basic detail**__", value=m, inline=not clan_detail['description'])
 
 			if clan_detail['description']:
 				embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
@@ -107,7 +107,7 @@ class Clan(commands.Cog):
 				m += f"{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]} ({clan_ladder['division_rating']} / 100)\n"
 				m += f"Best: {LEAGUE_STRING[best_position['league']]} {ROMAN_NUMERAL[best_position['division']]} ({best_position['division_rating']} / 100)\n\n"
 
-				m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L, {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
+				m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L | {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
 				embed.add_field(name="__**Clan Battle**__", value=m, inline=False)
 
 			# update clan history for member transfer feature
