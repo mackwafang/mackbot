@@ -1322,6 +1322,119 @@ def load_consumable_list():
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']
 
+def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data):
+	"""
+	check a ship build to see if it is valid
+	Args:
+		build_ship_name (string):           name of ship
+		build_name (string):                name of build
+		build_upgrades (List[string]):      list of upgrades (e.g. csm1, concealment system modification 1)
+		build_skills (List[string]):        list of skills (e.g. surviviability expert
+		build_cmdr (string):                commander name or * for any
+		ship_data (dict):                   ship data
+
+	Returns:
+		dict - build data in a container
+	"""
+	data = {
+		"name": build_name,
+		"ship": build_ship_name,
+		"build_id": "",
+		"upgrades": [],
+		"skills": [],
+		"cmdr": build_cmdr,
+		"errors": [],
+	}
+	# converting upgrades
+	for s, u in enumerate(build_upgrades):
+		try:
+			# blank slot
+			if not len(u):
+				continue
+
+			# any upgrade
+			if u == '*':
+				data['upgrades'].append(-1)
+				continue
+
+			# specified upgrade
+			for k, v in upgrade_abbr_list.items():
+				if u.lower() in [v['abbr'].lower(), v['upgrade'].lower()]:
+					upgrade_data = upgrade_list[str(v['upgrade_id'])]
+					if upgrade_data['slot'] != s + 1:
+						data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
+					data['upgrades'].append(v['upgrade_id'])
+					break
+		except IndexError:
+			logger.warning(f"Upgrade [{u}] is not an upgrade!")
+			data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
+
+	if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
+		data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
+
+	# converting skills
+	total_skill_pts = 0
+	skill_list_filtered = dict((s, skill_list[s]) for s in skill_list if skill_list[s]['tree'] == ship_data['type'])
+	for s in build_skills:
+		try:
+			if not s:
+				continue
+
+			if s == '*':
+				data['skills'].append(-1)
+				continue
+
+			has_no_match = True
+			for k, v in skill_list_filtered.items():
+				if s.lower() == v['name'].lower():
+					data['skills'].append(v['skill_id'])
+					total_skill_pts += v['y'] + 1
+					has_no_match = False
+					break
+
+			if has_no_match:
+				raise IndexError
+		except IndexError:
+			logger.warning(f"skill [{s}] is not an skill!")
+			data['errors'].append(BuildError.SKILLS_INCORRECT)
+
+	if not check_skill_order_valid(data['skills']):
+		data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
+	if total_skill_pts > 21:
+		data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
+	elif total_skill_pts < 21:
+		data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
+
+	data['errors'] = tuple(set(data['errors']))
+	if data['errors']:
+		build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
+		logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
+		for e in data['errors']:
+			if e == BuildError.SKILLS_POTENTIALLY_MISSING:
+				logger.warning(f"Total skill points in this build: {total_skill_pts}")
+
+		logger.info(f"Skill orders are:")
+		for skill in data["skills"]:
+			logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+
+		if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
+			logger.warning(f"Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']]} upgrades.")
+
+		if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
+			for s, upgrade_id in enumerate(data['upgrades']):
+				if upgrade_id == -1:
+					continue
+
+				upgrade_data = upgrade_list[str(upgrade_id)]
+				if upgrade_data['slot'] != s + 1:
+					logger.warning(f"Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
+
+
+	build_id = sha256(str(data).encode()).hexdigest()
+	data['build_id'] = build_id
+
+	return data
+
 def load_ship_builds():
 	global ship_build, ship_list, skill_list, upgrade_list
 	assert sheet_id is not None
@@ -1380,104 +1493,12 @@ def load_ship_builds():
 			except IndexError:
 				logger.warning(f"ship with name {build_ship_name} is not found in database. Skip for now.")
 				continue
-			data = {
-				"name": build_name,
-				"ship": build_ship_name,
-				"build_id": "",
-				"upgrades": [],
-				"skills": [],
-				"cmdr": build_cmdr,
-				"errors": [],
-			}
-			# converting upgrades
-			for s, u in enumerate(build_upgrades):
-				try:
-					# blank slot
-					if not len(u):
-						continue
 
-					# any upgrade
-					if u == '*':
-						data['upgrades'].append(-1)
-						continue
+			logger.info(f"read: {row}")
+			logger.info("-" * 30)
+			build = check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data)
+			build_id = build[['build_id']]
 
-					# specified upgrade
-					for k, v in upgrade_abbr_list.items():
-						if u.lower() in [v['abbr'].lower(), v['upgrade'].lower()]:
-							upgrade_data = upgrade_list[str(v['upgrade_id'])]
-							if upgrade_data['slot'] != s + 1:
-								data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
-							data['upgrades'].append(v['upgrade_id'])
-							break
-				except IndexError:
-					logger.warning(f"Upgrade [{u}] is not an upgrade!")
-					data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
-
-			if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
-				data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
-
-			# converting skills
-			total_skill_pts = 0
-			skill_list_filtered = dict((s, skill_list[s]) for s in skill_list if skill_list[s]['tree'] == ship_data['type'])
-			for s in build_skills:
-				try:
-					if not s:
-						continue
-
-					if s == '*':
-						data['skills'].append(-1)
-						continue
-
-					has_no_match = True
-					for k, v in skill_list_filtered.items():
-						if s.lower() == v['name'].lower():
-							data['skills'].append(v['skill_id'])
-							total_skill_pts += v['y'] + 1
-							has_no_match = False
-							break
-
-					if has_no_match:
-						raise IndexError
-				except IndexError:
-					logger.warning(f"skill [{s}] is not an skill!")
-					data['errors'].append(BuildError.SKILLS_INCORRECT)
-
-			if not check_skill_order_valid(data['skills']):
-				data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
-			if total_skill_pts > 21:
-				data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
-			elif total_skill_pts < 21:
-				data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
-
-			data['errors'] = tuple(set(data['errors']))
-			if data['errors']:
-				build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
-				logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
-				for e in data['errors']:
-					if e == BuildError.SKILLS_POTENTIALLY_MISSING:
-						logger.warning(f"Total skill points in this build: {total_skill_pts}")
-
-				logger.info(f"Skill orders are:")
-				for skill in data["skills"]:
-					logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
-
-				if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
-					logger.warning(f"Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']]} upgrades.")
-
-				if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
-					for s, upgrade_id in enumerate(data['upgrades']):
-						if upgrade_id == -1:
-							continue
-
-						upgrade_data = upgrade_list[str(upgrade_id)]
-						if upgrade_data['slot'] != s + 1:
-							logger.warning(f"Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
-
-				logger.info(f"read: {row}")
-				logger.info("-"*30)
-
-			build_id = sha256(str(data).encode()).hexdigest()
-			data['build_id'] = build_id
 			if build_id not in ship_build:
 				ship_build[build_id] = data.copy()
 			else:
