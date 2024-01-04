@@ -54,8 +54,12 @@ try:
 	for skill in db_skill_list:
 		skill_list_simple[str(skill['skill_id'])] = {
 			'name': skill['name'],
+			'x': skill['x'],
+			'y': skill['y'],
+			'tree': skill['tree'],
+			'abbr': skill['abbr'],
+			'skill_id': skill['skill_id']
 		}
-	skill_list_simple = dict((i, 0) for i in set(list([j['name'] for j in skill_list_simple.values()])))
 
 except ConnectionError:
 	from mackbot.data_prep import (

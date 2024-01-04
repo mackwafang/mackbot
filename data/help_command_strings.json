@@ -177,7 +177,7 @@
 			"tier <tier>": "Display the top 10 ships that this player owns in descending battle count."
 		}
 	},
-	"clan": {
+	"clan info": {
 		"brief": "Provide general information about a WoWS clan",
 		"usage": "clan_name/clan_tag [options]",
 		"description": [

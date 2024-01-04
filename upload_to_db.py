@@ -14,7 +14,7 @@ class UploaderError(IntEnum):
 	CONNECTION_ERROR = auto()
 
 MACKBOT_INFO = {
-	"MACKBOT_VERSION": "1.12.1",
+	"MACKBOT_VERSION": "1.13a",
 	"MACKBOT_WEB_VERSION": "0.5.0",
 	"VERSION_TIME": int(time()),
 }

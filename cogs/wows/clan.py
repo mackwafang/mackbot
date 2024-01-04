@@ -1,13 +1,19 @@
+import discord
+import csv
+
 from datetime import date
 from typing import Optional
+from io import BytesIO
 
 from discord import app_commands, Embed, SelectOption, Interaction
 from discord.utils import escape_markdown
 from discord.ext import commands
 
 from .bot_help import BotHelp
-from mackbot.utilities.to_plural import to_plural
+from mackbot.enums import ANSI_FORMAT, ANSI_BKG_COLOR, ANSI_TEXT_COLOR
 from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
+from mackbot.utilities.game_data import data_uploader
+from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
 from mackbot.utilities.regex import clan_filter_regex
@@ -22,17 +28,65 @@ LEAGUE_STRING = [
 	"Squall",
 ]
 
+def start_ansi_string(_format: ANSI_FORMAT, _color:ANSI_TEXT_COLOR, _bkg: ANSI_BKG_COLOR=""):
+	if _bkg:
+		return f"[{_format};{_color};{_bkg}m"
+	return f"[{_format};{_color}m"
+
+def end_ansi_string():
+	return "\u001b[0m"
+
 class Clan(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.bot.tree.add_command(ClanGroup(name="clan", description="Clan related functions"))
+	# @app_commands.command(name="show", description="List out all items from a category")#, pass_context=True, invoke_without_command=True)
+	# async def show(self, interaction: Interaction):
+	# 	pass
 
-	@app_commands.command(name="clan", description="Get some basic information about a clan")
+class ClanGroup(app_commands.Group):
+	@app_commands.command(name="upload", description="Upload clan specific build for your clan")
+	async def upload(self, interaction: Interaction, file: discord.Attachment):
+		# defer first, incase it takes long
+		await interaction.response.defer(ephemeral=False, thinking=True)
+
+		file_io = BytesIO(await file.read())
+		file_content = file_io.read().decode("utf-8").splitlines()
+		file_content = csv.reader(file_content, delimiter=",", skipinitialspace=True)
+		errors = []
+		builds = []
+		for index, row in enumerate(file_content):
+			if len(row) == 25:
+				build_ship_name = row[0]
+				build_name = row[1]
+				build_upgrades = row[2:8]
+				build_skills = row[8:-2]
+				build_cmdr = row[-2]
+				builds.append([build_ship_name, build_name, build_upgrades, build_skills, build_cmdr])
+			else:
+				errors.append(f"Line {index} excepts 25 values. Found {len(row)} values")
+
+		errors = data_uploader.clan_build_upload(builds, interaction.guild_id)
+		output = "Done"
+		if errors:
+			output = "```ansi\n" \
+			         f"{start_ansi_string(ANSI_FORMAT.NONE, ANSI_TEXT_COLOR.RED)}" \
+			         f"WARNING: Uploaded file has errors\n" \
+			         f"{chr(10).join(errors)}" \
+			         f"{end_ansi_string()}" \
+			         f"```"
+		if interaction.response.is_done():
+			await interaction.followup.send(output)
+		else:
+			await interaction.response.send_message(output)
+
+	@app_commands.command(name="info", description="Get some basic information about a clan")
 	@app_commands.describe(
 		clan_name="Name or tag of clan",
 		region='Clan region'
 	)
 	@app_commands.autocomplete(region=auto_complete_region)
-	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
+	async def info(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
 		args = clan_name
 		await interaction.response.defer(ephemeral=False, thinking=True)
 		search_term = clan_name

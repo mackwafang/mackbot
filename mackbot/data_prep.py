@@ -76,7 +76,6 @@ with open(os.path.join("data", "config.json")) as f:
 	data = json.load(f)
 
 # database stuff
-mongodb_host = data['mongodb_host']
 sheet_id = data['sheet_id']
 
 # bote info
@@ -92,13 +91,6 @@ ship_types["Aircraft Carrier"] = "Aircraft Carrier"
 # dictionary to convert user inputted ship name to non-ascii ship name
 with open(os.path.join("data", "ship_name_dict.json"), 'r', encoding='utf-8') as f:
 	ship_name_to_ascii = json.load(f)
-
-# define database stuff
-database_client = None
-try:
-	database_client = MongoClient(mongodb_host)
-except ConnectionError:
-	logger.warning("MongoDB cannot be connected.")
 
 def get_google_sheets_creds():
 	global _GOOGLE_SHEETS_CREDS
@@ -1322,7 +1314,7 @@ def load_consumable_list():
 		consumable_list[consumable]['consumable_id'] = consumable_list[consumable]['id']
 		del consumable_list[consumable]['id']
 
-def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data):
+def parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data, set_private=False):
 	"""
 	check a ship build to see if it is valid
 	Args:
@@ -1332,7 +1324,7 @@ def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 		build_skills (List[string]):        list of skills (e.g. surviviability expert
 		build_cmdr (string):                commander name or * for any
 		ship_data (dict):                   ship data
-
+		set_private (bool):                 Optional - set to private
 	Returns:
 		dict - build data in a container
 	"""
@@ -1344,6 +1336,7 @@ def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 		"skills": [],
 		"cmdr": build_cmdr,
 		"errors": [],
+		"private": set_private,             # used to differentiate clan builds and public builds
 	}
 	# converting upgrades
 	for s, u in enumerate(build_upgrades):
@@ -1406,12 +1399,12 @@ def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 		data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
 
 	data['errors'] = tuple(set(data['errors']))
+
 	if data['errors']:
 		build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
 		logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
-		for e in data['errors']:
-			if e == BuildError.SKILLS_POTENTIALLY_MISSING:
-				logger.warning(f"Total skill points in this build: {total_skill_pts}")
+		if BuildError.SKILLS_POTENTIALLY_MISSING in data['errors']:
+			logger.warning(f"Total skill points in this build: {total_skill_pts}")
 
 		logger.info(f"Skill orders are:")
 		for skill in data["skills"]:
@@ -1428,7 +1421,6 @@ def check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 				upgrade_data = upgrade_list[str(upgrade_id)]
 				if upgrade_data['slot'] != s + 1:
 					logger.warning(f"Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
-
 
 	build_id = sha256(str(data).encode()).hexdigest()
 	data['build_id'] = build_id
@@ -1496,7 +1488,7 @@ def load_ship_builds():
 
 			logger.info(f"read: {row}")
 			logger.info("-" * 30)
-			build = check_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data)
+			build = parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data)
 			build_id = build[['build_id']]
 
 			if build_id not in ship_build:
