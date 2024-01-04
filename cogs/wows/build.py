@@ -24,9 +24,10 @@ class Build(commands.Cog):
 	@app_commands.describe(
 		ship_name="Ship name",
 		text_version="Use text version instead",
+		use_guild_builds="Use your Discord server's builds instead"
 	)
 	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
-	async def build(self, interaction: Interaction, ship_name: str, text_version:Optional[bool]=False):
+	async def build(self, interaction: Interaction, ship_name: str, text_version:Optional[bool]=False, use_guild_builds:Optional[bool]=False):
 		user_ship_name = ship_name
 		send_text_build = text_version
 
@@ -59,7 +60,7 @@ class Build(commands.Cog):
 			is_prem = output['is_premium']
 
 			# find ship build
-			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
+			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB, from_guild=interaction.guild.id if use_guild_builds else None)
 			user_selected_build_id = 0
 
 			await interaction.response.defer()
@@ -107,7 +108,7 @@ class Build(commands.Cog):
 				skills = build['skills']
 				cmdr = build['cmdr']
 				build_errors = build['errors']
-				build_hash = build['hash']
+				build_hash = build['build_id']
 
 			if send_text_build:
 				embed = Embed(description=f"## {build_name.title()} Build for {name}")

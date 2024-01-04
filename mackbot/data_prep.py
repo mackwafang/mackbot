@@ -1287,11 +1287,12 @@ def create_upgrade_abbr():
 	abbr_added = []
 	for u in upgrade_list:
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(160), chr(32))  # replace weird 0-width character with a space
-		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32))  # replace random ass newline character with a space
-		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()]).lower()
+		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32)) # replace random ass newline character with a space
+		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()])
 		if key in abbr_added:  # if the abbreviation of this upgrade is in the list already
 			key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
-	# add this abbreviation
+		# add this abbreviation
+		upgrade_list[u]['abbr'] = key
 		upgrade_abbr_list[u] = {
 			"upgrade": upgrade_list[u]['name'].lower(),
 			"abbr": key,
@@ -1489,10 +1490,10 @@ def load_ship_builds():
 			logger.info(f"read: {row}")
 			logger.info("-" * 30)
 			build = parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data)
-			build_id = build[['build_id']]
+			build_id = build['build_id']
 
 			if build_id not in ship_build:
-				ship_build[build_id] = data.copy()
+				ship_build[build_id] = build.copy()
 			else:
 				logger.warning(f"Build for ship {build_ship_name} with id {build_id} exists!")
 	except HttpError as err:

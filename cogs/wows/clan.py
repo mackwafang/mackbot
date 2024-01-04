@@ -1,3 +1,5 @@
+import os
+
 import discord
 import csv
 
@@ -9,8 +11,9 @@ from discord import app_commands, Embed, SelectOption, Interaction
 from discord.utils import escape_markdown
 from discord.ext import commands
 
+from mackbot.utilities.game_data.game_data_finder import get_ship_build_by_id, get_ship_data
 from .bot_help import BotHelp
-from mackbot.enums import ANSI_FORMAT, ANSI_BKG_COLOR, ANSI_TEXT_COLOR
+from mackbot.enums import ANSI_FORMAT, ANSI_BKG_COLOR, ANSI_TEXT_COLOR, SHIP_BUILD_FETCH_FROM
 from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
 from mackbot.utilities.game_data import data_uploader
 from mackbot.utilities.to_plural import to_plural
@@ -47,14 +50,22 @@ class Clan(commands.Cog):
 class ClanGroup(app_commands.Group):
 	@app_commands.command(name="upload", description="Upload clan specific build for your clan")
 	async def upload(self, interaction: Interaction, file: discord.Attachment):
+		# check if admin to avoid spams
+		if not interaction.user.guild_permissions.administrator:
+			embed = discord.Embed(description="## You do not have permission to use this command\nYou need to be the server's administration to use this command.")
+			interaction.response.send_message(embed=embed)
+
 		# defer first, incase it takes long
 		await interaction.response.defer(ephemeral=False, thinking=True)
 
+		# parse file
 		file_io = BytesIO(await file.read())
 		file_content = file_io.read().decode("utf-8").splitlines()
 		file_content = csv.reader(file_content, delimiter=",", skipinitialspace=True)
 		errors = []
 		builds = []
+
+		# compile builds
 		for index, row in enumerate(file_content):
 			if len(row) == 25:
 				build_ship_name = row[0]
@@ -66,19 +77,39 @@ class ClanGroup(app_commands.Group):
 			else:
 				errors.append(f"Line {index} excepts 25 values. Found {len(row)} values")
 
-		errors = data_uploader.clan_build_upload(builds, interaction.guild_id)
-		output = "Done"
+		# upload and compile errors
+		build_ids, errors = data_uploader.clan_build_upload(builds, interaction.guild_id)
+		send_res_file = False
+		res_file = None
+		kwargs = {}
 		if errors:
 			output = "```ansi\n" \
 			         f"{start_ansi_string(ANSI_FORMAT.NONE, ANSI_TEXT_COLOR.RED)}" \
 			         f"WARNING: Uploaded file has errors\n" \
-			         f"{chr(10).join(errors)}" \
+			         f"{chr(10)+chr(10).join(errors)}" \
 			         f"{end_ansi_string()}" \
 			         f"```"
+			# ye too big, send file instead
+			kwargs = {"content": output}
+			if len(output) > 1500:
+				send_res_file = True
+				res_file_path = os.path.join(".", "tmp", f"{interaction.id}_response.txt")
+				with open(res_file_path, 'w') as f:
+					f.write(output)
+				res_file = discord.File(res_file_path, "response.txt")
+				kwargs = {"file": res_file}
+
+		embed = discord.Embed(description=f"## {'Partial' if errors else ''} Success\nYour clan's builds has been uploaded\n\n")
+		for bid in build_ids:
+			build_data = get_ship_build_by_id(bid, SHIP_BUILD_FETCH_FROM.MONGO_DB)
+			ship_data = get_ship_data(build_data['ship'])
+			embed.description += f"**{ROMAN_NUMERAL[ship_data['tier']-1]} {ICONS_EMOJI[ship_data['type']]} {ship_data['name']}**: {build_data['name']}\n"
+		kwargs["embed"] = embed
+
 		if interaction.response.is_done():
-			await interaction.followup.send(output)
+			await interaction.followup.send(**kwargs)
 		else:
-			await interaction.response.send_message(output)
+			await interaction.response.send_message(**kwargs)
 
 	@app_commands.command(name="info", description="Get some basic information about a clan")
 	@app_commands.describe(

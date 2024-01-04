@@ -56,7 +56,7 @@
     "unit": "%"
   },
   "engineBackwardForsageMaxSpeed": {
-    "description": "",
+    "description": "Reverse speed",
     "unit": "%"
   },
   "GTRotationSpeed": {
@@ -155,7 +155,7 @@
     "unit": "%"
   },
   "engineBackwardForsagePower": {
-    "description": "",
+    "description": "Reverse engine power",
     "unit": "%"
   },
   "pingerCritProb": {
@@ -187,7 +187,7 @@
     "unit": "%"
   },
   "engineForwardForsageMaxSpeed": {
-    "description": "",
+    "description": "Forward speed",
     "unit": "%"
   },
   "ConsumableReloadTime": {
@@ -314,7 +314,7 @@
     "unit": "%"
   },
   "engineForwardForsagePower": {
-    "description": "",
+    "description": "Forward power",
     "unit": "%"
   },
   "burnProb": {
@@ -322,7 +322,7 @@
     "unit": "%"
   },
   "engineBackwardUpTime": {
-    "description": "",
+    "description": "Reverse time to full speed",
     "unit": "%"
   },
   "skipBomberHealth": {
