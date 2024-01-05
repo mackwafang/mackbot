@@ -252,10 +252,13 @@ class Build(commands.Cog):
 					await interaction.response.send_message(embed=embed)
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
-				embed = Embed(title=f"Build for {name}", description='')
+				embed = Embed(description=f"## Build for {name}\n")
 				embed.description = f"**Tier {list(ROMAN_NUMERAL)[tier - 1]} {nation_dictionary[nation]} {SHIP_TYPES[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
-				m = "mackbot does not know any build for this ship :("
+				if use_guild_builds:
+					m = "mackbot does not have any builds for this ship for your server."
+				else:
+					m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
 				await interaction.followup.send(embed=embed)

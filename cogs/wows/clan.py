@@ -52,7 +52,7 @@ class ClanGroup(app_commands.Group):
 	)
 	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
 	async def build(self, interaction: Interaction, ship_name: str, text_version: Optional[bool] = False):
-		await getattr(Build.bot.get_cog(Build.__name__), 'build').callback(Build, interaction, ship_name, text_version, True)
+		await getattr(interaction.client.get_cog(Build.__name__), 'build').callback(Build, interaction, ship_name, text_version, True)
 
 	@app_commands.command(name="builds", description="Show what builds you has has uploaded to mackbot")
 	async def builds(self, interaction: Interaction):

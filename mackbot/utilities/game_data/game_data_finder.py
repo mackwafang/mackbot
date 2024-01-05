@@ -167,16 +167,7 @@ def get_ship_build_by_id(build_id: str, fetch_from: SHIP_BUILD_FETCH_FROM, from_
 				raise NoBuildFound
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
-			if from_guild is not None:
-				clan_builds = database_client.mackbot_db.clan_build.find_one({"guild_id": from_guild})
-				if clan_builds is None:
-					return []
-				builds_found = dict(database_client.mackbot_db.ship_build.find_one({
-					"build_id": build_id,
-				}))
-			else:
-				builds_found = dict(database_client.mackbot_db.ship_build.find_one({"build_id": build_id}))
-				logger.info(f"Found {len(builds_found)} builds for build_id [{build_id}]")
+			builds_found = dict(database_client.mackbot_db.ship_build.find_one({"build_id": build_id}))
 			return builds_found
 	except Exception as e:
 		raise e
