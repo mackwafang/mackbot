@@ -11,16 +11,16 @@ from discord import app_commands, Embed, SelectOption, Interaction
 from discord.utils import escape_markdown
 from discord.ext import commands
 
-from mackbot.utilities.game_data.game_data_finder import get_ship_build_by_id, get_ship_data
-from .bot_help import BotHelp
+from cogs import Build
 from mackbot.enums import ANSI_FORMAT, ANSI_BKG_COLOR, ANSI_TEXT_COLOR, SHIP_BUILD_FETCH_FROM
 from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
+from mackbot.utilities.game_data.game_data_finder import get_ship_build_by_id, get_ship_data
+from mackbot.utilities.game_data.warships_data import database_client
 from mackbot.utilities.game_data import data_uploader
 from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
-from mackbot.utilities.regex import clan_filter_regex
-from mackbot.utilities.discord.items_autocomplete import auto_complete_region
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region, auto_complete_ship_name
 from mackbot.wargaming.clans import clan_ranking
 
 LEAGUE_STRING = [
@@ -43,11 +43,32 @@ class Clan(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
 		self.bot.tree.add_command(ClanGroup(name="clan", description="Clan related functions"))
-	# @app_commands.command(name="show", description="List out all items from a category")#, pass_context=True, invoke_without_command=True)
-	# async def show(self, interaction: Interaction):
-	# 	pass
 
 class ClanGroup(app_commands.Group):
+	@app_commands.command(name='build', description='Get a warship build from your clan')
+	@app_commands.describe(
+		ship_name="Ship name",
+		text_version="Use text version instead",
+	)
+	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
+	async def build(self, interaction: Interaction, ship_name: str, text_version: Optional[bool] = False):
+		await getattr(Build.bot.get_cog(Build.__name__), 'build').callback(Build, interaction, ship_name, text_version, True)
+
+	@app_commands.command(name="builds", description="Show what builds you has has uploaded to mackbot")
+	async def builds(self, interaction: Interaction):
+		embed = discord.Embed(description=f"## Your Clan's Builds\n\n")
+		build_ids = dict(database_client.mackbot_db.clan_build.find_one({"guild_id": interaction.guild_id}))['builds']
+
+		if build_ids is None:
+			embed.description += "Your clan has not uploaded any builds"
+		else:
+			for bid in build_ids:
+				build_data = get_ship_build_by_id(bid, SHIP_BUILD_FETCH_FROM.MONGO_DB, from_guild=interaction.guild_id)
+				ship_data = get_ship_data(build_data['ship'])
+				embed.description += f"**{ROMAN_NUMERAL[ship_data['tier'] - 1]} {ICONS_EMOJI[ship_data['type']]} {ship_data['name']}**: {build_data['name']}\n"
+
+		await interaction.response.send_message(embed=embed)
+
 	@app_commands.command(name="upload", description="Upload clan specific build for your clan")
 	async def upload(self, interaction: Interaction, file: discord.Attachment):
 		# check if admin to avoid spams
