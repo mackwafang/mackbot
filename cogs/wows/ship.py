@@ -90,12 +90,12 @@ class Ship(commands.Cog):
 				else:
 					ship_type = "Battlecruiser"
 			test_ship_status_string = '[TEST SHIP] * ' if is_test_ship else ''
-			embed = Embed(title=f"{ship_type} {name} {test_ship_status_string}", description='')
+			embed = Embed(description=f"## {ship_type} {name} {test_ship_status_string}\n")
 
 			tier_string = ROMAN_NUMERAL[tier - 1]
 			if tier < 11:
 				tier_string = tier_string.upper()
-			embed.description += f'**Tier {tier_string} {"Premium " if is_prem else ""}{nation_dictionary[nation]} {ship_type}**\n'
+			embed.description += f'### **Tier {tier_string} {"Premium " if is_prem else ""}{nation_dictionary[nation]} {ship_type}**\n'
 			if prev_ship is not None:
 				prev_ship_data = ship_list_simple[prev_ship]
 				embed.description += f"\nRequires **{ICONS_EMOJI[prev_ship_data['type']]} {ROMAN_NUMERAL[prev_ship_data['tier'] - 1]} {prev_ship_data['name']}**"

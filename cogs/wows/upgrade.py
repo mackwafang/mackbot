@@ -51,13 +51,14 @@ class Upgrade(commands.Cog):
 			slot = output['slot']
 			special_restriction = output['additional_restriction']
 
+
 			embed_title = 'Ship Upgrade'
 			if is_special == 'Unique':
 				embed_title = "Legendary Ship Upgrade"
 			elif is_special == 'Coal':
 				embed_title = "Coal Ship Upgrade"
 
-			embed = Embed(title=embed_title, description="")
+			embed = Embed(description=f"## {embed_title}\n")
 			embed.set_thumbnail(url=image)
 			# get server emoji
 			if interaction.guild is not None:
@@ -65,7 +66,7 @@ class Upgrade(commands.Cog):
 			else:
 				server_emojis = []
 
-			embed.description += f"**{name}**\n"
+			embed.description += f"**## {name}**\n"
 			embed.description += f"**Slot {slot}**\n"
 			if len(description.split()) > 0:
 				embed.add_field(name='Description', value=description, inline=False)

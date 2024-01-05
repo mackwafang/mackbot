@@ -74,7 +74,7 @@ class ShowGroup(app_commands.Group):
 		m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
 		logger.info(f"found {num_items} items matching criteria: {args}")
-		embed = Embed(title="Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
+		embed = Embed(description="## Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
 		m = m[page]  # select page
 		# spliting selected page into columns
 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
@@ -155,7 +155,7 @@ class ShowGroup(app_commands.Group):
 				for i in m:
 					embed.add_field(name="Upgrade (abbr.)", value=''.join([v + '\n' for v in i]))
 			else:
-				embed = Embed(title=embed_title, description="")
+				embed = Embed(description=f"## {embed_title}")
 				embed.description = "No upgrades found"
 		except Exception as e:
 			if type(e) == IndexError:
@@ -318,7 +318,7 @@ class ShowGroup(app_commands.Group):
 			num_pages = ceil(len(m) / items_per_page)
 			m = [m[i:i + items_per_page] for i in range(0, len(result), items_per_page)]  # splitting into pages
 
-			embed = Embed(title=f"{embed_title} ({max(1, page + 1)}/{max(1, num_pages)})")
+			embed = Embed(description=f"## {embed_title} ({max(1, page + 1)}/{max(1, num_pages)})")
 			m = m[page]  # select page
 			m = [m[i:i + items_per_page // columns] for i in range(0, len(m), items_per_page // columns)]  # spliting into columns
 			embed.set_footer(text=f"{num_items} ships found\n"

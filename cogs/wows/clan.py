@@ -1,17 +1,26 @@
+import os
+
+import discord
+import csv
+
 from datetime import date
 from typing import Optional
+from io import BytesIO
 
 from discord import app_commands, Embed, SelectOption, Interaction
 from discord.utils import escape_markdown
 from discord.ext import commands
 
-from .bot_help import BotHelp
-from mackbot.utilities.to_plural import to_plural
+from cogs import Build
+from mackbot.enums import ANSI_FORMAT, ANSI_BKG_COLOR, ANSI_TEXT_COLOR, SHIP_BUILD_FETCH_FROM
 from mackbot.constants import WOWS_REALMS, ICONS_EMOJI, ROMAN_NUMERAL
+from mackbot.utilities.game_data.game_data_finder import get_ship_build_by_id, get_ship_data
+from mackbot.utilities.game_data.warships_data import database_client
+from mackbot.utilities.game_data import data_uploader
+from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG, clan_history
 from mackbot.utilities.discord.drop_down_menu import UserSelection, get_user_response_with_drop_down
-from mackbot.utilities.regex import clan_filter_regex
-from mackbot.utilities.discord.items_autocomplete import auto_complete_region
+from mackbot.utilities.discord.items_autocomplete import auto_complete_region, auto_complete_ship_name
 from mackbot.wargaming.clans import clan_ranking
 
 LEAGUE_STRING = [
@@ -22,17 +31,114 @@ LEAGUE_STRING = [
 	"Squall",
 ]
 
+def start_ansi_string(_format: ANSI_FORMAT, _color:ANSI_TEXT_COLOR, _bkg: ANSI_BKG_COLOR=""):
+	if _bkg:
+		return f"[{_format};{_color};{_bkg}m"
+	return f"[{_format};{_color}m"
+
+def end_ansi_string():
+	return "\u001b[0m"
+
 class Clan(commands.Cog):
 	def __init__(self, bot):
 		self.bot = bot
+		self.bot.tree.add_command(ClanGroup(name="clan", description="Clan related functions"))
 
-	@app_commands.command(name="clan", description="Get some basic information about a clan")
+class ClanGroup(app_commands.Group):
+	@app_commands.command(name='build', description='Get a warship build from your clan')
+	@app_commands.describe(
+		ship_name="Ship name",
+		text_version="Use text version instead",
+	)
+	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
+	async def build(self, interaction: Interaction, ship_name: str, text_version: Optional[bool] = False):
+		await getattr(interaction.client.get_cog(Build.__name__), 'build').callback(Build, interaction, ship_name, text_version, True)
+
+	@app_commands.command(name="builds", description="Show what builds you has has uploaded to mackbot")
+	async def builds(self, interaction: Interaction):
+		embed = discord.Embed(description=f"## Your Clan's Builds\n\n")
+		build_ids = dict(database_client.mackbot_db.clan_build.find_one({"guild_id": interaction.guild_id}))['builds']
+
+		if build_ids is None:
+			embed.description += "Your clan has not uploaded any builds"
+		else:
+			for bid in build_ids:
+				build_data = get_ship_build_by_id(bid, SHIP_BUILD_FETCH_FROM.MONGO_DB, from_guild=interaction.guild_id)
+				ship_data = get_ship_data(build_data['ship'])
+				embed.description += f"**{ROMAN_NUMERAL[ship_data['tier'] - 1]} {ICONS_EMOJI[ship_data['type']]} {ship_data['name']}**: {build_data['name']}\n"
+
+		await interaction.response.send_message(embed=embed)
+
+	@app_commands.command(name="upload", description="Upload clan specific build for your clan")
+	async def upload(self, interaction: Interaction, file: discord.Attachment):
+		# check if admin to avoid spams
+		if not interaction.user.guild_permissions.administrator:
+			embed = discord.Embed(description="## You do not have permission to use this command\nYou need to be the server's administration to use this command.")
+			interaction.response.send_message(embed=embed)
+
+		# defer first, incase it takes long
+		await interaction.response.defer(ephemeral=False, thinking=True)
+
+		# parse file
+		file_io = BytesIO(await file.read())
+		file_content = file_io.read().decode("utf-8").splitlines()
+		file_content = csv.reader(file_content, delimiter=",", skipinitialspace=True)
+		errors = []
+		builds = []
+
+		# compile builds
+		for index, row in enumerate(file_content):
+			if len(row) == 25:
+				build_ship_name = row[0]
+				build_name = row[1]
+				build_upgrades = row[2:8]
+				build_skills = row[8:-2]
+				build_cmdr = row[-2]
+				builds.append([build_ship_name, build_name, build_upgrades, build_skills, build_cmdr])
+			else:
+				errors.append(f"Line {index} excepts 25 values. Found {len(row)} values")
+
+		# upload and compile errors
+		build_ids, errors = data_uploader.clan_build_upload(builds, interaction.guild_id)
+		send_res_file = False
+		res_file = None
+		kwargs = {}
+		if errors:
+			output = "```ansi\n" \
+			         f"{start_ansi_string(ANSI_FORMAT.NONE, ANSI_TEXT_COLOR.RED)}" \
+			         f"WARNING: Uploaded file has errors\n" \
+			         f"{chr(10)+chr(10).join(errors)}" \
+			         f"{end_ansi_string()}" \
+			         f"```"
+			# ye too big, send file instead
+			kwargs = {"content": output}
+			if len(output) > 1500:
+				send_res_file = True
+				res_file_path = os.path.join(".", "tmp", f"{interaction.id}_response.txt")
+				with open(res_file_path, 'w') as f:
+					f.write(output)
+				res_file = discord.File(res_file_path, "response.txt")
+				kwargs = {"file": res_file}
+
+		embed = discord.Embed(description=f"## {'Partial' if errors else ''} Success\nYour clan's builds has been uploaded\n\n")
+		for bid in build_ids:
+			build_data = get_ship_build_by_id(bid, SHIP_BUILD_FETCH_FROM.MONGO_DB)
+			ship_data = get_ship_data(build_data['ship'])
+			embed.description += f"**{ROMAN_NUMERAL[ship_data['tier']-1]} {ICONS_EMOJI[ship_data['type']]} {ship_data['name']}**: {build_data['name']}\n"
+		kwargs["embed"] = embed
+
+		if interaction.response.is_done():
+			await interaction.followup.send(**kwargs)
+		else:
+			await interaction.response.send_message(**kwargs)
+
+	@app_commands.command(name="info", description="Get some basic information about a clan")
 	@app_commands.describe(
 		clan_name="Name or tag of clan",
 		region='Clan region'
 	)
 	@app_commands.autocomplete(region=auto_complete_region)
-	async def clan(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
+	async def info(self, interaction: Interaction, clan_name: str, region: Optional[str]='na'):
 		args = clan_name
 		await interaction.response.defer(ephemeral=False, thinking=True)
 		search_term = clan_name
@@ -49,7 +155,7 @@ class Clan(commands.Cog):
 				clan_options= [SelectOption(label=f"[{i + 1}] [{escape_markdown(c['tag'])}] {c['name']}", value=i) for i, c in enumerate(clan_search)][:25]
 				view = UserSelection(interaction.user, 15, "Select a clan", clan_options)
 
-				embed = Embed(title=f"Search result for clan {search_term}", description="")
+				embed = Embed(description=f"## Search result for clan {search_term}\n")
 				embed.description += "**mackbot found the following clans**\n"
 				embed.description += '\n'.join(i.label for i in clan_options)
 				embed.set_footer(text="Please reply with the number indicating the clan you would like to search\n"+
@@ -72,7 +178,7 @@ class Clan(commands.Cog):
 			clan_id = clan_detail['clan_id']
 			clan_ladder = clan_ranking(clan_id, clan_region)
 
-			embed = Embed(title=f"Search result for clan {clan_detail['name']}", description="", color=clan_ladder['color'])
+			embed = Embed(description=f"## [{clan_detail['tag']}] {clan_detail['name']}", color=clan_ladder['color'])
 			embed.set_footer(text=f"Last updated {date.fromtimestamp(clan_detail['updated_at']).strftime('%b %d, %Y')}")
 
 			clan_age = (date.today() - date.fromtimestamp(clan_detail['created_at'])).days
@@ -94,7 +200,7 @@ class Clan(commands.Cog):
 			m += f"**Members: ** {clan_detail['members_count']}\n"
 			m += f"**Region: ** {clan_region.upper()}\n"
 			m += f"**League: **{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]}\n"
-			embed.add_field(name=f"__**[{clan_detail['tag']}] {clan_detail['name']}**__", value=m, inline=not clan_detail['description'])
+			embed.add_field(name=f"__**Basic detail**__", value=m, inline=not clan_detail['description'])
 
 			if clan_detail['description']:
 				embed.add_field(name="__**Description**__", value=clan_detail['description'], inline=False)
@@ -107,7 +213,7 @@ class Clan(commands.Cog):
 				m += f"{LEAGUE_STRING[clan_ladder['league']]} {ROMAN_NUMERAL[clan_ladder['division']]} ({clan_ladder['division_rating']} / 100)\n"
 				m += f"Best: {LEAGUE_STRING[best_position['league']]} {ROMAN_NUMERAL[best_position['division']]} ({best_position['division_rating']} / 100)\n\n"
 
-				m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L, {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
+				m += f"{to_plural('battle', battle_count)} ({clan_ladder['wins_count']} W - {battle_count - clan_ladder['wins_count']} L | {clan_ladder['wins_count']/max(1, battle_count):0.2%})\n"
 				embed.add_field(name="__**Clan Battle**__", value=m, inline=False)
 
 			# update clan history for member transfer feature

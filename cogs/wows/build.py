@@ -24,9 +24,10 @@ class Build(commands.Cog):
 	@app_commands.describe(
 		ship_name="Ship name",
 		text_version="Use text version instead",
+		use_guild_builds="Use your Discord server's builds instead"
 	)
 	@app_commands.autocomplete(ship_name=auto_complete_ship_name)
-	async def build(self, interaction: Interaction, ship_name: str, text_version:Optional[bool]=False):
+	async def build(self, interaction: Interaction, ship_name: str, text_version:Optional[bool]=False, use_guild_builds:Optional[bool]=False):
 		user_ship_name = ship_name
 		send_text_build = text_version
 
@@ -59,7 +60,7 @@ class Build(commands.Cog):
 			is_prem = output['is_premium']
 
 			# find ship build
-			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB)
+			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB, from_guild=interaction.guild.id if use_guild_builds else None)
 			user_selected_build_id = 0
 
 			await interaction.response.defer()
@@ -107,10 +108,10 @@ class Build(commands.Cog):
 				skills = build['skills']
 				cmdr = build['cmdr']
 				build_errors = build['errors']
-				build_hash = build['hash']
+				build_hash = build['build_id']
 
 			if send_text_build:
-				embed = Embed(title=f"{build_name.title()} Build for {name}", description='')
+				embed = Embed(description=f"## {build_name.title()} Build for {name}")
 				embed.set_thumbnail(url=images['small'])
 				logger.info(f"returning build information for <{name}> in embeded format")
 				tier_string = ROMAN_NUMERAL[tier - 1]
@@ -251,10 +252,13 @@ class Build(commands.Cog):
 					await interaction.response.send_message(embed=embed)
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
-				embed = Embed(title=f"Build for {name}", description='')
+				embed = Embed(description=f"## Build for {name}\n")
 				embed.description = f"**Tier {list(ROMAN_NUMERAL)[tier - 1]} {nation_dictionary[nation]} {SHIP_TYPES[ship_type].title()}**"
 				embed.set_thumbnail(url=images['small'])
-				m = "mackbot does not know any build for this ship :("
+				if use_guild_builds:
+					m = "mackbot does not have any builds for this ship for your server."
+				else:
+					m = "mackbot does not know any build for this ship :("
 				embed.add_field(name=f'No known build', value=m, inline=False)
 
 				await interaction.followup.send(embed=embed)

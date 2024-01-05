@@ -1,3 +1,4 @@
+import discord
 import inflect
 
 from discord import Embed, app_commands, Interaction
@@ -16,8 +17,10 @@ class AboutBot(commands.Cog):
 	@app_commands.command(name="about", description="About mackbot")
 	async def about_bot(self, interaction: Interaction):
 		query = list(database_client.mackbot_db.mackbot_info.find({}).sort("VERSION_TIME", -1))
-		embed = Embed(title="About mackbot")
+		embed = Embed(description="## About mackbot")
 
+		logo_file = discord.File("./data/logo/mackbot.png", filename="logo.png")
+		embed.set_thumbnail(url="attachment://logo.png")
 		embed.add_field(name=f"Currently deployed in {to_plural('server', len(self.client.guilds))}", value=EMPTY_LENGTH_CHAR)
 
 		if query:
@@ -35,4 +38,4 @@ class AboutBot(commands.Cog):
 		m += "All other contents are available under the MIT license.\n"
 		m += "Shell Ballistics from WoWs-ShipBuild"
 		embed.add_field(name="Legal", value=m, inline=False)
-		await interaction.response.send_message(embed=embed)
+		await interaction.response.send_message(embed=embed, file=logo_file)

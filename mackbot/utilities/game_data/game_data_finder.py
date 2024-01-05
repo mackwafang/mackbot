@@ -1,7 +1,7 @@
 import pymongo, os
 
 from string import ascii_letters
-from typing import Union
+from typing import Union, Optional
 from mackbot.utilities.bot_data import command_list
 from mackbot.utilities.game_data.warships_data import *
 from mackbot.exceptions import *
@@ -141,14 +141,45 @@ def get_ship_data(ship: str) -> dict:
 	except Exception as e:
 		raise e
 
-def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> list:
+def get_ship_build_by_id(build_id: str, fetch_from: SHIP_BUILD_FETCH_FROM, from_guild:Optional[int]=None) -> list:
 	"""
 	Returns a ship build given the ship name
 
 	Args:
-	    fetch_from: source of ship build
-		ship: ship name
+	    build_id (str): build id
+	    fetch_from (SHIP_BUILD_FETCH_FROM): source of ship build
+		from_guild (int): use guild's builds
+	Returns:
+		object: list of builds for ship with name "ship"
 
+	Raises:
+		NoBuildFound
+	"""
+	if fetch_from is not SHIP_BUILD_FETCH_FROM.LOCAL:
+		if database_client is None:
+			fetch_from = SHIP_BUILD_FETCH_FROM.LOCAL
+
+	try:
+		if fetch_from is SHIP_BUILD_FETCH_FROM.LOCAL:
+			result = [ship_build[b] for b in ship_build if ship_build[b]['build_id'] == build_id]
+			if not result:
+				logger.info(f"No builds for build id[{build_id}] found")
+				raise NoBuildFound
+			return result
+		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
+			builds_found = dict(database_client.mackbot_db.ship_build.find_one({"build_id": build_id}))
+			return builds_found
+	except Exception as e:
+		raise e
+
+def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM, from_guild:Optional[int]=None) -> list:
+	"""
+	Returns a ship build given the ship name
+
+	Args:
+		ship (str): ship name
+	    fetch_from (SHIP_BUILD_FETCH_FROM): source of ship build
+		from_guild (int): use guild's builds
 	Returns:
 		object: list of builds for ship with name "ship"
 
@@ -167,8 +198,17 @@ def get_ship_builds_by_name(ship: str, fetch_from: SHIP_BUILD_FETCH_FROM) -> lis
 				raise NoBuildFound
 			return result
 		if fetch_from is SHIP_BUILD_FETCH_FROM.MONGO_DB:
-			builds_found = list(database_client.mackbot_db.ship_build.find({"ship": ship}))
-			logger.info(f"Found {len(builds_found)} builds for ship [{ship}]")
+			if from_guild is not None:
+				clan_builds = database_client.mackbot_db.clan_build.find_one({"guild_id": from_guild})
+				if clan_builds is None:
+					return []
+				builds_found = list(database_client.mackbot_db.ship_build.find({
+					"ship": ship,
+					"build_id": {"$in": dict(clan_builds)['builds']}
+				}))
+			else:
+				builds_found = list(database_client.mackbot_db.ship_build.find({"ship": ship}))
+				logger.info(f"Found {len(builds_found)} builds for ship [{ship}]")
 			return builds_found
 	except Exception as e:
 		raise e
@@ -328,30 +368,39 @@ def get_upgrade_data(upgrade: str) -> dict:
 		IndexError
 		NoUpgradeFound
 	"""
-	upgrade = upgrade.lower()
 	try:
 		upgrade_found = False
 
 		if database_client is not None:
 			# connection to db
-			query_result = database_client.mackbot_db.upgrade_list.find_one({
-				"name": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
-			})
-			if query_result is None:
-				# query returns no result
-				# maybe an abbreviation?
-				abbr_query_result = database_client.mackbot_db.upgrade_abbr_list.find_one({
-					"abbr": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
-				})
-				if abbr_query_result is not None:
-					# it is an abbreviation, grab it
-					query_result = database_client.mackbot_db.upgrade_list.find_one({
-						"name": {"$regex": f"^{abbr_query_result['upgrade']}$", "$options": "i"}
-					})
-				else:
-					# not an abbreviation, user error
-					raise NoUpgradeFound
-			return query_result
+			query_result = list(database_client.mackbot_db.upgrade_list.aggregate([
+				{"$match": {
+					"$or": [
+						{"name": {"$regex": f"^{upgrade}$", "$options": "i"}},
+						{"abbr": {"$regex": f"^{upgrade}$", "$options": "i"}}
+					]
+				}}
+			]))
+			if len(query_result) == 0:
+				raise NoUpgradeFound
+			# query_result = database_client.mackbot_db.upgrade_list.find_one({
+			# 	"name": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
+			# })
+			# if query_result is None:
+			# 	# query returns no result
+			# 	# maybe an abbreviation?
+			# 	abbr_query_result = database_client.mackbot_db.upgrade_abbr_list.find_one({
+			# 		"abbr": {"$regex": f"^{upgrade.lower()}$", "$options": "i"}
+			# 	})
+			# 	if abbr_query_result is not None:
+			# 		# it is an abbreviation, grab it
+			# 		query_result = database_client.mackbot_db.upgrade_list.find_one({
+			# 			"name": {"$regex": f"^{abbr_query_result['upgrade']}$", "$options": "i"}
+			# 		})
+			# 	else:
+			# 		# not an abbreviation, user error
+			# 		raise NoUpgradeFound
+			return query_result[0]
 		else:
 			# assuming input is full upgrade name
 			for i in upgrade_list:

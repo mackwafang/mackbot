@@ -1,4 +1,3 @@
-import asyncio
 import traceback
 from typing import Optional
 
@@ -19,8 +18,6 @@ from mackbot.utilities.discord.items_autocomplete import auto_complete_region, a
 from mackbot.utilities.logger import logger
 from mackbot.utilities.to_plural import to_plural
 from mackbot.utilities.bot_data import WG
-from mackbot.utilities.regex import player_arg_filter_regex
-
 
 class Player(commands.Cog):
 	def __init__(self, bot):
@@ -86,7 +83,7 @@ class Player(commands.Cog):
 			except (IndexError, KeyError):
 				battle_type = 'pvp'
 
-			embed = Embed(title=f"Search result for player {escape_markdown(username)}", description='')
+			embed = Embed(description=f"## Search result for player {escape_markdown(username)}")
 			if player_id:
 				player_name = player_id_results[0]['nickname']
 				if battle_type == 'pvp':
@@ -293,16 +290,15 @@ class Player(commands.Cog):
 							except IndexError:
 								pass
 						embed.add_field(name=f"__**Top 5 {battle_type_string} Ships (by battles)**__", value=m, inline=True)
-
 						embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
 
 						# battle distribution by ship types
-						player_ship_stats_df = player_ship_stats_df.groupby(['type']).sum()
+						player_ship_type_stats_df = player_ship_stats_df.groupby('type').sum(numeric_only=True)
 						m = ""
 						for s_t in sorted([i for i in SHIP_TYPES if i != "Aircraft Carrier"]):
 							try:
-								if s_t in list(player_ship_stats_df.index):
-									type_stat = player_ship_stats_df.loc[s_t]
+								if s_t in list(player_ship_type_stats_df.index):
+									type_stat = player_ship_type_stats_df.loc[s_t]
 									emoji = {
 										"AirCarrier": ICONS_EMOJI['cv'],
 										"Battleship": ICONS_EMOJI['bb'],

@@ -99,7 +99,7 @@ class Compare(commands.Cog):
 
 		# compile info
 		if user_selection != -1:
-			embed = Embed(title=f"Comparing the {user_options[user_selection].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
+			embed = Embed(description=f"## Comparing the {user_options[user_selection].lower()} of {ships_to_compare[0]['name']} and {ships_to_compare[1]['name']}")
 			ship_module = [{}, {}]
 			logger.info(f"returning comparison for {user_options[user_selection]}")
 			m = "**Tier**\n"
