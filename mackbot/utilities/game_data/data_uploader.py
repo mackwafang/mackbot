@@ -205,6 +205,9 @@ def clan_build_upload(build_list: List[List], guild_id: int):
 	# parsing and (partial) uploading
 	errors = []
 	for build_index, build in enumerate(build_list):
+		m = f"Build #{build_index + 1}:\n"
+		has_error = False
+
 		build_ship_name, build_name, build_upgrades, build_skills, build_cmdr = build
 
 		# add to clan list of builds
@@ -215,15 +218,23 @@ def clan_build_upload(build_list: List[List], guild_id: int):
 			if not database_client.mackbot_db.ship_build.find_one({"build_id": build_data['build_id']}):
 				# build does not exist in database, we add
 				new_build = database_client.mackbot_db.ship_build.insert_one(build_data)
+			else:
+				m += f"This build already exists\n"
+				has_error = True
 
 			if build_data['errors']:
-				errors.append(f"Build #{build_index+1}:\n{chr(10).join(build_data['str_errors'])}")
+				m += f"{chr(10).join(build_data['str_errors'])}"
+				has_error = True
 			else:
 				del build_data['str_errors']
 				db_builds.append(build_data['build_id'])
 
 		else:
-			errors.append(f"Build #{build_index+1}: Build limit reached ({guild_data['build_limits']}). Skipped.")
+			m += f"Build limit reached ({guild_data['build_limits']}). Skipped."
+			has_error = True
+
+		if has_error:
+			errors.append(m)
 
 	# update entry
 	database_client.mackbot_db.clan_build.update_one({
