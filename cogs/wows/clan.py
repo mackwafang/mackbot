@@ -74,14 +74,24 @@ class ClanGroup(app_commands.Group):
 		# check if admin to avoid spams
 		if not interaction.user.guild_permissions.administrator:
 			embed = discord.Embed(description="## You do not have permission to use this command\nYou need to be the server's administration to use this command.")
-			interaction.response.send_message(embed=embed)
+			await interaction.response.send_message(embed=embed)
+			return
+
+		if file.filename.split(".")[-1] != 'csv':
+			embed = discord.Embed(description="## Your file is of the wrong extension\nI only accepts .csv files")
+			await interaction.response.send_message(embed=embed)
+			return
+
+		if file.size > 1_000_000:
+			embed = discord.Embed(description="## Your file is too big\nI only accept files up to 1MB")
+			await interaction.response.send_message(embed=embed)
+			return
 
 		# defer first, incase it takes long
 		await interaction.response.defer(ephemeral=False, thinking=True)
-
 		# parse file
 		file_io = BytesIO(await file.read())
-		file_content = file_io.read().decode("utf-8").splitlines()
+		file_content = file_io.read().decode("utf-8").splitlines()[:30]
 		file_content = csv.reader(file_content, delimiter=",", skipinitialspace=True)
 		errors = []
 		builds = []
@@ -90,7 +100,7 @@ class ClanGroup(app_commands.Group):
 		for index, row in enumerate(file_content):
 			if len(row) == 25:
 				build_ship_name = row[0]
-				build_name = row[1]
+				build_name = row[1][:32]
 				build_upgrades = row[2:8]
 				build_skills = row[8:-2]
 				build_cmdr = row[-2]
@@ -120,7 +130,7 @@ class ClanGroup(app_commands.Group):
 				res_file = discord.File(res_file_path, "response.txt")
 				kwargs = {"file": res_file}
 
-		embed = discord.Embed(description=f"## {'Partial' if errors else ''} Success\nYour clan's builds has been uploaded\n\n")
+		embed = discord.Embed(description=f"## {'Partial' if errors else ''} Success\nYour clan's builds has been uploaded\n\nHere are the builds that mackbot knows:\n")
 		for bid in build_ids:
 			build_data = get_ship_build_by_id(bid, SHIP_BUILD_FETCH_FROM.MONGO_DB)
 			ship_data = get_ship_data(build_data['ship'])
