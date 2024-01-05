@@ -14,7 +14,7 @@ class UploaderError(IntEnum):
 	CONNECTION_ERROR = auto()
 
 MACKBOT_INFO = {
-	"MACKBOT_VERSION": "1.12.1",
+	"MACKBOT_VERSION": "1.13",
 	"MACKBOT_WEB_VERSION": "0.5.0",
 	"VERSION_TIME": int(time()),
 }
@@ -80,7 +80,10 @@ def upload_data(collection_name, index_name):
 		# check data to remove and add
 		local_data = getattr(data_loader, collection_name)
 		items_in_local = set((local_data[i][index_name], local_data[i]['hash']) for i in local_data)
-		items_in_db = set((i[index_name], i['hash']) for i in mackbot_db[collection_name].find({}))
+		if collection_name != "ship_build":
+			items_in_db = set((i[index_name], i['hash']) for i in mackbot_db[collection_name].find({}))
+		else:
+			items_in_db = set((i[index_name], i['hash']) for i in mackbot_db[collection_name].find({"private": False}))
 
 		items_to_upload = items_in_local - items_in_db
 		items_to_remove = items_in_db - items_in_local
