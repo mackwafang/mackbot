@@ -13,7 +13,7 @@ FOR /F %%A in ('dir E:\Games\World_of_Warships\bin /O:-D /B') DO (
 :loop_end
 
 
-xcopy /Y %WoWS_path%\bin\%latest%\res\texts\en\LC_MESSAGES\global.mo %mb_dir%\mackbot\language\en\LC_MESSAGES\global.mo
+copy /Y %WoWS_path%\bin\%latest%\res\texts\en\LC_MESSAGES\global.mo %mb_dir%\mackbot\language\en\LC_MESSAGES\global.mo
 
 echo Grabbing GameParams.data
 %WoWS_path%\wowsunpack.exe -x %WoWS_path%\bin\%latest%\idx -p %WoWS_path%\res_packages -I content/GameParams.data -o %WoWS_path%\res_unpack
