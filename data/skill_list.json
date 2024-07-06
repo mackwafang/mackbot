@@ -71,7 +71,7 @@
   },
   "7": {
     "tree": "AirCarrier",
-    "name": "Swift Fish",
+    "name": "Swift Flying Fish",
     "description": "Improve aerial torpedo speed.",
     "effect": "Aerial torpedo speed: +5%",
     "x": 1,
@@ -611,9 +611,9 @@
   },
   "61": {
     "tree": "Cruiser",
-    "name": "Enhanced Torpedo Explosive Charge",
-    "description": "Increase torpedo damage.",
-    "effect": "Torpedo damage: +15%",
+    "name": "pack a punch",
+    "description": "Increase torpedo damage and secondary range.",
+    "effect": "Torpedo damage: +15%\nSecondary battery range: +20%",
     "x": 1,
     "y": 2,
     "category": "Attack",

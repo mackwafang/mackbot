@@ -373,6 +373,9 @@ def update_ship_modules():
 	missing_ship_index = [i for i in game_data if game_data[i]['typeinfo']['type'] == 'Ship']
 	for i in missing_ship_index:
 		missing_ship_data = game_data[i]
+		# skip event ships
+		if missing_ship_data['group'] == "event":
+			continue
 		# skip known ships
 		if missing_ship_data['id'] in known_ship_id:
 			continue
@@ -538,6 +541,9 @@ def update_ship_modules():
 				except IndexError as e:
 					# we did an oopsie
 					continue
+
+				if ship['ship_id'] == 3530471120:
+					pass
 
 				# update module list items with more information
 				if ship_upgrade_info[_info]['ucType'] == '_Hull':
@@ -977,7 +983,7 @@ def update_ship_modules():
 					planes = module_data[planes]['planes']
 					module_list[module_id] = {}
 					module_list[module_id]['module_id'] = int(module_id)
-					module_list[module_id]['module_id_str'] = plane['index']
+					# module_list[module_id]['module_id_str'] = plane['index']
 					module_list[module_id]['type'] = 'Fighter'
 					module_list[module_id]["squadron"] = [{} for _ in planes]
 
@@ -1019,8 +1025,9 @@ def update_ship_modules():
 					planes = ship_upgrade_info[_info]['components']['torpedoBomber'][0]
 					planes = module_data[planes]['planes']
 					module_list[module_id] = {}
+
 					module_list[module_id]['module_id'] = int(module_id)
-					module_list[module_id]['module_id_str'] = plane['index']
+					# module_list[module_id]['module_id_str'] = plane['index']
 					module_list[module_id]['type'] = 'Torpedo Bomber'
 					module_list[module_id]["squadron"] = [{} for _ in planes]
 					for p_i, p in enumerate(planes):
@@ -1062,7 +1069,7 @@ def update_ship_modules():
 					planes = module_data[planes]['planes']
 					module_list[module_id] = {}
 					module_list[module_id]['module_id'] = int(module_id)
-					module_list[module_id]['module_id_str'] = plane['index']
+					# module_list[module_id]['module_id_str'] = plane['index']
 					module_list[module_id]['type'] = 'Dive Bomber'
 					module_list[module_id]["squadron"] = [{} for _ in planes]
 
@@ -1104,7 +1111,7 @@ def update_ship_modules():
 					planes = module_data[planes]['planes']
 					module_list[module_id] = {}
 					module_list[module_id]['module_id'] = int(module_id)
-					module_list[module_id]['module_id_str'] = plane['index']
+					# module_list[module_id]['module_id_str'] = plane['index']
 					module_list[module_id]['type'] = 'Skip Bomber'
 					module_list[module_id]["squadron"] = [{} for _ in planes]
 
