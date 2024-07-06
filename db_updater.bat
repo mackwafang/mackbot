@@ -5,6 +5,7 @@ echo Extracting GameParams and translator file
 cd WoWS-GameParams
 python OneFileToRuleThemAll.py
 move GameParams-0.json ../data/
+robocopy language ..\mackbot\language /e /NFL /NDL /NJH /NJS /nc /ns /np
 cd ..
 
 cd mackbot
