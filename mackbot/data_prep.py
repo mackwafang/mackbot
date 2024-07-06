@@ -1494,8 +1494,8 @@ def load_ship_builds():
 				logger.warning(f"ship with name {build_ship_name} is not found in database. Skip for now.")
 				continue
 
-			logger.info(f"read: {row}")
-			logger.info("-" * 30)
+			# logger.info(f"read: {row}")
+			# logger.info("-" * 30)
 			build = parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data)
 			build_id = build['build_id']
 
