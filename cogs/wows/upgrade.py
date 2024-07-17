@@ -11,6 +11,7 @@ from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
 from mackbot.utilities.logger import logger
 from mackbot.utilities.discord.items_autocomplete import auto_complete_upgrades_name
+from mackbot.utilities.discord.formatting import embed_subcategory_title
 
 class Upgrade(commands.Cog):
 	def __init__(self, bot):
@@ -69,7 +70,7 @@ class Upgrade(commands.Cog):
 			embed.description += f"**## {name}**\n"
 			embed.description += f"**Slot {slot}**\n"
 			if len(description.split()) > 0:
-				embed.add_field(name='Description', value=description, inline=False)
+				embed.add_field(name='Description', value=f"> {description}", inline=False)
 
 			if len(profile) > 0:
 				m = ""
@@ -77,7 +78,7 @@ class Upgrade(commands.Cog):
 					if effect in UPGRADE_MODIFIER_DESC:
 						modifier_string_data = UPGRADE_MODIFIER_DESC[effect]
 						value = profile[effect]
-						m += modifier_string_data['description'] + ": "
+						m += f"> {modifier_string_data['description']}: "
 						if modifier_string_data['unit'] != "%":
 							# not percentage modifier
 							m += f"{value:2.0f}{modifier_string_data['unit']}\n"
@@ -120,7 +121,7 @@ class Upgrade(commands.Cog):
 					m = ', '.join([i.replace("_", " ") for i in sorted(nation_restriction)])
 				else:
 					m = 'All nations'
-				embed.add_field(name="Nation", value=m)
+				embed.add_field(name="Nation", value=f"> {m}")
 
 				if len(ship_restriction) > 0:
 					m = ', '.join([i for i in sorted(ship_restriction[:10])])
@@ -131,7 +132,7 @@ class Upgrade(commands.Cog):
 							'': "Also Found On",
 							'Coal': "Also Found On",
 						}[is_special]
-						embed.add_field(name=ship_restrict_title, value=m)
+						embed.add_field(name=ship_restrict_title, value=f"> {m}")
 					else:
 						logger.warning('Ships field is empty')
 			if len(special_restriction) > 0:
@@ -141,7 +142,7 @@ class Upgrade(commands.Cog):
 				else:
 					logger.warning("Additional requirements field empty")
 			if price_credit > 0 and len(is_special) == 0:
-				embed.add_field(name='Price (Credit)', value=f'{price_credit:,}')
+				embed.add_field(name='Price (Credit)', value=f'> {price_credit:,}')
 
 			embed.set_footer(text="Note: Ship, type, and nation restrictions may not be correct as this is automated.")
 

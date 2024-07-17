@@ -293,7 +293,7 @@ class Player(commands.Cog):
 						embed.add_field(name=EMPTY_LENGTH_CHAR, value=EMPTY_LENGTH_CHAR, inline=False)
 
 						# battle distribution by ship types
-						player_ship_type_stats_df = player_ship_stats_df.groupby('type').sum(numeric_only=True)
+						player_ship_type_stats_df = player_ship_stats_df.groupby(['type'], as_index=False).sum(numeric_only=True).set_index("type")
 						m = ""
 						for s_t in sorted([i for i in SHIP_TYPES if i != "Aircraft Carrier"]):
 							try:
@@ -322,9 +322,9 @@ class Player(commands.Cog):
 
 						# average stats by tier
 						player_ship_stats_df = pd.DataFrame.from_dict(player_ship_stats, orient='index')
-						player_ship_stats_df = player_ship_stats_df.groupby(['tier']).sum()
+						player_ship_stats_df = player_ship_stats_df.groupby(['tier'], as_index=False).sum().set_index("tier")
 						m = ""
-						for tier in range(1, 11):
+						for tier in range(1, 12):
 							try:
 								tier_stat = player_ship_stats_df.loc[tier]
 								tier_average_kills = tier_stat['kills'] / max(1, tier_stat['battles'])

@@ -8,3 +8,6 @@ def number_separator(value, formatting="") -> str:
 
 	"""
 	return f"{value:{','+formatting}}".replace(',', ' ')
+
+def embed_subcategory_title(string: str, space=12):
+	return f"> **`{string:<{space}}`**"

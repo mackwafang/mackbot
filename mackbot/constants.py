@@ -8,6 +8,7 @@ EXCHANGE_RATE_DOUB_TO_DOLLAR = 250
 DEGREE_SYMBOL = "\xb0"
 SIGMA_SYMBOL = "\u03c3"
 EMPTY_LENGTH_CHAR = '\u200b'
+DOWN_ARROW_RIGHT_TIP_SYMBOL = '\u2937'
 
 SUPERSCRIPT_CHAR = dict((i, chr(0x2070 + i)) for i in range(10))
 SUPERSCRIPT_CHAR[1] = '\u00b9'
@@ -277,5 +278,6 @@ ARMOR_ID_TO_STRING = {
 }
 
 SPECIAL_INSTRUCTION_TRIGGER_TYPE = {
+	"default": "Main Artillery Hit",
 	"main_gun_hit": "Main Artillery Hit",
 }
