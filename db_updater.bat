@@ -17,6 +17,6 @@ python GameParamsSplitter.py
 cd ..
 
 echo Uploading data to live and dev DB...
-python upload_to_db.py --update_all
+python upload_to_db.py --update-all
 
 echo Uploading Done

@@ -119,8 +119,8 @@ class Ship(commands.Cog):
 					embed.description += f"**{ICONS_EMOJI[next_ship_data['type']]} {ROMAN_NUMERAL[next_ship_data['tier'] - 1]} {next_ship_data['name']}** or "
 				embed.description = embed.description[:-4]
 
-			if images['small'] is not None:
-				embed.set_thumbnail(url=images['small'])
+			# if images['small'] is not None:
+			# 	embed.set_thumbnail(url=images['small'])
 
 			# defines ship params filtering
 
@@ -525,9 +525,9 @@ class Ship(commands.Cog):
 								if detailed_filter:
 									m = ""
 									m += f"{embed_subcategory_title('Hangar')} {squadron['hangarSettings']['startValue']} aircraft\n"
-									m += f"{embed_subcategory_title('')} Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s\n"
+									m += f"{embed_subcategory_title(f'{DOWN_ARROW_RIGHT_TIP_SYMBOL} Repair')} Restore {squadron['hangarSettings']['restoreAmount']} aircraft every {squadron['hangarSettings']['timeToRestore']:0.0f}s\n"
 									m += f"{embed_subcategory_title('Squadron')}  {squadron['squad_size']} aircraft ({to_plural('flight', n_attacks)})\n"
-									m += f"{embed_subcategory_title('')} {number_separator(aircraft['max_health'] * squadron['squad_size'], '.0f')} HP | {aircraft['cruise_speed']} - {aircraft['max_speed']} kts.\n"
+									m += f"{embed_subcategory_title(f'{DOWN_ARROW_RIGHT_TIP_SYMBOL} Detail')} {number_separator(aircraft['max_health'] * squadron['squad_size'], '.0f')} HP | {aircraft['cruise_speed']} - {aircraft['max_speed']} kts.\n"
 									m += f"{embed_subcategory_title('Attacking')}  {squadron['attack_size']} aircraft\n"
 									m += f"{embed_subcategory_title('Payload')} {squadron['attack_size'] * aircraft['payload']} x {aircraft['payload_name']} ({aircraft['payload']} per aircraft)\n"
 									if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ROCKETS:
@@ -551,7 +551,8 @@ class Ship(commands.Cog):
 
 											m += f"{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+' '+consumable_data['name']+' x '+str(consumable_data['numConsumables']), space=25)} {consumable_data['workTime']:1.0f}s duration\n"
 											if consumable_type == "callFighters":
-												m += f"{embed_subcategory_title('', space=25)} {to_plural('fighter', consumable_data['fightersNum'])}\n"
+												m += f"{embed_subcategory_title('', space=25)} {to_plural('fighter', consumable_data['fightersNum'])} | "
+												m += f"{consumable_data['radius'] * 30 / 1000:1.0f} km radius\n"
 											if consumable_type == "regenerateHealth":
 												m += f"{embed_subcategory_title('', space=25)} +{consumable_data['regenerationRate']:1.0%} of max HP per second\n"
 											m += f"{embed_subcategory_title('', space=25)} {consumable_data['reloadTime']:1.0f}s cooldown\n"
@@ -750,10 +751,10 @@ class Ship(commands.Cog):
 				embed.add_field(name="__**Sonar**__", value=m, inline=False)
 
 			footer_message = "Parameters does not take into account upgrades or commander skills\n"
-			footer_message += f"For details specific parameters, use [/ship {ship_name} -p parameters]\n"
-			footer_message += f"For {ship_name.title()} builds, use [/build {ship_name}]\n"
+			footer_message += f"For details specific parameters, use add the parameters argument\n"
+			footer_message += f"For {ship_name.title()} builds, use the [build] command\n"
 			if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.GUNS:
-				footer_message += f"For trajectory related information, use [/analyize artillery {ship_name}]\n\n"
+				footer_message += f"For trajectory related information, use [analyize artillery]\n\n"
 			footer_message += f"Tags: "
 			tags = []
 			for tag in ship_data['tags'].values():

@@ -14,7 +14,7 @@ class UploaderError(IntEnum):
 	CONNECTION_ERROR = auto()
 
 MACKBOT_INFO = {
-	"MACKBOT_VERSION": "1.13.2",
+	"MACKBOT_VERSION": "1.13.3",
 	"MACKBOT_WEB_VERSION": "0.5.0",
 	"VERSION_TIME": int(time()),
 }
@@ -156,9 +156,9 @@ def main(yeet=False, use_live=False, change_version_only=False, update_all=False
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="Upload data to mongoDB")
 	parser.add_argument("--yeet", action="store_true", help="Delete database")
-	parser.add_argument("--use_live", action="store_true", help="use live config file")
-	parser.add_argument("--change_version_only", action="store_true", help="change version number only")
-	parser.add_argument("--update_all", action="store_true", help="Update both live and dev db")
+	parser.add_argument("--use-live", action="store_true", help="use live config file")
+	parser.add_argument("--change-version-only", action="store_true", help="change version number only")
+	parser.add_argument("--update-all", action="store_true", help="Update both live and dev db")
 	args = parser.parse_args()
 
 	start_time = time()
