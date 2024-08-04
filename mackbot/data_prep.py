@@ -2,6 +2,7 @@ import traceback, json, pickle, io, threading, os
 
 from hashlib import sha256
 from pymongo import MongoClient
+from collections import Counter
 from itertools import count
 from math import inf
 from enum import IntEnum, auto
@@ -373,6 +374,9 @@ def update_ship_modules():
 	missing_ship_index = [i for i in game_data if game_data[i]['typeinfo']['type'] == 'Ship']
 	for i in missing_ship_index:
 		missing_ship_data = game_data[i]
+		# skip test ships
+		if missing_ship_data['group'] == "demoWithoutStats":
+			continue
 		# skip event ships
 		if missing_ship_data['group'] == "event":
 			continue
@@ -480,6 +484,7 @@ def update_ship_modules():
 			ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.NONE
 			ship_list[s]['special'] = {}
 
+
 			# get supership (non-cv) combat instruction
 			if ship['ship_id'] != 3762206032: # this ship breaks convention, i aint spending time to fix it
 				# barf, this looks gross
@@ -497,19 +502,25 @@ def update_ship_modules():
 										'salvo_count': special_module['shotsCount'],
 									}
 									break
+				if ship['ship_id'] == 3256825168:
+					pass
 
 				if 'A_Specials' in module_data:
 					ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
 					special_module = module_data['A_Specials']['RageMode']
+					if len([n for n in list(special_module.keys()) if 'GameLogicTrigger' in n]) > 1:
+						trigger = special_module['GameLogicTrigger1']['Action1']
+					else:
+						trigger = special_module['GameLogicTrigger']['Action']
 					ship_list[s]['special'] = {
 						'duration': special_module['boostDuration'],
 						'gauge_decrement_delay': special_module['decrementDelay'],
 						'gauge_decrement_count': special_module['decrementCount'],
 						'gauge_decrement_period': special_module['decrementPeriod'],
-						'gauge_increment_count': special_module['GameLogicTrigger']['Action']['progress'],
+						'gauge_increment_count': trigger['progress'],
 						'auto_use': special_module['isAutoUsage'],
 						'modifiers': special_module['modifiers'].copy(),
-						'trigger': special_module['GameLogicTrigger']['Action'].copy()
+						'trigger': trigger.copy()
 					}
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
@@ -541,9 +552,6 @@ def update_ship_modules():
 				except IndexError as e:
 					# we did an oopsie
 					continue
-
-				if ship['ship_id'] == 3530471120:
-					pass
 
 				# update module list items with more information
 				if ship_upgrade_info[_info]['ucType'] == '_Hull':
@@ -1297,7 +1305,8 @@ def create_upgrade_abbr():
 		upgrade_list[u]['name'] = upgrade_list[u]['name'].replace(chr(10), chr(32)) # replace random ass newline character with a space
 		key = ''.join([i[0] for i in upgrade_list[u]['name'].split()])
 		if key in abbr_added:  # if the abbreviation of this upgrade is in the list already
-			key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()[:-1]  # create a new abbreviation by using the first 2 characters
+			extra = 1
+			key = ''.join([i[:2].title() for i in upgrade_list[u]['name'].split()]).lower()  # create a new abbreviation by using the first 2 characters
 		# add this abbreviation
 		upgrade_list[u]['abbr'] = key
 		upgrade_abbr_list[u] = {

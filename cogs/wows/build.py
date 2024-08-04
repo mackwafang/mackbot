@@ -209,7 +209,7 @@ class Build(commands.Cog):
 					embed.add_field(name=f'No known build', value=m, inline=False)
 				error_footer_message = ""
 				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang.\n"
 				embed.set_footer(text=error_footer_message + footer_message)
 
 			if send_text_build:
