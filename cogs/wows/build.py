@@ -115,11 +115,11 @@ class Build(commands.Cog):
 				embed.set_thumbnail(url=images['small'])
 				logger.info(f"returning build information for <{name}> in embeded format")
 				tier_string = ROMAN_NUMERAL[tier - 1]
-				embed.description += f'**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {SHIP_TYPES[ship_type]}**\n'
+				embed.description += f'\n**Tier {tier_string} {"Premium" if is_prem else ""} {nation_dictionary[nation]} {SHIP_TYPES[ship_type]}**\n'
 
 				footer_message = ""
 				error_value_found = False
-				if len(upgrades) and len(skills) and len(cmdr):
+				if len(upgrades) and len(skills):
 					# suggested upgrades
 					if len(upgrades) > 0:
 						m = ""
@@ -190,7 +190,7 @@ class Build(commands.Cog):
 						# footer_message += "Suggested skills are listed in ascending acquiring order.\n"
 						embed.add_field(name='Suggested Cmdr.', value=m)
 					else:
-						embed.add_field(name='Suggested Cmdr.', value="Coming Soon:tm:", inline=False)
+						embed.add_field(name='Suggested Cmdr.', value="Any", inline=False)
 
 					# show user error if there is any that is missed by data prepper
 					if build_errors:
@@ -209,7 +209,7 @@ class Build(commands.Cog):
 					embed.add_field(name=f'No known build', value=m, inline=False)
 				error_footer_message = ""
 				if error_value_found:
-					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang#2071.\n"
+					error_footer_message = "[!]: If this is present next to an item, then this item is either entered incorrectly or not known to the WG's database. Contact mackwafang.\n"
 				embed.set_footer(text=error_footer_message + footer_message)
 
 			if send_text_build:
