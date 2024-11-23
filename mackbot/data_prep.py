@@ -372,22 +372,26 @@ def update_ship_modules():
 	# add missing ships from api to ship list and initialize new ship data for update
 	known_ship_id = [i['ship_id'] for i in ship_list.values()]
 	missing_ship_index = [i for i in game_data if game_data[i]['typeinfo']['type'] == 'Ship']
+
+	def _is_ship_has_skip_criteria(ship_data):
+		return any([
+			# skip test ships
+			ship_data['group'] in ["demoWithoutStats"],
+			# skip event ships
+			ship_data['group'] == "event",
+			# check if national flag is in flag dictionary
+			ship_data['navalFlag'] not in nation_dictionary,
+			# check if not a normal playable ship
+			ship_data['typeinfo']['species'] not in ship_types
+		])
+
 	for i in missing_ship_index:
 		missing_ship_data = game_data[i]
 		# skip test ships
-		if missing_ship_data['group'] == "demoWithoutStats":
+		if _is_ship_has_skip_criteria(missing_ship_data):
 			continue
-		# skip event ships
-		if missing_ship_data['group'] == "event":
-			continue
-		# skip known ships
+
 		if missing_ship_data['id'] in known_ship_id:
-			continue
-		# check if national flag is in flag dictionary
-		if missing_ship_data['navalFlag'] not in nation_dictionary:
-			continue
-		# check if not an normal playable ship
-		if missing_ship_data['typeinfo']['species'] not in ship_types:
 			continue
 
 		ship_list_data = {
@@ -446,6 +450,9 @@ def update_ship_modules():
 			module_full_id_str = find_game_data_item(ship['ship_id_str'])[0]
 			module_data = game_data[module_full_id_str]
 
+			# if _is_ship_has_skip_criteria(module_data):
+			# 	continue
+
 			# grab consumables
 			ship_list[s]['consumables'] = module_data['ShipAbilities'].copy()
 
@@ -502,16 +509,20 @@ def update_ship_modules():
 										'salvo_count': special_module['shotsCount'],
 									}
 									break
-				if ship['ship_id'] == 3256825168:
-					pass
 
 				if 'A_Specials' in module_data:
 					ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
 					special_module = module_data['A_Specials']['RageMode']
 					if len([n for n in list(special_module.keys()) if 'GameLogicTrigger' in n]) > 1:
-						trigger = special_module['GameLogicTrigger1']['Action1']
+						# stupid method of getting trigger
+						# why? WG decides not to be consistent with now trigger dict keys are named
+						# some are named "GameLogicTrigger1" or "GameLogicTrigger_1"
+						# fucking weegee
+						trigger = special_module[list(special_module.keys())[0]]
+						trigger = trigger[list(trigger.keys())[0]]
 					else:
 						trigger = special_module['GameLogicTrigger']['Action']
+
 					ship_list[s]['special'] = {
 						'duration': special_module['boostDuration'],
 						'gauge_decrement_delay': special_module['decrementDelay'],
@@ -522,6 +533,7 @@ def update_ship_modules():
 						'modifiers': special_module['modifiers'].copy(),
 						'trigger': trigger.copy()
 					}
+
 
 			for _info in ship_upgrade_info:  # for each warship modules (e.g. hull, guns, fire-control)
 				# tries to get data from module list
@@ -550,14 +562,16 @@ def update_ship_modules():
 						module_list[str(module_info['id'])] = new_module_list_data.copy()
 						module_id = str(module_info['id'])
 				except IndexError as e:
-					# we did an oopsie
-					continue
+					logger.info(f"{type(e)} {e}")
+					traceback.print_exc()
+					raise e
 
 				# update module list items with more information
 				if ship_upgrade_info[_info]['ucType'] == '_Hull':
-					# get secondary information
+
 					if int(module_id) not in ship['modules']['hull']:
 						ship['modules']['hull'].append(int(module_id))
+
 					hull = module_data[ship_upgrade_info[_info]['components']['hull'][0]]
 					if 'hull' not in module_list[module_id]['profile']:
 						module_list[module_id]['profile']['hull'] = {
@@ -919,7 +933,9 @@ def update_ship_modules():
 
 					component = ship_upgrade_info[_info]['components']['fireControl'][0]
 					component = module_data[component]
-					module_list[module_id]['profile']['fire_control']['max_range_coef'] = component['maxDistCoef']
+
+					if module_list[module_id]['profile']:
+						module_list[module_id]['profile']['fire_control']['max_range_coef'] = component['maxDistCoef']
 					continue
 
 				if ship_upgrade_info[_info]['ucType'] == '_Torpedoes':  # torpedooes
@@ -1231,8 +1247,8 @@ def create_ship_tags():
 				'detect_distance_by_plane': 0,
 				'detect_distance_by_ship': 0,
 			}
-			for e in ship['modules']['hull']:
-				c = module_list[str(e)]['profile']['hull']
+			for h in ship['modules']['hull']:
+				c = module_list[str(h)]['profile']['hull']
 				concealment['detect_distance_by_ship'] = max(concealment['detect_distance_by_ship'], c['detect_distance_by_ship'])
 				concealment['detect_distance_by_plane'] = max(concealment['detect_distance_by_plane'], c['detect_distance_by_plane'])
 			# add tags based on detection range

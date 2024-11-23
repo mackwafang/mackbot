@@ -140,6 +140,7 @@ SHIP_GROUP_DICT = {
 	'upgradeableExclusive': "Free XP",
 	'preserved':            "",
 	'demoWithoutStats':     "Test",
+	'demoWithoutStatsPrem': "Test",
 	'upgradeableUltimate':  "Free XP",
 	'upgradeable':          "Researchable", # tech line ship
 	'unavailable':          "Unavailable",
@@ -280,4 +281,5 @@ ARMOR_ID_TO_STRING = {
 SPECIAL_INSTRUCTION_TRIGGER_TYPE = {
 	"default": "Main Artillery Hit",
 	"main_gun_hit": "Main Artillery Hit",
+	"torpedo_hit": "Torpedo hit"
 }
