@@ -14,7 +14,7 @@ class UploaderError(IntEnum):
 	CONNECTION_ERROR = auto()
 
 MACKBOT_INFO = {
-	"MACKBOT_VERSION": "1.13.3",
+	"MACKBOT_VERSION": "1.13.4",
 	"MACKBOT_WEB_VERSION": "0.5.0",
 	"VERSION_TIME": int(time()),
 }
@@ -77,7 +77,6 @@ def upload_data(collection_name, index_name):
 		logger.warning(f"[upload_data] {collection_name} is not in the allowed list")
 		return
 	else:
-		# check data to remove and add
 		local_data = getattr(data_loader, collection_name)
 		items_in_local = set((local_data[i][index_name], local_data[i]['hash']) for i in local_data)
 		if collection_name != "ship_build":
