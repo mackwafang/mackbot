@@ -252,8 +252,8 @@ class Ship(commands.Cog):
 					m += "**Combat Instruction**\n"
 					m += f"{embed_subcategory_title('Charge Type')} {trigger_type_str}\n"
 					m += f"{embed_subcategory_title('Duration')} {special_data['duration']:0.0f}s\n"
-					m += f"{embed_subcategory_title('Regenerate')} {special_data['gauge_increment_count']:0.0f}% per {trigger_type_str}\n"
-					m += f"{embed_subcategory_title('Drains')} {special_data['gauge_decrement_count']:0.0f}% per {special_data['gauge_decrement_period']:0.0f}s after {special_data['gauge_decrement_delay']:0.0f}s of idle\n"
+					m += f"{embed_subcategory_title('Regenerate')} {special_data['gauge_increment_count']:0.1f}% per {trigger_type_str}\n"
+					m += f"{embed_subcategory_title('Drains')} {special_data['gauge_decrement_count']:0.1f}% per {special_data['gauge_decrement_period']:0.0f}s after {special_data['gauge_decrement_delay']:0.0f}s of idle\n"
 					m += f"> Upon activation, your ship receives:\n"
 					for modifier_type, modifier_value in special_data['modifiers'].items():
 						m += f">    - {UPGRADE_MODIFIER_DESC[modifier_type]['description']}: "
