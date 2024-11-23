@@ -373,5 +373,9 @@
   "vulnerabilityFlood": {
     "description": "Flooding damage",
     "unit": "%"
+  },
+  "GMPenetrationCoeffHE": {
+    "description": "HE penetration",
+    "unit": "%"
   }
 }
