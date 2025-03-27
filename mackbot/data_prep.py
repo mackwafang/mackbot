@@ -513,7 +513,7 @@ def update_ship_modules():
 				if 'A_Specials' in module_data:
 					ship_list[s]['special_type'] = SUPER_SHIP_SPECIAL_TYPE.COMBAT_INSTRUCTION
 					special_module = module_data['A_Specials']['RageMode']
-					if len([n for n in list(special_module.keys()) if 'GameLogicTrigger' in n]) > 1:
+					if len([n for n in list(special_module.keys()) if 'GameLogicTrigger' in n]) >= 1:
 						# stupid method of getting trigger
 						# why? WG decides not to be consistent with now trigger dict keys are named
 						# some are named "GameLogicTrigger1" or "GameLogicTrigger_1"
