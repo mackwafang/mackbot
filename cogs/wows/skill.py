@@ -26,6 +26,9 @@ class Skill(commands.Cog):
 	async def skill(self, interaction: Interaction, skill_name: str):
 		# get information on requested skill
 
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
+
 		try:
 			embed = Embed(description=f"## {skill_name.title()}")
 			skill_data = get_skill_data(skill_name)
@@ -42,12 +45,15 @@ class Skill(commands.Cog):
 				skill_image = discord.File(f"./data/cmdr_skills_images/{image}.png", "icon.png")
 				embed.set_thumbnail(url="attachment://icon.png")
 
+				# refine effect for better formatting
+				formatted_effect = "- "+effect.replace("\n", "\n- ")
+
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
-				    f"{description}\n{effect}\n\n"
+				    f"{description}\n{formatted_effect}\n\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
-				embed.description = f"## {name}\n May refer to a skill in one of these trees."
+				embed.description = f"## {name}\n May refer to a skill in one of these skill trees."
 
 			await interaction.channel.send(embed=embed, file=skill_image)
 
@@ -66,7 +72,7 @@ class Skill(commands.Cog):
 				)
 
 				new_line_prefix = "\n-# - "
-				embed.description = f'\nDid you mean **{closest_match}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_match[1:])}'
+				embed.description = f'\nDid you mean **{closest_match[0].title()}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_match[1:])}'
 				embed.set_footer(text="Response expire in 10 seconds")
 				msg = await interaction.channel.send(
 					embed=embed,
