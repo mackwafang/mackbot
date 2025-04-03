@@ -1,6 +1,7 @@
 from typing import List
 
 import discord
+from icecream import ic
 from discord import app_commands
 
 from mackbot.utilities.game_data.warships_data import ship_list_simple, upgrade_list_simple, skill_list_simple
@@ -63,8 +64,7 @@ async def auto_complete_skill_name(interaction: discord.Interaction, current: st
 	Returns:
 		list
 	"""
-
-	choices = [app_commands.Choice(name=skill, value=skill) for skill, _ in skill_list_simple.items() if current in skill.lower()]
+	choices = [app_commands.Choice(name=skill['name'], value=skill['name']) for _, skill in skill_list_simple.items() if current in skill['name'].lower()]
 	return choices[:25]
 
 async def auto_complete_region(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
