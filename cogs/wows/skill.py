@@ -3,8 +3,10 @@ import traceback
 import discord
 from discord import app_commands, Embed, Interaction
 from discord.ext import commands
+from icecream import ic
 
 from mackbot.exceptions import NoSkillFound, SkillTreeInvalid
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.discord.items_autocomplete import auto_complete_skill_name
 from mackbot.utilities.find_close_match_item import find_close_match_item
@@ -24,6 +26,10 @@ class Skill(commands.Cog):
 	@app_commands.autocomplete(skill_name=auto_complete_skill_name)
 	async def skill(self, interaction: Interaction, skill_name: str):
 		# get information on requested skill
+
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
+
 		try:
 			embed = Embed(description=f"## {skill_name.title()}")
 			skill_data = get_skill_data(skill_name)
@@ -40,30 +46,50 @@ class Skill(commands.Cog):
 				skill_image = discord.File(f"./data/cmdr_skills_images/{image}.png", "icon.png")
 				embed.set_thumbnail(url="attachment://icon.png")
 
+				# refine effect for better formatting
+				formatted_effect = "> - "+effect.replace("\n", "\n> - ")
+
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
-				    f"{description}\n{effect}\n\n"
+				    f"{description}\n{formatted_effect}\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
-				embed.description = f"## {name}\n May refer to a skill in one of these trees."
+				embed.description = f"## {name}\n May refer to a skill in one of these skill trees."
 
-			await interaction.response.send_message(embed=embed, file=skill_image)
+			await interaction.channel.send(embed=embed, file=skill_image)
 
 		except Exception as e:
 			logger.info(f"Exception in skill {type(e)}: {e}. No skill found for {skill_name}")
 			traceback.print_exc()
 			if type(e) == NoSkillFound:
-				closest_match = find_close_match_item(skill_name, "skill_list")
-
+				closest_matches = find_close_match_item(skill_name, "skill_list")
 				embed = Embed(title=f"Skill {skill_name} is not understood.\n", description="")
-				if len(closest_match) > 0:
-					embed.description += f'\nDid you mean **{closest_match[0]}**?'
-					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-					embed.set_footer(text="Response expires in 10 seconds")
-				msg = await interaction.channel.send(embed=embed)
-				await correct_user_misspell(self.bot, interaction, Skill, "skill", closest_match[0])
-				await msg.delete()
+				if closest_matches:
+					closest_match = closest_matches[0].title()
+					confirm_view = ConfirmCorrectionView(
+						closest_matches,
+					)
+
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_matches[1:])}'
+					embed.set_footer(text="Response expire in 10 seconds")
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10
+					)
+					await confirm_view.wait()
+
+					if confirm_view.value:
+						await correct_user_misspell(self.bot, interaction, Skill, "skill", confirm_view.value)
+					else:
+						await msg.delete()
+				else:
+					await interaction.channel.send(
+						embed=embed
+					)
+
 			if type(e) == SkillTreeInvalid:
 				embed = Embed(title=f"Skill tree is not understood.\n", description="")
 				embed.description += f'\n{e}'
-				await interaction.response.send_message.send(embed=embed)
+				await interaction.channel.send(embed=embed)

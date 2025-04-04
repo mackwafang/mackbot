@@ -3,7 +3,7 @@ from typing import Optional
 
 import discord
 import mackbot.utilities.ship_consumable_code as ship_consumable_code
-from discord import app_commands, Embed
+from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, DEGREE_SYMBOL, SIGMA_SYMBOL, MM_WITH_CV_TIER, ARMOR_ID_TO_STRING, AMMO_TYPE_STRING, UPGRADE_MODIFIER_DESC, SPECIAL_INSTRUCTION_TRIGGER_TYPE, DOWN_ARROW_RIGHT_TIP_SYMBOL
@@ -11,6 +11,7 @@ from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SUPER_SHIP_SPECIAL_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
 from mackbot.utilities.discord.formatting import number_separator, embed_subcategory_title
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_consumable_data
@@ -33,11 +34,14 @@ class Ship(commands.Cog):
 		ship_name=auto_complete_ship_name,
 		parameters=auto_complete_ship_parameters
 	)
-	async def ship(self, interaction: discord.Interaction, ship_name: str, parameters: Optional[str]=""):
+	async def ship(self, interaction: Interaction, ship_name: str, parameters: Optional[str]=""):
 		"""
 			Outputs an embeded message to the channel (or DM) that contains information about a queried warship
 		"""
 		param_filter = parameters.lower()
+
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
 
 		try:
 			ship_data = get_ship_data(ship_name)
@@ -324,7 +328,7 @@ class Ship(commands.Cog):
 					for ammo_type in ['he', 'ap', 'cs']:
 						if guns['max_damage'][ammo_type]:
 							ammo_type_string = AMMO_TYPE_STRING[ammo_type]
-							m += f"{embed_subcategory_title(ammo_type_string)}: {guns['ammo_name'][ammo_type]}\n"
+							m += f"{embed_subcategory_title(ammo_type_string)} {guns['ammo_name'][ammo_type]}\n"
 							m += f"{embed_subcategory_title(f'{DOWN_ARROW_RIGHT_TIP_SYMBOL} Shell')} :boom:{number_separator(guns['max_damage'][ammo_type])}"
 							if ammo_type == 'he':
 								m += f" ("
@@ -763,7 +767,7 @@ class Ship(commands.Cog):
 			if is_test_ship:
 				footer_message += f"\n* Test ship is subject to change before her release\n"
 			embed.set_footer(text=footer_message)
-			await interaction.response.send_message(embed=embed)
+			await interaction.channel.send(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception {type(e)} {e}")
 			traceback.print_exc()
@@ -773,19 +777,30 @@ class Ship(commands.Cog):
 				closest_match = find_close_match_item(ship_name.lower(), "ship_list")
 				embed = Embed(title=f"Ship {ship_name} is not understood.\n", description="")
 				if closest_match:
-					closest_match_string = closest_match[0].title()
-					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					closest_match_ship_name = closest_match[0].title()
 
-					embed.description = closest_match_string
-					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					confirm_view = ConfirmCorrectionView(
+						closest_match,
+					)
+
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match_ship_name}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_match[1:])}'
 					embed.set_footer(text="Response expire in 10 seconds")
-					msg = await interaction.channel.send(embed=embed)
-					await correct_user_misspell(self.bot, interaction, Ship, "ship", closest_match[0], param_filter)
-					await msg.delete()
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10
+					)
+					await confirm_view.wait()
+
+					if confirm_view.value:
+						await correct_user_misspell(self.bot, interaction, Ship, "ship", confirm_view.value, param_filter)
+					else:
+						await msg.delete()
 				else:
-					await interaction.response.send_message(embed=embed)
+					await interaction.channel.send(embed=embed)
 
 			else:
 				# we dun goofed
-				await interaction.response.send_message(f"An internal error has occured.")
+				await interaction.channel.send(f"An internal error has occured.")
 				traceback.print_exc()

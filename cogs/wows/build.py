@@ -7,6 +7,7 @@ from discord.ext import commands
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ITEMS_TO_UPPER
 from mackbot.enums import SHIP_BUILD_FETCH_FROM, COMMAND_INPUT_TYPE
 from mackbot.exceptions import *
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.logger import logger
 from mackbot.utilities.create_build_image import create_build_image
 from mackbot.utilities.game_data.warships_data import database_client
@@ -49,6 +50,9 @@ class Build(commands.Cog):
 			logger.info("Reattempt to send build; Embed Link permission OK")
 			send_text_build = True
 
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
+
 		name, images = "", None
 		try:
 			output = get_ship_data(user_ship_name)
@@ -63,7 +67,6 @@ class Build(commands.Cog):
 			builds = get_ship_builds_by_name(name, fetch_from=SHIP_BUILD_FETCH_FROM.MONGO_DB, from_guild=interaction.guild.id if use_guild_builds else None)
 			user_selected_build_id = 0
 
-			await interaction.response.defer()
 			# get user selection for multiple ship builds
 			if len(builds) > 1:
 
@@ -213,11 +216,7 @@ class Build(commands.Cog):
 				embed.set_footer(text=error_footer_message + footer_message)
 
 			if send_text_build:
-				# send text
-				if interaction.response.is_done():
-					await interaction.followup.send(embed=embed)
-				else:
-					await interaction.response.send_message(embed=embed)
+				await interaction.channel.send(embed=embed)
 			else:
 				# send image
 				if database_client is None:
@@ -226,30 +225,40 @@ class Build(commands.Cog):
 				else:
 					# dynamically create
 					build_image = create_build_image(build_name, name, skills, upgrades, cmdr)
+
 				build_image.save(f"./tmp/build_{build_hash}.png")
 				try:
-					if interaction.response.is_done():
-						await interaction.followup.send(file=File(f"./tmp/build_{build_hash}.png"))
-					else:
-						await interaction.response.send_message(file=File(f"./tmp/build_{build_hash}.png"))
+					await interaction.channel.send(file=File(f"./tmp/build_{build_hash}.png"))
 				except Forbidden:
-					await interaction.response.send_message("mackbot requires the **Send Attachment** permission for this feature.")
+					await interaction.channel.send("mackbot requires the **Send Attachment** permission for this feature.")
 		except Exception as e:
 			if type(e) == NoShipFound:
 				# ship with specified name is not found, user might mistype ship name?
-				closest_match = find_close_match_item(user_ship_name.lower(), "ship_list")
+				closest_matches = find_close_match_item(user_ship_name.lower(), "ship_list")
 				embed = Embed(title=f"Ship {user_ship_name} is not understood.\n", description="")
-				if closest_match:
-					closest_match_string = closest_match[0].title()
-					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
-					embed.description = closest_match_string
-					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-					embed.set_footer(text="Response expires in 10 seconds")
-					msg = await interaction.channel.send(embed=embed)
-					await correct_user_misspell(self.bot, interaction, Build, "build", closest_match[0], send_text_build)
-					await msg.delete()
+				if closest_matches:
+					closest_match_ship_name = closest_matches[0].title()
+
+					confirm_view = ConfirmCorrectionView(
+						closest_matches,
+					)
+
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match_ship_name}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_matches[1:])}'
+					embed.set_footer(text="Response expire in 10 seconds")
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10,
+					)
+					await confirm_view.wait()
+
+					if confirm_view.value:
+						await correct_user_misspell(self.bot, interaction, Build, "build", confirm_view.value, send_text_build)
+					else:
+						await msg.delete()
 				else:
-					await interaction.response.send_message(embed=embed)
+					await interaction.channel.send(embed=embed)
 			elif type(e) == NoBuildFound:
 				# no build for this ship is found
 				embed = Embed(description=f"## Build for {name}\n")
