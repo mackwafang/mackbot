@@ -45,7 +45,7 @@ class Player(commands.Cog):
 	                 tier:Optional[int]=0,
 	                 ship:Optional[str]="",
 	                 b_type:Optional[str]='pvp'
-	                 ):
+         ):
 
 		await interaction.response.defer(ephemeral=False, thinking=True)
 
@@ -85,6 +85,7 @@ class Player(commands.Cog):
 
 			embed = Embed(description=f"## Search result for player {escape_markdown(username)}")
 			if player_id:
+				# get player name
 				player_name = player_id_results[0]['nickname']
 				if battle_type == 'pvp':
 					player_general_stats = WG[player_region].player_info(player_id=player_id)[player_id]
@@ -359,6 +360,7 @@ class Player(commands.Cog):
 					elif ship_filter:
 						# display player's specific ship stat
 						m = ""
+						error = None
 						try:
 							ship_data = get_ship_data(ship_filter)
 							ship_filter = ship_data['name'].lower()
@@ -381,6 +383,7 @@ class Player(commands.Cog):
 							m += f"**Spotting Damage: ** {number_separator(player_ship_stats_df['max']['spot_dmg'], '.0f')}\n"
 							m += f"**XP: ** {number_separator(player_ship_stats_df['max']['xp'], '.0f')}\n"
 						except Exception as e:
+							error = e
 							if type(e) == NoShipFound:
 								m += f"Ship with name {ship_filter} is not found\n"
 							if type(e) == KeyError:
@@ -390,18 +393,19 @@ class Player(commands.Cog):
 								traceback.print_exc()
 						embed.add_field(name="__Ship Specific Stat__", value=m, inline=True)
 
-						for field in [['main_battery', 'secondary_battery'], ['ramming', 'torpedoes', 'aircraft']]:
-							m = ""
-							for kill_type in field:
-								field_title = ' '.join(kill_type.split("_")).title()
-								kill_type_stat = player_ship_stats_df[kill_type]
-								m += f"__**{field_title}**__\n"
-								m += f"**Kills:** {kill_type_stat['frags']}\n"
-								m += f"**Max Kills:** {kill_type_stat['max_frags_battle']}\n"
-								if 'hits' in kill_type_stat:
-									m += f"**Accuracy:** {kill_type_stat['hits']/max(1, kill_type_stat['shots']):0.1%} ({kill_type_stat['hits']}/{kill_type_stat['shots']})\n"
-								m += "\n"
-							embed.add_field(name=f"__Stat by Armament__", value=m, inline=True)
+						if error is None:
+							for field in [['main_battery', 'secondary_battery'], ['ramming', 'torpedoes', 'aircraft']]:
+								m = ""
+								for kill_type in field:
+									field_title = ' '.join(kill_type.split("_")).title()
+									kill_type_stat = player_ship_stats_df[kill_type]
+									m += f"__**{field_title}**__\n"
+									m += f"**Kills:** {kill_type_stat['frags']}\n"
+									m += f"**Max Kills:** {kill_type_stat['max_frags_battle']}\n"
+									if 'hits' in kill_type_stat:
+										m += f"**Accuracy:** {kill_type_stat['hits']/max(1, kill_type_stat['shots']):0.1%} ({kill_type_stat['hits']}/{kill_type_stat['shots']})\n"
+									m += "\n"
+								embed.add_field(name=f"__Stat by Armament__", value=m, inline=True)
 
 					embed.set_footer(text=f"Last updated at {date.fromtimestamp(player_general_stats['stats_updated_at']).strftime('%b %d, %Y')}")
 			else:
@@ -413,4 +417,4 @@ class Player(commands.Cog):
 			traceback.print_exc()
 
 			embed = Embed(title="An internal error has occurred.")
-			await interaction.response.send_message(embed=embed)
+			await interaction.followup.send(embed=embed)

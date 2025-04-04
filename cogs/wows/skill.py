@@ -3,6 +3,7 @@ import traceback
 import discord
 from discord import app_commands, Embed, Interaction
 from discord.ext import commands
+from icecream import ic
 
 from mackbot.exceptions import NoSkillFound, SkillTreeInvalid
 from mackbot.utilities.discord.views import ConfirmCorrectionView
@@ -46,10 +47,10 @@ class Skill(commands.Cog):
 				embed.set_thumbnail(url="attachment://icon.png")
 
 				# refine effect for better formatting
-				formatted_effect = "- "+effect.replace("\n", "\n- ")
+				formatted_effect = "> - "+effect.replace("\n", "\n> - ")
 
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
-				    f"{description}\n{formatted_effect}\n\n"
+				    f"{description}\n{formatted_effect}\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
@@ -61,30 +62,32 @@ class Skill(commands.Cog):
 			logger.info(f"Exception in skill {type(e)}: {e}. No skill found for {skill_name}")
 			traceback.print_exc()
 			if type(e) == NoSkillFound:
-				closest_match = find_close_match_item(skill_name, "skill_list")
-
+				closest_matches = find_close_match_item(skill_name, "skill_list")
 				embed = Embed(title=f"Skill {skill_name} is not understood.\n", description="")
-				if len(closest_match) > 0:
-					embed.description += f'\nDid you mean **{closest_match[0]}**?'
-					embed.set_footer(text="Response expires in 10 seconds")
-				confirm_view = ConfirmCorrectionView(
-					closest_match,
-				)
+				if closest_matches:
+					closest_match = closest_matches[0].title()
+					confirm_view = ConfirmCorrectionView(
+						closest_matches,
+					)
 
-				new_line_prefix = "\n-# - "
-				embed.description = f'\nDid you mean **{closest_match[0].title()}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_match[1:])}'
-				embed.set_footer(text="Response expire in 10 seconds")
-				msg = await interaction.channel.send(
-					embed=embed,
-					view=confirm_view,
-					delete_after=10
-				)
-				await confirm_view.wait()
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_matches[1:])}'
+					embed.set_footer(text="Response expire in 10 seconds")
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10
+					)
+					await confirm_view.wait()
 
-				if confirm_view.value:
-					await correct_user_misspell(self.bot, interaction, Skill, "skill", closest_match[0])
+					if confirm_view.value:
+						await correct_user_misspell(self.bot, interaction, Skill, "skill", confirm_view.value)
+					else:
+						await msg.delete()
 				else:
-					await msg.delete()
+					await interaction.channel.send(
+						embed=embed
+					)
 
 			if type(e) == SkillTreeInvalid:
 				embed = Embed(title=f"Skill tree is not understood.\n", description="")

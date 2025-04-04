@@ -8,6 +8,8 @@ from .bot_help import BotHelp
 from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICONS_EMOJI, hull_classification_converter, DEGREE_SYMBOL, SIGMA_SYMBOL, EMPTY_LENGTH_CHAR
 from mackbot.exceptions import *
 from mackbot.utilities.logger import logger
+from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.game_data.game_data_finder import get_ship_data, get_module_data
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.get_aa_rating_descriptor import get_aa_rating_descriptor
@@ -33,33 +35,42 @@ class Compare(commands.Cog):
 		user_input_ships  = [ship1, ship2]
 		ships_to_compare = []
 
-		def user_correction_check(message):
-			return interaction.user == message.author and message.content.lower() in ['y', 'yes']
-
 		# checking ships name and grab ship data
-		await interaction.response.defer()
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
+
 		for s in user_input_ships:
 			try:
 				ships_to_compare += [get_ship_data(s)]
 			except NoShipFound:
 				logger.info(f"ship check [{s}] FAILED")
 				logger.info(f"sending correction reponse")
-				closest_match = find_close_match_item(s.lower(), "ship_list")
+				closest_matches = find_close_match_item(s.lower(), "ship_list")
 				embed = Embed(title=f"Ship {s} is not understood.\n", description="")
-				if len(closest_match) > 0:
-					closest_match_string = closest_match[0].title()
-					embed.description += f'\nDid you mean **{closest_match_string}**?'
-					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-					embed.set_footer(text="Response expires in 10 seconds")
-					correction_embed  = await interaction.channel.send(embed=embed)
-					try:
-						msg = await self.bot.wait_for("message", timeout=10, check=user_correction_check)
-						if msg:
-							ships_to_compare += [get_ship_data(closest_match_string)]
-							await correction_embed.delete()
-							await msg.delete()
-					except asyncio.TimeoutError:
-						pass
+				if len(closest_matches) > 0:
+					closest_match_ship_name = closest_matches[0].title()
+					embed = Embed(title=f"Ship {s} is not understood.\n", description="")
+					embed.description += f'\nDid you mean **{closest_match_ship_name}**?'
+
+					confirm_view = ConfirmCorrectionView(
+						closest_matches,
+					)
+
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match_ship_name}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_matches[1:])}'
+					embed.set_footer(text="Response expire in 10 seconds")
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10
+					)
+					await confirm_view.wait()
+
+					if confirm_view.value:
+						ships_to_compare += [get_ship_data(confirm_view.value)]
+					else:
+						await msg.delete()
+
 				else:
 					embed.set_footer(text="A ship name cannot be understood and comparison cannot be completed.\n"
 					                      "Please check any spelling errors that may have occurred.")
@@ -389,4 +400,3 @@ class Compare(commands.Cog):
 			await interaction.followup.send(embed=embed)
 		else:
 			logger.info("Response expired")
-		del user_correction_check

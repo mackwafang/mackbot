@@ -1,24 +1,27 @@
+from typing import List
+
 from discord import ui, ButtonStyle, Interaction
 
-# Define a simple View that gives us a confirmation menu
+class ConfirmCorrectionButton(ui.Button['TicTacToe']):
+	def __init__(self, name: str, value: str):
+		super().__init__(style=ButtonStyle.green, label=name.title())
+		self.name = name
+		self.value = value
+
+	# This function is called whenever this particular button is pressed
+	# This is part of the "meat" of the game logic
+	async def callback(self, interaction: Interaction):
+		view = self.view
+
+		await interaction.response.send_message(f"Confirmed. Getting information for {self.value.title()}.", ephemeral=True, delete_after=5)
+		view.value = self.value
+		view.stop()
+
+
 class ConfirmCorrectionView(ui.View):
-	def __init__(self, corrected_name: str):
+	def __init__(self, choices: List[str]):
 		super().__init__(timeout=None)
 		self.value = None
-		self.corrected_name = corrected_name
-
-	# When the confirm button is pressed, set the inner value to `True` and
-	# stop the View from listening to more input.
-	# We also send the user an ephemeral message that we're confirming their choice.
-	@ui.button(label='Yes', style=ButtonStyle.green)
-	async def confirm(self, interaction: Interaction, button: ui.Button):
-		await interaction.response.send_message(f"Confirmed. Getting information for {self.corrected_name}.", ephemeral=True, delete_after=5)
-		self.value = True
-		self.stop()
-
-	# This one is similar to the confirmation button except sets the inner value to `False`
-	@ui.button(label='No', style=ButtonStyle.red)
-	async def cancel(self, interaction: Interaction, button: ui.Button):
-		await interaction.response.send_message("Doing nothing. \n-# You don't need to do anything.", ephemeral=True, delete_after=5)
-		self.value = False
-		self.stop()
+		self.choices = choices
+		for i in choices:
+			self.add_item(ConfirmCorrectionButton(i, i))

@@ -3,15 +3,14 @@ import traceback
 from discord import app_commands, Embed, Interaction
 from discord.ext import commands
 
-from mackbot.enums import COMMAND_INPUT_TYPE
 from mackbot.exceptions import NoUpgradeFound
 from mackbot.constants import UPGRADE_MODIFIER_DESC
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.find_close_match_item import find_close_match_item
 from mackbot.utilities.game_data.game_data_finder import get_upgrade_data, get_legendary_upgrade_by_ship_name
 from mackbot.utilities.logger import logger
 from mackbot.utilities.discord.items_autocomplete import auto_complete_upgrades_name
-from mackbot.utilities.discord.formatting import embed_subcategory_title
 
 class Upgrade(commands.Cog):
 	def __init__(self, bot):
@@ -26,6 +25,9 @@ class Upgrade(commands.Cog):
 		logger.info(f"Received {upgrade_name}")
 
 		# getting appropriate search function
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
+
 		try:
 			# does user provide upgrade name?
 			get_upgrade_data(upgrade_name)
@@ -146,18 +148,32 @@ class Upgrade(commands.Cog):
 
 			embed.set_footer(text="Note: Ship, type, and nation restrictions may not be correct as this is automated.")
 
-			await interaction.response.send_message(embed=embed)
+			await interaction.channel.send(embed=embed)
 		except Exception as e:
 			logger.info(f"Exception in upgrade: {type(e)} {e}")
-			traceback.print_exc()
+			closest_matches = find_close_match_item(upgrade_name.lower(), "upgrade_list")
+			embed = Embed(title=f"Upgrade {upgrade_name} is not understood.\n", description="")
+			if closest_matches:
+				closest_match = closest_matches[0].title()
+				confirm_view = ConfirmCorrectionView(
+					closest_matches,
+				)
 
-			closest_match = find_close_match_item(upgrade_name.lower(), "upgrade_list")
+				new_line_prefix = "\n-# - "
+				embed.description = f'\nDid you mean **{closest_match}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_matches[1:])}'
+				embed.set_footer(text="Response expire in 10 seconds")
+				msg = await interaction.channel.send(
+					embed=embed,
+					view=confirm_view,
+					delete_after=10
+				)
+				await confirm_view.wait()
 
-			embed = Embed(title=f"Upgrade **{upgrade_name}** is not understood.\n", description="")
-			if len(closest_match) > 0:
-				embed.description += f'\nDid you mean **{closest_match[0]}**?'
-				embed.description += "\n\nType \"y\" or \"yes\" to confirm."
-				embed.set_footer(text="Response expires in 10 seconds")
-			msg = await interaction.channel.send(embed=embed)
-			await correct_user_misspell(self.bot, interaction, Upgrade, "upgrade", closest_match[0])
-			await msg.delete()
+				if confirm_view.value:
+					await correct_user_misspell(self.bot, interaction, Upgrade, "upgrade", confirm_view.value)
+				else:
+					await msg.delete()
+			else:
+				await interaction.channel.send(
+					embed=embed
+				)

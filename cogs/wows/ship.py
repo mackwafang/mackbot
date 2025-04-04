@@ -328,7 +328,7 @@ class Ship(commands.Cog):
 					for ammo_type in ['he', 'ap', 'cs']:
 						if guns['max_damage'][ammo_type]:
 							ammo_type_string = AMMO_TYPE_STRING[ammo_type]
-							m += f"{embed_subcategory_title(ammo_type_string)}: {guns['ammo_name'][ammo_type]}\n"
+							m += f"{embed_subcategory_title(ammo_type_string)} {guns['ammo_name'][ammo_type]}\n"
 							m += f"{embed_subcategory_title(f'{DOWN_ARROW_RIGHT_TIP_SYMBOL} Shell')} :boom:{number_separator(guns['max_damage'][ammo_type])}"
 							if ammo_type == 'he':
 								m += f" ("
@@ -780,7 +780,7 @@ class Ship(commands.Cog):
 					closest_match_ship_name = closest_match[0].title()
 
 					confirm_view = ConfirmCorrectionView(
-						closest_match_ship_name,
+						closest_match,
 					)
 
 					new_line_prefix = "\n-# - "
@@ -794,10 +794,9 @@ class Ship(commands.Cog):
 					await confirm_view.wait()
 
 					if confirm_view.value:
-						await correct_user_misspell(self.bot, interaction, Ship, "ship", closest_match_ship_name, param_filter)
+						await correct_user_misspell(self.bot, interaction, Ship, "ship", confirm_view.value, param_filter)
 					else:
 						await msg.delete()
-
 				else:
 					await interaction.channel.send(embed=embed)
 

@@ -17,6 +17,7 @@ from mackbot.exceptions import *
 from mackbot.ballistics.ballistics import Shell, calc_ballistic, calc_dispersion, within_dispersion, total_distance_traveled, TIMESCALE
 from mackbot.utilities.discord.formatting import number_separator
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name
+from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.logger import logger
 from mackbot.utilities.game_data.warships_data import database_client, module_list
 from mackbot.utilities.game_data.game_data_finder import get_ship_data
@@ -59,12 +60,9 @@ LINE_STYLES = (
 	'dashdot'
 )
 
-class Analyze(commands.Cog):
+class Analyze(commands.GroupCog):
 	def __init__(self, bot):
 		self.bot = bot
-		self.bot.tree.add_command(AnalyzeGroup(name="analyze", description="Analyze certain aspect of a warship"))
-
-class AnalyzeGroup(app_commands.Group):
 	@app_commands.command(name='artillery', description='Get combat parameters of a warship')
 	@app_commands.describe(
 		ship_name="Ship name",
@@ -75,7 +73,8 @@ class AnalyzeGroup(app_commands.Group):
 	)
 	async def artillery(self, interaction: discord.Interaction, ship_name: str, gun_range: Optional[float]=-1.0):
 
-		await interaction.response.defer(ephemeral=False, thinking=True)
+		if not interaction.response.is_done():
+			await interaction.response.send_message("Acknowledged", ephemeral=True, delete_after=1)
 
 		try:
 			ship_data = get_ship_data(ship_name)
@@ -294,18 +293,31 @@ class AnalyzeGroup(app_commands.Group):
 				closest_match = find_close_match_item(ship_name.lower(), "ship_list")
 				embed = Embed(title=f"Ship {ship_name} is not understood.\n", description="")
 				if closest_match:
-					closest_match_string = closest_match[0].title()
-					closest_match_string = f'\nDid you mean **{closest_match_string}**?'
+					closest_match_ship_name = closest_match[0].title()
 
-					embed.description = closest_match_string
-					embed.description += "\n\nType \"y\" or \"yes\" to confirm."
+					confirm_view = ConfirmCorrectionView(
+						closest_match,
+					)
+
+					new_line_prefix = "\n-# - "
+					embed.description = f'\nDid you mean **{closest_match_ship_name}**?\n-# Other possible matches are: {new_line_prefix}{new_line_prefix.join(i.title() for i in closest_match[1:])}'
 					embed.set_footer(text="Response expire in 10 seconds")
-					msg = await interaction.channel.send(embed=embed)
-					await correct_user_misspell(self.bot, interaction, Analyze, "analyze", closest_match[0], gun_range)
-					await msg.delete()
-				else:
-					await interaction.response.send_message(embed=embed)
+					msg = await interaction.channel.send(
+						embed=embed,
+						view=confirm_view,
+						delete_after=10
+					)
+					await confirm_view.wait()
 
+					if confirm_view.value:
+						await correct_user_misspell(self.bot, interaction, Analyze, "artillery", confirm_view.value, gun_range)
+					else:
+						await msg.delete()
+
+				else:
+					await interaction.channel.send(
+						embed=embed
+					)
 			else:
 				# we dun goofed
 				await interaction.response.send_message(f"An internal error has occured.")
