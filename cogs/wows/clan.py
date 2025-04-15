@@ -69,6 +69,45 @@ class ClanGroup(app_commands.Group):
 
 		await interaction.response.send_message(embed=embed)
 
+	@app_commands.command(name="sample", description="Download a sample build file to use with the upload command")
+	async def sample(self, interaction: Interaction):
+		# check if admin to avoid spams
+		if not interaction.user.guild_permissions.administrator:
+			embed = discord.Embed(description="## You do not have permission to use this command\nYou need to be the server's administration to use this command.")
+			await interaction.response.send_message(embed=embed)
+			return
+		sample_file_dir = os.path.join("tmp", "sample_upload.csv")
+		with open(sample_file_dir, "w") as f:
+			writer = csv.writer(f)
+			writer.writerows([
+				["ship_name","build_name","upgrade1","upgrade2","upgrade3","upgrade4","upgrade5","upgrade6","skill1","skill2","skill3","skill4","skill5","skill6","skill7","skill8","skill9","skill10","skill11","skill12","skill13","skill14",
+				 "skill15","skill16","cmdr_name"],
+				["midway", "test", "agm1", "aem1", "atm1", "tbm2", "fcm1", "fcm2", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
+				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+				["lexington", "another test", "agm1", "aem1", "atm1", "tbm2", "fcm1", "", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
+				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+				["shoukaku", "dank cv build", "agm1", "aem1", "atm1", "tbm2", "fcm1", "", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
+				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+			])
+
+		with open(sample_file_dir, "rb") as f:
+			await interaction.response.send_message(
+				"The CSV file will need the following values:\n"
+				"- It must include 25 values\n"
+				"- Value 1 is the ship name\n"
+				"- Value 2 is the build's name\n"
+				"- Values 3-8 is the upgrade's name\n"
+			    " - This can either be the upgrade's full name, or it's abbreviation that @mackbot can understand\n"
+			    " - You can check the abbreviation via the **show upgrades** command\n"
+				"- Values 9-24 is the commander's skill\n"
+			    " - Commander's skill must be a valid WoWS commander skill sequence (i.e. you cannot take a 3-points skill without previously taking a 2-points skill)\n"
+				"- Value 25 is the commander's name\n"
+				"- A field may be left blank (i.e. you can't fit anymore command skills in a 21-points commander)\n"
+				"- A * may be used in the upgrades section of the file to indicate any upgrades\n",
+				ephemeral=True,
+				file=discord.File(f, "sample_build.csv")
+			)
+
 	@app_commands.command(name="upload", description="Upload clan specific build for your clan")
 	async def upload(self, interaction: Interaction, file: discord.Attachment):
 		# check if admin to avoid spams
@@ -98,6 +137,9 @@ class ClanGroup(app_commands.Group):
 
 		# compile builds
 		for index, row in enumerate(file_content):
+			if index == 0:
+				continue
+
 			if len(row) == 25:
 				build_ship_name = row[0]
 				build_name = row[1][:32]
@@ -106,7 +148,7 @@ class ClanGroup(app_commands.Group):
 				build_cmdr = row[-2]
 				builds.append([build_ship_name, build_name, build_upgrades, build_skills, build_cmdr])
 			else:
-				errors.append(f"Line {index} excepts 25 values. Found {len(row)} values")
+				errors.append(f"Line {index+1} excepts 25 values. Found {len(row)} values")
 
 		# upload and compile errors
 		build_ids, errors = data_uploader.clan_build_upload(builds, interaction.guild_id)
