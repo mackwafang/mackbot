@@ -711,7 +711,7 @@ class Ship(commands.Cog):
 								if consumable_type == 'smokeGenerator':
 									consumable_detail = f'{embed_subcategory_title("Duration", space=20)}  {seconds_to_minutes_format(consumable_logic["lifeTime"])}\n'
 									consumable_detail += f'{embed_subcategory_title("Radius", space=20)} {consumable_logic["radius"] * 10} meters\n'
-									consumable_detail += f'{embed_subcategory_title("Speed Limit", space=20)}  {consumable_logic["speedLimit"]} knots'
+									consumable_detail += f'{embed_subcategory_title("Speed Limit", space=20)}  {consumable_logic["speedLimit"]} knots\n'
 									if not charges:
 										consumable_detail += f'{embed_subcategory_title("Min. Work Time", space=20)}  {consumable_logic["speedLimit"]} seconds.\n'
 										consumable_detail += f'{embed_subcategory_title("Capacity", space=20)}  {consumable["maxCapacity"]} seconds.\n'
