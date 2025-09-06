@@ -361,32 +361,35 @@ class Ship(commands.Cog):
 					m = ""
 					if 'atba' in hull['profile']:
 						atba = hull['profile']['atba']
+						atba_manual = atba["manual_mode"]
 						hull_name = hull['name']
 
-						gun_dpm = int(sum([atba[t]['gun_dpm'] for t in atba if type(atba[t]) == dict]))
-						gun_count = int(sum([atba[t]['count'] for t in atba if type(atba[t]) == dict]))
+						gun_dpm = int(sum([atba['turrets'][t]['gun_dpm'] for t in atba['turrets']]))
+						gun_count = int(sum([atba['turrets'][t]['count'] for t in atba['turrets']]))
 
 						m += f"**{hull_name}**\n"
 						m += f"{embed_subcategory_title('Range')} {atba['range'] / 1000:1.1f} km\n"
+						if atba_manual:
+							m += f"{embed_subcategory_title('Range (Manual Mode)')}  {(atba['range'] / 1000) * atba_manual['range_modifier']:1.1f} km\n"
+
 						m += f"{embed_subcategory_title('Turret Count')} {gun_count}\n"
-						m += f"{embed_subcategory_title('DPM')} {number_separator(gun_dpm)}\n"
+						m += f"{embed_subcategory_title('DPM (Auto)')} {number_separator(gun_dpm)}\n"
 
 						if ship_filter == 2 ** SHIP_COMBAT_PARAM_FILTER.ATBAS:
 							m += '\n'
-							for t in atba:
-								turret = atba[t]
-								if type(atba[t]) == dict:
-									# detail secondary
-									m += f"**{turret['count']} x {atba[t]['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
-									m += f"{embed_subcategory_title('SAP' if turret['ammoType'] == 'CS' else turret['ammoType'])} {int(turret['max_damage'])}"
-									m += ' ('
-									if turret['burn_probability'] > 0:
-										m += f":fire: {turret['burn_probability'] * 100}%, "
-									m += f"{ICONS_EMOJI['penetration']} {turret['pen']}mm"
-									m += ')\n'
-									m += f"{embed_subcategory_title('Reload')} {turret['shotDelay']}s\n"
-						# if len(modules['hull']) > 1:
-						# 	m += '-------------------\n'
+							for t in atba['turrets']:
+								turret = atba['turrets'][t]
+								# detail secondary
+								m += f"**{turret['count']} x {turret['name']} ({turret['numBarrels']:1.0f} barrel{'s' if turret['numBarrels'] > 1 else ''})**\n"
+								m += f"{embed_subcategory_title('SAP' if turret['ammoType'] == 'CS' else turret['ammoType'])} {int(turret['max_damage'])}"
+								m += ' ('
+								if turret['burn_probability'] > 0:
+									m += f":fire: {turret['burn_probability'] * 100}%, "
+								m += f"{ICONS_EMOJI['penetration']} {turret['pen']}mm"
+								m += ')\n'
+								m += f"{embed_subcategory_title('Reload')} {turret['shotDelay']}s\n"
+								if atba_manual:
+									m += f"{embed_subcategory_title('Reload (Manual Mode)')} {turret['shotDelay'] * atba_manual['reload_modifier']:1.1f}s\n"
 
 						embed.add_field(name=f"{ICONS_EMOJI['gun']} __**Secondary Battery**__", value=m, inline=False)
 

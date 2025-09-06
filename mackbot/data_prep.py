@@ -635,9 +635,20 @@ def update_ship_modules():
 										atba_guns[t]['pen'] = int(ammo['alphaPiercingHE'])
 									if ammo['ammoType'] == 'CS':
 										atba_guns[t]['pen'] = int(ammo['alphaPiercingCS'])
+
+
 						del atba_guns['turret']
-						module_list[module_id]['profile']['atba'] = atba_guns
+						module_list[module_id]['profile']['atba']['turrets'] = atba_guns
 						module_list[module_id]['profile']['atba']['range'] = atba['maxDist']
+						# compile manual mode for cv secondaries
+						module_list[module_id]['profile']['atba']['manual_mode'] = {}
+						if atba["manualModeModifiers"]:
+							if "GSMMaxDist" in atba["manualModeModifiers"]:
+								module_list[module_id]['profile']['atba']['manual_mode']['range_modifier'] = atba["manualModeModifiers"]['GSMMaxDist']
+							if "GSMIdealRadius" in atba["manualModeModifiers"]:
+								module_list[module_id]['profile']['atba']['manual_mode']['disp_modifier'] = atba["manualModeModifiers"]['GSMIdealRadius']
+							if "GSMShotDelay" in atba["manualModeModifiers"]:
+								module_list[module_id]['profile']['atba']['manual_mode']['reload_modifier'] = atba["manualModeModifiers"]['GSMShotDelay']
 
 					# getting aa information and calculate mbAA
 					if len(ship_upgrade_info[_info]['components']['airDefense']) > 0:
