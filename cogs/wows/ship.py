@@ -10,7 +10,7 @@ from mackbot.constants import SHIP_TYPES, ROMAN_NUMERAL, nation_dictionary, ICON
 from mackbot.enums import SHIP_COMBAT_PARAM_FILTER, SUPER_SHIP_SPECIAL_TYPE
 from mackbot.exceptions import *
 from mackbot.utilities.correct_user_mispell import correct_user_misspell
-from mackbot.utilities.discord.formatting import number_separator, embed_subcategory_title
+from mackbot.utilities.discord.formatting import number_separator, embed_subcategory_title, seconds_to_minutes_format
 from mackbot.utilities.discord.views import ConfirmCorrectionView
 from mackbot.utilities.discord.items_autocomplete import auto_complete_ship_name, auto_complete_ship_parameters
 from mackbot.utilities.find_close_match_item import find_close_match_item
@@ -651,9 +651,21 @@ class Ship(commands.Cog):
 							consumable_name = consumable['name']
 							consumable_description = consumable['description']
 							consumable_type = consumable["consumableType"]
+							consumable_logic = consumable["logic"]
 
-							charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
-							action_time = consumable['workTime']
+							if "numConsumables" in consumable:
+								charges = 'Infinite' if consumable['numConsumables'] < 0 else consumable['numConsumables']
+							else:
+								# Laffey specific consumable (duration based rather than on and forget)
+								charges = None
+
+							if "workTime" in consumable:
+								action_time = consumable['workTime']
+							else:
+								# Laffey specific consumable (duration based rather than on and forget)
+								action_time = None
+
+
 							cd_time = consumable['reloadTime']
 
 							consumable_detail = ""
@@ -672,15 +684,15 @@ class Ship(commands.Cog):
 								m = f"\n> {f'{chr(10)}> '.join(consumable_description.split(chr(10)))}\n"
 
 								if consumable_type == 'airDefenseDisp':
-									consumable_detail = f"{embed_subcategory_title('Continuous AA damage', space=20)} +{consumable['areaDamageMultiplier'] * 100:0.0f}%\n"
-									consumable_detail += f"{embed_subcategory_title('Flak AA damage', space=20)} +{consumable['bubbleDamageMultiplier'] * 100:0.0f}%"
+									consumable_detail = f"{embed_subcategory_title('Continuous AA damage', space=20)} +{consumable_logic['areaDamageMultiplier'] * 100:0.0f}%\n"
+									consumable_detail += f"{embed_subcategory_title('Flak AA damage', space=20)} +{consumable_logic['bubbleDamageMultiplier'] * 100:0.0f}%"
 								if consumable_type == 'artilleryBoosters':
-									consumable_detail = f'{embed_subcategory_title("Reload", space=20)} -{consumable["boostCoeff"]:2.0f}'
+									consumable_detail = f'{embed_subcategory_title("Reload", space=20)} -{consumable_logic["boostCoeff"]:2.0f}'
 								if consumable_type == 'fighter':
-									consumable_detail = f'{embed_subcategory_title("Fighters", space=20)} {to_plural("aircraft", consumable["fightersNum"])}\n'
-									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Action Radius", space=20)} {consumable["distanceToKill"]/10:0.1f} km'
+									consumable_detail = f'{embed_subcategory_title("Fighters", space=20)} {to_plural("aircraft", consumable_logic["fightersNum"])}\n'
+									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Action Radius", space=20)} {consumable_logic["distanceToKill"]/10:0.1f} km'
 								if consumable_type == 'regenCrew':
-									consumable_detail = f'{embed_subcategory_title("Repair", space=20)} {consumable["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
+									consumable_detail = f'{embed_subcategory_title("Repair", space=20)} {consumable_logic["regenerationHPSpeed"] * 100}% of max HP / sec.\n'
 									if database_client is not None:
 										query_result = database_client.mackbot_db.module_list.find({
 											"module_id": {"$in": modules['hull']}
@@ -690,39 +702,46 @@ class Ship(commands.Cog):
 
 									for module in query_result:
 										hull = module['profile']['hull']
-										consumable_detail += f"{module['name']} ({hull['health']} HP): {int(hull['health'] * consumable['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable['regenerationHPSpeed'] * consumable['workTime'])} HP per use\n"
+										consumable_detail += f"{module['name']} ({hull['health']} HP): {int(hull['health'] * consumable_logic['regenerationHPSpeed'])} HP / sec., {int(hull['health'] * consumable_logic['regenerationHPSpeed'] * action_time)} HP per use\n"
 									consumable_detail = consumable_detail[:-1]
 								if consumable_type == 'rls':
-									consumable_detail = f'{embed_subcategory_title("Range", space=20)}  {round(consumable["distShip"] * 30) / 1000:0.1f} km'
+									consumable_detail = f'{embed_subcategory_title("Range", space=20)}  {round(consumable_logic["distShip"] * 30) / 1000:0.1f} km'
 								if consumable_type == 'scout':
-									consumable_detail = f'{embed_subcategory_title("Firing Range", space=20)}  +{(consumable["artilleryDistCoeff"] - 1) * 100:0.0f}%'
+									consumable_detail = f'{embed_subcategory_title("Firing Range", space=20)}  +{(consumable_logic["artilleryDistCoeff"] - 1) * 100:0.0f}%'
 								if consumable_type == 'smokeGenerator':
-									consumable_detail = f'{embed_subcategory_title("Duration", space=20)}  {str(int(consumable["lifeTime"] // 60)) + "m" if consumable["lifeTime"] >= 60 else ""} {str(int(consumable["lifeTime"] % 60)) + "s" if consumable["lifeTime"] % 60 > 0 else ""}\n'
-									consumable_detail += f'{embed_subcategory_title("Radius", space=20)} {consumable["radius"] * 10} meters\n'
-									consumable_detail += f'{embed_subcategory_title("Speed Limit", space=20)}  {consumable["speedLimit"]} knots'
+									consumable_detail = f'{embed_subcategory_title("Duration", space=20)}  {seconds_to_minutes_format(consumable_logic["lifeTime"])}\n'
+									consumable_detail += f'{embed_subcategory_title("Radius", space=20)} {consumable_logic["radius"] * 10} meters\n'
+									consumable_detail += f'{embed_subcategory_title("Speed Limit", space=20)}  {consumable_logic["speedLimit"]} knots'
+									if not charges:
+										consumable_detail += f'{embed_subcategory_title("Min. Work Time", space=20)}  {consumable_logic["speedLimit"]} seconds.\n'
+										consumable_detail += f'{embed_subcategory_title("Capacity", space=20)}  {consumable["maxCapacity"]} seconds.\n'
+
 								if consumable_type == 'sonar':
 									consumable_detail = f"{embed_subcategory_title('Assured Range:', space=20)}\n"
-									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Ship", space=20)}  {round(consumable["distShip"] * 30) / 1000:0.1f}km\n'
-									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Torpedo", space=20)} {round(consumable["distTorpedo"] * 30) / 1000:0.1f} km'
+									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Ship", space=20)}  {round(consumable_logic["distShip"] * 30) / 1000:0.1f}km\n'
+									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Torpedo", space=20)} {round(consumable_logic["distTorpedo"] * 30) / 1000:0.1f} km'
 								if consumable_type == 'speedBoosters':
-									consumable_detail = f'{embed_subcategory_title("Max Speed", space=20)}  +{consumable["boostCoeff"] * 100:0.0f}%'
+									consumable_detail = f'{embed_subcategory_title("Max Speed", space=20)}  +{consumable_logic["boostCoeff"] * 100:0.0f}%'
 								if consumable_type == 'torpedoReloader':
-									consumable_detail = f'{embed_subcategory_title("Reload Set To", space=20)} {consumable["torpedoReloadTime"]:1.0f}s'
+									consumable_detail = f'{embed_subcategory_title("Reload Set To", space=20)} {consumable_logic["torpedoReloadTime"]:1.0f}s'
 								if consumable_type == 'hydrophone':
-									consumable_detail = f'{embed_subcategory_title("Reveal Ships Within", space=20)} {consumable["hydrophoneWaveRadius"] / 1000:0.1f}km\n'
-									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Frequency", space=20)}  {consumable["workTime"]}s'
+									consumable_detail = f'{embed_subcategory_title("Reveal Ships Within", space=20)} {consumable_logic["hydrophoneWaveRadius"] / 1000:0.1f}km\n'
+									consumable_detail += f'{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+" Frequency", space=20)}  {consumable_logic["workTime"]}s'
 								if consumable_type == 'submarineLocator':
-									consumable_detail = f'{embed_subcategory_title("Starting Cooldown", space=20)} {consumable["preparationTime"] // 60:0.0f}m {consumable["preparationTime"] % 60:0.0f}s\n'
-									consumable_detail += f'{embed_subcategory_title("Range", space=20)}  {consumable["distShip"] * 30 / 1000:0.1f} km.'
+									consumable_detail = f'{embed_subcategory_title("Starting Cooldown", space=20)} {consumable_logic["preparationTime"] // 60:0.0f}m {consumable_logic["preparationTime"] % 60:0.0f}s\n'
+									consumable_detail += f'{embed_subcategory_title("Range", space=20)}  {consumable_logic["distShip"] * 30 / 1000:0.1f} km.'
 								if consumable_type == "subsEnergyFreeze":
 									consumable_detail = f""
 								if consumable_type == "fastRudders":
-									consumable_detail = f"{embed_subcategory_title('Plane Shift', space=20)}  -{1 - consumable['buoyancyRudderTimeCoeff']:1.0%}\n"
-									consumable_detail += f"{embed_subcategory_title('Dive/Ascend Speed', space=20)} +{consumable['maxBuoyancySpeedCoeff'] - 1:1.0%}"
+									consumable_detail = f"{embed_subcategory_title('Plane Shift', space=20)}  -{1 - consumable_logic['buoyancyRudderTimeCoeff']:1.0%}\n"
+									consumable_detail += f"{embed_subcategory_title('Dive/Ascend Speed', space=20)} +{consumable_logic['maxBuoyancySpeedCoeff'] - 1:1.0%}"
 
-								m += f"{embed_subcategory_title('Charges', space=20)} {charges}\n"
-								m += f"{embed_subcategory_title('Duration', space=20)} {f'{action_time // 60:1.0f}m ' if action_time >= 60 else ''} {str(int(action_time % 60)) + 's' if action_time % 60 > 0 else ''}\n"
-								m += f"{embed_subcategory_title('Cooldown', space=20)} {f'{cd_time // 60:1.0f}m ' if cd_time >= 60 else ''} {str(int(cd_time % 60)) + 's' if cd_time % 60 > 0 else ''}\n"
+								if charges:
+									m += f"{embed_subcategory_title('Charges', space=20)} {charges}\n"
+								if action_time:
+									m += f"{embed_subcategory_title('Duration', space=20)} {seconds_to_minutes_format(action_time)}\n"
+
+								m += f"{embed_subcategory_title('Cooldown', space=20)} {seconds_to_minutes_format(cd_time)}\n"
 								if len(consumable_detail) > 0:
 									m += consumable_detail
 									m += '\n'

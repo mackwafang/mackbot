@@ -676,13 +676,13 @@ def update_ship_modules():
 								module_list[module_id]['profile']['anti_air']['near']['range'] = aa_data['maxDistance']
 								module_list[module_id]['profile']['anti_air']['near']['hitChance'] = aa_data['hitChance']
 								if has_dfaa:
-									module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['near']['damage'] * dfaa_stats['areaDamageMultiplier']
+									module_list[module_id]['profile']['anti_air']['near']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['near']['damage'] * dfaa_stats['logic']['areaDamageMultiplier']
 							if aa_data['type'] == 'medium':
 								module_list[module_id]['profile']['anti_air']['medium']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
 								module_list[module_id]['profile']['anti_air']['medium']['range'] = aa_data['maxDistance']
 								module_list[module_id]['profile']['anti_air']['medium']['hitChance'] = aa_data['hitChance']
 								if has_dfaa:
-									module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['medium']['damage'] * dfaa_stats['areaDamageMultiplier']
+									module_list[module_id]['profile']['anti_air']['medium']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['medium']['damage'] * dfaa_stats['logic']['areaDamageMultiplier']
 							min_aa_range = min(min_aa_range, aa_data['minDistance'])
 							max_aa_range = max(max_aa_range, aa_data['maxDistance'])
 						# getting flak guns info
@@ -701,7 +701,7 @@ def update_ship_modules():
 									module_list[module_id]['profile']['anti_air']['far']['damage'] += aa_data['areaDamage'] / aa_data['areaDamagePeriod']
 									module_list[module_id]['profile']['anti_air']['far']['hitChance'] = aa_data['hitChance']
 									if has_dfaa:
-										module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['far']['damage'] * dfaa_stats['areaDamageMultiplier']
+										module_list[module_id]['profile']['anti_air']['far']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['far']['damage'] * dfaa_stats['logic']['areaDamageMultiplier']
 								else:
 									# flaks
 									module_list[module_id]['profile']['anti_air']['flak']['count'] = aa_data['innerBubbleCount'] + aa_data['outerBubbleCount']
@@ -710,7 +710,7 @@ def update_ship_modules():
 									module_list[module_id]['profile']['anti_air']['flak']['max_range'] = aa_data['maxDistance']
 									module_list[module_id]['profile']['anti_air']['flak']['hitChance'] = aa_data['hitChance']
 									if has_dfaa:
-										module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['bubbleDamageMultiplier']
+										module_list[module_id]['profile']['anti_air']['flak']['damage_with_dfaa'] += module_list[module_id]['profile']['anti_air']['flak']['damage'] * dfaa_stats['logic']['bubbleDamageMultiplier']
 
 								min_aa_range = min(min_aa_range, aa_data['minDistance'])
 								max_aa_range = max(max_aa_range, aa_data['maxDistance'])
@@ -754,7 +754,7 @@ def update_ship_modules():
 					if 'airSupport' in ship_upgrade_info[_info]['components']:
 						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
 							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
-							plane = game_data[airsup_info['planeName']]
+							plane = game_data[airsup_info['ammoList'][-1]]
 							projectile = game_data[plane['bombName']]
 							module_list[module_id]['profile']['airSupport'] = {
 								'chargesNum': airsup_info['chargesNum'],
