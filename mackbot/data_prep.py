@@ -754,7 +754,7 @@ def update_ship_modules():
 					if 'airSupport' in ship_upgrade_info[_info]['components']:
 						if len(ship_upgrade_info[_info]['components']['airSupport']) > 0:
 							airsup_info = module_data[ship_upgrade_info[_info]['components']['airSupport'][0]]
-							plane = game_data[airsup_info['planeName']]
+							plane = game_data[airsup_info['ammoList'][-1]]
 							projectile = game_data[plane['bombName']]
 							module_list[module_id]['profile']['airSupport'] = {
 								'chargesNum': airsup_info['chargesNum'],
