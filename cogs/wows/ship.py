@@ -552,13 +552,14 @@ class Ship(commands.Cog):
 										for consumable_index, consumable_type in squadron_consumables[slot]['abils']:
 											consumable_data = get_consumable_data(consumable_index.split("_")[0], consumable_type)
 											consumable_type = consumable_data['consumableType']
+											consumable_logic = consumable_data["logic"]
 
 											m += f"{embed_subcategory_title(DOWN_ARROW_RIGHT_TIP_SYMBOL+' '+consumable_data['name']+' x '+str(consumable_data['numConsumables']), space=25)} {consumable_data['workTime']:1.0f}s duration\n"
 											if consumable_type == "callFighters":
-												m += f"{embed_subcategory_title('', space=25)} {to_plural('fighter', consumable_data['fightersNum'])} | "
-												m += f"{consumable_data['radius'] * 30 / 1000:1.0f} km radius\n"
+												m += f"{embed_subcategory_title('', space=25)} {to_plural('fighter', consumable_logic['fightersNum'])} | "
+												m += f"{consumable_logic['radius'] * 30 / 1000:1.0f} km radius\n"
 											if consumable_type == "regenerateHealth":
-												m += f"{embed_subcategory_title('', space=25)} +{consumable_data['regenerationRate']:1.0%} of max HP per second\n"
+												m += f"{embed_subcategory_title('', space=25)} +{consumable_logic['regenerationRate']:1.0%} of max HP per second\n"
 											m += f"{embed_subcategory_title('', space=25)} {consumable_data['reloadTime']:1.0f}s cooldown\n"
 
 									m += '\n'
