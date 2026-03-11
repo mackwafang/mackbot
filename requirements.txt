@@ -5,7 +5,7 @@ numpy~=1.21
 pymongo>=4.6.3
 dnspython>=2.6.1
 deprecation~=2.1.0
-protobuf==4.25.8
+protobuf==5.29.6
 inflect~=6.0.2
 matplotlib~=3.7.1
 requests>=2.32.0

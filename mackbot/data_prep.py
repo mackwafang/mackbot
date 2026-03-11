@@ -148,7 +148,9 @@ def load_game_params():
 	logger.info(f"Loading GameParams")
 	for file_count in count(0):
 		try:
-			with open(os.path.join(os.getcwd(), "data", f'GameParamsPruned_{file_count}.json')) as f:
+			file_path = os.path.join(os.getcwd(), "data", f'GameParamsPruned_{file_count}.json')
+			logger.info(f"Loading {file_path}")
+			with open(file_path) as f:
 				data = json.load(f)
 
 			game_data.update(data)
@@ -389,6 +391,7 @@ def update_ship_modules():
 		missing_ship_data = game_data[i]
 		# skip test ships
 		if _is_ship_has_skip_criteria(missing_ship_data):
+			logger.warning(f"Skipping ship {i} due to matching criteria")
 			continue
 
 		if missing_ship_data['id'] in known_ship_id:
@@ -437,6 +440,7 @@ def update_ship_modules():
 			missing_ship_data['group'] in ['disabled', 'preserved']
 		]
 		if any(skip_addition_condition):
+			logger.warning(f"Skipping ship {i} due to either even ship or disabled ships")
 			continue
 
 		ship_list[str(missing_ship_data['id'])] = ship_list_data.copy()
@@ -1187,6 +1191,10 @@ def update_ship_modules():
 			if not type(e) == KeyError:
 				logger.error("Ship " + s + " is not known to GameParams.data or accessing incorrect key in GameParams.json")
 				logger.error("Update your GameParams JSON file(s)")
+
+			logger.error(f"{s} in ship_list?: {s in ship_list}")
+			if s in ship_list:
+				logger.error(f"ship name: {ship_list[s]['name']}")
 			traceback.print_exc()
 
 def create_ship_tags():

@@ -12,6 +12,8 @@ from mackbot.utilities.game_data.warships_data import *
 
 database_client = MongoClient(mongodb_host)
 
+CLAN_BUILDS_LIMIT = 120
+
 def _check_skill_order_valid(skills: list) -> bool:
 	"""
 	Check to see if order of skills are valid (i.e., difference between skills are no greater than 1 tier)
@@ -175,7 +177,7 @@ def _init_guild_data(guild_id: int):
 		new_entry = database_client.mackbot_db.clan_build.insert_one({
 			"guild_id": guild_id,
 			"builds": [],
-			"build_limits": 30,
+			"build_limits": CLAN_BUILDS_LIMIT,
 			"build_count": 0,
 		})
 
