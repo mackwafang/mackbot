@@ -26,7 +26,6 @@ class AboutBot(commands.Cog):
 		if query:
 			m = ""
 			m += f"mackbot v{query[0]['MACKBOT_VERSION']}\n"
-			m += f"mackbot web v{query[0]['MACKBOT_WEB_VERSION']}\n"
 			embed.add_field(name="Version", value=m, inline=False)
 
 		m = ""
