@@ -33,30 +33,30 @@ class Skill(commands.Cog):
 		try:
 			embed = Embed(description=f"## {skill_name.title()}")
 			skill_data = get_skill_data(skill_name)
-			for skill in skill_data:
-				name = skill['name']
-				tree = 'Aircraft Carrier' if skill['tree'] == 'AirCarrier' else skill['tree']
-				description = skill['description']
-				effect = skill['effect']
-				column = skill['x'] + 1
-				tier = skill['y'] + 1
-				category = skill['category']
-				image = skill['image']
 
-				skill_image = discord.File(f"./data/cmdr_skills_images/{image}.png", "icon.png")
-				embed.set_thumbnail(url="attachment://icon.png")
+			name = skill_data['name']
+			image = skill_data['icon']
+			embed.set_thumbnail(url=image)
 
-				# refine effect for better formatting
-				formatted_effect = "> - "+effect.replace("\n", "\n> - ")
+			for ship_type in skill_data['customization']:
+				ship_type_data = skill_data["customization"][ship_type]
+				tree = 'Aircraft Carrier' if ship_type == 'AirCarrier' else ship_type
+
+				description = "".join(perk_data['description'] for perk_data in ship_type_data['perks'])
+
+				column = ship_type_data['column']
+				tier = ship_type_data['tier']
+				category = ship_type_data['category']
+
 
 				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
-				    f"{description}\n{formatted_effect}\n"
+				    f"{description}\n"
 				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
 				embed.description = f"## {name}\n May refer to a skill in one of these skill trees."
 
-			await interaction.channel.send(embed=embed, file=skill_image)
+			await interaction.channel.send(embed=embed)
 
 		except Exception as e:
 			logger.info(f"Exception in skill {type(e)}: {e}. No skill found for {skill_name}")

@@ -112,6 +112,15 @@ class WOWS:
 		"""
 		return self._fetch_data("encyclopedia", "crews")
 
+	def skills(self) -> dict:
+		"""
+		Get commander skills
+
+		Returns:
+			dict -
+		"""
+		return self._fetch_data("encyclopedia", "crewskills")
+
 	def consumables(self) -> dict:
 		"""
 		Get all consumables.

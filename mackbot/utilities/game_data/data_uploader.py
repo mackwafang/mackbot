@@ -7,6 +7,7 @@ from typing import List
 
 from mackbot.constants import UPGRADE_SLOTS_AT_TIER
 from mackbot.exceptions import BuildError, NoUpgradeFound
+from mackbot.data_prep import parse_ship_build
 from mackbot.utilities.game_data.game_data_finder import ship_name_to_ascii, get_ship_data, get_skill_data, get_upgrade_data
 from mackbot.utilities.game_data.warships_data import *
 
@@ -53,110 +54,15 @@ def _parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills,
 	Returns:
 		dict - build data in a container
 	"""
-	data = {
-		"name": build_name,
-		"ship": build_ship_name,
-		"build_id": "",
-		"upgrades": [],
-		"skills": [],
-		"cmdr": build_cmdr,
-		"errors": [],
-		"private": set_private,             # used to differentiate clan builds and public builds
-		"str_errors": [],
-	}
-	# converting upgrades
-	for s, u in enumerate(build_upgrades):
-		try:
-			# blank slot
-			if not len(u):
-				continue
-
-			# any upgrade
-			if u == '*':
-				data['upgrades'].append(-1)
-				continue
-
-			# specified upgrade
-			upgrade_data = get_upgrade_data(u)
-			if upgrade_data['slot'] != s + 1:
-				data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
-			data['upgrades'].append(upgrade_data['consumable_id'])
-
-		except NoUpgradeFound:
-			data['str_errors'].append(f"- Upgrade [{u}] is not an upgrade.")
-			data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
-
-	if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
-		data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
-
-	# converting skills
-	total_skill_pts = 0
-	skill_list_filtered = dict((s, skill_list_simple[s]) for s in skill_list_simple if skill_list_simple[s]['tree'] == ship_data['type'])
-	for s in build_skills:
-		try:
-			if not s:
-				continue
-
-			if s == '*':
-				data['skills'].append(-1)
-				continue
-
-			has_no_match = True
-			for k, v in skill_list_filtered.items():
-				if s.lower() == v['name'].lower():
-					data['skills'].append(v['skill_id'])
-					total_skill_pts += v['y'] + 1
-					has_no_match = False
-					break
-
-			if has_no_match:
-				raise IndexError
-		except IndexError:
-			data['str_errors'].append(f"- Skill [{s}] is not an skill")
-			data['errors'].append(BuildError.SKILLS_INCORRECT)
-
-	skill_order_valid, skill_order_incorrect_at = _check_skill_order_valid(data['skills'])
-	if not skill_order_valid:
-		data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
-	if total_skill_pts > 21:
-		data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
-	elif total_skill_pts < 21:
-		data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
-
-	# compiling errors
-	data['errors'] = list(set(data['errors']))
-	if data['errors']:
-		build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
-		logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
-
-		# for e in data['errors']:
-		# 	data['str_errors'].append(' '.join(e.name.split("_")).title())
-		if not skill_order_valid:
-			data['str_errors'].append(f"- Skills not proper order in skill #{skill_order_incorrect_at}. ")
-
-		if BuildError.SKILLS_POTENTIALLY_MISSING in data['errors']:
-			data['str_errors'].append(f"- Total skill points in this build: {total_skill_pts}")
-			m = "- Skills potentially missing. Points in this builds are: "
-			for skill in data["skills"]:
-				skill_data = dict(database_client.mackbot_db.skill_list.find_one({"skill_id": skill}))
-				# data['str_errors'].append(f"  - {skill_data['name']:<32} ({skill_data['y'] + 1})")
-				m += f"{skill_data['y'] + 1}, "
-			data['str_errors'].append(m[:-2])
-
-		if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
-			data['str_errors'].append(f"- Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']-1]} upgrades.")
-
-		if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
-			for s, upgrade_id in enumerate(data['upgrades']):
-				if upgrade_id == -1:
-					continue
-
-				upgrade_data = upgrade_list[str(upgrade_id)]
-				if upgrade_data['slot'] != s + 1:
-					data['str_errors'].append(f"- Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
-
-	build_id = sha256(str(data).encode()).hexdigest()
-	data['build_id'] = build_id
+	data = parse_ship_build(
+		build_ship_name,
+		build_name,
+		build_upgrades,
+		build_skills,
+		build_cmdr,
+		ship_data,
+		set_private
+	)
 
 	data_copy = data.copy()
 	del data_copy['str_errors']

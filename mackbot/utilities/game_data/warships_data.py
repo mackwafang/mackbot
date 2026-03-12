@@ -52,14 +52,7 @@ try:
 
 	db_skill_list = database_client.mackbot_db.skill_list.find({}, {"_id": 0})
 	for skill in db_skill_list:
-		skill_list_simple[str(skill['skill_id'])] = {
-			'name': skill['name'],
-			'x': skill['x'],
-			'y': skill['y'],
-			'tree': skill['tree'],
-			'abbr': skill['abbr'],
-			'skill_id': skill['skill_id']
-		}
+		skill_list_simple[str(skill['skill_id'])] = skill['name']
 
 except ConnectionError:
 	from mackbot.data_prep import (
