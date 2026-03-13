@@ -47,25 +47,44 @@ class ShowGroup(app_commands.Group):
 			if len(ship_class) <= 2:
 				for h in hull_classification_converter:
 					if ship_class == hull_classification_converter[h].lower():
-						ship_class = h.lower()
+						ship_class = h
 						break
-			if ship_class.lower() in ['cv', 'carrier']:
-				ship_class = 'aircarrier'
-			filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['tree'].lower() == ship_class])
+
+			ship_class = ship_class.title()
+			if ship_class.lower() in ['cv', 'carrier', 'aircarrier']: # add in case for "Aircarrier", i don't wanna deal with this
+				ship_class = 'AirCarrier'
+
+			filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if ship_class.lower() in map(str.lower, list(filtered_skill_list[s]['customization']))])
 		# filter by skill tier
 		tier = [i[2] for i in search_param if len(i[2]) > 0]
 		tier = int(tier[0]) if len(tier) >= 1 else 0
 		if tier != 0:
-			filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['y'] + 1 == tier])
+			filtered_skill_list = dict([(s, filtered_skill_list[s]) for s in filtered_skill_list if filtered_skill_list[s]['customization'][ship_class]['tier'] == tier])
 
 		# select page
 		page = [i[1] for i in search_param if len(i[1]) > 0]
 		page = int(page[0]) if len(page) > 0 else 0
 
 		# generate list of skills
-		m = [
-			f"**({hull_classification_converter[filtered_skill_list[s]['tree']]} T{filtered_skill_list[s]['y'] + 1})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list
-		]
+		if ship_class:
+			m = [f"**({hull_classification_converter[ship_class]} T{filtered_skill_list[s]['customization'][ship_class]['tier']})** {filtered_skill_list[s]['name']}" for s in filtered_skill_list]
+		else:
+			m = []
+			for s in filtered_skill_list:
+				skill = filtered_skill_list[s]
+				for ship_type in skill['customization']:
+					detail = (
+						"**"
+						f"{hull_classification_converter[ship_type]} "
+						f"T{skill['customization'][ship_type]['tier']}"
+						"**"
+						f"{skill['name']}"
+					)
+
+					m.append(detail)
+
+
+
 		# splitting list into pages
 		num_items = len(m)
 		m.sort()
@@ -74,7 +93,7 @@ class ShowGroup(app_commands.Group):
 		m = [m[i:i + items_per_page] for i in range(0, len(m), items_per_page)]
 
 		logger.info(f"found {num_items} items matching criteria: {args}")
-		embed = Embed(description="## Commander Skill (%i/%i)" % (min(1, page+1), max(1, num_pages)))
+		embed = Embed(description="## Commander Skill (%i/%i)" % (max(1, page), max(1, num_pages)))
 		m = m[page]  # select page
 		# spliting selected page into columns
 		m = [m[i:i + items_per_page // 2] for i in range(0, len(m), items_per_page // 2)]
