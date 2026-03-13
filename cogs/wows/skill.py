@@ -32,26 +32,25 @@ class Skill(commands.Cog):
 
 		try:
 			embed = Embed(description=f"## {skill_name.title()}")
-			skill_data = get_skill_data(skill_name)
+			for skill_data in get_skill_data(skill_name):
 
-			name = skill_data['name']
-			image = skill_data['icon']
-			embed.set_thumbnail(url=image)
+				name = skill_data['name']
+				image = skill_data['icon']
+				embed.set_thumbnail(url=image)
 
-			for ship_type in skill_data['customization']:
-				ship_type_data = skill_data["customization"][ship_type]
-				tree = 'Aircraft Carrier' if ship_type == 'AirCarrier' else ship_type
+				for ship_type in skill_data['customization']:
+					ship_type_data = skill_data["customization"][ship_type]
+					tree = 'Aircraft Carrier' if ship_type == 'AirCarrier' else ship_type
 
-				description = "".join(perk_data['description'] for perk_data in ship_type_data['perks'])
+					description = "\n".join(f"- {perk_data['description']}" for perk_data in ship_type_data['perks'])
 
-				column = ship_type_data['column']
-				tier = ship_type_data['tier']
-				category = ship_type_data['category']
+					column = ship_type_data['column']
+					tier = ship_type_data['tier']
 
 
-				m = f"Tier {tier} {category} Skill, Column {column}\n\n" \
-				    f"{description}\n"
-				embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
+					m = f"Tier {tier} Skill, Column {column}\n\n" \
+					    f"{description}\n"
+					embed.add_field(name=f"__{ICONS_EMOJI[tree]} {tree} Skill__", value=m, inline=False)
 
 			if len(skill_data) > 1:
 				embed.description = f"## {name}\n May refer to a skill in one of these skill trees."

@@ -280,12 +280,10 @@ def get_skill_data(skill: str) -> dict:
 	try:
 		if database_client is not None:
 			# connection to db
-			query_result = database_client.mackbot_db.skill_list.find_one({
+			query_result = database_client.mackbot_db.skill_list.find({
 				"name": {"$regex": f"^{skill.lower()}$", "$options": "i"},
 				# "tree": {"$regex": f"^{tree.lower()}$", "$options": "i"}
 			})
-			# TODO: fix this
-			query_result = [dict(i) for i in query_result]
 			if not query_result:
 				raise NoSkillFound
 

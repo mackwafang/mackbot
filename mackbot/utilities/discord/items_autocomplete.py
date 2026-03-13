@@ -64,7 +64,7 @@ async def auto_complete_skill_name(interaction: discord.Interaction, current: st
 	Returns:
 		list
 	"""
-	choices = [app_commands.Choice(name=skill_name, value=skill_name) for skill_name in skill_list_simple.values() if current in skill_name]
+	choices = [app_commands.Choice(name=skill_name, value=skill_name) for skill_name in skill_list_simple.values() if current.lower() in skill_name.lower()]
 	return choices[:25]
 
 async def auto_complete_region(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
