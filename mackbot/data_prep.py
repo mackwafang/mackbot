@@ -117,12 +117,13 @@ def get_google_sheets_creds():
 		with open('token.json', 'w') as token:
 			token.write(_GOOGLE_SHEETS_CREDS.to_json())
 
-def check_skill_order_valid(skills: list) -> bool:
+def check_skill_order_valid(skills: list[int], ship_type: str) -> bool:
 	"""
 	Check to see if order of skills are valid (i.e., difference between skills are no greater than 1 tier)
 	Also, first skill must be a tier 1 skill
 	Args:
-		skills (list): list of skill id
+		skills (list[int]): list of skill id
+		ship_type (str): ship type
 
 	Returns:
 		bool
@@ -130,16 +131,17 @@ def check_skill_order_valid(skills: list) -> bool:
 	if not skills:
 		# no skills is a valid configuration
 		return True
-	is_first_skill_valid = skill_list[str(skills[0])]['y'] == 0
+
+	is_first_skill_valid = skill_list[str(skills[0])]['customization'][ship_type]['tier'] == 1
 	if not is_first_skill_valid:
 		return False
 
-	max_tier_so_far = -1
+	max_tier_so_far = 0
 	for s in skills:
-		skill_data = skill_list[str(s)]
-		if skill_data['y'] > max_tier_so_far + 1:
+		skill_data = skill_list[str(s)]['customization'][ship_type]
+		if skill_data['tier'] > max_tier_so_far + 1:
 			return False
-		max_tier_so_far = max(max_tier_so_far, skill_data['y'])
+		max_tier_so_far = max(max_tier_so_far, skill_data['tier'])
 	return True
 
 def load_game_params():
@@ -163,8 +165,7 @@ def load_skill_list():
 	# loading skills list
 	logger.info("Fetching Skill List")
 	try:
-		with open(os.path.join("data", "skill_list.json")) as f:
-			skill_list.update(json.load(f))
+		skill_list = WG['na'].skills()
 
 		# dictionary that stores skill abbreviation
 		for skill in skill_list:
@@ -1419,7 +1420,7 @@ def parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 
 	# converting skills
 	total_skill_pts = 0
-	skill_list_filtered = dict((s, skill_list[s]) for s in skill_list if skill_list[s]['tree'] == ship_data['type'])
+	skill_list_filtered = {s: skill_list[s] for s in skill_list if ship_data['type'] in skill_list[s]["customization"]}
 	for s in build_skills:
 		try:
 			if not s:
@@ -1432,18 +1433,18 @@ def parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 			has_no_match = True
 			for k, v in skill_list_filtered.items():
 				if s.lower() == v['name'].lower():
-					data['skills'].append(v['skill_id'])
-					total_skill_pts += v['y'] + 1
+					data['skills'].append(int(k))
+					total_skill_pts += v['customization'][ship_data['type']]['tier']
 					has_no_match = False
 					break
 
 			if has_no_match:
-				raise IndexError
+				raise IndexError(f"Skill {s} has no match")
 		except IndexError:
 			logger.warning(f"skill [{s}] is not an skill!")
 			data['errors'].append(BuildError.SKILLS_INCORRECT)
 
-	if not check_skill_order_valid(data['skills']):
+	if not check_skill_order_valid(data['skills'], ship_data['type']):
 		data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
 	if total_skill_pts > 21:
 		data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
@@ -1458,10 +1459,12 @@ def parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 		if BuildError.SKILLS_POTENTIALLY_MISSING in data['errors']:
 			logger.warning(f"Total skill points in this build: {total_skill_pts}")
 
+		# display skills
 		logger.info(f"Skill orders are:")
 		for skill in data["skills"]:
-			logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['y'] + 1})")
+			logger.warning(f"{skill_list[str(skill)]['name']:<32} ({skill_list[str(skill)]['customization'][ship_data['type']]['tier']})")
 
+		# display upgrades
 		if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
 			logger.warning(f"Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier']]} upgrades.")
 

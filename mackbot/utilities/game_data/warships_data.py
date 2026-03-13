@@ -53,12 +53,11 @@ try:
 	db_skill_list = database_client.mackbot_db.skill_list.find({}, {"_id": 0})
 	for skill in db_skill_list:
 		skill_list_simple[str(skill['skill_id'])] = {
-			'name': skill['name'],
-			'x': skill['x'],
-			'y': skill['y'],
-			'tree': skill['tree'],
-			'abbr': skill['abbr'],
-			'skill_id': skill['skill_id']
+			"type_name": skill['type_name'],
+			"type_id": skill['type_id'],
+			"name": skill['name'],
+			"customization": skill['customization'].copy(),
+			"abbr": skill['abbr'],
 		}
 
 except ConnectionError:

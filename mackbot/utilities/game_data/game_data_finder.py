@@ -278,28 +278,12 @@ def get_skill_data(skill: str) -> dict:
 	"""
 	skill = skill.lower()
 	try:
-		# filter skills by tree
-		ship_class_lookup = [i.lower() for i in hull_classification_converter.keys()] + [i.lower() for i in hull_classification_converter.values()]
-		hull_class_lower = dict([(i.lower(), hull_classification_converter[i].lower()) for i in hull_classification_converter])
-
-		# if tree not in ship_class_lookup:
-		# 	# requested type is not in
-		# 	raise SkillTreeInvalid(f"Expected {', '.join(i for i in ship_class_lookup)}. Got {tree}.")
-		# else:
-			# convert from hull classification to word
-			# if tree not in hull_class_lower:
-			# 	for h in hull_class_lower:
-			# 		if hull_class_lower[h].lower() == tree:
-			# 			tree = h.lower()
-			# 			break
-
 		if database_client is not None:
 			# connection to db
 			query_result = database_client.mackbot_db.skill_list.find({
 				"name": {"$regex": f"^{skill.lower()}$", "$options": "i"},
 				# "tree": {"$regex": f"^{tree.lower()}$", "$options": "i"}
 			})
-			query_result = [dict(i) for i in query_result]
 			if not query_result:
 				raise NoSkillFound
 
@@ -311,8 +295,6 @@ def get_skill_data(skill: str) -> dict:
 				for lookup_type in ['name', 'abbr']:
 					if skill_list[skill][lookup_type].lower() == skill:
 						s = skill_list[skill].copy()
-						if s['tree'] == 'AirCarrier':
-							s['tree'] = "Aircraft Carrier"
 
 						return_dict[skill] = s
 			if len(return_dict):
@@ -322,14 +304,10 @@ def get_skill_data(skill: str) -> dict:
 	except Exception as e:
 		if skill == "*":
 			return {
-				'category': 'Any',
-				'description': 'Any skill',
-				'effect': '',
-				'skill_id': -1,
-				'name': 'Any',
-				'tree': 'Any',
-				'x': -1,
-				'y': -1,
+				"type_name": "Skill",
+				"type_id": 0,
+				"name": "Consumable Enhancements",
+				"customization": {}
 			}
 		# oops, probably not found
 		logger.info(f"Exception in get_skill_data: {type(e)}: {e}. Tried to find skill with name {skill}.")

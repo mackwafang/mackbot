@@ -83,11 +83,11 @@ class ClanGroup(app_commands.Group):
 				["ship_name","build_name","upgrade1","upgrade2","upgrade3","upgrade4","upgrade5","upgrade6","skill1","skill2","skill3","skill4","skill5","skill6","skill7","skill8","skill9","skill10","skill11","skill12","skill13","skill14",
 				 "skill15","skill16","cmdr_name"],
 				["midway", "test", "agm1", "aem1", "atm1", "tbm2", "fcm1", "fcm2", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
-				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+				 "combat maneuver specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
 				["lexington", "another test", "agm1", "aem1", "atm1", "tbm2", "fcm1", "", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
-				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+				 "combat maneuver specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
 				["shoukaku", "dank cv build", "agm1", "aem1", "atm1", "tbm2", "fcm1", "", "air supremacy", " improved engines", " survivability expert", " aircraft armor", " enhanced aircraft armor", " proximity fuze", " torpedo bomber",
-				 "repair specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
+				 "combat maneuver specialist", " ", " ", " ", " ", " ", " ", " ", " ", "*"],
 			])
 
 		with open(sample_file_dir, "rb") as f:
