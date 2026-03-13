@@ -132,13 +132,13 @@ def check_skill_order_valid(skills: list[int], ship_type: str) -> bool:
 		# no skills is a valid configuration
 		return True
 
-	is_first_skill_valid = skill_list[skills[0]]['customization'][ship_type]['tier'] == 1
+	is_first_skill_valid = skill_list[str(skills[0])]['customization'][ship_type]['tier'] == 1
 	if not is_first_skill_valid:
 		return False
 
 	max_tier_so_far = 0
 	for s in skills:
-		skill_data = skill_list[s]['customization'][ship_type]
+		skill_data = skill_list[str(s)]['customization'][ship_type]
 		if skill_data['tier'] > max_tier_so_far + 1:
 			return False
 		max_tier_so_far = max(max_tier_so_far, skill_data['tier'])
@@ -1433,7 +1433,7 @@ def parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, 
 			has_no_match = True
 			for k, v in skill_list_filtered.items():
 				if s.lower() == v['name'].lower():
-					data['skills'].append(k)
+					data['skills'].append(int(k))
 					total_skill_pts += v['customization'][ship_data['type']]['tier']
 					has_no_match = False
 					break

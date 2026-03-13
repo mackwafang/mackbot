@@ -15,12 +15,13 @@ database_client = MongoClient(mongodb_host)
 
 CLAN_BUILDS_LIMIT = 120
 
-def _check_skill_order_valid(skills: list) -> bool:
+def _check_skill_order_valid(skills: list, ship_type: str) -> bool:
 	"""
 	Check to see if order of skills are valid (i.e., difference between skills are no greater than 1 tier)
 	The first skill must be a tier 1 skill
 	Args:
 		skills (list): list of skill id
+		ship_type (str): type of current ship
 
 	Returns:
 		(bool, index)
@@ -32,12 +33,12 @@ def _check_skill_order_valid(skills: list) -> bool:
 	if not is_first_skill_valid:
 		return False, 1
 
-	max_tier_so_far = -1
+	max_tier_so_far = 0
 	for i, s in enumerate(skills):
 		skill_data = database_client.mackbot_db.skill_list.find_one({"skill_id": s})
-		if skill_data['y'] > max_tier_so_far + 1:
+		if skill_data['customization'][ship_type]['tier'] > max_tier_so_far + 1:
 			return False, i+1
-		max_tier_so_far = max(max_tier_so_far, skill_data['y'])
+		max_tier_so_far = max(max_tier_so_far, skill_data['customization'][ship_type]['tier'])
 	return True, 0
 
 def _parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills, build_cmdr, ship_data, set_private=False):
@@ -54,15 +55,112 @@ def _parse_ship_build(build_ship_name, build_name, build_upgrades, build_skills,
 	Returns:
 		dict - build data in a container
 	"""
-	data = parse_ship_build(
-		build_ship_name,
-		build_name,
-		build_upgrades,
-		build_skills,
-		build_cmdr,
-		ship_data,
-		set_private
-	)
+
+	data = {
+		"name": build_name,
+		"ship": build_ship_name,
+		"build_id": "",
+		"upgrades": [],
+		"skills": [],
+		"cmdr": build_cmdr,
+		"errors": [],
+		"private": set_private,  # used to differentiate clan builds and public builds
+		"str_errors": [],
+	}
+	# converting upgrades
+	for s, u in enumerate(build_upgrades):
+		try:
+			# blank slot
+			if not len(u):
+				continue
+
+			# any upgrade
+			if u == '*':
+				data['upgrades'].append(-1)
+				continue
+
+			# specified upgrade
+			upgrade_data = get_upgrade_data(u)
+			if upgrade_data['slot'] != s + 1:
+				data['errors'].append(BuildError.UPGRADE_IN_WRONG_SLOT)
+			data['upgrades'].append(upgrade_data['consumable_id'])
+
+		except NoUpgradeFound:
+			data['str_errors'].append(f"- Upgrade [{u}] is not an upgrade.")
+			data['errors'].append(BuildError.UPGRADE_NOT_FOUND)
+
+	if len(data['upgrades']) > UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]:
+		data['errors'].append(BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS)
+
+	# converting skills
+	total_skill_pts = 0
+
+	skill_list_filtered = {s: skill_list_simple[s] for s in skill_list_simple if ship_data['type'] in skill_list_simple[s]["customization"]}
+	for s in build_skills:
+		try:
+			if not s:
+				continue
+
+			if s == '*':
+				data['skills'].append(-1)
+				continue
+
+			has_no_match = True
+			for k, v in skill_list_filtered.items():
+				if s.lower() == v['name'].lower():
+					data['skills'].append(int(k))
+					total_skill_pts += v['customization'][ship_data['type']]['tier']
+					has_no_match = False
+					break
+
+			if has_no_match:
+				raise IndexError
+		except IndexError:
+			data['str_errors'].append(f"- Skill [{s}] is not an skill")
+			data['errors'].append(BuildError.SKILLS_INCORRECT)
+
+	skill_order_valid, skill_order_incorrect_at = _check_skill_order_valid(data['skills'], ship_data['type'])
+	if not skill_order_valid:
+		data['errors'].append(BuildError.SKILLS_ORDER_INVALID)
+	if total_skill_pts > 21:
+		data['errors'].append(BuildError.SKILL_POINTS_EXCEED)
+	elif total_skill_pts < 21:
+		data['errors'].append(BuildError.SKILLS_POTENTIALLY_MISSING)
+
+	# compiling errors
+	data['errors'] = list(set(data['errors']))
+	if data['errors']:
+		build_error_strings = ', '.join(' '.join(i.name.split("_")).title() for i in data['errors'])
+		logger.warning(f"Build for ship [{build_ship_name} | {build_name}] has the following errors: {build_error_strings}")
+
+		# for e in data['errors']:
+		# 	data['str_errors'].append(' '.join(e.name.split("_")).title())
+		if not skill_order_valid:
+			data['str_errors'].append(f"- Skills not proper order in skill #{skill_order_incorrect_at}. ")
+
+		if BuildError.SKILLS_POTENTIALLY_MISSING in data['errors']:
+			data['str_errors'].append(f"- Total skill points in this build: {total_skill_pts}")
+			m = "- Skills potentially missing. Points in this builds are: "
+			for skill in data["skills"]:
+				skill_data = dict(database_client.mackbot_db.skill_list.find_one({"skill_id": skill}))
+				# data['str_errors'].append(f"  - {skill_data['name']:<32} ({skill_data['y'] + 1})")
+				m += f"{skill_data['customization'][ship_data['type']]['tier']}, "
+			data['str_errors'].append(m[:-2])
+
+		if BuildError.UPGRADE_EXCEED_MAX_ALLOWED_SLOTS in data['errors']:
+			data['str_errors'].append(f"- Found {len(build_upgrades)} upgrades. Expects {UPGRADE_SLOTS_AT_TIER[ship_data['tier'] - 1]} upgrades.")
+
+		if BuildError.UPGRADE_IN_WRONG_SLOT in data['errors']:
+			for s, upgrade_id in enumerate(data['upgrades']):
+				if upgrade_id == -1:
+					continue
+
+				upgrade_data = upgrade_list[str(upgrade_id)]
+				if upgrade_data['slot'] != s + 1:
+					data['str_errors'].append(f"- Upgrade {upgrade_data['name']} ({upgrade_data['consumable_id']}) expects slot {upgrade_data['slot']}, currently in slot {s + 1}")
+
+	build_id = sha256(str(data).encode()).hexdigest()
+	data['build_id'] = build_id
 
 	data_copy = data.copy()
 	del data_copy['str_errors']
@@ -131,7 +229,7 @@ def clan_build_upload(build_list: List[List], guild_id: int):
 				has_error = True
 
 			if build_data['errors']:
-				m += f"{chr(10).join(build_data['str_errors'])}"
+				m += "\n".join(f"{error}" for error in build_data['str_errors'])
 				has_error = True
 			else:
 				del build_data['str_errors']
