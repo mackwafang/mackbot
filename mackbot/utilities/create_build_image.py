@@ -4,6 +4,7 @@ import requests
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageFont, ImageDraw
+from urllib.parse import urlparse
 
 from mackbot.utilities.game_data.warships_data import database_client, skill_list, game_data
 from mackbot.utilities.game_data.game_data_finder import get_ship_data
@@ -110,30 +111,32 @@ def create_build_image(
 
 	for skill_id, skill in skill_list_filtered_by_ship_type.items():
 		# skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
-		skill_image_filename = skill['icon']
+		skill_image_filename = Path(urlparse(skill['icon']).path).name
+		skill_image_file_path = (Path.cwd() / "tmp" / skill_image_filename)
 
+		if not skill_image_file_path.exists():
+			res = requests.get(skill['icon'])
+			with Image.open(BytesIO(res.content)) as temp_img:
+				temp_img.save(skill_image_file_path)
 
+		with Image.open(skill_image_file_path).convert("RGBA") as skill_image:
 
-		if os.path.isfile(skill_image_filename):
-			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
+			coord = (
+				SKILL_IMAGE_POS_INIT[0] + (skill['customization'][ship['type']]['column'] * (skill_image.width + ITEMS_SPACING)),
+				SKILL_IMAGE_POS_INIT[1] + ((skill['customization'][ship['type']]['tier'] - 1) * skill_image.height)
+			)
 
-				coord = (
-					SKILL_IMAGE_POS_INIT[0] + (skill['customization'][ship['type']]['column'] * (skill_image.width + ITEMS_SPACING)),
-					SKILL_IMAGE_POS_INIT[1] + ((skill['customization'][ship['type']]['tier'] - 1) * skill_image.height)
-				)
-
-
-				if int(skill_id) in build_skills:
-					# indicate user should take this skill
-					skill_image = Image.composite(SKILL_ACQUIRE_COLOR, skill_image, skill_image)
-					# add number to indicate order should user take this skill
-					skill_acquired_order = build_skills.index(int(skill_id)) + 1
-					image.paste(skill_image, coord, skill_image)
-					draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
-				else:
-					# fade out unneeded skills
-					skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.8)
-					image.paste(skill_image, coord, skill_image)
+			if int(skill_id) in build_skills:
+				# indicate user should take this skill
+				skill_image = Image.composite(SKILL_ACQUIRE_COLOR, skill_image, skill_image)
+				# add number to indicate order should user take this skill
+				skill_acquired_order = build_skills.index(int(skill_id)) + 1
+				image.paste(skill_image, coord, skill_image)
+				draw.text((coord[0], coord[1] + 40), str(skill_acquired_order), fill=(255, 255, 255, 255), font=font, stroke_width=3, stroke_fill=(0, 0, 0, 255))
+			else:
+				# fade out unneeded skills
+				skill_image = Image.blend(skill_image, Image.new("RGBA", skill_image.size, (0, 0, 0, 0)), 0.8)
+				image.paste(skill_image, coord, skill_image)
 
 	# draw upgrades
 	draw.rounded_rectangle(
