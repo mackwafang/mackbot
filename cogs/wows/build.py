@@ -101,6 +101,7 @@ class Build(commands.Cog):
 				else:
 					await interaction.channel.send(f"Input {user_selected_build_id} is incorrect")
 
+			# returns the selected build
 			if not builds:
 				raise NoBuildFound
 			else:

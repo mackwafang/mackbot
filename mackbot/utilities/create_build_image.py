@@ -1,9 +1,13 @@
 import os, textwrap
+import requests
+
+from io import BytesIO
+from pathlib import Path
+from PIL import Image, ImageFont, ImageDraw
 
 from mackbot.utilities.game_data.warships_data import database_client, skill_list, game_data
 from mackbot.utilities.game_data.game_data_finder import get_ship_data
 from mackbot.constants import ROMAN_NUMERAL, ITEMS_TO_UPPER
-from PIL import Image, ImageFont, ImageDraw
 
 DISCLAIMER_TEXT = ["Please Note:",] + textwrap.wrap(
 	"mackbot ship build should be used as a base for your builds.",
@@ -86,11 +90,8 @@ def create_build_image(
 	draw.text((image.width - 8, 36), f"{build_title} Build", fill=(255, 255, 255, 255), font=font, anchor='rm', stroke_fill=(0, 0, 0, 255), stroke_width=2)
 
 	# get skills from this ship's tree
-	if database_client is not None:
-		query_result = database_client.mackbot_db.skill_list.find({"tree": ship['type']}, {"_id": 0})
-		skill_list_filtered_by_ship_type = {i['skill_id']: i for i in query_result}
-	else:
-		skill_list_filtered_by_ship_type = {k: v for k, v in skill_list.items() if v['tree'] == ship['type']}
+	query_result = database_client.mackbot_db.skill_list.find({f"customization.{ship['type']}": {"$exists": True}}, {"_id": 0})
+	skill_list_filtered_by_ship_type = {i['skill_id']: i for i in query_result}
 
 	# draw skills
 	draw.rounded_rectangle(
@@ -107,16 +108,20 @@ def create_build_image(
 		width=2,
 	)
 
-	for skill_id in skill_list_filtered_by_ship_type:
-		skill = skill_list_filtered_by_ship_type[skill_id]
-		skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
+	for skill_id, skill in skill_list_filtered_by_ship_type.items():
+		# skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
+		skill_image_filename = skill['icon']
+
+
+
 		if os.path.isfile(skill_image_filename):
 			with Image.open(skill_image_filename).convert("RGBA") as skill_image:
 
 				coord = (
-					SKILL_IMAGE_POS_INIT[0] + (skill['x'] * (skill_image.width + ITEMS_SPACING)),
-					SKILL_IMAGE_POS_INIT[1] + (skill['y'] * skill_image.height)
+					SKILL_IMAGE_POS_INIT[0] + (skill['customization'][ship['type']]['column'] * (skill_image.width + ITEMS_SPACING)),
+					SKILL_IMAGE_POS_INIT[1] + ((skill['customization'][ship['type']]['tier'] - 1) * skill_image.height)
 				)
+
 
 				if int(skill_id) in build_skills:
 					# indicate user should take this skill
