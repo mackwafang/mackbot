@@ -111,7 +111,7 @@ def create_build_image(
 
 	for skill_id, skill in skill_list_filtered_by_ship_type.items():
 		# skill_image_filename = os.path.join("data", "cmdr_skills_images", skill['image'] + ".png")
-		skill_image_filename = Path(urlparse(skill['icon']).path).name
+		skill_image_filename = Path(urlparse(skill['local_image']).path).name
 		skill_image_file_path = (Path.cwd() / "tmp" / skill_image_filename)
 
 		if not skill_image_file_path.exists():
@@ -122,7 +122,7 @@ def create_build_image(
 		with Image.open(skill_image_file_path).convert("RGBA") as skill_image:
 
 			coord = (
-				SKILL_IMAGE_POS_INIT[0] + (skill['customization'][ship['type']]['column'] * (skill_image.width + ITEMS_SPACING)),
+				SKILL_IMAGE_POS_INIT[0] + ((skill['customization'][ship['type']]['column'] - 1) * (skill_image.width + ITEMS_SPACING)),
 				SKILL_IMAGE_POS_INIT[1] + ((skill['customization'][ship['type']]['tier'] - 1) * skill_image.height)
 			)
 
@@ -159,7 +159,7 @@ def create_build_image(
 				query_result = list(database_client.mackbot_db.upgrade_list.find({"consumable_id": u}))
 				if query_result is None:
 					continue
-				upgrade_image_dir = os.path.join("data", query_result[0]['local_image'])
+				upgrade_image_dir = os.path.join(query_result[0]['local_image'])
 			else:
 				upgrade_index = [game_data[i]['index'] for i in game_data if game_data[i]['id'] == u][0]
 				upgrade_image_dir = image_file_dict[upgrade_index]
