@@ -1,4 +1,5 @@
 import traceback, json, pickle, io, threading, os
+import requests
 
 from hashlib import sha256
 from pymongo import MongoClient
@@ -7,7 +8,11 @@ from itertools import count
 from math import inf
 from enum import IntEnum, auto
 from tqdm import tqdm
+from pathlib import Path
 from pprint import pprint
+from io import BytesIO
+from PIL import Image
+from urllib.parse import urlparse
 
 from mackbot.ballistics import ballistics
 from mackbot.constants import nation_dictionary, hull_classification_converter, UPGRADE_SLOTS_AT_TIER
@@ -169,6 +174,18 @@ def load_skill_list():
 
 		# dictionary that stores skill abbreviation
 		for skill in skill_list:
+
+			url = skill_list[skill]['icon']
+			image_name = Path(urlparse(url).path).name
+			local_path = (Path.cwd() / "data" / "cmdr_skills_images" / image_name)
+			if not local_path.exists():
+				res = requests.get(url)
+				with Image.open(BytesIO(res.content)) as img:
+					img.save(local_path)
+
+			# add local path for skills
+			skill_list[skill]['local_image'] = str(local_path.relative_to(Path.cwd()).as_posix())
+
 			# generate abbreviation
 			abbr_name = ''.join([i[0] for i in skill_list[skill]['name'].lower().split()])
 			skill_list[skill]['abbr'] = abbr_name
@@ -262,16 +279,22 @@ def load_upgrade_list():
 		if c_type == 'Camouflage' or c_type == 'Permoflage' or c_type == 'Skin':
 			# grab camouflages and stores
 			camo_list[consumable] = misc_list[consumable]
+
 		if c_type == 'Modernization':
 			# grab upgrades and store
 			upgrade_list[consumable] = misc_list[consumable]
 
+			# download images
 			url = upgrade_list[consumable]['image']
-			url = url[:url.rfind('_')]
-			url = url[url.rfind('/') + 1:]
+			image_name = Path(urlparse(url).path).name
+			local_path = (Path.cwd() / "data" / "modernization_icons" / image_name)
+			if not local_path.exists():
+				res = requests.get(url)
+				with Image.open(BytesIO(res.content)) as img:
+					img.save(local_path)
 
 			# initializing stuff for excluding obsolete upgrades
-			upgrade_list[consumable]['local_image'] = f'./modernization_icons/{url}.png'
+			upgrade_list[consumable]['local_image'] = str(local_path.relative_to(Path.cwd()).as_posix())
 			upgrade_list[consumable]['is_special'] = ''
 			upgrade_list[consumable]['ship_restriction'] = []
 			upgrade_list[consumable]['nation_restriction'] = []

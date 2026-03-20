@@ -101,6 +101,7 @@ class Build(commands.Cog):
 				else:
 					await interaction.channel.send(f"Input {user_selected_build_id} is incorrect")
 
+			# returns the selected build
 			if not builds:
 				raise NoBuildFound
 			else:
@@ -167,8 +168,8 @@ class Build(commands.Cog):
 								else:
 									skill = skill_list[str(s)]
 								skill_name = skill['name']
-								col = skill['x'] + 1
-								tier = skill['y'] + 1
+								col = skill['customization'][ship_type]['column']
+								tier = skill['customization'][ship_type]['tier']
 							except Exception as e:
 								logger.info(f"Exception {type(e)} {e} in ship, listing skill {i}")
 								error_value_found = True
